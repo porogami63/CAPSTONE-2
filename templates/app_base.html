@@ -11,7 +11,7 @@
 </head>
 <body>
     <div class="app-shell">
-        <aside class="app-sidebar">
+        <aside class="app-sidebar" id="appSidebar">
             <div class="brand-block">
                 <div class="logo-text">HTC Core</div>
                 <div class="logo-sub">Heindrich Trading Corp.</div>
@@ -37,9 +37,18 @@
                 </form>
             </div>
         </aside>
+        <div class="sidebar-backdrop" data-sidebar-backdrop></div>
         <div class="app-main-wrap">
             <header class="app-topbar">
-                <h1>{% block topbar_title %}HTC Core{% endblock %}</h1>
+                <div class="topbar-left">
+                    <button class="sidebar-toggle" type="button" aria-controls="appSidebar" aria-expanded="false" data-sidebar-toggle>
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div>
+                        <h1>{% block topbar_title %}HTC Core{% endblock %}</h1>
+                        <div class="topbar-subtitle">Integrated procurement and financial tracking</div>
+                    </div>
+                </div>
                 <span class="role-badge">{{ user_role }}</span>
             </header>
             <main class="app-main">
@@ -53,5 +62,45 @@
         </div>
     </div>
     {% block scripts %}{% endblock %}
+    <script>
+        (function () {
+            const toggle = document.querySelector('[data-sidebar-toggle]');
+            const backdrop = document.querySelector('[data-sidebar-backdrop]');
+            const navLinks = document.querySelectorAll('.app-sidebar .nav-link');
+
+            function setSidebarOpen(isOpen) {
+                document.body.classList.toggle('sidebar-open', isOpen);
+                if (toggle) {
+                    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                }
+            }
+
+            if (toggle) {
+                toggle.addEventListener('click', function () {
+                    setSidebarOpen(!document.body.classList.contains('sidebar-open'));
+                });
+            }
+
+            if (backdrop) {
+                backdrop.addEventListener('click', function () {
+                    setSidebarOpen(false);
+                });
+            }
+
+            navLinks.forEach(function (link) {
+                link.addEventListener('click', function () {
+                    if (window.innerWidth <= 992) {
+                        setSidebarOpen(false);
+                    }
+                });
+            });
+
+            window.addEventListener('resize', function () {
+                if (window.innerWidth > 992) {
+                    setSidebarOpen(false);
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

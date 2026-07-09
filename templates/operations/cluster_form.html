@@ -6,14 +6,15 @@
     <h2>Create Transaction</h2>
     <p>New contract cluster with purchase order and logistics record.</p>
 </div>
-<div class="content-card" style="max-width:720px;padding:1.5rem;">
-<form method="post">{% csrf_token %}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+<div class="form-panel" style="max-width:760px;">
+<form method="post" class="form-stack">{% csrf_token %}
+    <div class="form-grid">
         {% for field in form %}
         <div class="form-field">
-            <label>{{ field.label }}</label>
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
             {{ field }}
-            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+            {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
         </div>
         {% endfor %}
     </div>

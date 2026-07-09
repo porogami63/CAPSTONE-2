@@ -21,6 +21,8 @@ services:
       DATABASE_URL: postgres://htc:htc@db:5432/htc_core
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CELERY_TASK_ALWAYS_EAGER: "False"
+      CELERY_TASK_EAGER_PROPAGATES: "False"
     depends_on:
       db:
         condition: service_healthy
@@ -33,6 +35,8 @@ services:
     environment:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CELERY_TASK_ALWAYS_EAGER: "False"
+      CELERY_TASK_EAGER_PROPAGATES: "False"
     depends_on:
       redis:
         condition: service_healthy

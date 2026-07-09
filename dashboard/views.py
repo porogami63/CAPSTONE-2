@@ -43,9 +43,6 @@ def home(request):
     weekly_labels = ["W1", "W2", "W3", "W4"]
     inflow_data = [1200000, 1500000, 1100000, 1800000]
     outflow_data = [900000, 1200000, 1400000, 1000000]
-    import locale
-    locale.setlocale(locale.LC_ALL, '')
-    # For robust formatting without locale dependency
     net_cash_flow = sum(inflow_data) - sum(outflow_data)
     net_cash_flow_str = f"₱{net_cash_flow:,.0f}"
 

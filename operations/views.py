@@ -102,6 +102,7 @@ def update_logistics(request, pk):
         form = LogisticsUpdateForm(request.POST, instance=logistics)
         if form.is_valid():
             form.save()
+            logistics._compute_variance()
             if logistics.variance_exceeds_tolerance:
                 messages.warning(
                     request,

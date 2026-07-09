@@ -27,6 +27,8 @@ services:
       SECRET_KEY: pilot-change-me-before-uat
       ALLOWED_HOSTS: localhost,127.0.0.1,nginx
       DATABASE_URL: postgres://htc:htc@db:5432/htc_core
+      CELERY_TASK_ALWAYS_EAGER: "True"
+      CELERY_TASK_EAGER_PROPAGATES: "True"
     expose:
       - "8000"
     depends_on:
