@@ -1,0 +1,31 @@
+{% extends "app_base.html" %}
+{% block title %}Master Data · HTC Core{% endblock %}
+{% block topbar_title %}Master Data{% endblock %}
+{% block content %}
+<div class="page-header mb-4">
+    <h2>Master Registries</h2>
+    <p>Clients, sugar mills, and logistics partners from imported 2026 data.</p>
+</div>
+<div class="grid-2">
+    <div class="content-card">
+        <div class="card-header-htc">Clients ({{ clients|length }})</div>
+        {% for c in clients %}
+        <div class="alert-list-item"><span>{{ c.name }}</span></div>
+        {% empty %}<div class="alert-list-item text-muted">None</div>{% endfor %}
+    </div>
+    <div class="content-card">
+        <div class="card-header-htc">Sugar Mills ({{ mills|length }})</div>
+        {% for m in mills %}
+        <div class="alert-list-item"><span>{{ m.name }}</span></div>
+        {% empty %}<div class="alert-list-item text-muted">None</div>{% endfor %}
+    </div>
+    <div class="content-card" style="grid-column:1/-1;">
+        <div class="card-header-htc">Logistics Partners ({{ partners|length }})</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);">
+        {% for p in partners %}
+        <div class="alert-list-item"><span>{{ p.name }}</span></div>
+        {% empty %}<div class="alert-list-item text-muted">None</div>{% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

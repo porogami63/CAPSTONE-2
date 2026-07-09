@@ -1,0 +1,56 @@
+{% extends "app_base.html" %}
+{% load role_tags %}
+{% block title %}Transactions · HTC Core{% endblock %}
+{% block topbar_title %}Transactions{% endblock %}
+{% block content %}
+<div class="page-header flex-start mb-4">
+    <div>
+        <h2>2026 Transaction Summary</h2>
+        <p>Imported from HTC consolidated sheet — SI, logistics, quantities{% if user|has_perm:"view_financial_summary" %}, and receivables{% endif %}.</p>
+    </div>
+    {% if user|has_perm:"create_transaction" %}
+    <a href="{% url 'operations:cluster_create' %}" class="btn-htc"><i class="bi bi-plus-lg"></i> New Transaction</a>
+    {% endif %}
+</div>
+<div class="content-card">
+    <div style="overflow-x:auto;">
+        <table class="table-htc">
+            <thead>
+                <tr>
+                    <th>SI #</th><th>Date</th><th>Barge</th><th>Customer</th><th>Source</th>
+                    <th>Delivered</th><th>Received</th><th>Variance</th>
+                    {% if user|has_perm:"view_financial_summary" %}<th>Receivable</th>{% endif %}
+                    <th>Status</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for c in clusters %}
+            <tr>
+                <td><strong>{{ c.reference_code }}</strong></td>
+                <td>{% if c.primary_invoice %}{{ c.primary_invoice.issued_at|date:"M d, Y" }}{% else %}—{% endif %}</td>
+                <td>{{ c.logistics.partner.name|default:"—" }}</td>
+                <td>{{ c.client.name }}</td>
+                <td>{{ c.sugar_mill.name }}</td>
+                <td>{{ c.logistics.loaded_volume_mt|default:"—" }}</td>
+                <td>{{ c.logistics.received_volume_mt|default:"—" }}</td>
+                <td>
+                    {% if c.logistics.variance_exceeds_tolerance %}
+                    <span class="badge-variance">{{ c.logistics.variance_percent|floatformat:2 }}%</span>
+                    {% elif c.logistics.variance_percent %}
+                    <span style="color:var(--htc-success);font-size:0.8rem;">{{ c.logistics.variance_percent|floatformat:2 }}%</span>
+                    {% else %}—{% endif %}
+                </td>
+                {% if user|has_perm:"view_financial_summary" %}
+                <td>{% if c.primary_invoice and c.primary_invoice.amount %}₱{{ c.primary_invoice.amount|floatformat:0 }}{% else %}—{% endif %}</td>
+                {% endif %}
+                <td><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></td>
+                <td><a href="{% url 'operations:cluster_detail' c.pk %}">Open</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="11" style="padding:2rem;text-align:center;color:#718096;">No transactions.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

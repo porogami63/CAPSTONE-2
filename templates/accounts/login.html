@@ -1,0 +1,52 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Login · HTC Core{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}?v=3" rel="stylesheet">
+</head>
+<body>
+    <div class="login-card-container">
+        <div class="login-card">
+            <div class="login-card-brand-icon">MT</div>
+            <h1 class="login-card-title">Molasses Trading</h1>
+            <p class="login-card-subtitle">Management System</p>
+            
+            <div class="login-card-divider"></div>
+            
+            {% if messages %}
+                {% for message in messages %}
+                <div style="background:#fed7d7;color:#9b2c2c;padding:0.75rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;text-align:center;">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+            
+            <form method="post">{% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label-htc">Username</label>
+                    <input type="text" name="username" class="form-control-htc" required autofocus placeholder="Enter username">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label-htc">Password</label>
+                    <input type="password" name="password" class="form-control-htc" required placeholder="Enter password">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label-htc">Role (Optional)</label>
+                    <select class="form-control-htc" name="role_optional">
+                        <option value="">Select role</option>
+                        <option value="management">Management</option>
+                        <option value="finance">Finance</option>
+                        <option value="operations">Operations</option>
+                        <option value="invoicing">Invoicing</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-htc-primary">Login</button>
+            </form>
+            
+            <a href="#" class="login-card-forgot">Forgot password?</a>
+        </div>
+    </div>
+</body>
+</html>

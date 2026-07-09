@@ -1,0 +1,29 @@
+{% extends "app_base.html" %}
+{% block title %}Audit Trail · HTC Core{% endblock %}
+{% block topbar_title %}Audit Trail{% endblock %}
+{% block content %}
+<div class="page-header mb-4">
+    <h2>Immutable Audit Trail</h2>
+    <p>Append-only log of all financial record changes. Management access only.</p>
+</div>
+<div class="content-card">
+    <div style="overflow-x:auto;">
+        <table class="table-htc">
+            <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Table</th><th>Record</th></tr></thead>
+            <tbody>
+            {% for e in entries %}
+            <tr>
+                <td>{{ e.timestamp|date:"Y-m-d H:i" }}</td>
+                <td>{{ e.user|default:"system" }}</td>
+                <td>{{ e.get_action_display }}</td>
+                <td>{{ e.table_name }}</td>
+                <td>{{ e.record_id }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="padding:2rem;text-align:center;color:#718096;">No audit entries yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

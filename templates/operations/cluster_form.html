@@ -1,0 +1,26 @@
+{% extends "app_base.html" %}
+{% block title %}New Transaction · HTC Core{% endblock %}
+{% block topbar_title %}New Transaction{% endblock %}
+{% block content %}
+<div class="page-header mb-4">
+    <h2>Create Transaction</h2>
+    <p>New contract cluster with purchase order and logistics record.</p>
+</div>
+<div class="content-card" style="max-width:720px;padding:1.5rem;">
+<form method="post">{% csrf_token %}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        {% for field in form %}
+        <div class="form-field">
+            <label>{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="flex gap-2 mt-3">
+        <button type="submit" class="btn-htc">Create Transaction</button>
+        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline">Cancel</a>
+    </div>
+</form>
+</div>
+{% endblock %}

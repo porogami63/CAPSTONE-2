@@ -1,0 +1,38 @@
+# Phase 2: Celery + Redis (matches capstone Figure 3.4 async layer)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.phase2.yml up --build
+
+services:
+  redis:
+    image: redis:7-alpine
+    networks:
+      - htc_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build: .
+    command: celery -A config worker -l info
+    environment:
+      DEBUG: "False"
+      SECRET_KEY: pilot-change-me-before-uat
+      DATABASE_URL: postgres://htc:htc@db:5432/htc_core
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - htc_net
+
+  web:
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy

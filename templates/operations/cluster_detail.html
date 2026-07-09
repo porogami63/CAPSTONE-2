@@ -1,0 +1,126 @@
+{% extends "app_base.html" %}
+{% load role_tags %}
+{% block title %}{{ cluster.reference_code }} · HTC Core{% endblock %}
+{% block topbar_title %}{{ cluster.reference_code }}{% endblock %}
+{% block content %}
+
+<div class="page-header flex-start mb-3">
+    <div>
+        <h2>{{ cluster.reference_code }}</h2>
+        <p>{{ cluster.client.name }} · {{ cluster.sugar_mill.name }} · <span class="badge-status {{ cluster.status }}">{{ cluster.get_status_display }}</span></p>
+    </div>
+    {% if user|has_perm:"reconcile_payments" %}
+    <a href="{% url 'finance:reconciliation' cluster.pk %}" class="btn-htc-outline"><i class="bi bi-link-45deg"></i> Payment Matching</a>
+    {% endif %}
+</div>
+
+{% if cluster.logistics.variance_exceeds_tolerance %}
+<div class="alert-banner" style="border: 2px solid #e53e3e; box-shadow: 0 0 10px rgba(229, 62, 62, 0.2);"><i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>Variance Alert:</strong> <span class="badge-variance-danger" style="margin-left: 0.5rem; margin-right: 0.5rem;">{{ cluster.logistics.variance_percent|floatformat:2 }}%</span> exceeds 1% tolerance threshold.
+</div>
+{% endif %}
+
+<div class="grid-detail">
+    <div>
+        <div class="panel mb-3">
+            <div class="panel-header">Purchase Order</div>
+            <div class="panel-body readonly-panel">
+                <p><strong>Volume:</strong> {{ cluster.purchase_order.volume_mt }} MT</p>
+                <p><strong>Unit price:</strong> ₱{{ cluster.purchase_order.unit_price|floatformat:2 }}</p>
+                <p><strong>Total:</strong> ₱{{ cluster.purchase_order.total_value|floatformat:2 }}</p>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">Logistics &amp; Volume Variance</div>
+            <div class="panel-body">
+                {% if user|has_perm:"edit_logistics" %}
+                <form method="post" action="{% url 'operations:update_logistics' cluster.pk %}">{% csrf_token %}
+                    {% for field in logistics_form %}
+                    <div class="form-field">
+                        <label>{{ field.label }}</label>
+                        {{ field }}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn-htc btn-htc-sm mt-3">Update Logistics</button>
+                </form>
+                {% else %}
+                <div class="readonly-panel">
+                    <p><strong>Barge:</strong> {{ cluster.logistics.partner.name }}</p>
+                    <p><strong>Delivered:</strong> {{ cluster.logistics.loaded_volume_mt }} MT</p>
+                    <p><strong>Received:</strong> {{ cluster.logistics.received_volume_mt|default:"—" }} MT</p>
+                    <p><strong>Trucking:</strong> ₱{{ cluster.logistics.tracking_fees|floatformat:2 }}</p>
+                    <p><strong>Barging:</strong> ₱{{ cluster.logistics.barge_fees|floatformat:2 }}</p>
+                </div>
+                {% endif %}
+                {% if cluster.logistics.variance_percent is not None %}
+                <p class="small mt-3 mb-0">Computed variance: <strong>{{ cluster.logistics.variance_percent|floatformat:4 }}%</strong></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="panel mb-3">
+            <div class="panel-header">Sales Invoice</div>
+            <div class="panel-body">
+                {% if user|has_perm:"add_invoice" %}
+                <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}">{% csrf_token %}
+                    {% for field in invoice_form %}
+                    <div class="form-field"><label>{{ field.label }}</label>{{ field }}</div>
+                    {% endfor %}
+                    <button type="submit" class="btn-htc btn-htc-sm">Add Invoice</button>
+                </form>
+                {% endif %}
+                <ul class="record-list">
+                    {% for inv in cluster.invoices.all %}
+                    <li>{{ inv.invoice_number }} · ₱{{ inv.amount|floatformat:2 }} · {{ inv.get_status_display }}</li>
+                    {% empty %}<li class="text-muted">No invoices yet.</li>{% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        {% if user|has_perm:"add_voucher" %}
+        <div class="panel mb-3">
+            <div class="panel-header">Cash Voucher</div>
+            <div class="panel-body">
+                <form method="post" action="{% url 'operations:add_voucher' cluster.pk %}">{% csrf_token %}
+                    {% for field in voucher_form %}
+                    <div class="form-field"><label>{{ field.label }}</label>{{ field }}</div>
+                    {% endfor %}
+                    <button type="submit" class="btn-htc btn-htc-sm">Add Voucher</button>
+                </form>
+                <ul class="record-list">
+                    {% for v in cluster.cash_vouchers.all %}
+                    <li>{{ v.voucher_number }} · ₱{{ v.amount|floatformat:2 }} · {{ v.purpose }}</li>
+                    {% empty %}<li class="text-muted">No vouchers yet.</li>{% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if user|has_perm:"add_loan" or user|has_perm:"view_loans" %}
+        <div class="panel">
+            <div class="panel-header">Capital Loan &amp; Interest</div>
+            <div class="panel-body">
+                {% if user|has_perm:"add_loan" %}
+                <form method="post" action="{% url 'operations:add_loan' cluster.pk %}">{% csrf_token %}
+                    {% for field in loan_form %}
+                    <div class="form-field"><label>{{ field.label }}</label>{{ field }}</div>
+                    {% endfor %}
+                    <button type="submit" class="btn-htc btn-htc-sm">Add Loan</button>
+                </form>
+                {% endif %}
+                {% for loan in cluster.loans.all %}
+                <div class="loan-box">
+                    <strong>{{ loan.bank_name }}</strong> · Principal ₱{{ loan.principal|floatformat:2 }}<br>
+                    <span class="text-muted small">{{ loan.interest_rate_annual }}% p.a. · {{ loan.days_outstanding }} days</span><br>
+                    <span class="text-danger">Accrued interest: ₱{{ loan.accrued_interest|floatformat:2 }}</span>
+                </div>
+                {% empty %}<p class="text-muted mt-3 mb-0">No loans linked.</p>{% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "app_base.html" %}
+{% block title %}Capital Loans · HTC Core{% endblock %}
+{% block topbar_title %}Loans &amp; Interest{% endblock %}
+{% block content %}
+<div class="page-header mb-4">
+    <h2>Capital Loan Tracker</h2>
+    <p>Active loans with daily interest accrual — Finance and Management access.</p>
+</div>
+<div class="content-card">
+    <div style="overflow-x:auto;">
+        <table class="table-htc">
+            <thead><tr><th>Bank</th><th>Transaction</th><th>Client</th><th>Principal</th><th>Accrued Interest</th><th>Due</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for loan in loans %}
+            <tr>
+                <td>{{ loan.bank_name }}</td>
+                <td><a href="{% url 'operations:cluster_detail' loan.cluster.pk %}">{{ loan.cluster.reference_code }}</a></td>
+                <td>{{ loan.cluster.client.name }}</td>
+                <td>₱{{ loan.principal|floatformat:2 }}</td>
+                <td class="{% if loan.is_overdue %}text-danger{% endif %}">₱{{ loan.accrued_interest|floatformat:2 }}</td>
+                <td>{{ loan.due_date }}</td>
+                <td><span class="badge-status {% if loan.is_overdue %}alert{% else %}active{% endif %}">{{ loan.get_status_display }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" style="padding:2rem;text-align:center;color:#718096;">No capital loans recorded.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

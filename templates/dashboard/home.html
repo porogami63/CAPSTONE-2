@@ -1,0 +1,312 @@
+{% extends "app_base.html" %}
+{% load role_tags %}
+{% block title %}Dashboard · HTC Core{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="page-header flex-start mb-4">
+    <div>
+        <h2>Good day, {{ user.username }}</h2>
+        <p>
+            {% if user_role_code == "management" %}Full operational and financial overview for 2026.
+            {% elif user_role_code == "finance" %}Financial tracking — receivables, loans, and payment matching.
+            {% elif user_role_code == "operations" %}Logistics monitoring — contracts, deliveries, and variance alerts.
+            {% elif user_role_code == "invoicing" %}Billing workspace — sales invoices and transaction records.
+            {% endif %}
+        </p>
+    </div>
+    {% if user|has_perm:"create_transaction" %}
+    <a href="{% url 'operations:cluster_create' %}" class="btn-htc"><i class="bi bi-plus-lg"></i> New Transaction</a>
+    {% endif %}
+</div>
+
+{% if user_role_code == "operations" %}
+<div class="role-hint"><i class="bi bi-info-circle"></i> Operations view — focus on delivery volumes and transit variance. Finance data is read-only.</div>
+{% elif user_role_code == "finance" %}
+<div class="role-hint"><i class="bi bi-info-circle"></i> Finance view — manage invoices, vouchers, loans, and payment matching.</div>
+{% elif user_role_code == "invoicing" %}
+<div class="role-hint"><i class="bi bi-info-circle"></i> Invoicing view — record sales invoices and review open transactions.</div>
+{% endif %}
+
+<div class="kpi-grid">
+    {% if user|has_perm:"view_operational_alerts" %}
+    <div class="kpi-card">
+        <div class="kpi-icon blue"><i class="bi bi-file-earmark-text"></i></div>
+        <div>
+            <div class="kpi-label">Open Contracts</div>
+            <div class="kpi-value">{{ open_clusters }}</div>
+            <div class="kpi-sub">{{ total_transactions }} total records</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon red"><i class="bi bi-exclamation-triangle"></i></div>
+        <div>
+            <div class="kpi-label">Variance Alerts</div>
+            <div class="kpi-value text-danger">{{ variance_alerts|length }}</div>
+            <div class="kpi-sub">Above 1% tolerance</div>
+        </div>
+    </div>
+    {% endif %}
+    {% if user|has_perm:"view_financial_summary" %}
+    <div class="kpi-card">
+        <div class="kpi-icon amber"><i class="bi bi-cash-stack"></i></div>
+        <div>
+            <div class="kpi-label">Total Receivables</div>
+            <div class="kpi-value" style="font-size:1.3rem;">₱{{ total_receivables|floatformat:0 }}</div>
+            <div class="kpi-sub">{{ unpaid_invoices }} unpaid invoices</div>
+        </div>
+    </div>
+    {% endif %}
+    {% if user|has_perm:"view_operational_alerts" %}
+    <div class="kpi-card">
+        <div class="kpi-icon green"><i class="bi bi-truck"></i></div>
+        <div>
+            <div class="kpi-label">Volume Tracked</div>
+            <div class="kpi-value" style="font-size:1.3rem;">{{ total_volume_mt|floatformat:1 }} MT</div>
+            <div class="kpi-sub">Delivered quantity</div>
+        </div>
+    </div>
+    {% endif %}
+    {% if user_role_code == "invoicing" %}
+    <div class="kpi-card">
+        <div class="kpi-icon amber"><i class="bi bi-receipt"></i></div>
+        <div>
+            <div class="kpi-label">Invoices Issued</div>
+            <div class="kpi-value">{{ total_invoices }}</div>
+            <div class="kpi-sub">Across all transactions</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon blue"><i class="bi bi-hourglass-split"></i></div>
+        <div>
+            <div class="kpi-label">Draft Transactions</div>
+            <div class="kpi-value">{{ draft_count }}</div>
+            <div class="kpi-sub">Awaiting completion</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="dashboard-charts-grid mb-4">
+    {% if user|has_perm:"view_financial_summary" %}
+    <div class="content-card chart-container">
+        <div class="card-header-htc">Revenue, Expenses & Profit</div>
+        <canvas id="financialLineChart"></canvas>
+    </div>
+    {% endif %}
+
+    <div class="chart-side-col">
+        {% if user|has_perm:"view_financial_summary" %}
+        <div class="content-card chart-container">
+            <div class="card-header-htc">Weekly Cash Flow</div>
+            <div class="net-cash-card">
+                <i class="bi bi-lightning-charge"></i> Net Cash Flow <strong>{{ net_cash_flow_str }}</strong>
+            </div>
+            <canvas id="cashFlowBarChart"></canvas>
+        </div>
+        {% endif %}
+
+        {% if user_role_code == "management" or user_role_code == "operations" %}
+        <div class="content-card system-status-card">
+            <div class="card-header-htc">System Status</div>
+            <div class="status-grid">
+                <div class="status-item"><i class="bi bi-check2-circle" style="color:var(--htc-success)"></i> Audit Engine: Active</div>
+                <div class="status-item"><i class="bi bi-check2-circle" style="color:var(--htc-success)"></i> Interest Clocks: Running</div>
+                <div class="status-item"><i class="bi bi-check2-circle" style="color:var(--htc-success)"></i> Variance Worker: Active</div>
+                <div class="status-item"><i class="bi bi-check2-circle" style="color:var(--htc-success)"></i> Aggregation Layer: Synced</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid-2 mb-4">
+    {% if user|has_perm:"view_operational_alerts" %}
+    <div class="content-card">
+        <div class="card-header-htc">
+            Transit Variance Alerts
+            <span class="badge-status alert">{{ variance_alerts|length }} active</span>
+        </div>
+        {% for log in variance_alerts %}
+        <a href="{% url 'operations:cluster_detail' log.cluster.pk %}" class="alert-list-item">
+            <div>
+                <strong>{{ log.cluster.reference_code }}</strong>
+                <span class="text-muted small"> · {{ log.cluster.client.name }}</span>
+            </div>
+            <span class="badge-variance-danger">{{ log.variance_percent|floatformat:2 }}%</span>
+        </a>
+        {% empty %}
+        <div class="alert-list-item text-muted">All deliveries within 1% tolerance.</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="content-card">
+        <div class="card-header-htc">Recent Activity</div>
+        {% for c in recent_clusters|slice:":6" %}
+        <a href="{% url 'operations:cluster_detail' c.pk %}" class="alert-list-item">
+            <div>
+                <strong>{{ c.reference_code }}</strong>
+                <span class="text-muted small"> · {{ c.client.name }}</span>
+            </div>
+            <span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span>
+        </a>
+        {% empty %}
+        <div class="alert-list-item text-muted">No transactions yet.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="content-card">
+    <div class="card-header-htc">
+        2026 Transaction Summary
+        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline">View all</a>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="table-htc">
+            <thead>
+                <tr>
+                    <th>SI #</th><th>Customer</th><th>Source</th>
+                    <th>Delivered MT</th><th>Received MT</th><th>Variance</th>
+                    {% if user|has_perm:"view_financial_summary" %}<th>Amount</th>{% endif %}
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for c in recent_clusters %}
+            <tr>
+                <td><strong>{{ c.reference_code }}</strong></td>
+                <td>{{ c.client.name }}</td>
+                <td>{{ c.sugar_mill.name }}</td>
+                <td>{{ c.logistics.loaded_volume_mt|default:"—" }}</td>
+                <td>{{ c.logistics.received_volume_mt|default:"—" }}</td>
+                <td>
+                    {% if c.logistics.variance_exceeds_tolerance %}
+                    <span class="badge-variance-danger">{{ c.logistics.variance_percent|floatformat:2 }}%</span>
+                    {% elif c.logistics.variance_percent %}
+                    <span style="color:var(--htc-success);font-size:0.8rem;">{{ c.logistics.variance_percent|floatformat:2 }}%</span>
+                    {% else %}—{% endif %}
+                </td>
+                {% if user|has_perm:"view_financial_summary" %}
+                <td>{% if c.primary_invoice %}₱{{ c.primary_invoice.amount|floatformat:0 }}{% else %}—{% endif %}</td>
+                {% endif %}
+                <td><a href="{% url 'operations:cluster_detail' c.pk %}">Open</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Theme colors matching the HTC design system
+    const brandBlue = '#0A2540';
+    const brandBlueLight = 'rgba(10, 37, 64, 0.1)';
+    const brandRed = '#D9381E';
+    const brandRedLight = 'rgba(217, 56, 30, 0.1)';
+    const brandGreen = '#00A86B';
+
+    // 1. Line Chart: Revenue, Expenses, Profit
+    const lineCtx = document.getElementById('financialLineChart');
+    if (lineCtx) {
+        new Chart(lineCtx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_months|safe }},
+                datasets: [
+                    {
+                        label: 'Revenue',
+                        data: {{ revenue_data|safe }},
+                        borderColor: brandBlue,
+                        backgroundColor: brandBlueLight,
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: false
+                    },
+                    {
+                        label: 'Expenses',
+                        data: {{ expenses_data|safe }},
+                        borderColor: brandRed,
+                        backgroundColor: brandRedLight,
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        fill: false
+                    },
+                    {
+                        label: 'Profit',
+                        data: {{ profit_data|safe }},
+                        borderColor: brandGreen,
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { usePointStyle: true, boxWidth: 6 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₱' + (value / 1000000).toFixed(1) + 'M';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Bar Chart: Weekly Cash Flow
+    const barCtx = document.getElementById('cashFlowBarChart');
+    if (barCtx) {
+        new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ weekly_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Inflow',
+                        data: {{ inflow_data|safe }},
+                        backgroundColor: brandBlue,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.8
+                    },
+                    {
+                        label: 'Outflow',
+                        data: {{ outflow_data|safe }},
+                        backgroundColor: '#d89b3c', // Amber matching theme
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.8
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { display: false },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

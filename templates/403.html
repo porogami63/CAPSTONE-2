@@ -1,0 +1,21 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied · HTC Core</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}" rel="stylesheet">
+</head>
+<body style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--htc-bg);font-family:var(--htc-font);">
+    <div class="content-card" style="max-width:420px;padding:2rem;text-align:center;margin:1rem;">
+        <div style="font-size:3rem;color:var(--htc-accent);margin-bottom:1rem;">🔒</div>
+        <h1 style="font-size:1.25rem;color:var(--htc-primary);margin-bottom:0.5rem;">Access Restricted</h1>
+        <p style="color:#718096;font-size:0.9rem;margin-bottom:1.5rem;">
+            Your role ({{ user.get_role_display }}) does not have permission to view this page.
+        </p>
+        <a href="{% url 'dashboard:home' %}" class="btn-htc">Return to Dashboard</a>
+    </div>
+</body>
+</html>
