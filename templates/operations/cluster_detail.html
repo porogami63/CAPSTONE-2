@@ -76,7 +76,10 @@
                 {% endif %}
                 <ul class="record-list">
                     {% for inv in cluster.invoices.all %}
-                    <li>{{ inv.invoice_number }} · ₱{{ inv.amount|floatformat:2 }} · {{ inv.get_status_display }}</li>
+                    <li>
+                        {{ inv.invoice_number }} · ₱{{ inv.amount|floatformat:2 }} · {{ inv.get_status_display }}
+                        <a href="{% url 'finance:download_invoice_pdf' inv.pk %}" class="btn-htc-outline" style="padding: 2px 8px; font-size: 0.7rem; margin-left: auto;" title="Download PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+                    </li>
                     {% empty %}<li class="text-muted">No invoices yet.</li>{% endfor %}
                 </ul>
             </div>
@@ -123,6 +126,41 @@
             </div>
         </div>
         {% endif %}
+    </div>
+</div>
+
+<div class="panel mt-4">
+    <div class="panel-header" style="background-color: var(--htc-surface);"><i class="bi bi-clock-history"></i> Comprehensive Audit Log (Simple History)</div>
+    <div class="panel-body">
+        <table class="table-htc">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Model</th>
+                    <th>Action</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in audit_events %}
+                <tr>
+                    <td>{{ event.date|date:"M d, Y H:i:s" }}</td>
+                    <td><strong>{{ event.user|default:"System" }}</strong></td>
+                    <td><span class="badge-status {{ event.model|lower }}">{{ event.model }}</span></td>
+                    <td>
+                        {% if event.type == '+' %}<span class="text-success"><i class="bi bi-plus-circle"></i> Created</span>
+                        {% elif event.type == '~' %}<span class="text-warning"><i class="bi bi-pencil-square"></i> Updated</span>
+                        {% elif event.type == '-' %}<span class="text-danger"><i class="bi bi-trash"></i> Deleted</span>
+                        {% else %}{{ event.type }}{% endif %}
+                    </td>
+                    <td>{{ event.desc }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-muted text-center" style="padding: 2rem;">No audit logs available for this transaction.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

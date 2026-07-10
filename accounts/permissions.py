@@ -18,25 +18,26 @@ CORE_NAV_ITEMS = [
 # Navigation items each role can see
 NAV_ITEMS = {
     Role.MANAGEMENT: CORE_NAV_ITEMS,
-    Role.FINANCE: CORE_NAV_ITEMS,
-    Role.OPERATIONS: CORE_NAV_ITEMS,
-    Role.INVOICING: CORE_NAV_ITEMS,
+    Role.OPERATIONS_MANAGER: CORE_NAV_ITEMS,
+    Role.FINANCE: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "finance:invoice_list", "finance:loan_list", "dashboard:documents")],
+    Role.OPERATIONS: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:cluster_list", "operations:logistics_list", "masters:partners", "dashboard:documents")],
+    Role.INVOICING: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:cluster_list", "finance:invoice_list", "dashboard:documents")],
 }
 
 # Fine-grained permissions
 PERMISSIONS = {
-    "create_transaction": {Role.MANAGEMENT, Role.OPERATIONS},
-    "edit_logistics": {Role.MANAGEMENT, Role.OPERATIONS},
-    "add_invoice": {Role.MANAGEMENT, Role.INVOICING, Role.FINANCE},
-    "add_voucher": {Role.MANAGEMENT, Role.FINANCE},
-    "add_loan": {Role.MANAGEMENT, Role.FINANCE},
-    "view_loans": {Role.MANAGEMENT, Role.FINANCE},
-    "reconcile_payments": {Role.MANAGEMENT, Role.FINANCE},
-    "view_audit": {Role.MANAGEMENT},
-    "view_masters": {Role.MANAGEMENT, Role.OPERATIONS},
-    "view_financial_summary": {Role.MANAGEMENT, Role.FINANCE},
-    "view_operational_alerts": {Role.MANAGEMENT, Role.OPERATIONS, Role.INVOICING},
-    "import_excel": {Role.MANAGEMENT},
+    "create_transaction": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.OPERATIONS},
+    "edit_logistics": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.OPERATIONS},
+    "add_invoice": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.INVOICING, Role.FINANCE},
+    "add_voucher": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.FINANCE},
+    "add_loan": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.FINANCE},
+    "view_loans": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.FINANCE},
+    "reconcile_payments": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.FINANCE},
+    "view_audit": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER},
+    "view_masters": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.OPERATIONS},
+    "view_financial_summary": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.FINANCE},
+    "view_operational_alerts": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER, Role.OPERATIONS, Role.INVOICING},
+    "import_excel": {Role.MANAGEMENT, Role.OPERATIONS_MANAGER},
 }
 
 

@@ -15,6 +15,13 @@ services:
     networks:
       - htc_net
 
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - htc_net
+
   web:
     build: .
     command: >
@@ -27,13 +34,17 @@ services:
       SECRET_KEY: pilot-change-me-before-uat
       ALLOWED_HOSTS: localhost,127.0.0.1,nginx
       DATABASE_URL: postgres://htc:htc@db:5432/htc_core
-      CELERY_TASK_ALWAYS_EAGER: "True"
-      CELERY_TASK_EAGER_PROPAGATES: "True"
+      CELERY_TASK_ALWAYS_EAGER: "False"
+      CELERY_TASK_EAGER_PROPAGATES: "False"
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/0"
     expose:
       - "8000"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - htc_net
     volumes:
@@ -48,6 +59,24 @@ services:
       - static_volume:/app/staticfiles:ro
     depends_on:
       - web
+    networks:
+      - htc_net
+
+  celery_worker:
+    build: .
+    command: >
+      sh -c "celery -A config worker -l INFO"
+    environment:
+      DEBUG: "False"
+      SECRET_KEY: pilot-change-me-before-uat
+      DATABASE_URL: postgres://htc:htc@db:5432/htc_core
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - htc_net
 

@@ -59,7 +59,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background-color: #f7fafc;
+        background-color: var(--htc-sidebar-hover);
         border: 1px dashed var(--htc-border);
         border-radius: var(--htc-radius-sm);
         padding: 0.6rem 1rem;
@@ -167,6 +167,7 @@
     }
     .status-card-trend.up { color: var(--htc-success); }
     .status-card-trend.down { color: var(--htc-accent); }
+    .status-card-trend.neutral { color: var(--htc-text-muted); }
     .status-card-source {
         color: var(--htc-text-muted);
         display: flex;
@@ -220,6 +221,10 @@
         gap: 0.75rem;
         margin-bottom: 1rem;
     }
+    .cash-flow-banner.negative {
+        background-color: var(--htc-danger-bg);
+        border-color: #fed7d7;
+    }
     .cash-flow-banner i {
         background-color: #c6f6d5;
         color: #276749;
@@ -231,6 +236,10 @@
         justify-content: center;
         font-size: 0.9rem;
     }
+    .cash-flow-banner.negative i {
+        background-color: #fed7d7;
+        color: #9b2c2c;
+    }
     .cash-flow-banner .banner-text {
         font-size: 0.8rem;
         color: var(--htc-text-muted);
@@ -241,6 +250,31 @@
         font-size: 0.95rem;
         display: block;
         margin-top: 0.1rem;
+    }
+    .cash-flow-banner.negative .banner-text strong {
+        color: #9b2c2c;
+    }
+
+    /* Empty State */
+    .empty-state-overlay {
+        text-align: center;
+        padding: 2rem 1rem;
+        color: var(--htc-text-muted);
+    }
+    .empty-state-overlay i {
+        font-size: 3rem;
+        margin-bottom: 0.75rem;
+        opacity: 0.3;
+    }
+    .empty-state-overlay h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem 0;
+        color: var(--htc-text);
+    }
+    .empty-state-overlay p {
+        font-size: 0.85rem;
+        margin: 0 0 1rem 0;
     }
 
     /* Bottom System Status Bar */
@@ -287,33 +321,47 @@
         <h2>HTC Core Dashboard</h2>
         <p>Heindrich Trading Corporation — Molasses Operations Overview</p>
     </div>
-    <div class="last-sync-block">
-        Last sync
-        <strong>19 Jun 2026, 09:42 AM</strong>
+    <div class="last-sync-block" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+        <div>
+            Last sync
+            <strong>{% if last_sync %}{{ last_sync|date:"d M Y, h:i A" }}{% else %}No data yet{% endif %}</strong>
+        </div>
+        <div class="dropdown">
+            <button class="btn-htc btn-htc-sm" style="background-color: var(--htc-surface); color: var(--htc-primary); border: 1px solid var(--htc-border);" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-file-earmark-pdf"></i> Generate PDF Report
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="reportDropdown">
+                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}">Last 24 Hours</a></li>
+                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}">Last 7 Days</a></li>
+                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}">Last 30 Days</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'year' %}">Annual Report</a></li>
+            </ul>
+        </div>
     </div>
 </div>
 
 <div class="aggregation-bar">
     <div class="left-info">Data Aggregation Layer – Click any card to see source rows</div>
     <div class="right-info">
-        <i class="bi bi-layers"></i> 24 raw rows → 6 status cards
+        <i class="bi bi-layers"></i> {{ total_transactions }} transaction{{ total_transactions|pluralize }} → 6 status cards
     </div>
 </div>
 
 <!-- Six Status Cards -->
 <div class="status-cards-row">
     <!-- Card 1: Total Revenue -->
-    <div class="status-card stripe-green">
+    <div class="status-card stripe-green" data-step="1">
         <div class="status-card-header">
             <i class="bi bi-graph-up-arrow"></i>
         </div>
         <div>
-            <div class="status-card-val">₱46.00M</div>
+            <div class="status-card-val">{{ revenue_display }}</div>
             <div class="status-card-label">Total Revenue</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend up">▲ +12.5%</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 5 source rows</span>
+            <span class="status-card-trend {% if total_invoices > 0 %}up{% else %}neutral{% endif %}">{{ total_invoices }} invoice{{ total_invoices|pluralize }}</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> {{ total_invoices }} source row{{ total_invoices|pluralize }}</span>
         </div>
     </div>
     
@@ -323,12 +371,12 @@
             <i class="bi bi-graph-down-arrow"></i>
         </div>
         <div>
-            <div class="status-card-val">₱33.75M</div>
+            <div class="status-card-val">{{ expenses_display }}</div>
             <div class="status-card-label">Total Expenses</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend down">▲ +8.2%</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 5 source rows</span>
+            <span class="status-card-trend neutral">Procurement + Logistics</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> {{ total_transactions }} source row{{ total_transactions|pluralize }}</span>
         </div>
     </div>
 
@@ -338,12 +386,12 @@
             <i class="bi bi-bar-chart"></i>
         </div>
         <div>
-            <div class="status-card-val">₱12.25M</div>
+            <div class="status-card-val">{{ profit_display }}</div>
             <div class="status-card-label">Net Profit</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend up">▲ +18.3%</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 10 source rows</span>
+            <span class="status-card-trend {% if total_transactions > 0 %}up{% else %}neutral{% endif %}">Revenue − Expenses</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> Aggregated</span>
         </div>
     </div>
 
@@ -353,12 +401,12 @@
             <i class="bi bi-clock-history"></i>
         </div>
         <div>
-            <div class="status-card-val">₱12.21M</div>
+            <div class="status-card-val">{{ pending_display }}</div>
             <div class="status-card-label">Pending Payments</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend down">1 overdue</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 3 source rows</span>
+            <span class="status-card-trend {% if overdue_loans > 0 %}down{% else %}neutral{% endif %}">{% if overdue_loans > 0 %}{{ overdue_loans }} overdue{% else %}No overdue{% endif %}</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> {{ unpaid_invoices }} unpaid</span>
         </div>
     </div>
 
@@ -372,34 +420,47 @@
             <div class="status-card-label">Active Contracts</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend up">▲ 6 total</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 6 source rows</span>
+            <span class="status-card-trend {% if total_transactions > 0 %}up{% else %}neutral{% endif %}">{{ total_transactions }} total</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> {{ draft_count }} draft</span>
         </div>
     </div>
 
     <!-- Card 6: Delivery Status -->
-    <div class="status-card stripe-darkred">
+    <div class="status-card stripe-darkred" data-intro="Keep a close eye on this metric. It tracks any delivery variances (shrinkage) between the source mill and the customer drop-off. A variance flag means money lost!" data-step="3">
         <div class="status-card-header">
             <i class="bi bi-truck"></i>
         </div>
         <div>
-            <div class="status-card-val">3/5</div>
+            <div class="status-card-val">{{ delivered_clusters }}/{{ total_transactions }}</div>
             <div class="status-card-label">Delivery Status</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend down">1 variance flag</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 5 source rows</span>
+            <span class="status-card-trend {% if variance_alert_count > 0 %}down{% else %}up{% endif %}">{% if variance_alert_count > 0 %}{{ variance_alert_count }} variance flag{{ variance_alert_count|pluralize }}{% else %}All within tolerance{% endif %}</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> {{ total_transactions }} tracked</span>
         </div>
     </div>
 </div>
 
+{% if is_empty %}
+<!-- Empty State Message -->
+<div class="chart-box" style="margin-bottom: 1.5rem;">
+    <div class="empty-state-overlay">
+        <i class="bi bi-database"></i>
+        <h3>No Transaction Data</h3>
+        <p>Import your Excel spreadsheet or create a new transaction to see live analytics.</p>
+        <a href="{% url 'operations:import_excel' %}" class="btn-htc" style="display: inline-block;">
+            <i class="bi bi-file-earmark-arrow-up"></i> Import Excel
+        </a>
+    </div>
+</div>
+{% else %}
 <!-- Charts Split Grid -->
 <div class="charts-split-grid">
     <!-- Left Column: Revenue Expenses Profit Line Chart -->
-    <div class="chart-box">
+    <div class="chart-box" data-intro="This chart visually trends your revenue against your expenses over time, giving you a quick look at your net profitability trajectory." data-step="4">
         <div class="chart-box-header">
             <h3>Revenue · Expenses · Profit</h3>
-            <p>6-month aggregated financial trend (PHP)</p>
+            <p>Monthly aggregated financial trend (PHP in Millions)</p>
         </div>
         <canvas id="financialLineChart" style="max-height: 320px;"></canvas>
     </div>
@@ -408,18 +469,19 @@
     <div class="chart-box">
         <div class="chart-box-header">
             <h3>Weekly Cash Flow</h3>
-            <p>Inflow vs Outflow — June 2026</p>
+            <p>Inflow vs Outflow — Current Month</p>
         </div>
         <div class="cash-flow-banner">
             <i class="bi bi-lightning-charge-fill"></i>
             <div class="banner-text">
                 Net Cash Flow
-                <strong>₱1,100,000</strong>
+                <strong>{{ net_cash_flow_str }}</strong>
             </div>
         </div>
         <canvas id="cashFlowBarChart" style="max-height: 220px;"></canvas>
     </div>
 </div>
+{% endif %}
 
 <!-- Bottom Status Bar -->
 <div class="system-status-bar">
@@ -438,14 +500,17 @@
     <div class="status-bar-item success">
         <i class="bi bi-check-circle-fill"></i> Aggregation Layer: Synced
     </div>
+    {% if variance_alert_count > 0 %}
     <div class="status-bar-item danger">
-        <i class="bi bi-exclamation-circle-fill"></i> Overdue Alerts: 1 flagged
+        <i class="bi bi-exclamation-circle-fill"></i> Overdue Alerts: {{ variance_alert_count }} flagged
     </div>
+    {% endif %}
 </div>
 
 {% endblock %}
 
 {% block scripts %}
+{% if not is_empty %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Theme colors matching the HTC design system from the design spec
@@ -454,17 +519,31 @@
     const brandGreen = '#00a86b';
     const brandOrange = '#d69e2e';
 
+    // Parse data from Django template context (JSON-safe)
+    const chartMonths = {{ chart_months_json|safe }};
+    const revenueData = {{ revenue_data_json|safe }};
+    const expensesData = {{ expenses_data_json|safe }};
+    const profitData = {{ profit_data_json|safe }};
+    const weeklyLabels = {{ weekly_labels_json|safe }};
+    const inflowData = {{ inflow_data_json|safe }};
+    const outflowData = {{ outflow_data_json|safe }};
+
+    // Compute Y-axis max dynamically
+    const allValues = [...revenueData, ...expensesData, ...profitData];
+    const yMax = Math.max(Math.ceil(Math.max(...allValues) * 1.3), 1);
+    const yStep = Math.max(Math.round(yMax / 4 * 10) / 10, 0.5);
+
     // 1. Line Chart: Revenue, Expenses, Profit
     const lineCtx = document.getElementById('financialLineChart');
     if (lineCtx) {
         new Chart(lineCtx, {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                labels: chartMonths,
                 datasets: [
                     {
                         label: 'Revenue',
-                        data: [3.2, 3.8, 3.5, 4.2, 4.8, 4.6], // represented in millions
+                        data: revenueData,
                         borderColor: brandBlue,
                         backgroundColor: 'transparent',
                         borderWidth: 2.5,
@@ -474,7 +553,7 @@
                     },
                     {
                         label: 'Expenses',
-                        data: [2.6, 2.9, 2.8, 3.1, 3.4, 3.2],
+                        data: expensesData,
                         borderColor: brandRed,
                         backgroundColor: 'transparent',
                         borderWidth: 2,
@@ -484,7 +563,7 @@
                     },
                     {
                         label: 'Profit',
-                        data: [0.6, 0.9, 0.7, 1.1, 1.4, 1.4],
+                        data: profitData,
                         borderColor: brandGreen,
                         backgroundColor: 'transparent',
                         borderWidth: 2,
@@ -511,16 +590,16 @@
                         grid: { display: false }
                     },
                     y: {
-                        min: 0,
-                        max: 6,
+                        min: Math.min(0, ...profitData),
+                        max: yMax,
                         ticks: {
                             callback: function(value) {
                                 return '₱' + value.toFixed(1) + 'M';
                             },
-                            stepSize: 1.5
+                            stepSize: yStep
                         },
                         grid: {
-                            color: '#e2e8f0',
+                            color: 'var(--htc-border)',
                             borderDash: [3, 3]
                         }
                     }
@@ -535,17 +614,17 @@
         new Chart(barCtx, {
             type: 'bar',
             data: {
-                labels: ['W1', 'W2', 'W3', 'W4'],
+                labels: weeklyLabels,
                 datasets: [
                     {
                         label: 'Inflow',
-                        data: [1.2, 1.5, 1.1, 1.8],
+                        data: inflowData,
                         backgroundColor: brandBlue,
                         borderRadius: 2
                     },
                     {
                         label: 'Outflow',
-                        data: [0.9, 1.2, 1.4, 1.0],
+                        data: outflowData,
                         backgroundColor: brandOrange,
                         borderRadius: 2
                     }
@@ -569,4 +648,5 @@
         });
     }
 </script>
+{% endif %}
 {% endblock %}

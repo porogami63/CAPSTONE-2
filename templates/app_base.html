@@ -1,4 +1,5 @@
 {% load static %}
+{% load role_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,9 +8,16 @@
     <title>{% block title %}HTC Core{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="{% static 'css/htc-theme.css' %}?v=3" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}?v=6" rel="stylesheet">
 </head>
 <body>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('htc-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <div class="app-shell">
         <aside class="app-sidebar" id="appSidebar">
             <div class="brand-block">
@@ -18,12 +26,13 @@
             </div>
             <nav>
                 {% for url_name, label, icon, match_prefixes in nav_items %}
-                <a class="nav-link {% if nav_is_active current_view_name url_name match_prefixes %}active{% endif %}"
+                {% is_nav_active current_view_name url_name match_prefixes as active_status %}
+                <a class="nav-link {% if active_status %}active{% endif %}"
                    href="{% url url_name %}">
                     <i class="bi {{ icon }}"></i> {{ label }}
                 </a>
                 {% endfor %}
-                {% if user.role == 'management' or user.is_superuser %}
+                {% if user|has_perm:"view_audit" %}
                 <a class="nav-link nav-link-danger" href="{% url 'operations:clear_database' %}">
                     <i class="bi bi-trash"></i> Clear Database
                 </a>
@@ -54,7 +63,15 @@
                         <div class="topbar-subtitle">Integrated procurement and financial tracking</div>
                     </div>
                 </div>
-                <span class="role-badge">{{ user_role }}</span>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <button type="button" class="btn-theme-toggle" id="helpGuideBtn" title="Start Guided Tour" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button type="button" class="btn-theme-toggle" id="themeToggleBtn" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
+                        <i class="bi bi-moon-stars-fill"></i>
+                    </button>
+                    <span class="role-badge">{{ user_role }}</span>
+                </div>
             </header>
             <main class="app-main">
                 {% if messages %}
@@ -105,7 +122,44 @@
                     setSidebarOpen(false);
                 }
             });
+
+            // Theme Toggle Logic
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            const htmlTag = document.documentElement;
+            
+            function updateThemeIcon() {
+                if (htmlTag.getAttribute('data-theme') === 'light') {
+                    themeToggleBtn.innerHTML = '<i class="bi bi-moon-stars-fill"></i>';
+                } else {
+                    themeToggleBtn.innerHTML = '<i class="bi bi-sun-fill"></i>';
+                }
+            }
+            
+            if (themeToggleBtn) {
+                updateThemeIcon();
+                themeToggleBtn.addEventListener('click', function() {
+                    const currentTheme = htmlTag.getAttribute('data-theme') || 'dark';
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    htmlTag.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('htc-theme', newTheme);
+                    updateThemeIcon();
+                });
+            }
         })();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var helpBtn = document.getElementById('helpGuideBtn');
+            if(helpBtn) {
+                helpBtn.addEventListener('click', function() {
+                    introJs().setOptions({
+                        showProgress: true,
+                        showBullets: false
+                    }).start();
+                });
+            }
+        });
     </script>
 </body>
 </html>

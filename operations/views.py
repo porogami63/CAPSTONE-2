@@ -109,73 +109,107 @@ def cluster_list(request):
     return render(request, "operations/cluster_list.html", context)
 
 
-@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.FINANCE, User.Role.INVOICING)
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
 def logistics_list(request):
-    records = list(
-        LogisticsLedger.objects.select_related("cluster", "cluster__client", "cluster__sugar_mill", "partner")
-        .order_by("-updated_at", "-loaded_at")
-    )
+    ledgers = LogisticsLedger.objects.select_related("cluster", "cluster__client", "partner").order_by("-updated_at")
 
-    in_transit = 0
-    delivered = 0
-    accepted = 0
-    pending_review = 0
-    disputed = 0
+    in_transit_count = 0
+    delivered_count = 0
+    accepted_count = 0
+    pending_review_count = 0
+    disputed_count = 0
 
-    for record in records:
-        loaded = record.loaded_volume_mt or 0
-        received = record.received_volume_mt if record.received_volume_mt is not None else 0
-        if record.variance_exceeds_tolerance:
-            record.lifecycle_state = "Disputed"
-            record.lifecycle_class = "alert"
-            disputed += 1
-        elif not record.loaded_at:
-            record.lifecycle_state = "Pending Review"
-            record.lifecycle_class = "draft"
-            pending_review += 1
-        elif not record.received_at:
-            record.lifecycle_state = "In Transit"
-            record.lifecycle_class = "active"
-            in_transit += 1
-        elif record.received_volume_mt is not None and loaded > 0 and received >= loaded * 0.995:
-            record.lifecycle_state = "Accepted"
-            record.lifecycle_class = "delivered"
-            accepted += 1
-        else:
-            record.lifecycle_state = "Delivered"
-            record.lifecycle_class = "delivered"
-            delivered += 1
+    shipments = []
+    for log in ledgers:
+        # Run variance calculations for each ledger on page load to ensure data accuracy
+        log._compute_variance()
+        
+        status = "loading"
+        sh_status_display = "Loading"
+        
+        if log.cluster.status == TransactionCluster.Status.DRAFT:
+            status = "loading"
+            sh_status_display = "Loading"
+            in_transit_count += 1
+        elif log.cluster.status == TransactionCluster.Status.ACTIVE:
+            status = "transit"
+            sh_status_display = "In Transit"
+            in_transit_count += 1
+        elif log.cluster.status == TransactionCluster.Status.DELIVERED:
+            if log.variance_exceeds_tolerance:
+                status = "disputed"
+                sh_status_display = "Disputed — Over Tolerance"
+                disputed_count += 1
+            elif log.variance_percent and log.variance_percent > 0:
+                status = "pending_review"
+                sh_status_display = "Pending Review — In Tolerance"
+                pending_review_count += 1
+                delivered_count += 1
+            else:
+                status = "delivered"
+                sh_status_display = "Delivered — No Loss"
+                delivered_count += 1
+                accepted_count += 1
+        elif log.cluster.status == TransactionCluster.Status.CLOSED:
+            status = "accepted"
+            sh_status_display = "Accepted"
+            accepted_count += 1
+            delivered_count += 1
 
-        if loaded > 0 and record.received_volume_mt is not None:
-            record.progress_percent = min((float(received) / float(loaded)) * 100, 100)
-        elif record.loaded_at:
-            record.progress_percent = 58
-        else:
-            record.progress_percent = 12
+        # Shrinkage
+        shrinkage_mt = 0.0
+        shrinkage_pct = 0.0
+        if log.loaded_volume_mt and log.received_volume_mt is not None:
+            shrinkage_mt = float(log.loaded_volume_mt - log.received_volume_mt)
+            if float(log.loaded_volume_mt) > 0:
+                shrinkage_pct = (shrinkage_mt / float(log.loaded_volume_mt)) * 100.0
 
-        record.variance_text = "—"
-        if record.variance_percent is not None:
-            record.variance_text = f"{record.variance_percent:.2f}%"
+        # Progress bar percent (how much loaded is received)
+        prog_pct = 0
+        if log.loaded_volume_mt > 0:
+            if log.received_volume_mt is not None:
+                prog_pct = int((float(log.received_volume_mt) / float(log.loaded_volume_mt)) * 100.0)
+            else:
+                prog_pct = 0
 
-    lifecycle_steps = [
-        {"label": "Booked", "icon": "bi-file-earmark-text"},
-        {"label": "In Transit", "icon": "bi-truck"},
-        {"label": "Delivered", "icon": "bi-check2-circle"},
-        {"label": "Accepted", "icon": "bi-patch-check"},
-        {"label": "Disputed", "icon": "bi-exclamation-triangle"},
-    ]
+        # Headroom/over-limit
+        headroom = max(2.0 - shrinkage_pct, 0.0)
+        over_limit = max(shrinkage_pct - 2.0, 0.0)
+
+        shipments.append({
+            "ledger": log,
+            "sh_code": "SH-" + log.cluster.reference_code.split("-").pop(),
+            "ref_code": log.cluster.reference_code,
+            "customer": log.cluster.client.name,
+            "status": status,
+            "sh_status_display": sh_status_display,
+            "loaded_mt": float(log.loaded_volume_mt),
+            "received_mt": float(log.received_volume_mt) if log.received_volume_mt is not None else "Pending",
+            "shrinkage_mt": shrinkage_mt,
+            "shrinkage_pct": shrinkage_pct,
+            "prog_pct": prog_pct,
+            "headroom": headroom,
+            "over_limit": over_limit,
+            "pk": log.cluster.pk
+        })
+
+    # No mock data — template will handle empty state
 
     return render(
         request,
         "operations/logistics_list.html",
         {
-            "records": records,
-            "in_transit": in_transit,
-            "delivered": delivered,
-            "accepted": accepted,
-            "pending_review": pending_review,
-            "disputed": disputed,
-            "lifecycle_steps": lifecycle_steps,
+            "shipments": shipments,
+            "in_transit_count": in_transit_count,
+            "delivered_count": delivered_count,
+            "accepted_count": accepted_count,
+            "pending_review_count": pending_review_count,
+            "disputed_count": disputed_count,
         },
     )
 
@@ -252,7 +286,7 @@ def clear_database_view(request):
     if request.method == "POST":
         clear_operational_data()
         messages.success(request, "Database cleared successfully. All transactions and related records have been deleted.")
-        return redirect("operations:cluster_list")
+        return redirect("dashboard:home")
     return render(request, "operations/clear_database_confirm.html")
 
 
@@ -307,6 +341,31 @@ def cluster_detail(request, pk):
     invoice_form = InvoiceForm()
     voucher_form = CashVoucherForm()
     loan_form = CapitalLoanForm()
+
+    # Collect Audit Trail
+    audit_events = []
+    
+    for h in cluster.history.all():
+        audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": "Transaction Cluster", "desc": f"Status: {h.status}"})
+        
+    if hasattr(cluster, 'logistics'):
+        for h in cluster.logistics.history.all():
+            audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": "Logistics", "desc": f"Loaded: {h.loaded_volume_mt}, Received: {h.received_volume_mt}"})
+            
+    if hasattr(cluster, 'purchase_order'):
+        for h in cluster.purchase_order.history.all():
+            audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": "Purchase Order", "desc": f"Vol: {h.volume_mt} MT @ P{h.unit_price}"})
+
+    for inv in cluster.invoices.all():
+        for h in inv.history.all():
+            audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": f"Invoice {h.invoice_number}", "desc": f"Status: {h.status}, Amount: {h.amount}"})
+
+    for v in cluster.cash_vouchers.all():
+        for h in v.history.all():
+            audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": f"Voucher {h.voucher_number}", "desc": f"Amount: {h.amount}"})
+
+    audit_events.sort(key=lambda x: x["date"], reverse=True)
+
     return render(
         request,
         "operations/cluster_detail.html",
@@ -316,6 +375,7 @@ def cluster_detail(request, pk):
             "invoice_form": invoice_form,
             "voucher_form": voucher_form,
             "loan_form": loan_form,
+            "audit_events": audit_events,
         },
     )
 

@@ -5,6 +5,7 @@ from django.db import models
 class User(AbstractUser):
     class Role(models.TextChoices):
         MANAGEMENT = "management", "Management"
+        OPERATIONS_MANAGER = "operations_manager", "Operations Manager"
         FINANCE = "finance", "Finance Officer"
         OPERATIONS = "operations", "Operations Staff"
         INVOICING = "invoicing", "Invoicing Staff"

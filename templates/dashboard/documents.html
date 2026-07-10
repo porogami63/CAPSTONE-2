@@ -6,8 +6,6 @@
     <div>
         <h2>Document Management</h2>
         <p>Centralized repository for operational and financial records</p>
-    </div>
-    <button class="btn-htc btn-htc-sm" type="button"><i class="bi bi-cloud-upload"></i> Upload Document</button>
 </div>
 
 <form method="get">
@@ -29,8 +27,7 @@
                 <div class="sub">{{ doc.date|date:"M d, Y" }} · {{ doc.size }}</div>
             </div>
             <div class="doc-actions">
-                <span title="View"><i class="bi bi-eye"></i></span>
-                <span title="Download"><i class="bi bi-download"></i></span>
+                <a href="{{ doc.url }}" title="View"><i class="bi bi-eye"></i></a>
             </div>
         </div>
         {% empty %}

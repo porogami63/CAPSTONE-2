@@ -3,6 +3,7 @@ from datetime import date
 
 from django.db import models
 from django.utils import timezone
+from simple_history.models import HistoricalRecords
 
 from operations.models import TransactionCluster
 
@@ -20,6 +21,7 @@ class Invoice(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["-issued_at"]
@@ -35,6 +37,7 @@ class CashVoucher(models.Model):
     purpose = models.CharField(max_length=200)
     issued_at = models.DateField(default=date.today)
     created_at = models.DateTimeField(auto_now_add=True)
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["-issued_at"]

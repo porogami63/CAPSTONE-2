@@ -1,107 +1,258 @@
 {% extends "app_base.html" %}
+{% load role_tags %}
 {% block title %}Invoicing · HTC Core{% endblock %}
 {% block topbar_title %}Invoicing{% endblock %}
 {% block content %}
 <style>
-    .invoice-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-    @media (max-width: 992px) { .invoice-kpis { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 640px) { .invoice-kpis { grid-template-columns: 1fr; } }
-    .invoice-panel-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; align-items: start; }
-    @media (max-width: 1100px) { .invoice-panel-grid { grid-template-columns: 1fr; } }
-    .invoice-list-card { background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius); box-shadow: var(--htc-shadow); overflow: hidden; }
-    .invoice-list-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--htc-border); display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-    .invoice-list-head h3 { margin: 0; font-size: 1rem; color: var(--htc-primary); }
-    .invoice-list-head p { margin: 0.2rem 0 0; color: var(--htc-text-muted); font-size: 0.85rem; }
-    .invoice-stack { display: grid; gap: 0.75rem; padding: 1rem; }
-    .invoice-item { border: 1px solid var(--htc-border); border-radius: 14px; padding: 1rem; background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%); }
-    .invoice-item .meta { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 0.75rem; }
-    .invoice-item .code { font-weight: 700; color: var(--htc-primary); }
-    .invoice-item .sub { font-size: 0.8rem; color: var(--htc-text-muted); }
-    .invoice-item .amount { font-weight: 700; font-size: 1.05rem; color: var(--htc-text); }
-    .invoice-item .details { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; font-size: 0.85rem; color: var(--htc-text-muted); }
-    .invoice-item .details strong { color: var(--htc-text); }
-    .payable-card { background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius); box-shadow: var(--htc-shadow); overflow: hidden; position: sticky; top: 1.5rem; }
-    .payable-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--htc-border); }
-    .payable-head h3 { margin: 0; font-size: 1rem; color: var(--htc-primary); }
-    .payable-head p { margin: 0.2rem 0 0; color: var(--htc-text-muted); font-size: 0.85rem; }
-    .payable-list { display: grid; gap: 0.75rem; padding: 1rem; }
-    .payable-row { border: 1px solid var(--htc-border); border-radius: 12px; padding: 0.9rem 1rem; }
-    .payable-row .row-top { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.5rem; }
-    .payable-row .row-top strong { color: var(--htc-primary); }
-    .mini-kpi { font-size: 0.8rem; color: var(--htc-text-muted); }
+    /* Top metrics grid */
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 768px) {
+        .metric-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    .metric-box {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius-sm);
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(15, 45, 92, 0.02);
+    }
+    .metric-box .label {
+        font-size: 0.75rem;
+        color: var(--htc-text-muted);
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    .metric-box .value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        margin-top: 0.25rem;
+    }
+    .metric-box .subtext {
+        font-size: 0.75rem;
+        color: var(--htc-text-muted);
+        margin-top: 0.25rem;
+        font-weight: 500;
+    }
+    .metric-box .subtext.danger {
+        color: var(--htc-accent);
+    }
+
+    /* Split layout */
+    .invoicing-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.25rem;
+        align-items: start;
+    }
+    @media (max-width: 1024px) {
+        .invoicing-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .pane-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        box-shadow: var(--htc-shadow);
+        overflow: hidden;
+    }
+    .pane-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid var(--htc-border);
+    }
+    .pane-header h3 {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        margin: 0;
+    }
+    .pane-header p {
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+        margin: 0.15rem 0 0 0;
+    }
+
+    /* Supplier invoice items list */
+    .supplier-list {
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .supplier-item {
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius-sm);
+        padding: 0.75rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: var(--htc-sidebar-hover);
+    }
+    .supplier-item .info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+    .supplier-item .info strong {
+        font-size: 0.9rem;
+        color: var(--htc-text);
+    }
+    .supplier-item .info span {
+        font-size: 0.75rem;
+        color: var(--htc-text-muted);
+    }
+    .supplier-item .info .amount {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        margin-top: 0.15rem;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .status-badge.paid { background-color: var(--htc-success-bg); color: var(--htc-success); }
+    .status-badge.pending { background-color: var(--htc-warning-bg); color: var(--htc-warning); }
+    .status-badge.overdue { background-color: var(--htc-danger-bg); color: var(--htc-accent); }
+
+    .btn-full-width {
+        width: 100%;
+        display: block;
+        text-align: center;
+        background: var(--htc-bg);
+        border: 1px solid var(--htc-border);
+        color: var(--htc-primary);
+        padding: 0.6rem;
+        border-radius: var(--htc-radius-sm);
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 1rem;
+        transition: background-color 0.2s;
+    }
+    .btn-full-width:hover {
+        background: var(--htc-border);
+        text-decoration: none;
+    }
 </style>
 
 <div class="page-header flex-start mb-4">
     <div>
         <h2>Invoicing</h2>
-        <p>Sales invoicing and payable tracking in one operating view.</p>
+        <p>Manage sales invoices and cash vouchers</p>
+    </div>
+    {% if user|has_perm:"add_invoice" %}
+    <a href="{% url 'operations:cluster_list' %}" class="btn-htc" title="Select a transaction to create an invoice"><i class="bi bi-plus-lg"></i> Create Invoice</a>
+    {% endif %}
+</div>
+
+<!-- KPI Metrics Grid -->
+<div class="metric-grid">
+    <div class="metric-box">
+        <div class="label">Total Invoiced</div>
+        <div class="value">₱{{ total_invoiced_m|floatformat:2 }}M</div>
+        <div class="subtext">This month</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Paid Invoices</div>
+        <div class="value">₱{{ paid_amount_m|floatformat:2 }}M</div>
+        <div class="subtext">{{ paid_pct|floatformat:1 }}% of total</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Pending Invoices</div>
+        <div class="value">₱{{ pending_amount_m|floatformat:2 }}M</div>
+        <div class="subtext">{{ pending_pct|floatformat:1 }}% of total</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Overdue Invoices</div>
+        <div class="value">₱{{ overdue_amount_m|floatformat:2 }}M</div>
+        <div class="subtext danger">Action required</div>
     </div>
 </div>
 
-<div class="invoice-kpis">
-    <div class="kpi-card"><div class="kpi-icon blue"><i class="bi bi-receipt"></i></div><div><div class="kpi-label">Total Invoiced</div><div class="kpi-value">₱{{ total_invoiced|floatformat:0 }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon green"><i class="bi bi-check2-circle"></i></div><div><div class="kpi-label">Paid Invoices</div><div class="kpi-value">{{ paid_invoices }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon amber"><i class="bi bi-hourglass-split"></i></div><div><div class="kpi-label">Pending Invoices</div><div class="kpi-value">{{ pending_invoices }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon red"><i class="bi bi-exclamation-triangle"></i></div><div><div class="kpi-label">Overdue Invoices</div><div class="kpi-value">{{ overdue_invoices }}</div></div></div>
-</div>
-
-<div class="invoice-panel-grid">
-    <section class="invoice-list-card">
-        <div class="invoice-list-head">
-            <div>
-                <h3>Sales Invoices</h3>
-                <p>Invoice register for customer billing and collection follow-up.</p>
-            </div>
-            <span class="badge-status active">{{ sales_invoices|length }} records</span>
+<!-- Split Invoicing Panels -->
+<div class="invoicing-grid">
+    <!-- LEFT: Sales Invoices -->
+    <div class="pane-card">
+        <div class="pane-header">
+            <h3>Sales Invoices</h3>
+            <p>All sales invoices and their status</p>
         </div>
-        <div class="invoice-stack">
-            {% for invoice in sales_invoices %}
-            <article class="invoice-item {% if forloop.first %}active{% endif %}">
-                <div class="meta">
-                    <div>
-                        <div class="code">{{ invoice.invoice_number }}</div>
-                        <div class="sub">{{ invoice.cluster.client.name }} · {{ invoice.cluster.reference_code }}</div>
-                    </div>
-                    <div class="amount">₱{{ invoice.amount|floatformat:2 }}</div>
-                </div>
-                <div class="details">
-                    <div><strong>Issued</strong><br>{{ invoice.issued_at }}</div>
-                    <div><strong>Status</strong><br><span class="badge-status {{ invoice.status_badge }}">{{ invoice.get_status_display }}</span></div>
-                    <div><strong>Supplier</strong><br>{{ invoice.cluster.sugar_mill.name }}</div>
-                    <div><strong>Days Open</strong><br>{{ invoice.days_open }}</div>
-                </div>
-            </article>
-            {% empty %}
-            <div class="text-muted" style="padding: 1rem;">No invoices recorded.</div>
-            {% endfor %}
+        <div style="overflow-x:auto;">
+            <table class="table-htc" style="margin: 0; border: none;">
+                <thead>
+                    <tr>
+                        <th>Invoice Number</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>CV Number</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in sales_invoices %}
+                    <tr>
+                        <td><strong>{{ inv.invoice_number }}</strong></td>
+                        <td>{{ inv.cluster.client.name }}</td>
+                        <td>₱{{ inv.amount|floatformat:0 }}</td>
+                        <td>{{ inv.issued_at|date:"Y-m-d" }}</td>
+                        <td>
+                            <span class="status-badge {{ inv.payable_state|lower }}">
+                                {{ inv.payable_state }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if inv.cluster.cash_vouchers.exists %}
+                                {{ inv.cluster.cash_vouchers.first.voucher_number }}
+                            {% else %}
+                                CV-{{ inv.cluster.reference_code|slice:"-3:" }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" style="padding:3rem;text-align:center;color:var(--htc-text-muted);">No sales invoices.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </section>
+    </div>
 
-    <aside class="payable-card">
-        <div class="payable-head">
+    <!-- RIGHT: Supplier Invoices -->
+    <div class="pane-card">
+        <div class="pane-header">
             <h3>Supplier Invoices</h3>
-            <p>Payables tracker showing balance exposure and collection status.</p>
+            <p>Track supplier payables</p>
         </div>
-        <div class="payable-list">
-            {% for invoice in supplier_invoices %}
-            <div class="payable-row">
-                <div class="row-top">
-                    <div>
-                        <strong>{{ invoice.invoice_number }}</strong><br>
-                        <span class="mini-kpi">{{ invoice.cluster.sugar_mill.name }}</span>
-                    </div>
-                    <span class="badge-status {{ invoice.status_badge }}">{{ invoice.payable_state }}</span>
+        <div class="supplier-list">
+            {% for sup in supplier_invoices|slice:":6" %}
+            <div class="supplier-item">
+                <div class="info">
+                    <strong>{{ sup.sugar_mill.name }}</strong>
+                    <span>Invoice: {{ sup.ref_code }}</span>
+                    <span class="amount">₱{{ sup.amount|floatformat:0 }}</span>
                 </div>
-                <div class="mini-kpi">{{ invoice.cluster.client.name }} · {{ invoice.cluster.reference_code }}</div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.5rem;">
-                    <span class="mini-kpi">Outstanding</span>
-                    <strong>₱{{ invoice.amount|floatformat:2 }}</strong>
-                </div>
+                <span class="status-badge {{ sup.status|lower }}">{{ sup.status }}</span>
             </div>
             {% empty %}
-            <div class="text-muted">No payable invoices in this period.</div>
+            <div style="padding:2rem;text-align:center;color:var(--htc-text-muted);">No supplier payables.</div>
             {% endfor %}
         </div>
-    </aside>
+    </div>
 </div>
 {% endblock %}

@@ -1,5 +1,6 @@
 """Document registry grouped by operational category."""
 
+from django.urls import reverse
 from django.utils import timezone
 
 from finance.models import CashVoucher, Invoice
@@ -34,6 +35,7 @@ def build_document_registry(query: str = "") -> dict:
                 "date": cluster.created_at,
                 "size": _fmt_size(getattr(cluster, "purchase_order", None) and cluster.purchase_order.total_value or 50000),
                 "ref": cluster.reference_code,
+                "url": reverse("operations:cluster_detail", args=[cluster.pk]),
             }
         )
 
@@ -48,6 +50,7 @@ def build_document_registry(query: str = "") -> dict:
                 "date": invoice.issued_at,
                 "size": _fmt_size(invoice.amount),
                 "ref": invoice.invoice_number,
+                "url": reverse("operations:cluster_detail", args=[invoice.cluster.pk]),
             }
         )
 
@@ -62,6 +65,7 @@ def build_document_registry(query: str = "") -> dict:
                 "date": record.received_at or record.loaded_at or record.updated_at,
                 "size": _fmt_size(record.loaded_volume_mt or 100),
                 "ref": record.cluster.reference_code,
+                "url": reverse("operations:cluster_detail", args=[record.cluster.pk]),
             }
         )
 
@@ -76,6 +80,7 @@ def build_document_registry(query: str = "") -> dict:
                 "date": voucher.issued_at,
                 "size": _fmt_size(voucher.amount),
                 "ref": voucher.voucher_number,
+                "url": reverse("operations:cluster_detail", args=[voucher.cluster.pk]),
             }
         )
 

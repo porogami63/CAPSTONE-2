@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 from masters.models import Client, LogisticsPartner, SugarMill
 
@@ -22,6 +23,7 @@ class TransactionCluster(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["-created_at"]
@@ -40,6 +42,7 @@ class PurchaseOrder(models.Model):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     terms = models.CharField(max_length=200, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
+    history = HistoricalRecords()
 
     @property
     def total_value(self):
@@ -66,6 +69,7 @@ class LogisticsLedger(models.Model):
     variance_percent = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
     variance_exceeds_tolerance = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
+    history = HistoricalRecords()
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None

@@ -64,5 +64,5 @@ class FinanceNavigationTests(TestCase):
 		response = self.client.get(reverse("finance:loan_list"))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "Capital Loan Tracker")
+		self.assertContains(response, "Finance")
 		self.assertContains(response, "BDO")

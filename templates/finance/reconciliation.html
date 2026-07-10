@@ -29,7 +29,7 @@
                 <td>{{ m.matched_at|date:"M d, Y" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="4" style="padding:1.5rem;text-align:center;color:#718096;">No matches recorded.</td></tr>
+            <tr><td colspan="4" style="padding:1.5rem;text-align:center;color:var(--htc-text-muted);">No matches recorded.</td></tr>
             {% endfor %}
             </tbody>
         </table>

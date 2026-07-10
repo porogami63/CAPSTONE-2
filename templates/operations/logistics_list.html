@@ -1,89 +1,422 @@
 {% extends "app_base.html" %}
-{% block title %}Logistics · HTC Core{% endblock %}
-{% block topbar_title %}Logistics{% endblock %}
+{% load role_tags %}
+{% block title %}Logistics Tracking · HTC Core{% endblock %}
+{% block topbar_title %}Logistics Tracking{% endblock %}
 {% block content %}
 <style>
-    .logistics-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-    @media (max-width: 1200px) { .logistics-kpis { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 700px) { .logistics-kpis { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 520px) { .logistics-kpis { grid-template-columns: 1fr; } }
-    .lifecycle-strip { background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius); box-shadow: var(--htc-shadow); padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
-    .lifecycle-strip h3 { margin: 0 0 1rem; font-size: 1rem; color: var(--htc-primary); }
-    .lifecycle-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; }
-    @media (max-width: 760px) { .lifecycle-steps { grid-template-columns: repeat(2, 1fr); } }
-    .step { border: 1px solid var(--htc-border); border-radius: 12px; padding: 0.85rem; background: #fbfcfe; display: flex; gap: 0.7rem; align-items: center; }
-    .step i { font-size: 1.15rem; color: var(--htc-primary-light); }
-    .step span { font-weight: 600; color: var(--htc-text); }
-    .logistics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-    @media (max-width: 1080px) { .logistics-grid { grid-template-columns: 1fr; } }
-    .shipment-card { background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius); box-shadow: var(--htc-shadow); overflow: hidden; }
-    .shipment-card.alert { border-color: rgba(229, 62, 62, 0.35); box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.06); }
-    .shipment-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--htc-border); display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-    .shipment-head strong { color: var(--htc-primary); font-size: 1rem; }
-    .shipment-head .sub { font-size: 0.8rem; color: var(--htc-text-muted); }
-    .shipment-body { padding: 1rem 1.25rem 1.25rem; }
-    .shipment-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; margin-bottom: 0.9rem; }
-    .shipment-meta div { font-size: 0.85rem; color: var(--htc-text-muted); }
-    .shipment-meta strong { color: var(--htc-text); display: block; margin-top: 0.15rem; }
-    .progress-track { height: 10px; background: #edf2f7; border-radius: 999px; overflow: hidden; margin: 0.75rem 0 0.5rem; }
-    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--htc-primary-light), #39a0ed); border-radius: inherit; }
-    .chip-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem; }
-    .alert-note { color: #9b2c2c; background: var(--htc-danger-bg); border: 1px solid #feb2b2; border-radius: 10px; padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+    /* Top engine badge */
+    .engine-badge {
+        background-color: #fef3c7;
+        color: #d97706;
+        border: 1px solid #fde68a;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* KPI Deck */
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 992px) {
+        .metric-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    @media (max-width: 576px) {
+        .metric-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    .metric-box {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius-sm);
+        padding: 1rem;
+        box-shadow: 0 1px 3px rgba(15, 45, 92, 0.02);
+    }
+    .metric-box .label {
+        font-size: 0.7rem;
+        color: var(--htc-text-muted);
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    .metric-box .value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        margin-top: 0.25rem;
+    }
+
+    /* Visual Lifecycle Diagram */
+    .lifecycle-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--htc-shadow);
+    }
+    .lifecycle-card h3 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        margin: 0;
+    }
+    .lifecycle-card p {
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+        margin: 0.15rem 0 1rem 0;
+    }
+    .lifecycle-flow {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .lifecycle-step {
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius-sm);
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--htc-primary);
+        background-color: var(--htc-sidebar-hover);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .lifecycle-arrow {
+        color: var(--htc-text-muted);
+        font-size: 0.9rem;
+    }
+    .lifecycle-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--htc-text-muted);
+        border-left: 1px solid var(--htc-border);
+        padding-left: 1rem;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    .legend-dot.green { background-color: var(--htc-success); }
+    .legend-dot.orange { background-color: var(--htc-gold); }
+    .legend-dot.red { background-color: var(--htc-accent); }
+
+    /* Alert Info Boxes Grid */
+    .alert-info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 768px) {
+        .alert-info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .alert-info-box {
+        border-radius: var(--htc-radius-sm);
+        padding: 0.75rem 1rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        line-height: 1.4;
+    }
+    .alert-info-box strong {
+        font-size: 0.85rem;
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+    .alert-info-box.green {
+        background-color: #ebf8f2;
+        border: 1px solid #c6f6d5;
+        color: #1c5235;
+    }
+    .alert-info-box.orange {
+        background-color: var(--htc-warning-bg);
+        border: 1px solid var(--htc-warning-bg);
+        color: #7b341e;
+    }
+    .alert-info-box.red {
+        background-color: var(--htc-danger-bg);
+        border: 1px solid #fed7d7;
+        color: #822727;
+    }
+
+    /* Shipments Grid */
+    .shipments-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.25rem;
+    }
+    @media (max-width: 1024px) {
+        .shipments-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 768px) {
+        .shipments-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Shipment Card styles */
+    .shipment-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1.25rem;
+        box-shadow: var(--htc-shadow);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .shipment-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(15, 45, 92, 0.06);
+    }
+    .shipment-card.border-orange {
+        border: 2px solid var(--htc-gold);
+    }
+    .shipment-card.border-red {
+        border: 2px solid var(--htc-accent);
+    }
+
+    .shipment-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+    .shipment-card-header strong {
+        font-size: 0.95rem;
+        color: var(--htc-primary);
+    }
+    .shipment-customer {
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+        margin-bottom: 1rem;
+        font-weight: 500;
+    }
+
+    /* Progress bar */
+    .progress-label-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--htc-text-muted);
+        margin-bottom: 0.35rem;
+    }
+    .progress-bar-wrap {
+        background-color: var(--htc-bg);
+        height: 8px;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        background-color: var(--htc-primary-light);
+    }
+    .progress-bar-fill.green { background-color: var(--htc-success); }
+    .progress-bar-fill.red { background-color: var(--htc-accent); }
+
+    .shrinkage-row {
+        background-color: var(--htc-sidebar-hover);
+        border-radius: var(--htc-radius-sm);
+        padding: 0.5rem 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+    .shrinkage-row .shrinkage-val.green { color: var(--htc-success); }
+    .shrinkage-row .shrinkage-val.red { color: var(--htc-accent); }
+
+    .headroom-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--htc-text-muted);
+    }
+    .headroom-val.green { color: var(--htc-success); }
+    .headroom-val.red { color: var(--htc-accent); }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .status-badge.loading { background-color: var(--htc-bg); color: var(--htc-text-muted); }
+    .status-badge.transit { background-color: #ebf8ff; color: #2b6cb0; }
+    .status-badge.delivered { background-color: #ebf8f2; color: #22543d; }
+    .status-badge.accepted { background-color: #c6f6d5; color: #276749; }
+    .status-badge.disputed { background-color: #fed7d7; color: #9b2c2c; }
+    .status-badge.pending_review { background-color: var(--htc-warning-bg); color: #c05621; }
 </style>
 
 <div class="page-header flex-start mb-4">
     <div>
-        <h2>Logistics</h2>
-        <p>Shipment lifecycle monitoring with variance and exception tracking.</p>
+        <h2>Logistics Tracking</h2>
+        <p>Volume variance tracker — ±2% standard shrinkage tolerance</p>
+    </div>
+    <div class="engine-badge">
+        <i class="bi bi-lightning-charge-fill"></i> variance engine active
     </div>
 </div>
 
-<div class="logistics-kpis">
-    <div class="kpi-card"><div class="kpi-icon blue"><i class="bi bi-truck"></i></div><div><div class="kpi-label">In Transit</div><div class="kpi-value">{{ in_transit }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon green"><i class="bi bi-check2-circle"></i></div><div><div class="kpi-label">Delivered</div><div class="kpi-value">{{ delivered }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon green"><i class="bi bi-patch-check"></i></div><div><div class="kpi-label">Accepted</div><div class="kpi-value">{{ accepted }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon amber"><i class="bi bi-hourglass-split"></i></div><div><div class="kpi-label">Pending Review</div><div class="kpi-value">{{ pending_review }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon red"><i class="bi bi-exclamation-triangle"></i></div><div><div class="kpi-label">Disputed</div><div class="kpi-value">{{ disputed }}</div></div></div>
+<!-- TOP KPI CARDS -->
+<div class="metric-grid">
+    <div class="metric-box">
+        <div class="label">In Transit / Loading</div>
+        <div class="value">{{ in_transit_count }}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Delivered</div>
+        <div class="value">{{ delivered_count }}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Accepted</div>
+        <div class="value">{{ accepted_count }}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Pending Review</div>
+        <div class="value">{{ pending_review_count }}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Disputed / Flagged</div>
+        <div class="value">{{ disputed_count }}</div>
+    </div>
 </div>
 
-<section class="lifecycle-strip">
-    <h3>Shipment Lifecycle</h3>
-    <div class="lifecycle-steps">
-        {% for step in lifecycle_steps %}
-        <div class="step"><i class="bi {{ step.icon }}"></i><span>{{ step.label }}</span></div>
-        {% endfor %}
-    </div>
-</section>
-
-<section class="logistics-grid">
-    {% for record in records %}
-    <article class="shipment-card {% if record.lifecycle_class == 'alert' %}alert{% endif %}">
-        <div class="shipment-head">
-            <div>
-                <strong>{{ record.cluster.reference_code }}</strong>
-                <div class="sub">{{ record.cluster.client.name }} · {{ record.partner.name }}</div>
-            </div>
-            <span class="badge-status {{ record.lifecycle_class }}">{{ record.lifecycle_state }}</span>
+<!-- Shipment Lifecycle Diagram -->
+<div class="lifecycle-card">
+    <div class="flex-between">
+        <div>
+            <h3>Shipment Lifecycle</h3>
+            <p>Every shipment follows this path — variance is checked at delivery and must be accepted or disputed before closing.</p>
         </div>
-        <div class="shipment-body">
-            <div class="shipment-meta">
-                <div>Loaded<strong>{{ record.loaded_volume_mt|floatformat:1 }} MT</strong></div>
-                <div>Received<strong>{% if record.received_volume_mt is not None %}{{ record.received_volume_mt|floatformat:1 }} MT{% else %}—{% endif %}</strong></div>
-                <div>Variance<strong>{{ record.variance_text }}</strong></div>
-                <div>Updated<strong>{{ record.updated_at|date:"Y-m-d" }}</strong></div>
-            </div>
-            <div class="progress-track"><div class="progress-bar" style="width: {{ record.progress_percent }}%;"></div></div>
-            <div class="chip-row">
-                <span class="badge-status {% if record.lifecycle_class == 'alert' %}alert{% elif record.lifecycle_class == 'delivered' %}delivered{% else %}active{% endif %}">{{ record.lifecycle_state }}</span>
-                <span class="badge-status {% if record.variance_exceeds_tolerance %}alert{% else %}draft{% endif %}">Tolerance {% if record.variance_exceeds_tolerance %}Exceeded{% else %}Within{% endif %}</span>
-            </div>
-            {% if record.variance_exceeds_tolerance %}
-            <div class="alert-note" style="margin-top:0.85rem;">Variance requires manual review before acceptance.</div>
+        <div class="lifecycle-legend">
+            <div class="legend-item"><span class="legend-dot green"></span> Accepted — full or within tolerance</div>
+            <div class="legend-item"><span class="legend-dot orange"></span> Pending review</div>
+            <div class="legend-item"><span class="legend-dot red"></span> Disputed — tolerance exceeded</div>
+        </div>
+    </div>
+    <div class="lifecycle-flow">
+        <div class="lifecycle-step"><i class="bi bi-box-seam"></i> Loading</div>
+        <i class="bi bi-chevron-right lifecycle-arrow"></i>
+        <div class="lifecycle-step"><i class="bi bi-truck"></i> In Transit</div>
+        <i class="bi bi-chevron-right lifecycle-arrow"></i>
+        <div class="lifecycle-step"><i class="bi bi-building-check"></i> Delivered</div>
+        <i class="bi bi-chevron-right lifecycle-arrow"></i>
+        <div class="lifecycle-step"><i class="bi bi-calculator"></i> Variance Check</div>
+        <i class="bi bi-chevron-right lifecycle-arrow"></i>
+        <div class="lifecycle-step"><i class="bi bi-file-earmark-check"></i> Accepted / Disputed</div>
+    </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-row" style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem;">
+    <button class="tab-btn active"><i class="bi bi-bezier2"></i> Variance Analysis</button>
+    <button class="tab-btn"><i class="bi bi-list-task"></i> All Shipments</button>
+</div>
+
+<!-- Alert Info Boxes -->
+<div class="alert-info-grid">
+    <div class="alert-info-box green">
+        <strong>Accepted</strong>
+        Full quantity received OR minor loss within ±2% tolerance and signed off by operations.
+    </div>
+    <div class="alert-info-box orange">
+        <strong>Pending Review</strong>
+        Shipment delivered. Variance detected. Waiting for management to accept or dispute.
+    </div>
+    <div class="alert-info-box red">
+        <strong>Disputed / Flagged</strong>
+        Shrinkage exceeded ±2% limit. Under investigation. Financial adjustment may apply.
+    </div>
+</div>
+
+<!-- Shipments Cards Grid -->
+<div class="shipments-grid">
+    {% for sh in shipments %}
+    <div class="shipment-card {% if sh.status == 'disputed' %}border-red{% elif sh.status == 'pending_review' %}border-orange{% endif %}">
+        <div class="shipment-card-header">
+            <strong>{{ sh.sh_code }}</strong>
+            <span class="status-badge {{ sh.status }}">
+                {{ sh.sh_status_display }}
+            </span>
+        </div>
+        <div class="shipment-customer">
+            {{ sh.customer }}
+            <span class="text-muted small" style="display:block;">Contract: {{ sh.ref_code }}</span>
+        </div>
+
+        <!-- Quantity bars -->
+        <div class="progress-label-row">
+            <span>Quantity Loaded</span>
+            <span>{{ sh.loaded_mt }} MT</span>
+        </div>
+        <div class="progress-bar-wrap">
+            <div class="progress-bar-fill {% if sh.status == 'Disputed' %}red{% elif sh.status == 'Accepted' or sh.status == 'Delivered' %}green{% endif %}" style="width: {{ sh.prog_pct }}%;"></div>
+        </div>
+
+        <div class="progress-label-row" style="margin-top: -0.5rem; margin-bottom: 0.75rem;">
+            <span>Received</span>
+            <span>{% if sh.received_mt == 'Pending' %}Pending{% else %}{{ sh.received_mt }} MT{% endif %}</span>
+        </div>
+
+        <div class="shrinkage-row">
+            <span>Shrinkage</span>
+            <span class="shrinkage-val {% if sh.status == 'Disputed' %}red{% else %}green{% endif %}">
+                {% if sh.received_mt == 'Pending' %}
+                    Awaiting delivery
+                {% else %}
+                    -{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)
+                {% endif %}
+            </span>
+        </div>
+
+        <div class="headroom-row">
+            <span>Shrinkage vs ±2% limit</span>
+            {% if sh.received_mt == 'Pending' %}
+                <span class="headroom-val">—</span>
+            {% elif sh.over_limit > 0 %}
+                <span class="headroom-val red">{{ sh.over_limit|floatformat:2 }}% over limit</span>
+            {% else %}
+                <span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span>
             {% endif %}
         </div>
-    </article>
-    {% empty %}
-    <div class="text-muted">No logistics records recorded.</div>
+    </div>
     {% endfor %}
-</section>
+</div>
 {% endblock %}
