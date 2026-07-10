@@ -18,6 +18,7 @@ from .services.excel_import import (
     parse_excel_to_preview,
     commit_staged_data,
 )
+from .services.pricing import cluster_financials
 
 
 from django.db.models import Q
@@ -51,6 +52,7 @@ def cluster_list(request):
 
     total_volume = 0.0
     combined_profit = 0.0
+    margin_total = 0.0
     total_transactions = len(clusters)
 
     for c in clusters:
@@ -58,43 +60,28 @@ def cluster_list(request):
         c.purchase_order = getattr(c, "purchase_order", None)
         c.logistics_record = getattr(c, "logistics", None)
         c.partner_name = c.logistics_record.partner.name if c.logistics_record else "—"
-        c.order_value = c.purchase_order.total_value if c.purchase_order else 0
-        c.received_volume = c.logistics_record.received_volume_mt if c.logistics_record and c.logistics_record.received_volume_mt is not None else None
+        c.received_volume = (
+            c.logistics_record.received_volume_mt
+            if c.logistics_record and c.logistics_record.received_volume_mt is not None
+            else None
+        )
         c.variance_text = "—"
         if c.logistics_record and c.logistics_record.variance_percent is not None:
             c.variance_text = f"{c.logistics_record.variance_percent:.2f}%"
         c.notes = c.contract_notes or "No contract notes recorded."
-        
-        # Calculate volume
-        vol = 0.0
-        if hasattr(c, 'purchase_order') and c.purchase_order:
-            vol = float(c.purchase_order.volume_mt)
-        elif hasattr(c, 'logistics') and c.logistics:
-            vol = float(c.logistics.loaded_volume_mt)
-        
-        # Calculate pricing, profit, and margin matching the wireframe
-        purchase_price = 0.0
-        selling_price = 0.0
-        profit = 0.0
-        margin = 0.0
 
-        if hasattr(c, 'purchase_order') and c.purchase_order:
-            purchase_price = float(c.purchase_order.unit_price)
-            # Use mock margin calculation for display consistency
-            margin = 16.7 if "001" in c.reference_code or "101" in c.reference_code else (13.5 if "002" in c.reference_code else 15.0)
-            selling_price = purchase_price * (1.0 + (margin / 100.0))
-            profit = vol * (selling_price - purchase_price)
-        elif c.primary_invoice:
-            margin = 15.0
-            profit = float(c.primary_invoice.amount) * 0.15
-            purchase_price = float(c.primary_invoice.amount) / vol if vol > 0 else 0.0
-            selling_price = purchase_price * 1.15
+        fin = cluster_financials(c)
+        c.vol_mt = fin["volume_mt"]
+        c.purchase_price = fin["purchase_price"]
+        c.selling_price = fin["selling_price"]
+        c.profit = fin["profit"]
+        c.profit_m = fin["profit_m"]
+        c.margin = fin["margin"]
+        c.order_value = fin["order_value"]
+        c.revenue = fin["revenue"]
+        c.logistics_cost = fin["logistics_cost"]
+        c.invoice_number = fin["invoice_number"] or "—"
 
-        c.vol_mt = vol
-        c.purchase_price = purchase_price
-        c.selling_price = selling_price
-        c.profit = profit
-        c.margin = margin
         c.timeline_progress = 22
         if c.status == TransactionCluster.Status.ACTIVE:
             c.timeline_progress = 48
@@ -102,11 +89,12 @@ def cluster_list(request):
             c.timeline_progress = 74
         elif c.status == TransactionCluster.Status.CLOSED:
             c.timeline_progress = 100
-        
-        combined_profit += profit
-        total_volume += vol
 
-    avg_margin = 15.4 if total_transactions > 0 else 0.0
+        combined_profit += fin["profit_m"]
+        total_volume += fin["volume_mt"]
+        margin_total += fin["margin"]
+
+    avg_margin = round(margin_total / total_transactions, 1) if total_transactions else 0.0
 
     context = {
         "clusters": clusters,

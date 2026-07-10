@@ -8,6 +8,9 @@ from accounts.models import User
 from finance.models import FinancialReconciliation, Invoice
 from operations.models import LogisticsLedger, TransactionCluster
 
+from .services.analytics import build_supplier_rankings
+from .services.documents import build_document_registry
+
 
 @role_required(
     User.Role.MANAGEMENT,
@@ -70,3 +73,42 @@ def home(request):
             "net_cash_flow_str": net_cash_flow_str,
         },
     )
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.FINANCE,
+    User.Role.OPERATIONS,
+)
+def analytics(request):
+    try:
+        order_qty = float(request.GET.get("qty", "500"))
+    except ValueError:
+        order_qty = 500.0
+    try:
+        selling_price = float(request.GET.get("price", "18500"))
+    except ValueError:
+        selling_price = 18500.0
+
+    engine = build_supplier_rankings(order_qty, selling_price)
+    return render(
+        request,
+        "dashboard/analytics.html",
+        {
+            "engine": engine,
+            "order_qty": order_qty,
+            "selling_price": selling_price,
+        },
+    )
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.FINANCE,
+    User.Role.OPERATIONS,
+    User.Role.INVOICING,
+)
+def documents(request):
+    query = request.GET.get("q", "").strip()
+    registry = build_document_registry(query)
+    return render(request, "dashboard/documents.html", registry)

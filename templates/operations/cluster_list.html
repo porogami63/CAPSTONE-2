@@ -1,269 +1,9 @@
 {% extends "app_base.html" %}
 {% load role_tags %}
-{% block title %}Transactions · HTC Core{% endblock %}
+{% block title %}Transactions · Molasses Trading{% endblock %}
 {% block topbar_title %}Transactions{% endblock %}
 {% block content %}
-<style>
-    /* Top metric deck */
-    .metric-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1.25rem;
-        margin-bottom: 1.5rem;
-    }
-    @media (max-width: 768px) {
-        .metric-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-    .metric-box {
-        background: var(--htc-surface);
-        border: 1px solid var(--htc-border);
-        border-radius: var(--htc-radius-sm);
-        padding: 1.25rem;
-        box-shadow: 0 1px 3px rgba(15, 45, 92, 0.02);
-    }
-    .metric-box .label {
-        font-size: 0.75rem;
-        color: var(--htc-text-muted);
-        text-transform: uppercase;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-    }
-    .metric-box .value {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: var(--htc-primary);
-        margin-top: 0.25rem;
-    }
-
-    /* Filter and search bar */
-    .filters-bar {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 1rem;
-        margin-bottom: 1.25rem;
-        background: var(--htc-surface);
-        padding: 0.75rem;
-        border-radius: var(--htc-radius-sm);
-        border: 1px solid var(--htc-border);
-    }
-    .search-input-wrap {
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
-    .search-input-wrap i {
-        position: absolute;
-        left: 0.75rem;
-        color: var(--htc-text-muted);
-    }
-    .search-input-wrap input {
-        width: 100%;
-        padding: 0.5rem 1rem 0.5rem 2.25rem;
-        border: 1px solid var(--htc-border);
-        border-radius: var(--htc-radius-sm);
-        font-size: 0.9rem;
-        background-color: #f7fafc;
-    }
-    .filter-select {
-        padding: 0.5rem 2rem 0.5rem 1rem;
-        border: 1px solid var(--htc-border);
-        border-radius: var(--htc-radius-sm);
-        font-size: 0.9rem;
-        background-color: #f7fafc;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%234a5568' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 0.75rem center;
-        background-size: 10px;
-    }
-
-    /* Tabs block */
-    .tabs-row {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1.25rem;
-    }
-    .tab-btn {
-        background: #e2e8f0;
-        border: 1px solid var(--htc-border);
-        padding: 0.45rem 1.25rem;
-        border-radius: var(--htc-radius-sm);
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #4a5568;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        transition: background-color 0.2s;
-    }
-    .tab-btn.active {
-        background: #fff;
-        color: var(--htc-primary);
-        border-bottom: 2px solid var(--htc-primary);
-    }
-
-    /* Split-Pane Layout */
-    .split-layout {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 1.25rem;
-        align-items: start;
-    }
-    @media (max-width: 1024px) {
-        .split-layout {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    /* Left list card */
-    .list-pane {
-        background: var(--htc-surface);
-        border: 1px solid var(--htc-border);
-        border-radius: var(--htc-radius);
-        box-shadow: var(--htc-shadow);
-        overflow: hidden;
-    }
-    .list-pane-header {
-        padding: 1.25rem;
-        border-bottom: 1px solid var(--htc-border);
-    }
-    .list-pane-header h3 {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: var(--htc-primary);
-        margin: 0;
-    }
-    .list-pane-header p {
-        font-size: 0.8rem;
-        color: var(--htc-text-muted);
-        margin: 0.15rem 0 0 0;
-    }
-
-    /* Interactive Table row states */
-    .interactive-row {
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-    .interactive-row:hover {
-        background-color: #f7fafc !important;
-    }
-    .interactive-row.selected {
-        background-color: #ebf3fc !important;
-        border-left: 3px solid var(--htc-primary-light);
-    }
-
-    /* Right detail panel */
-    .detail-pane {
-        background: var(--htc-surface);
-        border: 1px solid var(--htc-border);
-        border-radius: var(--htc-radius);
-        padding: 1.25rem;
-        box-shadow: var(--htc-shadow);
-        position: sticky;
-        top: 1.5rem;
-    }
-    .detail-pane h3 {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: var(--htc-primary);
-        margin: 0 0 0.15rem 0;
-    }
-    .detail-pane .subtitle {
-        font-size: 0.8rem;
-        color: var(--htc-text-muted);
-        margin-bottom: 1.25rem;
-    }
-    .detail-section {
-        border-top: 1px solid var(--htc-border);
-        padding: 1rem 0;
-    }
-    .detail-section-title {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--htc-primary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.75rem;
-    }
-    .detail-row {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.85rem;
-        margin-bottom: 0.5rem;
-    }
-    .detail-row span:first-child {
-        color: var(--htc-text-muted);
-    }
-    .detail-row span:last-child {
-        font-weight: 600;
-        color: var(--htc-text);
-    }
-
-    .detail-progress {
-        margin-top: 0.75rem;
-    }
-    .detail-progress .track {
-        height: 10px;
-        background: #edf2f7;
-        border-radius: 999px;
-        overflow: hidden;
-        margin-top: 0.35rem;
-    }
-    .detail-progress .fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--htc-primary-light), #39a0ed);
-        border-radius: inherit;
-    }
-
-    /* Status timeline list */
-    .timeline-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-    .timeline-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--htc-text-muted);
-    }
-    .timeline-item.active {
-        color: var(--htc-text);
-    }
-    .timeline-item i {
-        font-size: 1rem;
-        color: #cbd5e0;
-    }
-    .timeline-item.active i {
-        color: var(--htc-success);
-    }
-
-    .btn-full-width {
-        width: 100%;
-        display: block;
-        text-align: center;
-        background: #edf2f7;
-        border: 1px solid var(--htc-border);
-        color: var(--htc-primary);
-        padding: 0.6rem;
-        border-radius: var(--htc-radius-sm);
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin-top: 1.25rem;
-        transition: background-color 0.2s;
-    }
-    .btn-full-width:hover {
-        background: #e2e8f0;
-        text-decoration: none;
-    }
-</style>
-
-<div class="page-header flex-start mb-4">
+<div class="page-header flex-start compact">
     <div>
         <h2>Transactions</h2>
         <p>Purchase order management with immutable audit trail</p>
@@ -276,7 +16,6 @@
     </div>
 </div>
 
-<!-- TOP METRIC CARDS -->
 <div class="metric-grid">
     <div class="metric-box">
         <div class="label">Total Volume</div>
@@ -296,7 +35,6 @@
     </div>
 </div>
 
-<!-- SEARCH & FILTER BAR -->
 <form method="get" class="filters-bar">
     <div class="search-input-wrap">
         <i class="bi bi-search"></i>
@@ -312,22 +50,19 @@
     </div>
 </form>
 
-<!-- TABS -->
 <div class="tabs-row">
-    <button class="tab-btn active"><i class="bi bi-receipt"></i> Transactions</button>
+    <button class="tab-btn active" type="button"><i class="bi bi-receipt"></i> Transactions</button>
     <a href="{% url 'audit:list' %}" class="tab-btn"><i class="bi bi-shield-check"></i> Audit Trail</a>
 </div>
 
-<!-- SPLIT PANE LAYOUT -->
 <div class="split-layout">
-    <!-- LEFT: Transactions List -->
     <div class="list-pane">
         <div class="list-pane-header">
             <h3>All Transactions</h3>
             <p>Click a row to view contract details</p>
         </div>
         <div style="overflow-x:auto;">
-            <table class="table-htc" style="margin: 0; border: none;">
+            <table class="table-htc" style="margin:0;border:none;">
                 <thead>
                     <tr>
                         <th>PO</th>
@@ -341,23 +76,26 @@
                 </thead>
                 <tbody>
                     {% for c in clusters %}
-                    <tr class="interactive-row {% if forloop.first %}selected{% endif %}" 
-                        data-id="{{ c.pk }}"
+                    <tr class="interactive-row"
                         data-ref="{{ c.reference_code }}"
                         data-customer="{{ c.client.name }}"
                         data-supplier="{{ c.sugar_mill.name }}"
                         data-partner="{{ c.partner_name }}"
                         data-qty="{{ c.vol_mt|floatformat:0 }} MT"
                         data-total-value="₱{{ c.order_value|floatformat:0 }}"
+                        data-revenue="₱{{ c.revenue|floatformat:0 }}"
                         data-created="{{ c.created_at|date:'Y-m-d' }}"
                         data-updated="{{ c.updated_at|date:'Y-m-d' }}"
                         data-purchase-price="₱{{ c.purchase_price|floatformat:0 }}/MT"
                         data-selling-price="₱{{ c.selling_price|floatformat:0 }}/MT"
                         data-profit="₱{{ c.profit|floatformat:0 }}"
                         data-margin="{{ c.margin|floatformat:1 }}%"
+                        data-logistics="₱{{ c.logistics_cost|floatformat:0 }}"
+                        data-invoice="{{ c.invoice_number }}"
                         data-notes="{{ c.notes|escapejs }}"
                         data-variance="{{ c.variance_text }}"
                         data-status="{{ c.status }}"
+                        data-progress="{{ c.timeline_progress }}"
                         data-url="{% url 'operations:cluster_detail' c.pk %}"
                         onclick="selectCluster(this)">
                         <td><strong>{{ c.reference_code }}</strong></td>
@@ -365,95 +103,58 @@
                         <td>{{ c.sugar_mill.name }}</td>
                         <td>{{ c.vol_mt|floatformat:0 }}</td>
                         <td><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></td>
-                        <td>₱{{ c.profit|floatformat:2 }}M</td>
+                        <td>₱{{ c.profit_m|floatformat:2 }}M</td>
                         <td>{{ c.margin|floatformat:1 }}%</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7" style="padding:3rem;text-align:center;color:var(--htc-text-muted);">No transaction records match search.</td></tr>
+                    <tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--htc-text-muted);">No transaction records match search.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- RIGHT: Selected Detail Card -->
-    <div class="detail-pane" id="detailPane" style="display: none;">
-        <div class="flex-between" style="gap: 1rem; align-items: start;">
+    <div class="detail-pane" id="detailPane" hidden>
+        <div class="flex-between" style="gap:0.75rem;align-items:start;">
             <div>
-                <h3 id="panelRef">PO-2401</h3>
-                <div class="subtitle" id="panelSub">CNT-24-001</div>
+                <h3 id="panelRef">—</h3>
+                <div class="subtitle" id="panelSub">Select a transaction</div>
             </div>
-            <span class="badge-status active" id="panelStatusChip">Draft</span>
+            <span class="badge-status draft" id="panelStatusChip">—</span>
         </div>
 
         <div class="detail-section">
             <div class="detail-section-title">Contract Summary</div>
-            <div class="detail-row">
-                <span>Customer</span>
-                <span id="panelCustomer">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Supplier</span>
-                <span id="panelSupplier">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Quantity</span>
-                <span id="panelQuantity">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Created</span>
-                <span id="panelCreated">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Last Updated</span>
-                <span id="panelUpdated">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Logistics Partner</span>
-                <span id="panelPartner">—</span>
-            </div>
+            <div class="detail-row"><span>Customer</span><span id="panelCustomer">—</span></div>
+            <div class="detail-row"><span>Supplier</span><span id="panelSupplier">—</span></div>
+            <div class="detail-row"><span>Quantity</span><span id="panelQuantity">—</span></div>
+            <div class="detail-row"><span>Created</span><span id="panelCreated">—</span></div>
+            <div class="detail-row"><span>Last Updated</span><span id="panelUpdated">—</span></div>
+            <div class="detail-row"><span>Logistics Partner</span><span id="panelPartner">—</span></div>
+            <div class="detail-row"><span>Invoice Ref</span><span id="panelInvoice">—</span></div>
         </div>
 
         <div class="detail-section">
             <div class="detail-section-title">Pricing & Profit</div>
-            <div class="detail-row">
-                <span>Purchase Price</span>
-                <span id="panelPurchase">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Selling Price</span>
-                <span id="panelSelling">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Total Profit</span>
-                <span id="panelProfit" style="color: var(--htc-success); font-weight: 700;">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Order Value</span>
-                <span id="panelOrderValue">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Margin</span>
-                <span id="panelMargin">—</span>
-            </div>
+            <div class="detail-row"><span>Purchase Price</span><span id="panelPurchase">—</span></div>
+            <div class="detail-row"><span>Selling Price</span><span id="panelSelling">—</span></div>
+            <div class="detail-row"><span>Revenue</span><span id="panelRevenue">—</span></div>
+            <div class="detail-row"><span>Logistics Cost</span><span id="panelLogistics">—</span></div>
+            <div class="detail-row"><span>Total Profit</span><span id="panelProfit" style="color:var(--htc-success);font-weight:700;">—</span></div>
+            <div class="detail-row"><span>Order Value</span><span id="panelOrderValue">—</span></div>
+            <div class="detail-row"><span>Margin</span><span id="panelMargin">—</span></div>
         </div>
 
         <div class="detail-section">
             <div class="detail-section-title">Logistics Snapshot</div>
-            <div class="detail-row">
-                <span>Variance</span>
-                <span id="panelVariance">—</span>
-            </div>
-            <div class="detail-row">
-                <span>Notes</span>
-                <span id="panelNotes" style="max-width: 170px; text-align: right;">—</span>
-            </div>
+            <div class="detail-row"><span>Variance</span><span id="panelVariance">—</span></div>
+            <div class="detail-row"><span>Notes</span><span id="panelNotes" style="max-width:160px;text-align:right;">—</span></div>
             <div class="detail-progress">
-                <div class="detail-row" style="margin-bottom: 0;">
+                <div class="detail-row" style="margin-bottom:0;">
                     <span>Lifecycle Progress</span>
                     <span id="panelProgressLabel">—</span>
                 </div>
-                <div class="track"><div class="fill" id="panelProgressBar" style="width: 22%;"></div></div>
+                <div class="track"><div class="fill" id="panelProgressBar" style="width:0;"></div></div>
             </div>
         </div>
 
@@ -473,66 +174,56 @@
 
 <script>
     function selectCluster(row) {
-        // Toggle selected row style class
         document.querySelectorAll('.interactive-row').forEach(r => r.classList.remove('selected'));
         row.classList.add('selected');
 
-        // Extract dataset
-        const data = row.dataset;
-
-        // Populate Panel
-        document.getElementById('panelRef').textContent = data.ref;
-        document.getElementById('panelSub').textContent = data.customer + ' · ' + data.status;
-        document.getElementById('panelCustomer').textContent = data.customer;
-        document.getElementById('panelSupplier').textContent = data.supplier;
-        document.getElementById('panelPartner').textContent = data.partner;
-        document.getElementById('panelQuantity').textContent = data.qty;
-        document.getElementById('panelCreated').textContent = data.created;
-        document.getElementById('panelUpdated').textContent = data.updated;
-        document.getElementById('panelPurchase').textContent = data.purchasePrice;
-        document.getElementById('panelSelling').textContent = data.sellingPrice;
-        document.getElementById('panelProfit').textContent = data.profit;
-        document.getElementById('panelOrderValue').textContent = data.totalValue;
-        document.getElementById('panelMargin').textContent = data.margin;
-        document.getElementById('panelVariance').textContent = data.variance;
-        document.getElementById('panelNotes').textContent = data.notes;
-        document.getElementById('panelFullUrl').href = data.url;
+        const d = row.dataset;
+        document.getElementById('panelRef').textContent = d.ref;
+        document.getElementById('panelSub').textContent = d.customer + ' · ' + d.status;
+        document.getElementById('panelCustomer').textContent = d.customer;
+        document.getElementById('panelSupplier').textContent = d.supplier;
+        document.getElementById('panelPartner').textContent = d.partner;
+        document.getElementById('panelQuantity').textContent = d.qty;
+        document.getElementById('panelCreated').textContent = d.created;
+        document.getElementById('panelUpdated').textContent = d.updated;
+        document.getElementById('panelPurchase').textContent = d.purchasePrice;
+        document.getElementById('panelSelling').textContent = d.sellingPrice;
+        document.getElementById('panelRevenue').textContent = d.revenue;
+        document.getElementById('panelLogistics').textContent = d.logistics;
+        document.getElementById('panelProfit').textContent = d.profit;
+        document.getElementById('panelOrderValue').textContent = d.totalValue;
+        document.getElementById('panelMargin').textContent = d.margin;
+        document.getElementById('panelVariance').textContent = d.variance;
+        document.getElementById('panelNotes').textContent = d.notes;
+        document.getElementById('panelInvoice').textContent = d.invoice;
+        document.getElementById('panelFullUrl').href = d.url;
         document.getElementById('panelStatusChip').textContent = row.querySelector('.badge-status').textContent.trim();
+        document.getElementById('panelStatusChip').className = 'badge-status ' + d.status;
 
-        const progress = data.status === 'draft' ? 22 : data.status === 'active' ? 48 : data.status === 'delivered' ? 74 : 100;
+        const progress = parseInt(d.progress, 10) || 0;
         document.getElementById('panelProgressBar').style.width = progress + '%';
         document.getElementById('panelProgressLabel').textContent = progress + '%';
 
-        // Render timeline based on status
-        const status = data.status; // draft, active, delivered, closed
-        
-        // Reset timelines
         document.querySelectorAll('.timeline-item').forEach(item => item.classList.remove('active'));
-
         document.getElementById('timeOffer').classList.add('active');
-        if (status === 'draft') {
-            // only offer active
-        } else if (status === 'active') {
+        if (d.status === 'active') {
             document.getElementById('timePo').classList.add('active');
-        } else if (status === 'delivered') {
+        } else if (d.status === 'delivered') {
             document.getElementById('timePo').classList.add('active');
             document.getElementById('timeDelivery').classList.add('active');
-        } else if (status === 'closed') {
+        } else if (d.status === 'closed') {
             document.getElementById('timePo').classList.add('active');
             document.getElementById('timeDelivery').classList.add('active');
             document.getElementById('timePayment').classList.add('active');
         }
 
-        // Show panel if hidden
-        document.getElementById('detailPane').style.display = 'block';
+        const pane = document.getElementById('detailPane');
+        pane.hidden = false;
     }
 
-    // Auto-select first row on page load
     document.addEventListener('DOMContentLoaded', () => {
         const firstRow = document.querySelector('.interactive-row');
-        if (firstRow) {
-            selectCluster(firstRow);
-        }
+        if (firstRow) selectCluster(firstRow);
     });
 </script>
 {% endblock %}

@@ -7,24 +7,24 @@
     <title>{% block title %}HTC Core{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="{% static 'css/htc-theme.css' %}?v=2" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}?v=3" rel="stylesheet">
 </head>
 <body>
     <div class="app-shell">
         <aside class="app-sidebar" id="appSidebar">
             <div class="brand-block">
-                <div class="logo-text">HTC Core</div>
-                <div class="logo-sub">Heindrich Trading Corp.</div>
+                <div class="logo-text">Molasses Trading</div>
+                <div class="logo-sub">Management System</div>
             </div>
             <nav>
-                {% for url_name, label, icon in nav_items %}
-                <a class="nav-link {% if request.resolver_match.view_name == url_name %}active{% endif %}"
+                {% for url_name, label, icon, match_prefixes in nav_items %}
+                <a class="nav-link {% if nav_is_active current_view_name url_name match_prefixes %}active{% endif %}"
                    href="{% url url_name %}">
                     <i class="bi {{ icon }}"></i> {{ label }}
                 </a>
                 {% endfor %}
                 {% if user.role == 'management' or user.is_superuser %}
-                <a class="nav-link" href="{% url 'operations:clear_database' %}" style="color: #feb2b2; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                <a class="nav-link nav-link-danger" href="{% url 'operations:clear_database' %}">
                     <i class="bi bi-trash"></i> Clear Database
                 </a>
                 {% endif %}

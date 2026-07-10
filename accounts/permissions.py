@@ -5,11 +5,14 @@ from accounts.models import User
 Role = User.Role
 
 CORE_NAV_ITEMS = [
-    ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
-    ("operations:cluster_list", "Transactions", "bi-receipt"),
-    ("finance:invoice_list", "Invoicing", "bi-file-earmark-spreadsheet"),
-    ("operations:logistics_list", "Logistics", "bi-truck"),
-    ("finance:loan_list", "Finance", "bi-bank"),
+    ("dashboard:home", "Dashboard", "bi-grid-1x2-fill", ("dashboard:home",)),
+    ("operations:cluster_list", "Transactions", "bi-receipt", ("operations:cluster", "operations:import_excel", "operations:clear_database")),
+    ("finance:invoice_list", "Invoicing", "bi-file-earmark-spreadsheet", ("finance:invoice", "finance:reconciliation")),
+    ("operations:logistics_list", "Logistics", "bi-truck", ("operations:logistics",)),
+    ("finance:loan_list", "Finance", "bi-bank", ("finance:loan",)),
+    ("dashboard:analytics", "Analytics", "bi-graph-up-arrow", ("dashboard:analytics",)),
+    ("masters:partners", "Suppliers & Customers", "bi-building", ("masters:",)),
+    ("dashboard:documents", "Documents", "bi-folder2-open", ("dashboard:documents",)),
 ]
 
 # Navigation items each role can see
@@ -54,5 +57,21 @@ def get_user_permissions(user) -> set[str]:
 
 def get_nav_items(user):
     if user.is_superuser:
-        return NAV_ITEMS[Role.MANAGEMENT]
-    return NAV_ITEMS.get(user.role, NAV_ITEMS[Role.OPERATIONS])
+        items = NAV_ITEMS[Role.MANAGEMENT]
+    else:
+        items = NAV_ITEMS.get(user.role, NAV_ITEMS[Role.OPERATIONS])
+    return items
+
+
+def nav_is_active(view_name: str, url_name: str, prefixes: tuple[str, ...]) -> bool:
+    if view_name == url_name:
+        return True
+    if not view_name:
+        return False
+    for prefix in prefixes:
+        if prefix.endswith(":"):
+            if view_name.startswith(prefix):
+                return True
+        elif view_name.startswith(prefix):
+            return True
+    return False
