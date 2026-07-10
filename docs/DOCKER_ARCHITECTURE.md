@@ -2,6 +2,8 @@
 
 This maps the running containers to your capstone **Figure 3.4 System Architecture** (NGINX → Gunicorn → Django → PostgreSQL).
 
+For the remaining cloud-native elements in the proposed diagram, see [docs/PHASE_2_ARCHITECTURE_PLAN.md](PHASE_2_ARCHITECTURE_PLAN.md).
+
 ## Architecture diagram (MVP pilot)
 
 ```mermaid
@@ -77,7 +79,7 @@ docker compose up --build
 
 ## Run Phase 2 stack (Celery + Redis)
 
-Only after Celery is implemented in Django:
+Only after Celery is implemented in Django. The local overlay is the first step toward the full Phase 2 plan documented in [docs/PHASE_2_ARCHITECTURE_PLAN.md](PHASE_2_ARCHITECTURE_PLAN.md).
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.phase2.yml up --build

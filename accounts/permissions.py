@@ -4,29 +4,20 @@ from accounts.models import User
 
 Role = User.Role
 
+CORE_NAV_ITEMS = [
+    ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
+    ("operations:cluster_list", "Transactions", "bi-receipt"),
+    ("finance:invoice_list", "Invoicing", "bi-file-earmark-spreadsheet"),
+    ("operations:logistics_list", "Logistics", "bi-truck"),
+    ("finance:loan_list", "Finance", "bi-bank"),
+]
+
 # Navigation items each role can see
 NAV_ITEMS = {
-    Role.MANAGEMENT: [
-        ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
-        ("operations:cluster_list", "Transactions", "bi-box-seam"),
-        ("finance:loan_list", "Loans", "bi-bank"),
-        ("masters:list", "Master Data", "bi-database"),
-        ("audit:list", "Audit Trail", "bi-shield-check"),
-    ],
-    Role.FINANCE: [
-        ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
-        ("operations:cluster_list", "Transactions", "bi-box-seam"),
-        ("finance:loan_list", "Loans & Interest", "bi-bank"),
-    ],
-    Role.OPERATIONS: [
-        ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
-        ("operations:cluster_list", "Transactions", "bi-box-seam"),
-        ("masters:list", "Master Data", "bi-database"),
-    ],
-    Role.INVOICING: [
-        ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
-        ("operations:cluster_list", "Transactions", "bi-box-seam"),
-    ],
+    Role.MANAGEMENT: CORE_NAV_ITEMS,
+    Role.FINANCE: CORE_NAV_ITEMS,
+    Role.OPERATIONS: CORE_NAV_ITEMS,
+    Role.INVOICING: CORE_NAV_ITEMS,
 }
 
 # Fine-grained permissions
@@ -42,6 +33,7 @@ PERMISSIONS = {
     "view_masters": {Role.MANAGEMENT, Role.OPERATIONS},
     "view_financial_summary": {Role.MANAGEMENT, Role.FINANCE},
     "view_operational_alerts": {Role.MANAGEMENT, Role.OPERATIONS, Role.INVOICING},
+    "import_excel": {Role.MANAGEMENT},
 }
 
 

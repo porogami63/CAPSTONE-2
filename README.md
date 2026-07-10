@@ -13,7 +13,11 @@ Integrated Procurement & Financial Tracking System for Heindrich Trading Corpora
 - Append-only audit trail for financial records
 - Management dashboard
 
-Phase 2 (deferred): Celery, Redis, Docker multi-container hardening, Excel import, SRA automation.
+Phase 2 (deferred): Celery, Redis, Docker multi-container hardening, SRA automation.
+
+Phase 2 architecture roadmap: [docs/PHASE_2_ARCHITECTURE_PLAN.md](docs/PHASE_2_ARCHITECTURE_PLAN.md)
+
+Excel import is available from the management UI under Transactions → Import Excel, and the CLI import command remains available for local resets.
 
 ## Quick start (local)
 

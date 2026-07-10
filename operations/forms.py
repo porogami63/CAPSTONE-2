@@ -4,6 +4,23 @@ from masters.models import Client, LogisticsPartner, SugarMill
 from operations.models import LogisticsLedger, PurchaseOrder, TransactionCluster
 
 
+class ExcelImportForm(forms.Form):
+    workbook = forms.FileField(label="Excel workbook")
+    replace_existing = forms.BooleanField(
+        label="Replace current operational data",
+        required=False,
+        initial=True,
+        help_text="Clears existing transactions, logistics, invoices, and audit rows before importing.",
+    )
+
+    def clean_workbook(self):
+        workbook = self.cleaned_data["workbook"]
+        filename = workbook.name.lower()
+        if not filename.endswith((".xlsx", ".xlsm")):
+            raise forms.ValidationError("Upload an .xlsx or .xlsm workbook.")
+        return workbook
+
+
 class TransactionClusterForm(forms.ModelForm):
     volume_mt = forms.DecimalField(max_digits=14, decimal_places=3, label="Volume (MT)")
     unit_price = forms.DecimalField(max_digits=12, decimal_places=2, label="Unit price")

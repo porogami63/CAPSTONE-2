@@ -23,6 +23,11 @@
                     <i class="bi {{ icon }}"></i> {{ label }}
                 </a>
                 {% endfor %}
+                {% if user.role == 'management' or user.is_superuser %}
+                <a class="nav-link" href="{% url 'operations:clear_database' %}" style="color: #feb2b2; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                    <i class="bi bi-trash"></i> Clear Database
+                </a>
+                {% endif %}
             </nav>
             <div class="user-block">
                 <div class="user-row">
