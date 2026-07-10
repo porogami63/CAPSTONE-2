@@ -4,29 +4,23 @@ from accounts.models import User
 
 Role = User.Role
 
+CORE_NAV_ITEMS = [
+    ("dashboard:home", "Dashboard", "bi-grid-1x2-fill", ("dashboard:home",)),
+    ("operations:cluster_list", "Transactions", "bi-receipt", ("operations:cluster", "operations:import_excel", "operations:clear_database")),
+    ("finance:invoice_list", "Invoicing", "bi-file-earmark-spreadsheet", ("finance:invoice", "finance:reconciliation")),
+    ("operations:logistics_list", "Logistics", "bi-truck", ("operations:logistics",)),
+    ("finance:loan_list", "Finance", "bi-bank", ("finance:loan",)),
+    ("dashboard:analytics", "Analytics", "bi-graph-up-arrow", ("dashboard:analytics",)),
+    ("masters:partners", "Suppliers & Customers", "bi-building", ("masters:",)),
+    ("dashboard:documents", "Documents", "bi-folder2-open", ("dashboard:documents",)),
+]
+
 # Navigation items each role can see
 NAV_ITEMS = {
-    Role.MANAGEMENT: [
-        ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
-        ("operations:cluster_list", "Transactions", "bi-box-seam"),
-        ("finance:loan_list", "Loans", "bi-bank"),
-        ("masters:list", "Master Data", "bi-database"),
-        ("audit:list", "Audit Trail", "bi-shield-check"),
-    ],
-    Role.FINANCE: [
-        ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
-        ("operations:cluster_list", "Transactions", "bi-box-seam"),
-        ("finance:loan_list", "Loans & Interest", "bi-bank"),
-    ],
-    Role.OPERATIONS: [
-        ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
-        ("operations:cluster_list", "Transactions", "bi-box-seam"),
-        ("masters:list", "Master Data", "bi-database"),
-    ],
-    Role.INVOICING: [
-        ("dashboard:home", "Dashboard", "bi-grid-1x2-fill"),
-        ("operations:cluster_list", "Transactions", "bi-box-seam"),
-    ],
+    Role.MANAGEMENT: CORE_NAV_ITEMS,
+    Role.FINANCE: CORE_NAV_ITEMS,
+    Role.OPERATIONS: CORE_NAV_ITEMS,
+    Role.INVOICING: CORE_NAV_ITEMS,
 }
 
 # Fine-grained permissions
@@ -42,6 +36,7 @@ PERMISSIONS = {
     "view_masters": {Role.MANAGEMENT, Role.OPERATIONS},
     "view_financial_summary": {Role.MANAGEMENT, Role.FINANCE},
     "view_operational_alerts": {Role.MANAGEMENT, Role.OPERATIONS, Role.INVOICING},
+    "import_excel": {Role.MANAGEMENT},
 }
 
 
@@ -62,5 +57,21 @@ def get_user_permissions(user) -> set[str]:
 
 def get_nav_items(user):
     if user.is_superuser:
-        return NAV_ITEMS[Role.MANAGEMENT]
-    return NAV_ITEMS.get(user.role, NAV_ITEMS[Role.OPERATIONS])
+        items = NAV_ITEMS[Role.MANAGEMENT]
+    else:
+        items = NAV_ITEMS.get(user.role, NAV_ITEMS[Role.OPERATIONS])
+    return items
+
+
+def nav_is_active(view_name: str, url_name: str, prefixes: tuple[str, ...]) -> bool:
+    if view_name == url_name:
+        return True
+    if not view_name:
+        return False
+    for prefix in prefixes:
+        if prefix.endswith(":"):
+            if view_name.startswith(prefix):
+                return True
+        elif view_name.startswith(prefix):
+            return True
+    return False

@@ -35,11 +35,13 @@
             <div class="panel-header">Logistics &amp; Volume Variance</div>
             <div class="panel-body">
                 {% if user|has_perm:"edit_logistics" %}
-                <form method="post" action="{% url 'operations:update_logistics' cluster.pk %}">{% csrf_token %}
+                <form method="post" action="{% url 'operations:update_logistics' cluster.pk %}" class="form-stack">{% csrf_token %}
                     {% for field in logistics_form %}
                     <div class="form-field">
-                        <label>{{ field.label }}</label>
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                         {{ field }}
+                        {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
+                        {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
                     </div>
                     {% endfor %}
                     <button type="submit" class="btn-htc btn-htc-sm mt-3">Update Logistics</button>
@@ -65,9 +67,9 @@
             <div class="panel-header">Sales Invoice</div>
             <div class="panel-body">
                 {% if user|has_perm:"add_invoice" %}
-                <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}">{% csrf_token %}
+                <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}" class="form-stack">{% csrf_token %}
                     {% for field in invoice_form %}
-                    <div class="form-field"><label>{{ field.label }}</label>{{ field }}</div>
+                    <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
                     {% endfor %}
                     <button type="submit" class="btn-htc btn-htc-sm">Add Invoice</button>
                 </form>
@@ -84,9 +86,9 @@
         <div class="panel mb-3">
             <div class="panel-header">Cash Voucher</div>
             <div class="panel-body">
-                <form method="post" action="{% url 'operations:add_voucher' cluster.pk %}">{% csrf_token %}
+                <form method="post" action="{% url 'operations:add_voucher' cluster.pk %}" class="form-stack">{% csrf_token %}
                     {% for field in voucher_form %}
-                    <div class="form-field"><label>{{ field.label }}</label>{{ field }}</div>
+                    <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
                     {% endfor %}
                     <button type="submit" class="btn-htc btn-htc-sm">Add Voucher</button>
                 </form>
@@ -104,9 +106,9 @@
             <div class="panel-header">Capital Loan &amp; Interest</div>
             <div class="panel-body">
                 {% if user|has_perm:"add_loan" %}
-                <form method="post" action="{% url 'operations:add_loan' cluster.pk %}">{% csrf_token %}
+                <form method="post" action="{% url 'operations:add_loan' cluster.pk %}" class="form-stack">{% csrf_token %}
                     {% for field in loan_form %}
-                    <div class="form-field"><label>{{ field.label }}</label>{{ field }}</div>
+                    <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
                     {% endfor %}
                     <button type="submit" class="btn-htc btn-htc-sm">Add Loan</button>
                 </form>

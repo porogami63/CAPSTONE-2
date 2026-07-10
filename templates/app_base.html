@@ -7,22 +7,27 @@
     <title>{% block title %}HTC Core{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="{% static 'css/htc-theme.css' %}?v=2" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}?v=3" rel="stylesheet">
 </head>
 <body>
     <div class="app-shell">
-        <aside class="app-sidebar">
+        <aside class="app-sidebar" id="appSidebar">
             <div class="brand-block">
-                <div class="logo-text">HTC Core</div>
-                <div class="logo-sub">Heindrich Trading Corp.</div>
+                <div class="logo-text">Molasses Trading</div>
+                <div class="logo-sub">Management System</div>
             </div>
             <nav>
-                {% for url_name, label, icon in nav_items %}
-                <a class="nav-link {% if request.resolver_match.view_name == url_name %}active{% endif %}"
+                {% for url_name, label, icon, match_prefixes in nav_items %}
+                <a class="nav-link {% if nav_is_active current_view_name url_name match_prefixes %}active{% endif %}"
                    href="{% url url_name %}">
                     <i class="bi {{ icon }}"></i> {{ label }}
                 </a>
                 {% endfor %}
+                {% if user.role == 'management' or user.is_superuser %}
+                <a class="nav-link nav-link-danger" href="{% url 'operations:clear_database' %}">
+                    <i class="bi bi-trash"></i> Clear Database
+                </a>
+                {% endif %}
             </nav>
             <div class="user-block">
                 <div class="user-row">
@@ -37,9 +42,18 @@
                 </form>
             </div>
         </aside>
+        <div class="sidebar-backdrop" data-sidebar-backdrop></div>
         <div class="app-main-wrap">
             <header class="app-topbar">
-                <h1>{% block topbar_title %}HTC Core{% endblock %}</h1>
+                <div class="topbar-left">
+                    <button class="sidebar-toggle" type="button" aria-controls="appSidebar" aria-expanded="false" data-sidebar-toggle>
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div>
+                        <h1>{% block topbar_title %}HTC Core{% endblock %}</h1>
+                        <div class="topbar-subtitle">Integrated procurement and financial tracking</div>
+                    </div>
+                </div>
                 <span class="role-badge">{{ user_role }}</span>
             </header>
             <main class="app-main">
@@ -53,5 +67,45 @@
         </div>
     </div>
     {% block scripts %}{% endblock %}
+    <script>
+        (function () {
+            const toggle = document.querySelector('[data-sidebar-toggle]');
+            const backdrop = document.querySelector('[data-sidebar-backdrop]');
+            const navLinks = document.querySelectorAll('.app-sidebar .nav-link');
+
+            function setSidebarOpen(isOpen) {
+                document.body.classList.toggle('sidebar-open', isOpen);
+                if (toggle) {
+                    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                }
+            }
+
+            if (toggle) {
+                toggle.addEventListener('click', function () {
+                    setSidebarOpen(!document.body.classList.contains('sidebar-open'));
+                });
+            }
+
+            if (backdrop) {
+                backdrop.addEventListener('click', function () {
+                    setSidebarOpen(false);
+                });
+            }
+
+            navLinks.forEach(function (link) {
+                link.addEventListener('click', function () {
+                    if (window.innerWidth <= 992) {
+                        setSidebarOpen(false);
+                    }
+                });
+            });
+
+            window.addEventListener('resize', function () {
+                if (window.innerWidth > 992) {
+                    setSidebarOpen(false);
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

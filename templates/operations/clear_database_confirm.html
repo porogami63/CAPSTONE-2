@@ -1,0 +1,16 @@
+{% extends "app_base.html" %}
+{% block title %}Clear Database · HTC Core{% endblock %}
+{% block topbar_title %}Clear Database{% endblock %}
+{% block content %}
+<div class="form-panel" style="max-width: 600px; border-top: 4px solid var(--htc-accent);">
+    <h2>Are you absolutely sure?</h2>
+    <p class="text-danger mb-4">
+        <strong>Warning:</strong> This action will delete all transactional history, client invoices, logistics logs, cash vouchers, capital loans, and system audit logs. This action cannot be undone.
+    </p>
+    <form method="post" class="flex gap-2">
+        {% csrf_token %}
+        <button type="submit" class="btn-htc" style="background-color: var(--htc-accent);">Yes, Clear Database</button>
+        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline">Cancel</a>
+    </form>
+</div>
+{% endblock %}

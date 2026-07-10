@@ -8,6 +8,9 @@ from accounts.models import User
 from finance.models import FinancialReconciliation, Invoice
 from operations.models import LogisticsLedger, TransactionCluster
 
+from .services.analytics import build_supplier_rankings
+from .services.documents import build_document_registry
+
 
 @role_required(
     User.Role.MANAGEMENT,
@@ -43,9 +46,6 @@ def home(request):
     weekly_labels = ["W1", "W2", "W3", "W4"]
     inflow_data = [1200000, 1500000, 1100000, 1800000]
     outflow_data = [900000, 1200000, 1400000, 1000000]
-    import locale
-    locale.setlocale(locale.LC_ALL, '')
-    # For robust formatting without locale dependency
     net_cash_flow = sum(inflow_data) - sum(outflow_data)
     net_cash_flow_str = f"₱{net_cash_flow:,.0f}"
 
@@ -73,3 +73,42 @@ def home(request):
             "net_cash_flow_str": net_cash_flow_str,
         },
     )
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.FINANCE,
+    User.Role.OPERATIONS,
+)
+def analytics(request):
+    try:
+        order_qty = float(request.GET.get("qty", "500"))
+    except ValueError:
+        order_qty = 500.0
+    try:
+        selling_price = float(request.GET.get("price", "18500"))
+    except ValueError:
+        selling_price = 18500.0
+
+    engine = build_supplier_rankings(order_qty, selling_price)
+    return render(
+        request,
+        "dashboard/analytics.html",
+        {
+            "engine": engine,
+            "order_qty": order_qty,
+            "selling_price": selling_price,
+        },
+    )
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.FINANCE,
+    User.Role.OPERATIONS,
+    User.Role.INVOICING,
+)
+def documents(request):
+    query = request.GET.get("q", "").strip()
+    registry = build_document_registry(query)
+    return render(request, "dashboard/documents.html", registry)

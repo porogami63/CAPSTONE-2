@@ -1,0 +1,89 @@
+{% extends "app_base.html" %}
+{% block title %}Logistics · HTC Core{% endblock %}
+{% block topbar_title %}Logistics{% endblock %}
+{% block content %}
+<style>
+    .logistics-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 1200px) { .logistics-kpis { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 700px) { .logistics-kpis { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .logistics-kpis { grid-template-columns: 1fr; } }
+    .lifecycle-strip { background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius); box-shadow: var(--htc-shadow); padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .lifecycle-strip h3 { margin: 0 0 1rem; font-size: 1rem; color: var(--htc-primary); }
+    .lifecycle-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; }
+    @media (max-width: 760px) { .lifecycle-steps { grid-template-columns: repeat(2, 1fr); } }
+    .step { border: 1px solid var(--htc-border); border-radius: 12px; padding: 0.85rem; background: #fbfcfe; display: flex; gap: 0.7rem; align-items: center; }
+    .step i { font-size: 1.15rem; color: var(--htc-primary-light); }
+    .step span { font-weight: 600; color: var(--htc-text); }
+    .logistics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    @media (max-width: 1080px) { .logistics-grid { grid-template-columns: 1fr; } }
+    .shipment-card { background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius); box-shadow: var(--htc-shadow); overflow: hidden; }
+    .shipment-card.alert { border-color: rgba(229, 62, 62, 0.35); box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.06); }
+    .shipment-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--htc-border); display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+    .shipment-head strong { color: var(--htc-primary); font-size: 1rem; }
+    .shipment-head .sub { font-size: 0.8rem; color: var(--htc-text-muted); }
+    .shipment-body { padding: 1rem 1.25rem 1.25rem; }
+    .shipment-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; margin-bottom: 0.9rem; }
+    .shipment-meta div { font-size: 0.85rem; color: var(--htc-text-muted); }
+    .shipment-meta strong { color: var(--htc-text); display: block; margin-top: 0.15rem; }
+    .progress-track { height: 10px; background: #edf2f7; border-radius: 999px; overflow: hidden; margin: 0.75rem 0 0.5rem; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--htc-primary-light), #39a0ed); border-radius: inherit; }
+    .chip-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem; }
+    .alert-note { color: #9b2c2c; background: var(--htc-danger-bg); border: 1px solid #feb2b2; border-radius: 10px; padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+</style>
+
+<div class="page-header flex-start mb-4">
+    <div>
+        <h2>Logistics</h2>
+        <p>Shipment lifecycle monitoring with variance and exception tracking.</p>
+    </div>
+</div>
+
+<div class="logistics-kpis">
+    <div class="kpi-card"><div class="kpi-icon blue"><i class="bi bi-truck"></i></div><div><div class="kpi-label">In Transit</div><div class="kpi-value">{{ in_transit }}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon green"><i class="bi bi-check2-circle"></i></div><div><div class="kpi-label">Delivered</div><div class="kpi-value">{{ delivered }}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon green"><i class="bi bi-patch-check"></i></div><div><div class="kpi-label">Accepted</div><div class="kpi-value">{{ accepted }}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon amber"><i class="bi bi-hourglass-split"></i></div><div><div class="kpi-label">Pending Review</div><div class="kpi-value">{{ pending_review }}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon red"><i class="bi bi-exclamation-triangle"></i></div><div><div class="kpi-label">Disputed</div><div class="kpi-value">{{ disputed }}</div></div></div>
+</div>
+
+<section class="lifecycle-strip">
+    <h3>Shipment Lifecycle</h3>
+    <div class="lifecycle-steps">
+        {% for step in lifecycle_steps %}
+        <div class="step"><i class="bi {{ step.icon }}"></i><span>{{ step.label }}</span></div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="logistics-grid">
+    {% for record in records %}
+    <article class="shipment-card {% if record.lifecycle_class == 'alert' %}alert{% endif %}">
+        <div class="shipment-head">
+            <div>
+                <strong>{{ record.cluster.reference_code }}</strong>
+                <div class="sub">{{ record.cluster.client.name }} · {{ record.partner.name }}</div>
+            </div>
+            <span class="badge-status {{ record.lifecycle_class }}">{{ record.lifecycle_state }}</span>
+        </div>
+        <div class="shipment-body">
+            <div class="shipment-meta">
+                <div>Loaded<strong>{{ record.loaded_volume_mt|floatformat:1 }} MT</strong></div>
+                <div>Received<strong>{% if record.received_volume_mt is not None %}{{ record.received_volume_mt|floatformat:1 }} MT{% else %}—{% endif %}</strong></div>
+                <div>Variance<strong>{{ record.variance_text }}</strong></div>
+                <div>Updated<strong>{{ record.updated_at|date:"Y-m-d" }}</strong></div>
+            </div>
+            <div class="progress-track"><div class="progress-bar" style="width: {{ record.progress_percent }}%;"></div></div>
+            <div class="chip-row">
+                <span class="badge-status {% if record.lifecycle_class == 'alert' %}alert{% elif record.lifecycle_class == 'delivered' %}delivered{% else %}active{% endif %}">{{ record.lifecycle_state }}</span>
+                <span class="badge-status {% if record.variance_exceeds_tolerance %}alert{% else %}draft{% endif %}">Tolerance {% if record.variance_exceeds_tolerance %}Exceeded{% else %}Within{% endif %}</span>
+            </div>
+            {% if record.variance_exceeds_tolerance %}
+            <div class="alert-note" style="margin-top:0.85rem;">Variance requires manual review before acceptance.</div>
+            {% endif %}
+        </div>
+    </article>
+    {% empty %}
+    <div class="text-muted">No logistics records recorded.</div>
+    {% endfor %}
+</section>
+{% endblock %}

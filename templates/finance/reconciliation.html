@@ -7,11 +7,11 @@
     <p>{{ cluster.reference_code }} · {{ cluster.client.name }}</p>
 </div>
 <div class="grid-2">
-    <div class="content-card" style="padding:1.25rem;">
-        <div class="card-header-htc" style="border:none;padding:0 0 1rem;">Add Match</div>
-        <form method="post" action="{% url 'finance:add_match' cluster.pk %}">{% csrf_token %}
+    <div class="form-panel">
+        <div class="form-panel-header">Add Match</div>
+        <form method="post" action="{% url 'finance:add_match' cluster.pk %}" class="form-stack">{% csrf_token %}
             {% for field in form %}
-            <div class="form-field"><label>{{ field.label }}</label>{{ field }}</div>
+            <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
             {% endfor %}
             <button type="submit" class="btn-htc mt-3">Record Match</button>
         </form>

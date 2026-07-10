@@ -2,6 +2,7 @@ from django.shortcuts import render
 
 from accounts.decorators import role_required
 from accounts.models import User
+from dashboard.services.analytics import partner_stats
 
 from .models import Client, LogisticsPartner, SugarMill
 
@@ -17,3 +18,13 @@ def master_list(request):
             "partners": LogisticsPartner.objects.filter(is_active=True),
         },
     )
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+)
+def partners(request):
+    stats = partner_stats()
+    return render(request, "masters/partners.html", stats)

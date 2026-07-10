@@ -25,9 +25,11 @@ This document aligns the built system with Chapters 1–3 of the capstone propos
 | Redis message broker | Not included | Add when async jobs are enabled |
 | Docker multi-container (app + worker + redis) | Single-service pilot only | Extend compose file |
 | AWS EC2 production | Local + Docker pilot | Deploy after UAT sign-off |
-| Excel import from legacy sheets | Manual seed command | `import_excel` management command |
+| Excel import from legacy sheets | Management upload + seed command | `operations:import_excel` view and `import_htc_excel` management command |
 | SRA regulatory automation | Out of scope per proposal | Remains external workflow |
 | Full GL / tax modules | Out of scope per proposal | Not planned |
+
+See [docs/PHASE_2_ARCHITECTURE_PLAN.md](PHASE_2_ARCHITECTURE_PLAN.md) for the file-by-file roadmap that turns the remaining architecture blocks into implementation work.
 
 ## Chapter 3 methodology alignment
 

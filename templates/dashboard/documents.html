@@ -1,0 +1,77 @@
+{% extends "app_base.html" %}
+{% block title %}Documents · Molasses Trading{% endblock %}
+{% block topbar_title %}Document Management{% endblock %}
+{% block content %}
+<div class="page-header flex-between compact">
+    <div>
+        <h2>Document Management</h2>
+        <p>Centralized repository for operational and financial records</p>
+    </div>
+    <button class="btn-htc btn-htc-sm" type="button"><i class="bi bi-cloud-upload"></i> Upload Document</button>
+</div>
+
+<form method="get">
+    <input class="doc-search" type="search" name="q" value="{{ query }}" placeholder="Search by invoice, PO, CV number, or document name...">
+</form>
+
+<div class="doc-grid">
+    {% for key, cat in categories.items %}
+    <div class="doc-category">
+        <div class="doc-category-header">
+            <h3>{{ cat.title }}</h3>
+            <span class="doc-count">{{ cat.items|length }}</span>
+        </div>
+        {% for doc in cat.items|slice:":4" %}
+        <div class="doc-item">
+            <i class="bi bi-file-earmark-pdf-fill"></i>
+            <div class="doc-item-meta">
+                <div class="name">{{ doc.name }}</div>
+                <div class="sub">{{ doc.date|date:"M d, Y" }} · {{ doc.size }}</div>
+            </div>
+            <div class="doc-actions">
+                <span title="View"><i class="bi bi-eye"></i></span>
+                <span title="Download"><i class="bi bi-download"></i></span>
+            </div>
+        </div>
+        {% empty %}
+        <div class="doc-item text-muted">No documents in this category yet.</div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon blue"><i class="bi bi-files"></i></div>
+        <div>
+            <div class="kpi-label">Total Documents</div>
+            <div class="kpi-value" style="font-size:1.5rem;">{{ total_documents }}</div>
+            <div class="kpi-sub">All categories</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon green"><i class="bi bi-calendar-plus"></i></div>
+        <div>
+            <div class="kpi-label">Uploaded This Month</div>
+            <div class="kpi-value" style="font-size:1.5rem;">{{ uploaded_this_month }}</div>
+            <div class="kpi-sub">New documents</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon amber"><i class="bi bi-hdd"></i></div>
+        <div>
+            <div class="kpi-label">Storage Used</div>
+            <div class="kpi-value" style="font-size:1.5rem;">{{ storage_used_gb }} GB</div>
+            <div class="kpi-sub">Of 10 GB available</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon red"><i class="bi bi-hourglass-split"></i></div>
+        <div>
+            <div class="kpi-label">Pending Review</div>
+            <div class="kpi-value" style="font-size:1.5rem;">{{ pending_review }}</div>
+            <div class="kpi-sub">Require attention</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

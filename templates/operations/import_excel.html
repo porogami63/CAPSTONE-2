@@ -1,0 +1,250 @@
+{% extends "app_base.html" %}
+{% block title %}Import Excel · HTC Core{% endblock %}
+{% block topbar_title %}Import Excel{% endblock %}
+{% block content %}
+<style>
+    .metric-deck {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    .metric-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: var(--htc-shadow);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(15, 45, 92, 0.08);
+    }
+    .metric-label {
+        font-size: 0.85rem;
+        color: var(--htc-text-muted);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .metric-val {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        margin-top: 0.5rem;
+    }
+    .metric-card.valid { border-left: 4px solid var(--htc-success); }
+    .metric-card.warning { border-left: 4px solid var(--htc-gold); }
+    .metric-card.duplicate { border-left: 4px solid var(--htc-text-muted); }
+    
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .status-pill.valid {
+        background-color: var(--htc-success-bg);
+        color: var(--htc-success);
+    }
+    .status-pill.warning {
+        background-color: var(--htc-warning-bg);
+        color: var(--htc-warning);
+    }
+    .status-pill.duplicate {
+        background-color: #edf2f7;
+        color: #4a5568;
+    }
+
+    .table-container {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        box-shadow: var(--htc-shadow);
+        max-height: 480px;
+        overflow-y: auto;
+        margin-top: 1.5rem;
+    }
+    .preview-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 0.9rem;
+    }
+    .preview-table th {
+        background-color: #f7fafc;
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        color: var(--htc-primary);
+        border-bottom: 2px solid var(--htc-border);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .preview-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--htc-border);
+        vertical-align: middle;
+    }
+    .preview-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+    
+    .warning-text {
+        font-size: 0.8rem;
+        color: var(--htc-warning);
+        margin-top: 0.25rem;
+        display: block;
+    }
+    .actions-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--htc-surface);
+        padding: 1rem 1.25rem;
+        border-radius: var(--htc-radius);
+        border: 1px solid var(--htc-border);
+        margin-top: 1.5rem;
+        box-shadow: var(--htc-shadow);
+    }
+</style>
+
+<div class="page-header mb-4">
+    <h2>Import Consolidated Excel</h2>
+    <p>
+        {% if preview_mode %}
+            Verify the parsed transactions before committing them to the live database.
+        {% else %}
+            Upload the Consolidated HTC Excel Sheet to prepare a staged data import.
+        {% endif %}
+    </p>
+</div>
+
+{% if preview_mode %}
+    <!-- Step 2: Staged Preview -->
+    <div class="metric-deck">
+        <div class="metric-card">
+            <span class="metric-label">Total Rows Found</span>
+            <span class="metric-val">{{ summary.total_rows }}</span>
+        </div>
+        <div class="metric-card valid">
+            <span class="metric-label">Ready to Import</span>
+            <span class="metric-val">{{ summary.ready_to_import }}</span>
+        </div>
+        <div class="metric-card duplicate">
+            <span class="metric-label">Duplicate / Skips</span>
+            <span class="metric-val">{{ summary.duplicates }}</span>
+        </div>
+        <div class="metric-card warning">
+            <span class="metric-label">Validation Warnings</span>
+            <span class="metric-val">{{ summary.warnings }}</span>
+        </div>
+        <div class="metric-card">
+            <span class="metric-label">Total Volume</span>
+            <span class="metric-val">{{ summary.total_volume|floatformat:2 }} MT</span>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="preview-table">
+            <thead>
+                <tr>
+                    <th>Reference Code</th>
+                    <th>Customer</th>
+                    <th>Source Mill</th>
+                    <th>Volume (MT)</th>
+                    <th>Barge / Partner</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in staged_rows %}
+                <tr>
+                    <td>
+                        <strong class="text-primary">{{ row.reference_code }}</strong>
+                        {% if row.extra_notes %}
+                            <small class="text-muted" style="display:block;">{{ row.extra_notes }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ row.client_display }}</td>
+                    <td>{{ row.mill_display }}</td>
+                    <td>
+                        {% if row.delivered %}
+                            {{ row.delivered }}
+                        {% else %}
+                            {{ row.received }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.barge %}
+                            {{ row.barge }}
+                        {% else %}
+                            <span class="text-muted">Trucking Only</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.is_duplicate %}
+                            <span class="status-pill duplicate">Duplicate (Skip)</span>
+                        {% elif row.warnings %}
+                            <span class="status-pill warning">Needs Review</span>
+                            {% for warn in row.warnings %}
+                                <span class="warning-text"><i class="bi bi-exclamation-triangle-fill"></i> {{ warn }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="status-pill valid">Ready</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions-bar">
+        <div>
+            <span class="text-muted small">
+                {% if summary.duplicates > 0 %}
+                    Note: {{ summary.duplicates }} duplicate transactions will be skipped to avoid overwrites.
+                {% else %}
+                    All transactions validated and ready for ingestion.
+                {% endif %}
+            </span>
+        </div>
+        <form method="post" class="flex gap-2">
+            {% csrf_token %}
+            <button type="submit" name="confirm_commit" class="btn-htc">Confirm & Import</button>
+            <button type="submit" name="cancel_import" class="btn-htc-outline">Cancel</button>
+        </form>
+    </div>
+
+{% else %}
+    <!-- Step 1: Upload Form -->
+    <div class="form-panel" style="max-width:760px;">
+        <form method="post" enctype="multipart/form-data" class="form-stack">
+            {% csrf_token %}
+            <div class="form-grid">
+                {% for field in form %}
+                <div class="form-field" {% if field.field.widget.input_type == 'checkbox' %}style="grid-column:1/-1;"{% endif %}>
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
+                    {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="flex gap-2 mt-3">
+                <button type="submit" class="btn-htc">Start Import</button>
+                <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+{% endif %}
+{% endblock %}

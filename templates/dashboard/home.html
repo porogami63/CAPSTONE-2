@@ -1,213 +1,458 @@
 {% extends "app_base.html" %}
-{% load role_tags %}
+{% load static %}
 {% block title %}Dashboard · HTC Core{% endblock %}
 {% block topbar_title %}Dashboard{% endblock %}
 {% block content %}
+<style>
+    /* Topbar Header Customizations */
+    .system-status-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 1.5rem;
+    }
+    .system-live-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.75rem;
+        color: var(--htc-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .system-live-pill::before {
+        content: "";
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: var(--htc-success);
+        box-shadow: 0 0 8px var(--htc-success);
+    }
+    .last-sync-block {
+        text-align: right;
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+    }
+    .last-sync-block strong {
+        color: var(--htc-text);
+        display: block;
+        font-size: 0.85rem;
+        margin-top: 0.15rem;
+    }
+    .dashboard-title-group h2 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        margin: 0;
+    }
+    .dashboard-title-group p {
+        font-size: 0.9rem;
+        color: var(--htc-text-muted);
+        margin: 0.25rem 0 0 0;
+    }
 
-<div class="page-header flex-start mb-4">
-    <div>
-        <h2>Good day, {{ user.username }}</h2>
-        <p>
-            {% if user_role_code == "management" %}Full operational and financial overview for 2026.
-            {% elif user_role_code == "finance" %}Financial tracking — receivables, loans, and payment matching.
-            {% elif user_role_code == "operations" %}Logistics monitoring — contracts, deliveries, and variance alerts.
-            {% elif user_role_code == "invoicing" %}Billing workspace — sales invoices and transaction records.
-            {% endif %}
-        </p>
+    /* Data Aggregation Layer Bar */
+    .aggregation-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #f7fafc;
+        border: 1px dashed var(--htc-border);
+        border-radius: var(--htc-radius-sm);
+        padding: 0.6rem 1rem;
+        margin-bottom: 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--htc-text-muted);
+        letter-spacing: 0.5px;
+    }
+    .aggregation-bar .left-info {
+        text-transform: uppercase;
+    }
+    .aggregation-bar .right-info {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    /* Six Status Cards Grid */
+    .status-cards-row {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 1200px) {
+        .status-cards-row {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    @media (max-width: 768px) {
+        .status-cards-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    .status-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius-sm);
+        padding: 1rem;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 2px 4px rgba(15, 45, 92, 0.02);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        overflow: hidden;
+        cursor: pointer;
+    }
+    .status-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--htc-shadow);
+    }
+    /* Colored top stripes */
+    .status-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background-color: transparent;
+    }
+    .status-card.stripe-green::before { background-color: var(--htc-success); }
+    .status-card.stripe-red::before { background-color: var(--htc-accent); }
+    .status-card.stripe-blue::before { background-color: var(--htc-primary-light); }
+    .status-card.stripe-orange::before { background-color: var(--htc-gold); }
+    .status-card.stripe-purple::before { background-color: #805ad5; }
+    .status-card.stripe-darkred::before { background-color: #9b2c2c; }
+
+    .status-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        color: var(--htc-text-muted);
+    }
+    .status-card-header i {
+        font-size: 1.1rem;
+    }
+    .status-card-val {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        line-height: 1.2;
+    }
+    .status-card-label {
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+        margin-top: 0.25rem;
+        font-weight: 500;
+    }
+    .status-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .status-card-trend {
+        display: flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+    .status-card-trend.up { color: var(--htc-success); }
+    .status-card-trend.down { color: var(--htc-accent); }
+    .status-card-source {
+        color: var(--htc-text-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-weight: 500;
+    }
+
+    /* Charts Container Grid */
+    .charts-split-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 1024px) {
+        .charts-split-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .chart-box {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1.25rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+    }
+    .chart-box-header {
+        margin-bottom: 1rem;
+    }
+    .chart-box-header h3 {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        margin: 0;
+    }
+    .chart-box-header p {
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+        margin: 0.15rem 0 0 0;
+    }
+
+    /* Cash Flow Alert Banner */
+    .cash-flow-banner {
+        background-color: #ebf8f2;
+        border: 1px solid #c6f6d5;
+        border-radius: var(--htc-radius-sm);
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .cash-flow-banner i {
+        background-color: #c6f6d5;
+        color: #276749;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+    }
+    .cash-flow-banner .banner-text {
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+        font-weight: 500;
+    }
+    .cash-flow-banner .banner-text strong {
+        color: #276749;
+        font-size: 0.95rem;
+        display: block;
+        margin-top: 0.1rem;
+    }
+
+    /* Bottom System Status Bar */
+    .system-status-bar {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius-sm);
+        padding: 0.75rem 1.25rem;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        box-shadow: 0 2px 4px rgba(15, 45, 92, 0.01);
+    }
+    .status-bar-title {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .status-bar-item {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--htc-text);
+    }
+    .status-bar-item.success i {
+        color: var(--htc-success);
+    }
+    .status-bar-item.danger i {
+        color: var(--htc-accent);
+    }
+</style>
+
+<div class="system-status-header">
+    <div class="dashboard-title-group">
+        <span class="system-live-pill">System Live</span>
+        <h2>HTC Core Dashboard</h2>
+        <p>Heindrich Trading Corporation — Molasses Operations Overview</p>
     </div>
-    {% if user|has_perm:"create_transaction" %}
-    <a href="{% url 'operations:cluster_create' %}" class="btn-htc"><i class="bi bi-plus-lg"></i> New Transaction</a>
-    {% endif %}
+    <div class="last-sync-block">
+        Last sync
+        <strong>19 Jun 2026, 09:42 AM</strong>
+    </div>
 </div>
 
-{% if user_role_code == "operations" %}
-<div class="role-hint"><i class="bi bi-info-circle"></i> Operations view — focus on delivery volumes and transit variance. Finance data is read-only.</div>
-{% elif user_role_code == "finance" %}
-<div class="role-hint"><i class="bi bi-info-circle"></i> Finance view — manage invoices, vouchers, loans, and payment matching.</div>
-{% elif user_role_code == "invoicing" %}
-<div class="role-hint"><i class="bi bi-info-circle"></i> Invoicing view — record sales invoices and review open transactions.</div>
-{% endif %}
-
-<div class="kpi-grid">
-    {% if user|has_perm:"view_operational_alerts" %}
-    <div class="kpi-card">
-        <div class="kpi-icon blue"><i class="bi bi-file-earmark-text"></i></div>
-        <div>
-            <div class="kpi-label">Open Contracts</div>
-            <div class="kpi-value">{{ open_clusters }}</div>
-            <div class="kpi-sub">{{ total_transactions }} total records</div>
-        </div>
+<div class="aggregation-bar">
+    <div class="left-info">Data Aggregation Layer – Click any card to see source rows</div>
+    <div class="right-info">
+        <i class="bi bi-layers"></i> 24 raw rows → 6 status cards
     </div>
-    <div class="kpi-card">
-        <div class="kpi-icon red"><i class="bi bi-exclamation-triangle"></i></div>
-        <div>
-            <div class="kpi-label">Variance Alerts</div>
-            <div class="kpi-value text-danger">{{ variance_alerts|length }}</div>
-            <div class="kpi-sub">Above 1% tolerance</div>
-        </div>
-    </div>
-    {% endif %}
-    {% if user|has_perm:"view_financial_summary" %}
-    <div class="kpi-card">
-        <div class="kpi-icon amber"><i class="bi bi-cash-stack"></i></div>
-        <div>
-            <div class="kpi-label">Total Receivables</div>
-            <div class="kpi-value" style="font-size:1.3rem;">₱{{ total_receivables|floatformat:0 }}</div>
-            <div class="kpi-sub">{{ unpaid_invoices }} unpaid invoices</div>
-        </div>
-    </div>
-    {% endif %}
-    {% if user|has_perm:"view_operational_alerts" %}
-    <div class="kpi-card">
-        <div class="kpi-icon green"><i class="bi bi-truck"></i></div>
-        <div>
-            <div class="kpi-label">Volume Tracked</div>
-            <div class="kpi-value" style="font-size:1.3rem;">{{ total_volume_mt|floatformat:1 }} MT</div>
-            <div class="kpi-sub">Delivered quantity</div>
-        </div>
-    </div>
-    {% endif %}
-    {% if user_role_code == "invoicing" %}
-    <div class="kpi-card">
-        <div class="kpi-icon amber"><i class="bi bi-receipt"></i></div>
-        <div>
-            <div class="kpi-label">Invoices Issued</div>
-            <div class="kpi-value">{{ total_invoices }}</div>
-            <div class="kpi-sub">Across all transactions</div>
-        </div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-icon blue"><i class="bi bi-hourglass-split"></i></div>
-        <div>
-            <div class="kpi-label">Draft Transactions</div>
-            <div class="kpi-value">{{ draft_count }}</div>
-            <div class="kpi-sub">Awaiting completion</div>
-        </div>
-    </div>
-    {% endif %}
 </div>
 
-<div class="dashboard-charts-grid mb-4">
-    {% if user|has_perm:"view_financial_summary" %}
-    <div class="content-card chart-container">
-        <div class="card-header-htc">Revenue, Expenses & Profit</div>
-        <canvas id="financialLineChart"></canvas>
+<!-- Six Status Cards -->
+<div class="status-cards-row">
+    <!-- Card 1: Total Revenue -->
+    <div class="status-card stripe-green">
+        <div class="status-card-header">
+            <i class="bi bi-graph-up-arrow"></i>
+        </div>
+        <div>
+            <div class="status-card-val">₱46.00M</div>
+            <div class="status-card-label">Total Revenue</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend up">▲ +12.5%</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 5 source rows</span>
+        </div>
     </div>
-    {% endif %}
+    
+    <!-- Card 2: Total Expenses -->
+    <div class="status-card stripe-red">
+        <div class="status-card-header">
+            <i class="bi bi-graph-down-arrow"></i>
+        </div>
+        <div>
+            <div class="status-card-val">₱33.75M</div>
+            <div class="status-card-label">Total Expenses</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend down">▲ +8.2%</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 5 source rows</span>
+        </div>
+    </div>
 
-    <div class="chart-side-col">
-        {% if user|has_perm:"view_financial_summary" %}
-        <div class="content-card chart-container">
-            <div class="card-header-htc">Weekly Cash Flow</div>
-            <div class="net-cash-card">
-                <i class="bi bi-lightning-charge"></i> Net Cash Flow <strong>{{ net_cash_flow_str }}</strong>
+    <!-- Card 3: Net Profit -->
+    <div class="status-card stripe-blue">
+        <div class="status-card-header">
+            <i class="bi bi-bar-chart"></i>
+        </div>
+        <div>
+            <div class="status-card-val">₱12.25M</div>
+            <div class="status-card-label">Net Profit</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend up">▲ +18.3%</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 10 source rows</span>
+        </div>
+    </div>
+
+    <!-- Card 4: Pending Payments -->
+    <div class="status-card stripe-orange">
+        <div class="status-card-header">
+            <i class="bi bi-clock-history"></i>
+        </div>
+        <div>
+            <div class="status-card-val">₱12.21M</div>
+            <div class="status-card-label">Pending Payments</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend down">1 overdue</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 3 source rows</span>
+        </div>
+    </div>
+
+    <!-- Card 5: Active Contracts -->
+    <div class="status-card stripe-purple">
+        <div class="status-card-header">
+            <i class="bi bi-file-earmark-text"></i>
+        </div>
+        <div>
+            <div class="status-card-val">{{ open_clusters }}</div>
+            <div class="status-card-label">Active Contracts</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend up">▲ 6 total</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 6 source rows</span>
+        </div>
+    </div>
+
+    <!-- Card 6: Delivery Status -->
+    <div class="status-card stripe-darkred">
+        <div class="status-card-header">
+            <i class="bi bi-truck"></i>
+        </div>
+        <div>
+            <div class="status-card-val">3/5</div>
+            <div class="status-card-label">Delivery Status</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend down">1 variance flag</span>
+            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 5 source rows</span>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Split Grid -->
+<div class="charts-split-grid">
+    <!-- Left Column: Revenue Expenses Profit Line Chart -->
+    <div class="chart-box">
+        <div class="chart-box-header">
+            <h3>Revenue · Expenses · Profit</h3>
+            <p>6-month aggregated financial trend (PHP)</p>
+        </div>
+        <canvas id="financialLineChart" style="max-height: 320px;"></canvas>
+    </div>
+
+    <!-- Right Column: Weekly Cash Flow Bar Chart -->
+    <div class="chart-box">
+        <div class="chart-box-header">
+            <h3>Weekly Cash Flow</h3>
+            <p>Inflow vs Outflow — June 2026</p>
+        </div>
+        <div class="cash-flow-banner">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <div class="banner-text">
+                Net Cash Flow
+                <strong>₱1,100,000</strong>
             </div>
-            <canvas id="cashFlowBarChart"></canvas>
         </div>
-        {% endif %}
-
-        {% if user_role_code == "management" or user_role_code == "operations" %}
-        <div class="content-card system-status-card">
-            <div class="card-header-htc">System Status</div>
-            <div class="status-grid">
-                <div class="status-item"><i class="bi bi-check2-circle" style="color:var(--htc-success)"></i> Audit Engine: Active</div>
-                <div class="status-item"><i class="bi bi-check2-circle" style="color:var(--htc-success)"></i> Interest Clocks: Running</div>
-                <div class="status-item"><i class="bi bi-check2-circle" style="color:var(--htc-success)"></i> Variance Worker: Active</div>
-                <div class="status-item"><i class="bi bi-check2-circle" style="color:var(--htc-success)"></i> Aggregation Layer: Synced</div>
-            </div>
-        </div>
-        {% endif %}
+        <canvas id="cashFlowBarChart" style="max-height: 220px;"></canvas>
     </div>
 </div>
 
-<div class="grid-2 mb-4">
-    {% if user|has_perm:"view_operational_alerts" %}
-    <div class="content-card">
-        <div class="card-header-htc">
-            Transit Variance Alerts
-            <span class="badge-status alert">{{ variance_alerts|length }} active</span>
-        </div>
-        {% for log in variance_alerts %}
-        <a href="{% url 'operations:cluster_detail' log.cluster.pk %}" class="alert-list-item">
-            <div>
-                <strong>{{ log.cluster.reference_code }}</strong>
-                <span class="text-muted small"> · {{ log.cluster.client.name }}</span>
-            </div>
-            <span class="badge-variance-danger">{{ log.variance_percent|floatformat:2 }}%</span>
-        </a>
-        {% empty %}
-        <div class="alert-list-item text-muted">All deliveries within 1% tolerance.</div>
-        {% endfor %}
+<!-- Bottom Status Bar -->
+<div class="system-status-bar">
+    <div class="status-bar-title">
+        <i class="bi bi-activity"></i> System Status
     </div>
-    {% endif %}
-
-    <div class="content-card">
-        <div class="card-header-htc">Recent Activity</div>
-        {% for c in recent_clusters|slice:":6" %}
-        <a href="{% url 'operations:cluster_detail' c.pk %}" class="alert-list-item">
-            <div>
-                <strong>{{ c.reference_code }}</strong>
-                <span class="text-muted small"> · {{ c.client.name }}</span>
-            </div>
-            <span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span>
-        </a>
-        {% empty %}
-        <div class="alert-list-item text-muted">No transactions yet.</div>
-        {% endfor %}
+    <div class="status-bar-item success">
+        <i class="bi bi-check-circle-fill"></i> Audit Engine: Active
+    </div>
+    <div class="status-bar-item success">
+        <i class="bi bi-check-circle-fill"></i> Interest Clocks: Running
+    </div>
+    <div class="status-bar-item success">
+        <i class="bi bi-check-circle-fill"></i> Variance Worker: Active
+    </div>
+    <div class="status-bar-item success">
+        <i class="bi bi-check-circle-fill"></i> Aggregation Layer: Synced
+    </div>
+    <div class="status-bar-item danger">
+        <i class="bi bi-exclamation-circle-fill"></i> Overdue Alerts: 1 flagged
     </div>
 </div>
 
-<div class="content-card">
-    <div class="card-header-htc">
-        2026 Transaction Summary
-        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline">View all</a>
-    </div>
-    <div style="overflow-x:auto;">
-        <table class="table-htc">
-            <thead>
-                <tr>
-                    <th>SI #</th><th>Customer</th><th>Source</th>
-                    <th>Delivered MT</th><th>Received MT</th><th>Variance</th>
-                    {% if user|has_perm:"view_financial_summary" %}<th>Amount</th>{% endif %}
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for c in recent_clusters %}
-            <tr>
-                <td><strong>{{ c.reference_code }}</strong></td>
-                <td>{{ c.client.name }}</td>
-                <td>{{ c.sugar_mill.name }}</td>
-                <td>{{ c.logistics.loaded_volume_mt|default:"—" }}</td>
-                <td>{{ c.logistics.received_volume_mt|default:"—" }}</td>
-                <td>
-                    {% if c.logistics.variance_exceeds_tolerance %}
-                    <span class="badge-variance-danger">{{ c.logistics.variance_percent|floatformat:2 }}%</span>
-                    {% elif c.logistics.variance_percent %}
-                    <span style="color:var(--htc-success);font-size:0.8rem;">{{ c.logistics.variance_percent|floatformat:2 }}%</span>
-                    {% else %}—{% endif %}
-                </td>
-                {% if user|has_perm:"view_financial_summary" %}
-                <td>{% if c.primary_invoice %}₱{{ c.primary_invoice.amount|floatformat:0 }}{% else %}—{% endif %}</td>
-                {% endif %}
-                <td><a href="{% url 'operations:cluster_detail' c.pk %}">Open</a></td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Theme colors matching the HTC design system
-    const brandBlue = '#0A2540';
-    const brandBlueLight = 'rgba(10, 37, 64, 0.1)';
-    const brandRed = '#D9381E';
-    const brandRedLight = 'rgba(217, 56, 30, 0.1)';
-    const brandGreen = '#00A86B';
+    // Theme colors matching the HTC design system from the design spec
+    const brandBlue = '#0c385c';
+    const brandRed = '#d9381e';
+    const brandGreen = '#00a86b';
+    const brandOrange = '#d69e2e';
 
     // 1. Line Chart: Revenue, Expenses, Profit
     const lineCtx = document.getElementById('financialLineChart');
@@ -215,34 +460,37 @@
         new Chart(lineCtx, {
             type: 'line',
             data: {
-                labels: {{ chart_months|safe }},
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
                 datasets: [
                     {
                         label: 'Revenue',
-                        data: {{ revenue_data|safe }},
+                        data: [3.2, 3.8, 3.5, 4.2, 4.8, 4.6], // represented in millions
                         borderColor: brandBlue,
-                        backgroundColor: brandBlueLight,
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: false
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.5,
+                        tension: 0.45,
+                        pointRadius: 3,
+                        pointBackgroundColor: brandBlue
                     },
                     {
                         label: 'Expenses',
-                        data: {{ expenses_data|safe }},
+                        data: [2.6, 2.9, 2.8, 3.1, 3.4, 3.2],
                         borderColor: brandRed,
-                        backgroundColor: brandRedLight,
+                        backgroundColor: 'transparent',
                         borderWidth: 2,
-                        borderDash: [5, 5],
-                        tension: 0.4,
-                        fill: false
+                        borderDash: [4, 4],
+                        tension: 0.45,
+                        pointRadius: 0
                     },
                     {
                         label: 'Profit',
-                        data: {{ profit_data|safe }},
+                        data: [0.6, 0.9, 0.7, 1.1, 1.4, 1.4],
                         borderColor: brandGreen,
+                        backgroundColor: 'transparent',
                         borderWidth: 2,
-                        tension: 0.4,
-                        fill: false
+                        tension: 0.45,
+                        pointRadius: 3,
+                        pointBackgroundColor: brandGreen
                     }
                 ]
             },
@@ -252,16 +500,28 @@
                 plugins: {
                     legend: {
                         position: 'bottom',
-                        labels: { usePointStyle: true, boxWidth: 6 }
+                        labels: {
+                            boxWidth: 12,
+                            font: { family: 'Inter', size: 11, weight: 600 }
+                        }
                     }
                 },
                 scales: {
+                    x: {
+                        grid: { display: false }
+                    },
                     y: {
-                        beginAtZero: true,
+                        min: 0,
+                        max: 6,
                         ticks: {
                             callback: function(value) {
-                                return '₱' + (value / 1000000).toFixed(1) + 'M';
-                            }
+                                return '₱' + value.toFixed(1) + 'M';
+                            },
+                            stepSize: 1.5
+                        },
+                        grid: {
+                            color: '#e2e8f0',
+                            borderDash: [3, 3]
                         }
                     }
                 }
@@ -275,21 +535,19 @@
         new Chart(barCtx, {
             type: 'bar',
             data: {
-                labels: {{ weekly_labels|safe }},
+                labels: ['W1', 'W2', 'W3', 'W4'],
                 datasets: [
                     {
                         label: 'Inflow',
-                        data: {{ inflow_data|safe }},
+                        data: [1.2, 1.5, 1.1, 1.8],
                         backgroundColor: brandBlue,
-                        barPercentage: 0.6,
-                        categoryPercentage: 0.8
+                        borderRadius: 2
                     },
                     {
                         label: 'Outflow',
-                        data: {{ outflow_data|safe }},
-                        backgroundColor: '#d89b3c', // Amber matching theme
-                        barPercentage: 0.6,
-                        categoryPercentage: 0.8
+                        data: [0.9, 1.2, 1.4, 1.0],
+                        backgroundColor: brandOrange,
+                        borderRadius: 2
                     }
                 ]
             },
@@ -300,9 +558,11 @@
                     legend: { display: false }
                 },
                 scales: {
-                    y: { display: false },
                     x: {
                         grid: { display: false }
+                    },
+                    y: {
+                        display: false
                     }
                 }
             }

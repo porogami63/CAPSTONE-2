@@ -1,0 +1,61 @@
+{% extends "app_base.html" %}
+{% block title %}Suppliers & Customers · Molasses Trading{% endblock %}
+{% block topbar_title %}Suppliers & Customers{% endblock %}
+{% block content %}
+<div class="page-header compact">
+    <h2>Suppliers & Customers</h2>
+    <p>Manage your business relationships</p>
+</div>
+
+<div class="partners-split">
+    <div class="partner-column">
+        <div class="partner-column-header">
+            <div>
+                <h3>Suppliers</h3>
+                <p>Sugar mills and import sources</p>
+            </div>
+        </div>
+        {% for s in suppliers %}
+        <div class="partner-card">
+            <div class="partner-icon"><i class="bi bi-building"></i></div>
+            <div class="partner-info">
+                <div class="name">{{ s.name }}</div>
+                <div class="type">{{ s.type }}{% if s.location %} · {{ s.location }}{% endif %}</div>
+                <span class="status-active">● Active</span>
+            </div>
+            <div class="partner-stats">
+                <strong>{{ s.txn_count }} txn</strong>
+                {{ s.total_volume|floatformat:0 }} MT
+            </div>
+        </div>
+        {% empty %}
+        <div class="partner-card text-muted">No suppliers registered. Import Excel data to populate mills.</div>
+        {% endfor %}
+    </div>
+
+    <div class="partner-column">
+        <div class="partner-column-header">
+            <div>
+                <h3>Customers</h3>
+                <p>Major buyers and partners</p>
+            </div>
+        </div>
+        {% for c in clients %}
+        <div class="partner-card">
+            <div class="partner-icon"><i class="bi bi-people"></i></div>
+            <div class="partner-info">
+                <div class="name">{{ c.name }}</div>
+                <div class="type">{{ c.type }}</div>
+                <span class="status-active">● Active</span>
+            </div>
+            <div class="partner-stats">
+                <strong>{{ c.txn_count }} txn</strong>
+                {{ c.total_volume|floatformat:0 }} MT
+            </div>
+        </div>
+        {% empty %}
+        <div class="partner-card text-muted">No customers registered yet.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

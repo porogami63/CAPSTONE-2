@@ -2,30 +2,64 @@
 {% block title %}Capital Loans · HTC Core{% endblock %}
 {% block topbar_title %}Loans &amp; Interest{% endblock %}
 {% block content %}
+<style>
+    .loan-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 992px) { .loan-kpis { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { .loan-kpis { grid-template-columns: 1fr; } }
+    .loan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    @media (max-width: 1100px) { .loan-grid { grid-template-columns: 1fr; } }
+    .loan-card { background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius); box-shadow: var(--htc-shadow); overflow: hidden; }
+    .loan-card.overdue { border-color: rgba(229, 62, 62, 0.35); box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.06); }
+    .loan-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--htc-border); display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+    .loan-head strong { color: var(--htc-primary); font-size: 1rem; }
+    .loan-head .sub { font-size: 0.8rem; color: var(--htc-text-muted); }
+    .loan-body { padding: 1rem 1.25rem 1.25rem; }
+    .loan-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; }
+    .loan-meta div { font-size: 0.85rem; color: var(--htc-text-muted); }
+    .loan-meta strong { color: var(--htc-text); display: block; margin-top: 0.15rem; }
+    .loan-track { margin-top: 1rem; }
+    .loan-track-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--htc-text-muted); margin-bottom: 0.35rem; }
+    .loan-track-bar { height: 10px; background: #edf2f7; border-radius: 999px; overflow: hidden; }
+    .loan-track-fill { height: 100%; background: linear-gradient(90deg, var(--htc-primary-light), #39a0ed); border-radius: inherit; }
+</style>
+
 <div class="page-header mb-4">
     <h2>Capital Loan Tracker</h2>
-    <p>Active loans with daily interest accrual — Finance and Management access.</p>
+    <p>Active loan exposure, accrued interest, and facility deadlines.</p>
 </div>
-<div class="content-card">
-    <div style="overflow-x:auto;">
-        <table class="table-htc">
-            <thead><tr><th>Bank</th><th>Transaction</th><th>Client</th><th>Principal</th><th>Accrued Interest</th><th>Due</th><th>Status</th></tr></thead>
-            <tbody>
-            {% for loan in loans %}
-            <tr>
-                <td>{{ loan.bank_name }}</td>
-                <td><a href="{% url 'operations:cluster_detail' loan.cluster.pk %}">{{ loan.cluster.reference_code }}</a></td>
-                <td>{{ loan.cluster.client.name }}</td>
-                <td>₱{{ loan.principal|floatformat:2 }}</td>
-                <td class="{% if loan.is_overdue %}text-danger{% endif %}">₱{{ loan.accrued_interest|floatformat:2 }}</td>
-                <td>{{ loan.due_date }}</td>
-                <td><span class="badge-status {% if loan.is_overdue %}alert{% else %}active{% endif %}">{{ loan.get_status_display }}</span></td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="7" style="padding:2rem;text-align:center;color:#718096;">No capital loans recorded.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
+
+<div class="loan-kpis">
+    <div class="kpi-card"><div class="kpi-icon blue"><i class="bi bi-bank"></i></div><div><div class="kpi-label">Active Loan Exposure</div><div class="kpi-value">₱{{ active_exposure|floatformat:0 }}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon green"><i class="bi bi-currency-exchange"></i></div><div><div class="kpi-label">Accrued Interest</div><div class="kpi-value">₱{{ accrued_interest|floatformat:0 }}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon amber"><i class="bi bi-box-seam"></i></div><div><div class="kpi-label">Logistics Deposits</div><div class="kpi-value">₱{{ logistics_deposits|floatformat:0 }}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon red"><i class="bi bi-exclamation-circle"></i></div><div><div class="kpi-label">Overdue Facilities</div><div class="kpi-value">{{ overdue_facilities }}</div></div></div>
 </div>
+
+<section class="loan-grid">
+    {% for loan in loans %}
+    <article class="loan-card {% if loan.is_overdue %}overdue{% endif %}">
+        <div class="loan-head">
+            <div>
+                <strong>{{ loan.bank_name }}</strong>
+                <div class="sub"><a href="{% url 'operations:cluster_detail' loan.cluster.pk %}">{{ loan.cluster.reference_code }}</a> · {{ loan.cluster.client.name }}</div>
+            </div>
+            <span class="badge-status {% if loan.is_overdue %}alert{% elif loan.status == loan.Status.ACTIVE %}active{% else %}delivered{% endif %}">{{ loan.get_status_display }}</span>
+        </div>
+        <div class="loan-body">
+            <div class="loan-meta">
+                <div>Principal<strong>₱{{ loan.principal|floatformat:2 }}</strong></div>
+                <div>Accrued Interest<strong>₱{{ loan.accrued_interest|floatformat:2 }}</strong></div>
+                <div>Due Date<strong>{{ loan.due_date }}</strong></div>
+                <div>Days Remaining<strong>{{ loan.days_remaining }}</strong></div>
+            </div>
+            <div class="loan-track">
+                <div class="loan-track-labels"><span>Interest / Principal Timeline</span><span>{{ loan.timeline_percent|floatformat:0 }}%</span></div>
+                <div class="loan-track-bar"><div class="loan-track-fill" style="width: {{ loan.timeline_percent }}%;"></div></div>
+            </div>
+        </div>
+    </article>
+    {% empty %}
+    <div class="text-muted">No capital loans recorded.</div>
+    {% endfor %}
+</section>
 {% endblock %}
