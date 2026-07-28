@@ -1580,3 +1580,242 @@ a:hover { text-decoration: underline; }
 .introjs-arrow.top { border-bottom-color: var(--htc-primary); }
 .introjs-tooltiptext { color: var(--htc-text); font-family: var(--htc-font); }
 .introjs-button { background-color: var(--htc-primary); color: #fff; text-shadow: none; border-radius: var(--htc-radius-sm); }
+
+/* ==========================================================================
+   Executive Modern Design Enhancements & Dropdown Reset
+   ========================================================================== */
+
+:root {
+    --htc-font: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    font-family: var(--htc-font);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Fix Unstyled Dropdowns & Lists */
+ul.dropdown-menu, .dropdown-menu {
+    list-style: none !important;
+    padding: 0.5rem 0 !important;
+    margin: 0.5rem 0 0 0 !important;
+    border-radius: 12px !important;
+    background: var(--htc-surface) !important;
+    border: 1px solid var(--htc-border) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    z-index: 1050;
+    min-width: 190px;
+}
+
+ul.dropdown-menu li, .dropdown-menu li {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.dropdown-item {
+    color: var(--htc-text) !important;
+    padding: 0.6rem 1.1rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    transition: all 0.2s ease !important;
+}
+
+.dropdown-item:hover, .dropdown-item:focus {
+    background: var(--htc-sidebar-hover) !important;
+    color: var(--htc-primary-light) !important;
+    transform: translateX(3px);
+}
+
+.dropdown-divider {
+    border-top: 1px solid var(--htc-border) !important;
+    margin: 0.4rem 0 !important;
+    opacity: 0.6;
+}
+
+/* Pulsing Live System Dot */
+.system-live-pill::before {
+    animation: pulse-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+/* Executive Card Improvements */
+.status-card {
+    border-radius: 12px;
+    border: 1px solid var(--htc-border);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.status-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.15);
+    border-color: rgba(96, 165, 250, 0.3);
+}
+
+/* Enhanced Buttons & Badges */
+.btn-htc {
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-htc:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.role-badge {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(96, 165, 250, 0.1));
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    color: var(--htc-primary-light);
+    font-weight: 700;
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    letter-spacing: 0.4px;
+}
+
+/* ==========================================================================
+   Transaction Form Layout & Input Controls
+   ========================================================================== */
+
+.form-section-card {
+    background: var(--htc-surface);
+    border: 1px solid var(--htc-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+}
+
+.form-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--htc-border);
+}
+
+.form-section-header i {
+    font-size: 1.25rem;
+    color: var(--htc-primary-light);
+}
+
+.form-section-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--htc-text);
+}
+
+.form-section-header p {
+    margin: 0.1rem 0 0 0;
+    font-size: 0.8rem;
+    color: var(--htc-text-muted);
+}
+
+.form-control-htc, .form-select-htc {
+    width: 100%;
+    background-color: var(--htc-bg) !important;
+    border: 1px solid var(--htc-border) !important;
+    color: var(--htc-text) !important;
+    border-radius: 8px !important;
+    padding: 0.65rem 0.9rem !important;
+    font-size: 0.9rem !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.form-control-htc:focus, .form-select-htc:focus {
+    border-color: var(--htc-primary-light) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2) !important;
+}
+
+.input-addon-group {
+    display: flex;
+    align-items: center;
+}
+
+.input-addon-group .addon {
+    background: var(--htc-sidebar-hover);
+    border: 1px solid var(--htc-border);
+    color: var(--htc-text-muted);
+    padding: 0.65rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.input-addon-group .addon-prefix {
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-right: none;
+}
+
+.input-addon-group .addon-suffix {
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-left: none;
+}
+
+.input-addon-group .form-control-htc.has-prefix {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+}
+
+.input-addon-group .form-control-htc.has-suffix {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+
+/* Live Financial Calculator Box */
+.live-calc-box {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(16, 185, 129, 0.05));
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.25rem;
+}
+
+.live-calc-box .calc-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    color: var(--htc-text-muted);
+}
+
+.live-calc-box .calc-formula {
+    font-size: 0.75rem;
+    color: var(--htc-text-muted);
+}
+
+.live-calc-box .calc-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--htc-success);
+}
+
+

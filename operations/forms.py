@@ -22,18 +22,42 @@ class ExcelImportForm(forms.Form):
 
 
 class TransactionClusterForm(forms.ModelForm):
-    volume_mt = forms.DecimalField(max_digits=14, decimal_places=3, label="Volume (MT)")
-    unit_price = forms.DecimalField(max_digits=12, decimal_places=2, label="Unit price")
-    terms = forms.CharField(max_length=200, required=False)
+    volume_mt = forms.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        label="Volume (MT)",
+        widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 100.000", "step": "0.001"}),
+    )
+    unit_price = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        label="Unit Price (₱/MT)",
+        widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 42000.00", "step": "0.01"}),
+    )
+    terms = forms.CharField(
+        max_length=200,
+        required=False,
+        label="Commercial Terms",
+        widget=forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Net 30, Selling ₱43,500"}),
+    )
 
     class Meta:
         model = TransactionCluster
         fields = ["reference_code", "client", "sugar_mill", "contract_notes", "status"]
+        widgets = {
+            "reference_code": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. PO-2026-001"}),
+            "client": forms.Select(attrs={"class": "form-select-htc"}),
+            "sugar_mill": forms.Select(attrs={"class": "form-select-htc"}),
+            "status": forms.Select(attrs={"class": "form-select-htc"}),
+            "contract_notes": forms.Textarea(attrs={"class": "form-control-htc", "rows": 3, "placeholder": "Optional internal notes or delivery instructions..."}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["client"].queryset = Client.objects.filter(is_active=True)
         self.fields["sugar_mill"].queryset = SugarMill.objects.filter(is_active=True)
+        self.fields["client"].empty_label = "Select Customer (Client)..."
+        self.fields["sugar_mill"].empty_label = "Select Supplier (Sugar Mill)..."
 
 
 class LogisticsUpdateForm(forms.ModelForm):

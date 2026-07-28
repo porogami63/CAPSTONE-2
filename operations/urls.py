@@ -15,4 +15,6 @@ urlpatterns = [
     path("<uuid:pk>/invoice/", views.add_invoice, name="add_invoice"),
     path("<uuid:pk>/voucher/", views.add_voucher, name="add_voucher"),
     path("<uuid:pk>/loan/", views.add_loan, name="add_loan"),
+    path("invoice/<int:invoice_pk>/status/", views.update_invoice_status, name="update_invoice_status"),
+    path("<uuid:pk>/resolve-dispute/", views.resolve_dispute, name="resolve_dispute"),
 ]

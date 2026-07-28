@@ -164,7 +164,8 @@ def home(request):
         .order_by("-created_at")[:12]
     )
     for cluster in recent_clusters:
-        cluster.primary_invoice = cluster.invoices.first()
+        invs = list(cluster.invoices.all())
+        cluster.primary_invoice = invs[0] if invs else None
 
     # ── Last sync timestamp ──────────────────────────────────────────────
     latest_cluster = TransactionCluster.objects.order_by("-updated_at").first()

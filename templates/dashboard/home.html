@@ -327,15 +327,15 @@
             <strong>{% if last_sync %}{{ last_sync|date:"d M Y, h:i A" }}{% else %}No data yet{% endif %}</strong>
         </div>
         <div class="dropdown">
-            <button class="btn-htc btn-htc-sm" style="background-color: var(--htc-surface); color: var(--htc-primary); border: 1px solid var(--htc-border);" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-file-earmark-pdf"></i> Generate PDF Report
+            <button class="btn-htc btn-htc-sm" style="background-color: var(--htc-surface); color: var(--htc-primary-light); border: 1px solid var(--htc-border); padding: 0.4rem 0.85rem; border-radius: 8px;" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-file-earmark-pdf-fill"></i> Generate PDF Report <i class="bi bi-chevron-down ms-1" style="font-size: 0.75rem;"></i>
             </button>
-            <ul class="dropdown-menu" aria-labelledby="reportDropdown">
-                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}">Last 24 Hours</a></li>
-                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}">Last 7 Days</a></li>
-                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}">Last 30 Days</a></li>
+            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="reportDropdown">
+                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}"><i class="bi bi-clock-history me-2 text-primary"></i> Last 24 Hours</a></li>
+                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}"><i class="bi bi-calendar-week me-2 text-info"></i> Last 7 Days</a></li>
+                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}"><i class="bi bi-calendar-month me-2 text-success"></i> Last 30 Days</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'year' %}">Annual Report</a></li>
+                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'year' %}"><i class="bi bi-calendar3 me-2 text-warning"></i> Annual Report</a></li>
             </ul>
         </div>
     </div>

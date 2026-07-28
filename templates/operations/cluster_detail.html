@@ -15,8 +15,94 @@
 </div>
 
 {% if cluster.logistics.variance_exceeds_tolerance %}
-<div class="alert-banner" style="border: 2px solid #e53e3e; box-shadow: 0 0 10px rgba(229, 62, 62, 0.2);"><i class="bi bi-exclamation-triangle-fill"></i>
-    <strong>Variance Alert:</strong> <span class="badge-variance-danger" style="margin-left: 0.5rem; margin-right: 0.5rem;">{{ cluster.logistics.variance_percent|floatformat:2 }}%</span> exceeds 1% tolerance threshold.
+<div class="alert-banner" style="border: 2px solid #e53e3e; box-shadow: 0 0 10px rgba(229, 62, 62, 0.2); display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <strong>Variance Alert:</strong> <span class="badge-variance-danger" style="margin-left: 0.5rem; margin-right: 0.5rem;">{{ cluster.logistics.variance_percent|floatformat:2 }}%</span> exceeds 1.0% tolerance threshold.
+    </div>
+    {% if user|has_perm:"edit_logistics" %}
+    <button type="button" class="btn-htc" style="background: #e53e3e; border-color: #e53e3e; padding: 0.35rem 0.85rem; font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal">
+        <i class="bi bi-shield-exclamation"></i> Resolve Dispute
+    </button>
+    {% endif %}
+</div>
+
+<!-- RESOLVE DISPUTE MODAL -->
+<div class="modal fade" id="resolveDisputeModal" tabindex="-1" aria-labelledby="resolveDisputeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
+        <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 14px 28px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1.25rem 1.5rem;">
+                <div>
+                    <h5 class="modal-title" id="resolveDisputeModalLabel" style="font-weight: 700; color: var(--htc-text);">Resolve Variance Dispute</h5>
+                    <div style="font-size: 0.8rem; color: var(--htc-text-muted);">{{ cluster.reference_code }} · {{ cluster.client.name }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'operations:resolve_dispute' cluster.pk %}">
+                {% csrf_token %}
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <div style="background: var(--htc-danger-bg); border: 1px solid #fed7d7; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: #9b2c2c;">
+                        <strong>Variance Alert:</strong> Exceeded 1.0% shrinkage tolerance ({{ cluster.logistics.variance_percent|floatformat:2 }}%). Select how management will resolve this dispute:
+                    </div>
+
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; display: block;">Select Resolution Pathway</label>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resConcede" value="CONCEDED" checked>
+                            <label class="form-check-label" for="resConcede" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Concede &amp; Proceed As-Is <span class="badge bg-secondary" style="font-size: 0.65rem; margin-left: 0.25rem;">Default</span>
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Absorb the variance loss, maintain original contract terms, clear dispute flag, and proceed with the deal.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resAdjustBill" value="BILLING_ADJUSTED">
+                            <label class="form-check-label" for="resAdjustBill" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Adjust Billing to Received Volume
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Automatically adjust linked Sales Invoices to bill actual received MT instead of loaded MT.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resPenalty" value="BARGE_PENALTY">
+                            <label class="form-check-label" for="resPenalty" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Deduct Shortage Penalty from Logistics Partner
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Deduct shortage value from barge freight fees (`barge_fees`) to penalize transit loss.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resWaiver" value="WAIVED">
+                            <label class="form-check-label" for="resWaiver" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Management Waiver (Brix / Moisture Loss)
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Approve natural moisture evaporation / brix density shift waiver and clear dispute flag.
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted); margin-bottom: 0.25rem; display: block;">Resolution Audit Notes</label>
+                        <textarea name="resolution_notes" class="form-control-htc" rows="2" placeholder="e.g. Conceded 7 MT variance due to customer request, proceeding with deal as-is..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--htc-border); padding: 1rem 1.5rem;">
+                    <button type="button" class="btn-htc-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-htc" style="background: var(--htc-success); border-color: var(--htc-success);">
+                        <i class="bi bi-check-circle-fill"></i> Confirm Resolution
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endif %}
 
@@ -63,66 +149,238 @@
     </div>
 
     <div>
-        <div class="panel mb-3">
-            <div class="panel-header">Sales Invoice</div>
-            <div class="panel-body">
-                {% if user|has_perm:"add_invoice" %}
-                <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}" class="form-stack">{% csrf_token %}
-                    {% for field in invoice_form %}
-                    <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
-                    {% endfor %}
-                    <button type="submit" class="btn-htc btn-htc-sm">Add Invoice</button>
-                </form>
+        <!-- Sales Invoices Panel -->
+        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem; font-weight: 700; font-size: 1rem; color: var(--htc-primary-light); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-file-earmark-text-fill"></i> Sales Invoices
+            </div>
+            <div class="panel-body" style="padding: 1.25rem;">
+                {% if cluster.invoices.all %}
+                <div style="overflow-x: auto; margin-bottom: 1.25rem;">
+                    <table class="table-htc" style="margin: 0; width: 100%; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--htc-border);">
+                                <th style="padding: 0.6rem 0.8rem;">Invoice #</th>
+                                <th style="padding: 0.6rem 0.8rem;">Date</th>
+                                <th style="padding: 0.6rem 0.8rem;">Amount</th>
+                                <th style="padding: 0.6rem 0.8rem;">Status</th>
+                                <th style="padding: 0.6rem 0.8rem; text-align: right;">Update Status / Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in cluster.invoices.all %}
+                            <tr style="border-bottom: 1px solid var(--htc-border); vertical-align: middle;">
+                                <td style="padding: 0.65rem 0.8rem; font-weight: 700;">{{ inv.invoice_number }}</td>
+                                <td style="padding: 0.65rem 0.8rem; color: var(--htc-text-muted);">{{ inv.issued_at|date:"M d, Y" }}</td>
+                                <td style="padding: 0.65rem 0.8rem; font-weight: 600;">₱{{ inv.amount|floatformat:2 }}</td>
+                                <td style="padding: 0.65rem 0.8rem;">
+                                    <span class="badge-status {{ inv.status }}">{{ inv.get_status_display }}</span>
+                                </td>
+                                <td style="padding: 0.65rem 0.8rem; text-align: right;">
+                                    <div style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                                        {% if user|has_perm:"add_invoice" %}
+                                        <form method="post" action="{% url 'operations:update_invoice_status' inv.pk %}" style="display: inline-flex; gap: 0.25rem; margin: 0;">{% csrf_token %}
+                                            {% if inv.status == 'draft' %}
+                                            <button type="submit" name="status" value="issued" class="btn-htc-outline" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; color: var(--htc-primary-light); border-color: rgba(96,165,250,0.4);" title="Mark as Issued">
+                                                <i class="bi bi-send-check"></i> Issue
+                                            </button>
+                                            {% endif %}
+                                            {% if inv.status != 'paid' %}
+                                            <button type="submit" name="status" value="paid" class="btn-htc" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; background: var(--htc-success); border-color: var(--htc-success);" title="Mark as Paid">
+                                                <i class="bi bi-check-circle-fill"></i> Mark Paid
+                                            </button>
+                                            {% endif %}
+                                        </form>
+                                        {% endif %}
+                                        <a href="{% url 'finance:download_invoice_pdf' inv.pk %}" class="btn-htc-outline" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" title="Download PDF Report">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="color: var(--htc-text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">No invoices recorded for this transaction yet.</p>
                 {% endif %}
-                <ul class="record-list">
-                    {% for inv in cluster.invoices.all %}
-                    <li>
-                        {{ inv.invoice_number }} · ₱{{ inv.amount|floatformat:2 }} · {{ inv.get_status_display }}
-                        <a href="{% url 'finance:download_invoice_pdf' inv.pk %}" class="btn-htc-outline" style="padding: 2px 8px; font-size: 0.7rem; margin-left: auto;" title="Download PDF"><i class="bi bi-file-earmark-pdf"></i></a>
-                    </li>
-                    {% empty %}<li class="text-muted">No invoices yet.</li>{% endfor %}
-                </ul>
+
+                {% if user|has_perm:"add_invoice" %}
+                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Issue New Invoice
+                    </summary>
+                    <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}" class="form-stack mt-3">{% csrf_token %}
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Invoice Number</label>
+                                {{ invoice_form.invoice_number }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Amount (₱)</label>
+                                {{ invoice_form.amount }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Issue Date</label>
+                                {{ invoice_form.issued_at }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Status</label>
+                                {{ invoice_form.status }}
+                            </div>
+                            <div class="col-12">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Notes</label>
+                                {{ invoice_form.notes }}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Record Invoice</button>
+                    </form>
+                </details>
+                {% endif %}
             </div>
         </div>
 
+        <!-- Cash Vouchers Panel -->
         {% if user|has_perm:"add_voucher" %}
-        <div class="panel mb-3">
-            <div class="panel-header">Cash Voucher</div>
-            <div class="panel-body">
-                <form method="post" action="{% url 'operations:add_voucher' cluster.pk %}" class="form-stack">{% csrf_token %}
-                    {% for field in voucher_form %}
-                    <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
-                    {% endfor %}
-                    <button type="submit" class="btn-htc btn-htc-sm">Add Voucher</button>
-                </form>
-                <ul class="record-list">
-                    {% for v in cluster.cash_vouchers.all %}
-                    <li>{{ v.voucher_number }} · ₱{{ v.amount|floatformat:2 }} · {{ v.purpose }}</li>
-                    {% empty %}<li class="text-muted">No vouchers yet.</li>{% endfor %}
-                </ul>
+        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem; font-weight: 700; font-size: 1rem; color: var(--htc-primary-light); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-receipt-cutoff"></i> Cash Outlays &amp; Vouchers
+            </div>
+            <div class="panel-body" style="padding: 1.25rem;">
+                {% if cluster.cash_vouchers.all %}
+                <div style="overflow-x: auto; margin-bottom: 1.25rem;">
+                    <table class="table-htc" style="margin: 0; width: 100%; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--htc-border);">
+                                <th style="padding: 0.6rem 0.8rem;">Voucher #</th>
+                                <th style="padding: 0.6rem 0.8rem;">Date</th>
+                                <th style="padding: 0.6rem 0.8rem;">Purpose</th>
+                                <th style="padding: 0.6rem 0.8rem; text-align: right;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v in cluster.cash_vouchers.all %}
+                            <tr style="border-bottom: 1px solid var(--htc-border);">
+                                <td style="padding: 0.65rem 0.8rem; font-weight: 700;">{{ v.voucher_number }}</td>
+                                <td style="padding: 0.65rem 0.8rem; color: var(--htc-text-muted);">{{ v.issued_at|date:"M d, Y" }}</td>
+                                <td style="padding: 0.65rem 0.8rem;">{{ v.purpose }}</td>
+                                <td style="padding: 0.65rem 0.8rem; font-weight: 600; text-align: right;">₱{{ v.amount|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="color: var(--htc-text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">No cash outlays recorded yet.</p>
+                {% endif %}
+
+                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Record Cash Outlay / Voucher
+                    </summary>
+                    <form method="post" action="{% url 'operations:add_voucher' cluster.pk %}" class="form-stack mt-3">{% csrf_token %}
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Voucher Number</label>
+                                {{ voucher_form.voucher_number }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Amount (₱)</label>
+                                {{ voucher_form.amount }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Issued Date</label>
+                                {{ voucher_form.issued_at }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Purpose / Outlay Notes</label>
+                                {{ voucher_form.purpose }}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Save Cash Voucher</button>
+                    </form>
+                </details>
             </div>
         </div>
         {% endif %}
 
+        <!-- Capital Loans & Daily Interest Panel -->
         {% if user|has_perm:"add_loan" or user|has_perm:"view_loans" %}
-        <div class="panel">
-            <div class="panel-header">Capital Loan &amp; Interest</div>
-            <div class="panel-body">
-                {% if user|has_perm:"add_loan" %}
-                <form method="post" action="{% url 'operations:add_loan' cluster.pk %}" class="form-stack">{% csrf_token %}
-                    {% for field in loan_form %}
-                    <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
-                    {% endfor %}
-                    <button type="submit" class="btn-htc btn-htc-sm">Add Loan</button>
-                </form>
-                {% endif %}
+        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem; font-weight: 700; font-size: 1rem; color: var(--htc-primary-light); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-bank2"></i> Capital Credit Facility &amp; Daily Interest
+            </div>
+            <div class="panel-body" style="padding: 1.25rem;">
                 {% for loan in cluster.loans.all %}
-                <div class="loan-box">
-                    <strong>{{ loan.bank_name }}</strong> · Principal ₱{{ loan.principal|floatformat:2 }}<br>
-                    <span class="text-muted small">{{ loan.interest_rate_annual }}% p.a. · {{ loan.days_outstanding }} days</span><br>
-                    <span class="text-danger">Accrued interest: ₱{{ loan.accrued_interest|floatformat:2 }}</span>
+                <div style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1.1rem; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                        <div>
+                            <strong style="font-size: 1rem; color: var(--htc-text);">{{ loan.bank_name }}</strong>
+                            <div style="font-size: 0.75rem; color: var(--htc-text-muted);">Linked Credit Line · Term: {{ loan.start_date|date:"M d, Y" }} to {{ loan.due_date|date:"M d, Y" }}</div>
+                        </div>
+                        <span class="badge-status {{ loan.status }}">{{ loan.get_status_display }}</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem;">
+                        <div>
+                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Principal</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱{{ loan.principal|floatformat:2 }}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Annual Rate</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">{{ loan.interest_rate_annual }}%</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Accrued Interest</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--htc-accent);">₱{{ loan.accrued_interest|floatformat:2 }} <span style="font-size: 0.7rem; color: var(--htc-text-muted); font-weight: normal;">({{ loan.days_outstanding }}d)</span></div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Total Liability</div>
+                            <div style="font-size: 0.95rem; font-weight: 800; color: var(--htc-primary-light);">₱{{ loan.total_liability|floatformat:2 }}</div>
+                        </div>
+                    </div>
                 </div>
-                {% empty %}<p class="text-muted mt-3 mb-0">No loans linked.</p>{% endfor %}
+                {% empty %}
+                <p style="color: var(--htc-text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">No capital bank credit facilities linked to this trade.</p>
+                {% endfor %}
+
+                {% if user|has_perm:"add_loan" %}
+                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Link Capital Loan Facility
+                    </summary>
+                    <form method="post" action="{% url 'operations:add_loan' cluster.pk %}" class="form-stack mt-3">{% csrf_token %}
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Bank / Financing Partner</label>
+                                {{ loan_form.bank_name }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Principal Amount (₱)</label>
+                                {{ loan_form.principal }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Annual Interest Rate (%)</label>
+                                {{ loan_form.interest_rate_annual }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Status</label>
+                                {{ loan_form.status }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Facility Start Date</label>
+                                {{ loan_form.start_date }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Maturity / Due Date</label>
+                                {{ loan_form.due_date }}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Link Loan Facility</button>
+                    </form>
+                </details>
+                {% endif %}
             </div>
         </div>
         {% endif %}

@@ -53,6 +53,17 @@ class PurchaseOrder(models.Model):
 
 
 class LogisticsLedger(models.Model):
+    class DisputeStatus(models.TextChoices):
+        NONE = "NONE", "None"
+        DISPUTED = "DISPUTED", "Disputed — Over Tolerance"
+        RESOLVED = "RESOLVED", "Resolved"
+
+    class ResolutionType(models.TextChoices):
+        CONCEDED = "CONCEDED", "Concede & Proceed As-Is"
+        BILLING_ADJUSTED = "BILLING_ADJUSTED", "Adjust Billing to Received Volume"
+        BARGE_PENALTY = "BARGE_PENALTY", "Deduct Shortage Penalty from Logistics"
+        WAIVED = "WAIVED", "Management Waiver (Brix / Evaporation)"
+
     cluster = models.OneToOneField(
         TransactionCluster,
         on_delete=models.CASCADE,
@@ -68,11 +79,24 @@ class LogisticsLedger(models.Model):
     barge_fees = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     variance_percent = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
     variance_exceeds_tolerance = models.BooleanField(default=False)
+    dispute_status = models.CharField(
+        max_length=20,
+        choices=DisputeStatus.choices,
+        default=DisputeStatus.NONE,
+    )
+    resolution_type = models.CharField(
+        max_length=30,
+        choices=ResolutionType.choices,
+        null=True,
+        blank=True,
+    )
+    resolution_notes = models.TextField(blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
     history = HistoricalRecords()
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+        self._compute_variance()
         super().save(*args, **kwargs)
         # Dispatch background task for variance calculation
         from .tasks import compute_variance_task
@@ -80,11 +104,18 @@ class LogisticsLedger(models.Model):
 
     def _compute_variance(self):
         tolerance = Decimal(str(getattr(settings, "VARIANCE_TOLERANCE_PERCENT", 1.0)))
-        if self.loaded_volume_mt and self.received_volume_mt is not None:
-            if self.loaded_volume_mt > 0:
-                diff = abs(self.loaded_volume_mt - self.received_volume_mt)
-                self.variance_percent = (diff / self.loaded_volume_mt) * Decimal("100")
-                self.variance_exceeds_tolerance = self.variance_percent > tolerance
+        if self.loaded_volume_mt is not None and self.received_volume_mt is not None:
+            loaded_dec = Decimal(str(self.loaded_volume_mt))
+            received_dec = Decimal(str(self.received_volume_mt))
+            if loaded_dec > Decimal("0"):
+                diff = abs(loaded_dec - received_dec)
+                self.variance_percent = (diff / loaded_dec) * Decimal("100")
+                if self.dispute_status == self.DisputeStatus.RESOLVED:
+                    self.variance_exceeds_tolerance = False
+                else:
+                    self.variance_exceeds_tolerance = self.variance_percent > tolerance
+                    if self.variance_exceeds_tolerance:
+                        self.dispute_status = self.DisputeStatus.DISPUTED
             else:
                 self.variance_percent = Decimal("0")
                 self.variance_exceeds_tolerance = False

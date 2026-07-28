@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Sum
@@ -52,11 +55,13 @@ def cluster_list(request):
 
     total_volume = 0.0
     combined_profit = 0.0
-    margin_total = 0.0
+    total_revenue = 0.0
+    total_profit = 0.0
     total_transactions = len(clusters)
 
     for c in clusters:
-        c.primary_invoice = c.invoices.first()
+        invs = list(c.invoices.all())
+        c.primary_invoice = invs[0] if invs else None
         c.purchase_order = getattr(c, "purchase_order", None)
         c.logistics_record = getattr(c, "logistics", None)
         c.partner_name = c.logistics_record.partner.name if c.logistics_record else "—"
@@ -92,9 +97,10 @@ def cluster_list(request):
 
         combined_profit += fin["profit_m"]
         total_volume += fin["volume_mt"]
-        margin_total += fin["margin"]
+        total_revenue += fin["revenue"]
+        total_profit += fin["profit"]
 
-    avg_margin = round(margin_total / total_transactions, 1) if total_transactions else 0.0
+    avg_margin = round((total_profit / total_revenue) * 100, 1) if total_revenue > 0 else 0.0
 
     context = {
         "clusters": clusters,
@@ -181,7 +187,7 @@ def logistics_list(request):
         headroom = max(2.0 - shrinkage_pct, 0.0)
         over_limit = max(shrinkage_pct - 2.0, 0.0)
 
-        shipments.append({
+        item = {
             "ledger": log,
             "sh_code": "SH-" + log.cluster.reference_code.split("-").pop(),
             "ref_code": log.cluster.reference_code,
@@ -195,21 +201,30 @@ def logistics_list(request):
             "prog_pct": prog_pct,
             "headroom": headroom,
             "over_limit": over_limit,
-            "pk": log.cluster.pk
-        })
+            "pk": log.cluster.pk,
+        }
+        shipments.append(item)
 
-    # No mock data — template will handle empty state
+    transit_shipments = [s for s in shipments if s["status"] in ("loading", "transit")]
+    pending_shipments = [s for s in shipments if s["status"] == "pending_review"]
+    disputed_shipments = [s for s in shipments if s["status"] == "disputed"]
+    accepted_shipments = [s for s in shipments if s["status"] in ("accepted", "delivered")]
 
     return render(
         request,
         "operations/logistics_list.html",
         {
             "shipments": shipments,
+            "transit_shipments": transit_shipments,
+            "pending_shipments": pending_shipments,
+            "disputed_shipments": disputed_shipments,
+            "accepted_shipments": accepted_shipments,
             "in_transit_count": in_transit_count,
             "delivered_count": delivered_count,
             "accepted_count": accepted_count,
             "pending_review_count": pending_review_count,
             "disputed_count": disputed_count,
+            "tolerance_threshold": settings.VARIANCE_TOLERANCE_PERCENT,
         },
     )
 
@@ -441,3 +456,73 @@ def add_loan(request, pk):
             loan.save()
             messages.success(request, f"Capital loan from {loan.bank_name} recorded.")
     return redirect("operations:cluster_detail", pk=pk)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.INVOICING, User.Role.FINANCE)
+def update_invoice_status(request, invoice_pk):
+    invoice = get_object_or_404(Invoice, pk=invoice_pk)
+    if request.method == "POST":
+        new_status = request.POST.get("status")
+        if new_status in Invoice.Status.values:
+            invoice.status = new_status
+            invoice._audit_user = request.user
+            invoice.save(update_fields=["status"])
+            messages.success(
+                request,
+                f"Invoice {invoice.invoice_number} status updated to {invoice.get_status_display()}.",
+            )
+    return redirect("operations:cluster_detail", pk=invoice.cluster.pk)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def resolve_dispute(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    logistics = get_object_or_404(LogisticsLedger, cluster=cluster)
+
+    if request.method == "POST":
+        res_type = request.POST.get("resolution_type")
+        notes = request.POST.get("resolution_notes", "").strip()
+
+        if res_type in LogisticsLedger.ResolutionType.values:
+            logistics.dispute_status = LogisticsLedger.DisputeStatus.RESOLVED
+            logistics.resolution_type = res_type
+            logistics.resolution_notes = notes
+            logistics.variance_exceeds_tolerance = False
+            logistics._audit_user = request.user
+            logistics.save()
+
+            # Execute financial adjustments based on choice
+            if res_type == LogisticsLedger.ResolutionType.BILLING_ADJUSTED:
+                if hasattr(cluster, "purchase_order") and logistics.received_volume_mt:
+                    new_val = Decimal(str(logistics.received_volume_mt)) * Decimal(str(cluster.purchase_order.unit_price))
+                    for inv in cluster.invoices.all():
+                        inv.amount = new_val
+                        inv._audit_user = request.user
+                        inv.save(update_fields=["amount"])
+                    messages.success(request, f"Dispute resolved: Invoices adjusted to received volume value (₱{new_val:,.2f}).")
+                else:
+                    messages.success(request, "Dispute resolved: Invoices set for billing adjustment.")
+            elif res_type == LogisticsLedger.ResolutionType.BARGE_PENALTY:
+                if hasattr(cluster, "purchase_order") and logistics.loaded_volume_mt and logistics.received_volume_mt:
+                    shortage_mt = Decimal(str(logistics.loaded_volume_mt)) - Decimal(str(logistics.received_volume_mt))
+                    penalty_val = shortage_mt * Decimal(str(cluster.purchase_order.unit_price))
+                    logistics.barge_fees = max(Decimal("0"), Decimal(str(logistics.barge_fees)) - penalty_val)
+                    logistics.save(update_fields=["barge_fees"])
+                    messages.success(request, f"Dispute resolved: ₱{penalty_val:,.2f} shortage penalty applied.")
+                else:
+                    messages.success(request, "Dispute resolved: Shortage penalty applied.")
+            elif res_type == LogisticsLedger.ResolutionType.CONCEDED:
+                messages.success(request, "Dispute resolved: Conceded variance and proceeding with deal as-is.")
+            elif res_type == LogisticsLedger.ResolutionType.WAIVED:
+                messages.success(request, "Dispute resolved: Management waiver approved for brix / evaporation loss.")
+
+            cluster.status = TransactionCluster.Status.DELIVERED
+            cluster._audit_user = request.user
+            cluster.save(update_fields=["status", "updated_at"])
+
+    next_url = request.META.get("HTTP_REFERER")
+    if next_url and "/operations/" in next_url:
+        return redirect(next_url)
+    return redirect("operations:cluster_detail", pk=pk)
+
+

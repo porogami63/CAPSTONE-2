@@ -22,7 +22,8 @@ def cluster_financials(cluster) -> dict:
     """Return volume, pricing, profit, and margin for a transaction cluster."""
     po = getattr(cluster, "purchase_order", None)
     logistics = getattr(cluster, "logistics", None)
-    primary_invoice = cluster.invoices.first() if hasattr(cluster, "invoices") else None
+    invoices = list(cluster.invoices.all()) if hasattr(cluster, "invoices") else []
+    primary_invoice = invoices[0] if invoices else None
 
     volume = Decimal("0")
     purchase_price = Decimal("0")

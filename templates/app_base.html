@@ -6,10 +6,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}HTC Core{% endblock %}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
-    <link href="{% static 'css/htc-theme.css' %}?v=6" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}?v=7" rel="stylesheet">
 </head>
 <body>
     <script>
@@ -20,9 +21,12 @@
     </script>
     <div class="app-shell">
         <aside class="app-sidebar" id="appSidebar">
-            <div class="brand-block">
-                <div class="logo-text">Molasses Trading</div>
-                <div class="logo-sub">Management System</div>
+            <div class="brand-block" style="display: flex; align-items: center; gap: 0.65rem; padding: 1rem 1rem 0.85rem;">
+                <img src="{% static 'img/htc-logo.png' %}" alt="HTC Logo" style="width: 38px; height: 38px; object-fit: contain; flex-shrink: 0;">
+                <div>
+                    <div class="logo-text" style="font-size: 0.85rem; line-height: 1.2;">Heindrich Trading</div>
+                    <div class="logo-sub" style="font-size: 0.68rem; line-height: 1.2;">Corporation</div>
+                </div>
             </div>
             <nav>
                 {% for url_name, label, icon, match_prefixes in nav_items %}
@@ -83,6 +87,7 @@
             </main>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     {% block scripts %}{% endblock %}
     <script>
         (function () {

@@ -1,8 +1,12 @@
 from decimal import Decimal
+
 from django.contrib import messages
 from django.db.models import Sum
-from django.utils import timezone
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import get_template
+from django.utils import timezone
+from xhtml2pdf import pisa
 
 from accounts.decorators import role_required
 from accounts.models import User
@@ -91,8 +95,6 @@ def loan_list(request):
     active_exposure_m = float(active_exposure) / 1000000.0
     logistics_deposits_m = float(logistics_deposits) / 1000000.0
 
-    # No mock data — template will handle empty state
-
     return render(
         request,
         "finance/loan_list.html",
@@ -117,24 +119,24 @@ def invoice_list(request):
     paid_amount = Decimal("0")
     pending_amount = Decimal("0")
     overdue_amount = Decimal("0")
-    
+
     paid_count = 0
     pending_count = 0
     overdue_count = 0
 
     for invoice in invoice_rows:
         total_invoiced += invoice.amount
-        
+
         # Determine status styling
         invoice.status_badge = {
             Invoice.Status.DRAFT: "draft",
             Invoice.Status.ISSUED: "active",
             Invoice.Status.PAID: "delivered",
         }.get(invoice.status, "draft")
-        
+
         invoice.days_open = max((today - invoice.issued_at).days, 0)
         invoice.payable_state = "Paid" if invoice.status == Invoice.Status.PAID else "Pending"
-        
+
         if invoice.status == Invoice.Status.PAID:
             paid_amount += invoice.amount
             paid_count += 1
@@ -164,9 +166,10 @@ def invoice_list(request):
         loaded_vol = float(c.logistics.loaded_volume_mt) if hasattr(c, "logistics") and c.logistics else 0.0
         po_price = float(c.purchase_order.unit_price) if hasattr(c, "purchase_order") and c.purchase_order else 0.0
         payable_amount = loaded_vol * po_price
-        
+
         if payable_amount > 0:
-            primary_inv = c.invoices.first()
+            invs = list(c.invoices.all())
+            primary_inv = invs[0] if invs else None
             status = "Paid" if primary_inv and primary_inv.status == Invoice.Status.PAID else ("Overdue" if c.status == TransactionCluster.Status.DELIVERED else "Pending")
             badge = "delivered" if status == "Paid" else ("overdue" if status == "Overdue" else "active")
             supplier_invoices.append({
@@ -176,8 +179,6 @@ def invoice_list(request):
                 "payable_state": status,
                 "status_badge": badge,
             })
-
-    # No mock data — template will handle empty state
 
     return render(
         request,
@@ -202,24 +203,24 @@ def invoice_list(request):
         },
     )
 
-from django.http import HttpResponse
-from django.template.loader import get_template
-from xhtml2pdf import pisa
 
 @role_required(User.Role.MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING)
 def download_invoice_pdf(request, pk):
-    invoice = get_object_or_404(Invoice.objects.select_related("cluster", "cluster__client", "cluster__sugar_mill", "cluster__purchase_order"), pk=pk)
-    template_path = 'finance/invoice_pdf.html'
-    context = {'invoice': invoice}
-    
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="Invoice_{invoice.invoice_number}.pdf"'
-    
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("cluster", "cluster__client", "cluster__sugar_mill", "cluster__purchase_order"),
+        pk=pk,
+    )
+    template_path = "finance/invoice_pdf.html"
+    context = {"invoice": invoice}
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="Invoice_{invoice.invoice_number}.pdf"'
+
     template = get_template(template_path)
     html = template.render(context)
-    
+
     pisa_status = pisa.CreatePDF(html, dest=response)
-       
+
     if pisa_status.err:
-       return HttpResponse('We had some errors <pre>' + html + '</pre>')
+        return HttpResponse("We had some errors <pre>" + html + "</pre>")
     return response

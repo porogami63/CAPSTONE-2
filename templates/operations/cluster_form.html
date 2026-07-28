@@ -1,27 +1,156 @@
 {% extends "app_base.html" %}
-{% block title %}New Transaction · HTC Core{% endblock %}
-{% block topbar_title %}New Transaction{% endblock %}
+{% block title %}{% if object %}Edit {{ object.reference_code }}{% else %}New Transaction{% endif %} · HTC Core{% endblock %}
+{% block topbar_title %}{% if object %}Edit Transaction{% else %}Create Transaction{% endif %}{% endblock %}
+
 {% block content %}
-<div class="page-header mb-4">
-    <h2>Create Transaction</h2>
-    <p>New contract cluster with purchase order and logistics record.</p>
-</div>
-<div class="form-panel" style="max-width:760px;">
-<form method="post" class="form-stack">{% csrf_token %}
-    <div class="form-grid">
-        {% for field in form %}
-        <div class="form-field">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
-            {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
-        </div>
-        {% endfor %}
+<div class="page-header mb-4 flex-between">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1" style="font-size: 0.8rem;">
+                <li class="breadcrumb-item"><a href="{% url 'operations:cluster_list' %}">Transactions</a></li>
+                <li class="breadcrumb-item active">{% if object %}{{ object.reference_code }}{% else %}New Contract{% endif %}</li>
+            </ol>
+        </nav>
+        <h2>{% if object %}Edit {{ object.reference_code }}{% else %}Create New Transaction{% endif %}</h2>
+        <p class="text-muted" style="margin: 0.2rem 0 0 0; font-size: 0.85rem;">
+            {% if object %}Update contract parameters, commercial terms, and purchase order quantities.{% else %}Initialize a new transaction cluster with purchase order and logistics tracking.{% endif %}
+        </p>
     </div>
-    <div class="flex gap-2 mt-3">
-        <button type="submit" class="btn-htc">Create Transaction</button>
-        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline">Cancel</a>
+    <div>
+        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline btn-sm"><i class="bi bi-arrow-left"></i> Back to Transactions</a>
+    </div>
+</div>
+
+<form method="post" style="max-width: 860px; margin: 0 auto;">
+    {% csrf_token %}
+
+    <!-- Card 1: Contract Basics -->
+    <div class="form-section-card">
+        <div class="form-section-header">
+            <i class="bi bi-file-earmark-text-fill"></i>
+            <div>
+                <h3>1. Contract Basics</h3>
+                <p>Identify the contract reference code, customer, supplier, and initial status.</p>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="{{ form.reference_code.id_for_label }}" class="form-label font-semibold text-sm">Reference Code <span class="text-danger">*</span></label>
+                {{ form.reference_code }}
+                {% if form.reference_code.errors %}<div class="text-danger text-xs mt-1">{{ form.reference_code.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label for="{{ form.status.id_for_label }}" class="form-label font-semibold text-sm">Contract Status</label>
+                {{ form.status }}
+                {% if form.status.errors %}<div class="text-danger text-xs mt-1">{{ form.status.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label for="{{ form.client.id_for_label }}" class="form-label font-semibold text-sm">Customer (Client) <span class="text-danger">*</span></label>
+                {{ form.client }}
+                {% if form.client.errors %}<div class="text-danger text-xs mt-1">{{ form.client.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label for="{{ form.sugar_mill.id_for_label }}" class="form-label font-semibold text-sm">Supplier (Sugar Mill) <span class="text-danger">*</span></label>
+                {{ form.sugar_mill }}
+                {% if form.sugar_mill.errors %}<div class="text-danger text-xs mt-1">{{ form.sugar_mill.errors|striptags }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Purchase Order & Commercial Terms -->
+    <div class="form-section-card">
+        <div class="form-section-header">
+            <i class="bi bi-calculator-fill"></i>
+            <div>
+                <h3>2. Purchase Order & Pricing Details</h3>
+                <p>Define procurement quantities, unit pricing, and commercial terms.</p>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="{{ form.volume_mt.id_for_label }}" class="form-label font-semibold text-sm">Contract Volume <span class="text-danger">*</span></label>
+                <div class="input-addon-group">
+                    {{ form.volume_mt }}
+                    <span class="addon addon-suffix">MT</span>
+                </div>
+                {% if form.volume_mt.errors %}<div class="text-danger text-xs mt-1">{{ form.volume_mt.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <label for="{{ form.unit_price.id_for_label }}" class="form-label font-semibold text-sm">Unit Purchase Price <span class="text-danger">*</span></label>
+                <div class="input-addon-group">
+                    <span class="addon addon-prefix">₱</span>
+                    {{ form.unit_price }}
+                </div>
+                {% if form.unit_price.errors %}<div class="text-danger text-xs mt-1">{{ form.unit_price.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-12">
+                <label for="{{ form.terms.id_for_label }}" class="form-label font-semibold text-sm">Commercial & Selling Terms</label>
+                {{ form.terms }}
+                <div class="form-text text-xs text-muted mt-1">Specify selling formula or payment terms (e.g. "Net 30, Selling ₱43,500").</div>
+                {% if form.terms.errors %}<div class="text-danger text-xs mt-1">{{ form.terms.errors|striptags }}</div>{% endif %}
+            </div>
+        </div>
+
+        <!-- Live Financial Summary Calculator -->
+        <div class="live-calc-box">
+            <div>
+                <div class="calc-label">Estimated Order Value</div>
+                <div class="calc-formula" id="calcFormula">0.000 MT × ₱0.00</div>
+            </div>
+            <div class="calc-value" id="calcTotalValue">₱0.00</div>
+        </div>
+    </div>
+
+    <!-- Card 3: Additional Contract Notes -->
+    <div class="form-section-card">
+        <div class="form-section-header">
+            <i class="bi bi-card-text"></i>
+            <div>
+                <h3>3. Contract Notes</h3>
+                <p>Optional internal notes, special vessel requirements, or logistics instructions.</p>
+            </div>
+        </div>
+
+        <div>
+            {{ form.contract_notes }}
+            {% if form.contract_notes.errors %}<div class="text-danger text-xs mt-1">{{ form.contract_notes.errors|striptags }}</div>{% endif %}
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-5">
+        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline"><i class="bi bi-x-lg"></i> Cancel</a>
+        <button type="submit" class="btn-htc" style="padding: 0.75rem 2rem; font-size: 1rem;">
+            <i class="bi bi-check-circle-fill"></i> {% if object %}Save Changes{% else %}Create Transaction{% endif %}
+        </button>
     </div>
 </form>
-</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const volInput = document.getElementById('{{ form.volume_mt.id_for_label }}');
+    const priceInput = document.getElementById('{{ form.unit_price.id_for_label }}');
+    const calcFormula = document.getElementById('calcFormula');
+    const calcTotalValue = document.getElementById('calcTotalValue');
+
+    function updateLiveCalculation() {
+        const vol = parseFloat(volInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        const total = vol * price;
+
+        calcFormula.textContent = `${vol.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 3})} MT × ₱${price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        calcTotalValue.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
+    if (volInput && priceInput) {
+        volInput.addEventListener('input', updateLiveCalculation);
+        priceInput.addEventListener('input', updateLiveCalculation);
+        updateLiveCalculation();
+    }
+});
+</script>
 {% endblock %}

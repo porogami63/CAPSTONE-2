@@ -2,6 +2,7 @@
 {% load role_tags %}
 {% block title %}Logistics Tracking · HTC Core{% endblock %}
 {% block topbar_title %}Logistics Tracking{% endblock %}
+
 {% block content %}
 <style>
     /* Top engine badge */
@@ -19,7 +20,7 @@
         gap: 0.25rem;
     }
 
-    /* KPI Deck */
+    /* Executive KPI Deck */
     .metric-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
@@ -39,146 +40,194 @@
     .metric-box {
         background: var(--htc-surface);
         border: 1px solid var(--htc-border);
+        border-top: 3px solid var(--htc-primary-light);
         border-radius: var(--htc-radius-sm);
         padding: 1rem;
-        box-shadow: 0 1px 3px rgba(15, 45, 92, 0.02);
+        box-shadow: 0 2px 4px rgba(15, 45, 92, 0.04);
+        transition: transform 0.15s ease-in-out;
     }
+    .metric-box:hover {
+        transform: translateY(-2px);
+    }
+    .metric-box.blue { border-top-color: #3182ce; }
+    .metric-box.teal { border-top-color: #319795; }
+    .metric-box.green { border-top-color: #38a169; }
+    .metric-box.gold { border-top-color: #dd6b20; }
+    .metric-box.red { border-top-color: #e53e3e; }
+
     .metric-box .label {
-        font-size: 0.7rem;
+        font-size: 0.68rem;
         color: var(--htc-text-muted);
         text-transform: uppercase;
-        font-weight: 600;
+        font-weight: 700;
         letter-spacing: 0.5px;
     }
     .metric-box .value {
-        font-size: 1.5rem;
-        font-weight: 700;
+        font-size: 1.55rem;
+        font-weight: 800;
         color: var(--htc-primary);
         margin-top: 0.25rem;
+        line-height: 1;
     }
 
-    /* Visual Lifecycle Diagram */
+    /* Executive Shipment Lifecycle Pipeline */
     .lifecycle-card {
         background: var(--htc-surface);
         border: 1px solid var(--htc-border);
         border-radius: var(--htc-radius);
-        padding: 1.25rem;
+        padding: 1.25rem 1.5rem;
         margin-bottom: 1.5rem;
         box-shadow: var(--htc-shadow);
     }
-    .lifecycle-card h3 {
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: var(--htc-primary);
-        margin: 0;
-    }
-    .lifecycle-card p {
-        font-size: 0.8rem;
-        color: var(--htc-text-muted);
-        margin: 0.15rem 0 1rem 0;
-    }
-    .lifecycle-flow {
+    .lifecycle-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .lifecycle-header h3 {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--htc-primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
         gap: 0.5rem;
+    }
+    .lifecycle-header p {
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+        margin: 0.15rem 0 0 0;
+    }
+    
+    .lifecycle-legend-pills {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
         flex-wrap: wrap;
     }
-    .lifecycle-step {
+    .legend-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.73rem;
+        font-weight: 600;
+        padding: 0.25rem 0.65rem;
+        border-radius: 9999px;
+        border: 1px solid var(--htc-border);
+        background-color: var(--htc-bg);
+    }
+    .legend-pill.green { border-color: rgba(56, 161, 105, 0.3); color: #22543d; background: #f0fff4; }
+    .legend-pill.orange { border-color: rgba(221, 107, 32, 0.3); color: #7b341e; background: #fffaf0; }
+    .legend-pill.red { border-color: rgba(229, 62, 62, 0.3); color: #742a2a; background: #fff5f5; }
+
+    .pipeline-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        background-color: var(--htc-bg);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 0.75rem 1rem;
+        overflow-x: auto;
+    }
+    .pipeline-step {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.5rem 0.9rem;
+        background: var(--htc-surface);
         border: 1px solid var(--htc-border);
         border-radius: var(--htc-radius-sm);
-        padding: 0.5rem 1rem;
         font-size: 0.8rem;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--htc-primary);
-        background-color: var(--htc-sidebar-hover);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
-    .lifecycle-arrow {
-        color: var(--htc-text-muted);
-        font-size: 0.9rem;
-    }
-    .lifecycle-legend {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--htc-text-muted);
-        border-left: 1px solid var(--htc-border);
-        padding-left: 1rem;
-    }
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-    }
-    .legend-dot {
-        width: 8px;
-        height: 8px;
+    .pipeline-step .step-num {
+        background: var(--htc-primary-light);
+        color: #ffffff;
+        font-size: 0.68rem;
+        font-weight: 800;
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-    .legend-dot.green { background-color: var(--htc-success); }
-    .legend-dot.orange { background-color: var(--htc-gold); }
-    .legend-dot.red { background-color: var(--htc-accent); }
-
-    /* Alert Info Boxes Grid */
-    .alert-info-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    @media (max-width: 768px) {
-        .alert-info-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-    .alert-info-box {
-        border-radius: var(--htc-radius-sm);
-        padding: 0.75rem 1rem;
-        font-size: 0.8rem;
-        font-weight: 500;
-        line-height: 1.4;
-    }
-    .alert-info-box strong {
+    .pipeline-arrow {
+        color: var(--htc-text-muted);
         font-size: 0.85rem;
-        display: block;
-        margin-bottom: 0.25rem;
-    }
-    .alert-info-box.green {
-        background-color: #ebf8f2;
-        border: 1px solid #c6f6d5;
-        color: #1c5235;
-    }
-    .alert-info-box.orange {
-        background-color: var(--htc-warning-bg);
-        border: 1px solid var(--htc-warning-bg);
-        color: #7b341e;
-    }
-    .alert-info-box.red {
-        background-color: var(--htc-danger-bg);
-        border: 1px solid #fed7d7;
-        color: #822727;
+        flex-shrink: 0;
     }
 
-    /* Shipments Grid */
-    .shipments-grid {
+    /* 4-Column Status Kanban Grid */
+    .kanban-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 1.25rem;
+        align-items: start;
     }
-    @media (max-width: 1024px) {
-        .shipments-grid {
+    @media (max-width: 1200px) {
+        .kanban-grid {
             grid-template-columns: repeat(2, 1fr);
         }
     }
     @media (max-width: 768px) {
-        .shipments-grid {
+        .kanban-grid {
             grid-template-columns: 1fr;
         }
+    }
+
+    .kanban-col {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .kanban-header-box {
+        border-radius: var(--htc-radius-sm);
+        padding: 0.85rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .kanban-header-box.blue {
+        background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%);
+        border: 1px solid #bee3f8;
+        color: #2b6cb0;
+    }
+    .kanban-header-box.orange {
+        background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%);
+        border: 1px solid #fbd38d;
+        color: #c05621;
+    }
+    .kanban-header-box.red {
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        border: 1px solid #feb2b2;
+        color: #9b2c2c;
+    }
+    .kanban-header-box.green {
+        background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+        border: 1px solid #9ae6b4;
+        color: #22543d;
+    }
+
+    .count-pill {
+        background: rgba(255, 255, 255, 0.85);
+        padding: 0.15rem 0.55rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
 
     /* Shipment Card styles */
@@ -186,7 +235,7 @@
         background: var(--htc-surface);
         border: 1px solid var(--htc-border);
         border-radius: var(--htc-radius);
-        padding: 1.25rem;
+        padding: 1.1rem;
         box-shadow: var(--htc-shadow);
         transition: transform 0.2s, box-shadow 0.2s;
     }
@@ -205,7 +254,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.65rem;
     }
     .shipment-card-header strong {
         font-size: 0.95rem;
@@ -214,7 +263,7 @@
     .shipment-customer {
         font-size: 0.8rem;
         color: var(--htc-text-muted);
-        margin-bottom: 1rem;
+        margin-bottom: 0.85rem;
         font-weight: 500;
     }
 
@@ -232,7 +281,7 @@
         height: 8px;
         border-radius: 999px;
         overflow: hidden;
-        margin-bottom: 1rem;
+        margin-bottom: 0.85rem;
     }
     .progress-bar-fill {
         height: 100%;
@@ -245,13 +294,13 @@
     .shrinkage-row {
         background-color: var(--htc-sidebar-hover);
         border-radius: var(--htc-radius-sm);
-        padding: 0.5rem 0.75rem;
+        padding: 0.45rem 0.65rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 600;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.65rem;
     }
     .shrinkage-row .shrinkage-val.green { color: var(--htc-success); }
     .shrinkage-row .shrinkage-val.red { color: var(--htc-accent); }
@@ -259,7 +308,7 @@
     .headroom-row {
         display: flex;
         justify-content: space-between;
-        font-size: 0.75rem;
+        font-size: 0.73rem;
         font-weight: 600;
         color: var(--htc-text-muted);
     }
@@ -287,136 +336,394 @@
 <div class="page-header flex-start mb-4">
     <div>
         <h2>Logistics Tracking</h2>
-        <p>Volume variance tracker — ±2% standard shrinkage tolerance</p>
+        <p>Volume variance tracker — ±{{ tolerance_threshold|floatformat:1 }}% standard shrinkage tolerance</p>
     </div>
     <div class="engine-badge">
-        <i class="bi bi-lightning-charge-fill"></i> variance engine active
+        <i class="bi bi-lightning-charge-fill"></i> variance engine active (±{{ tolerance_threshold|floatformat:1 }}%)
     </div>
 </div>
 
-<!-- TOP KPI CARDS -->
-<div class="metric-grid">
-    <div class="metric-box">
+<!-- TOP KPI CARDS (Step 1 of Intro.js Tour) -->
+<div class="metric-grid"
+     data-intro="Monitor real-time shipment counts across all active transit, delivery, pending review, and disputed states."
+     data-title="Logistics Metrics Deck"
+     data-step="1">
+    <div class="metric-box blue">
         <div class="label">In Transit / Loading</div>
         <div class="value">{{ in_transit_count }}</div>
     </div>
-    <div class="metric-box">
+    <div class="metric-box teal">
         <div class="label">Delivered</div>
         <div class="value">{{ delivered_count }}</div>
     </div>
-    <div class="metric-box">
+    <div class="metric-box green">
         <div class="label">Accepted</div>
         <div class="value">{{ accepted_count }}</div>
     </div>
-    <div class="metric-box">
+    <div class="metric-box gold">
         <div class="label">Pending Review</div>
         <div class="value">{{ pending_review_count }}</div>
     </div>
-    <div class="metric-box">
+    <div class="metric-box red">
         <div class="label">Disputed / Flagged</div>
         <div class="value">{{ disputed_count }}</div>
     </div>
 </div>
 
-<!-- Shipment Lifecycle Diagram -->
-<div class="lifecycle-card">
-    <div class="flex-between">
+<!-- Shipment Lifecycle Diagram (Step 2 of Intro.js Tour) -->
+<div class="lifecycle-card"
+     data-intro="Every shipment follows a strict 5-stage lifecycle from loading to variance checks and final acceptance."
+     data-title="Shipment Lifecycle Flow"
+     data-step="2">
+    <div class="lifecycle-header">
         <div>
-            <h3>Shipment Lifecycle</h3>
-            <p>Every shipment follows this path — variance is checked at delivery and must be accepted or disputed before closing.</p>
+            <h3><i class="bi bi-diagram-3-fill"></i> Shipment Operational Lifecycle</h3>
+            <p>Standard 5-stage shipment sequence — shrinkage variance is evaluated at destination discharge.</p>
         </div>
-        <div class="lifecycle-legend">
-            <div class="legend-item"><span class="legend-dot green"></span> Accepted — full or within tolerance</div>
-            <div class="legend-item"><span class="legend-dot orange"></span> Pending review</div>
-            <div class="legend-item"><span class="legend-dot red"></span> Disputed — tolerance exceeded</div>
+        <div class="lifecycle-legend-pills">
+            <span class="legend-pill green"><i class="bi bi-check-circle-fill"></i> Accepted (within ±{{ tolerance_threshold|floatformat:1 }}%)</span>
+            <span class="legend-pill orange"><i class="bi bi-hourglass-split"></i> Pending Review</span>
+            <span class="legend-pill red"><i class="bi bi-exclamation-triangle-fill"></i> Disputed (over tolerance)</span>
         </div>
     </div>
-    <div class="lifecycle-flow">
-        <div class="lifecycle-step"><i class="bi bi-box-seam"></i> Loading</div>
-        <i class="bi bi-chevron-right lifecycle-arrow"></i>
-        <div class="lifecycle-step"><i class="bi bi-truck"></i> In Transit</div>
-        <i class="bi bi-chevron-right lifecycle-arrow"></i>
-        <div class="lifecycle-step"><i class="bi bi-building-check"></i> Delivered</div>
-        <i class="bi bi-chevron-right lifecycle-arrow"></i>
-        <div class="lifecycle-step"><i class="bi bi-calculator"></i> Variance Check</div>
-        <i class="bi bi-chevron-right lifecycle-arrow"></i>
-        <div class="lifecycle-step"><i class="bi bi-file-earmark-check"></i> Accepted / Disputed</div>
-    </div>
-</div>
 
-<!-- TABS -->
-<div class="tabs-row" style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem;">
-    <button class="tab-btn active"><i class="bi bi-bezier2"></i> Variance Analysis</button>
-    <button class="tab-btn"><i class="bi bi-list-task"></i> All Shipments</button>
-</div>
-
-<!-- Alert Info Boxes -->
-<div class="alert-info-grid">
-    <div class="alert-info-box green">
-        <strong>Accepted</strong>
-        Full quantity received OR minor loss within ±2% tolerance and signed off by operations.
-    </div>
-    <div class="alert-info-box orange">
-        <strong>Pending Review</strong>
-        Shipment delivered. Variance detected. Waiting for management to accept or dispute.
-    </div>
-    <div class="alert-info-box red">
-        <strong>Disputed / Flagged</strong>
-        Shrinkage exceeded ±2% limit. Under investigation. Financial adjustment may apply.
+    <div class="pipeline-container">
+        <div class="pipeline-step"><span class="step-num">1</span> <i class="bi bi-box-seam me-1"></i> Mill Loading</div>
+        <i class="bi bi-chevron-right pipeline-arrow"></i>
+        <div class="pipeline-step"><span class="step-num">2</span> <i class="bi bi-truck me-1"></i> Barge Transit</div>
+        <i class="bi bi-chevron-right pipeline-arrow"></i>
+        <div class="pipeline-step"><span class="step-num">3</span> <i class="bi bi-building-check me-1"></i> Port Discharge</div>
+        <i class="bi bi-chevron-right pipeline-arrow"></i>
+        <div class="pipeline-step"><span class="step-num">4</span> <i class="bi bi-calculator me-1"></i> Variance Check</div>
+        <i class="bi bi-chevron-right pipeline-arrow"></i>
+        <div class="pipeline-step"><span class="step-num">5</span> <i class="bi bi-file-earmark-check me-1"></i> Resolution / Sign-Off</div>
     </div>
 </div>
 
-<!-- Shipments Cards Grid -->
-<div class="shipments-grid">
-    {% for sh in shipments %}
-    <div class="shipment-card {% if sh.status == 'disputed' %}border-red{% elif sh.status == 'pending_review' %}border-orange{% endif %}">
-        <div class="shipment-card-header">
-            <strong>{{ sh.sh_code }}</strong>
-            <span class="status-badge {{ sh.status }}">
-                {{ sh.sh_status_display }}
-            </span>
-        </div>
-        <div class="shipment-customer">
-            {{ sh.customer }}
-            <span class="text-muted small" style="display:block;">Contract: {{ sh.ref_code }}</span>
+<!-- TABS (Step 3 of Intro.js Tour) -->
+<div class="tabs-row" style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem;"
+     data-intro="Switch between the Visual Variance Analysis Cards view and the All Shipments Operational Data Table view."
+     data-title="Interactive View Switcher"
+     data-step="3">
+    <button class="tab-btn active" id="tabBtnVariance" onclick="switchLogisticsTab('variance')">
+        <i class="bi bi-bezier2"></i> Variance Analysis (Status Swimlanes)
+    </button>
+    <button class="tab-btn" id="tabBtnAll" onclick="switchLogisticsTab('all')">
+        <i class="bi bi-list-task"></i> All Shipments Master Table
+    </button>
+</div>
+
+<!-- VARIANCE ANALYSIS VIEW CONTAINER (4-COLUMN SWIMLANES) -->
+<div id="varianceAnalysisView">
+    <div class="kanban-grid"
+         data-intro="Shipments are organized into 4 status columns: In Transit, Pending Review, Disputed, and Accepted."
+         data-title="Status Swimlanes & Categorized Cards"
+         data-step="4">
+        
+        <!-- Column 1: In Transit / Loading -->
+        <div class="kanban-col">
+            <div class="kanban-header-box blue">
+                <span><i class="bi bi-truck me-1"></i> In Transit / Loading</span>
+                <span class="count-pill">{{ transit_shipments|length }}</span>
+            </div>
+            {% for sh in transit_shipments %}
+            <div class="shipment-card">
+                <div class="shipment-card-header">
+                    <strong>{{ sh.sh_code }}</strong>
+                    <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                </div>
+                <div class="shipment-customer">
+                    {{ sh.customer }}
+                    <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }}</span>
+                </div>
+                <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width: {{ sh.prog_pct }}%;"></div></div>
+                <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>Pending</span></div>
+                <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val text-muted">Awaiting delivery</span></div>
+                <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
+                    <i class="bi bi-pencil-square"></i> Update Receiving
+                </a>
+            </div>
+            {% empty %}
+            <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                No shipments in transit.
+            </div>
+            {% endfor %}
         </div>
 
-        <!-- Quantity bars -->
-        <div class="progress-label-row">
-            <span>Quantity Loaded</span>
-            <span>{{ sh.loaded_mt }} MT</span>
-        </div>
-        <div class="progress-bar-wrap">
-            <div class="progress-bar-fill {% if sh.status == 'Disputed' %}red{% elif sh.status == 'Accepted' or sh.status == 'Delivered' %}green{% endif %}" style="width: {{ sh.prog_pct }}%;"></div>
+        <!-- Column 2: Pending Review -->
+        <div class="kanban-col">
+            <div class="kanban-header-box orange">
+                <span><i class="bi bi-hourglass-split me-1"></i> Pending Review</span>
+                <span class="count-pill">{{ pending_shipments|length }}</span>
+            </div>
+            {% for sh in pending_shipments %}
+            <div class="shipment-card border-orange">
+                <div class="shipment-card-header">
+                    <strong>{{ sh.sh_code }}</strong>
+                    <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                </div>
+                <div class="shipment-customer">
+                    {{ sh.customer }}
+                    <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }}</span>
+                </div>
+                <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                <div class="progress-bar-wrap"><div class="progress-bar-fill green" style="width: {{ sh.prog_pct }}%;"></div></div>
+                <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
+                <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
+                <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
+                    <i class="bi bi-pencil-square"></i> Review Shipment
+                </a>
+            </div>
+            {% empty %}
+            <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                No shipments pending review.
+            </div>
+            {% endfor %}
         </div>
 
-        <div class="progress-label-row" style="margin-top: -0.5rem; margin-bottom: 0.75rem;">
-            <span>Received</span>
-            <span>{% if sh.received_mt == 'Pending' %}Pending{% else %}{{ sh.received_mt }} MT{% endif %}</span>
+        <!-- Column 3: Disputed / Flagged -->
+        <div class="kanban-col">
+            <div class="kanban-header-box red">
+                <span><i class="bi bi-exclamation-triangle-fill me-1"></i> Disputed / Flagged</span>
+                <span class="count-pill">{{ disputed_shipments|length }}</span>
+            </div>
+            {% for sh in disputed_shipments %}
+            <div class="shipment-card border-red">
+                <div class="shipment-card-header">
+                    <strong>{{ sh.sh_code }}</strong>
+                    <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                </div>
+                <div class="shipment-customer">
+                    {{ sh.customer }}
+                    <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }}</span>
+                </div>
+                <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                <div class="progress-bar-wrap"><div class="progress-bar-fill red" style="width: {{ sh.prog_pct }}%;"></div></div>
+                <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
+                <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val red">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val red">{{ sh.over_limit|floatformat:2 }}% over limit</span></div>
+                
+                <button type="button" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; font-size: 0.73rem; color: var(--htc-accent); border-color: rgba(229,62,62,0.4);" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal" data-url="{% url 'operations:resolve_dispute' sh.pk %}" data-code="{{ sh.sh_code }}" data-customer="{{ sh.customer }}" data-mt="{{ sh.shrinkage_mt|floatformat:1 }}" data-pct="{{ sh.shrinkage_pct|floatformat:2 }}" onclick="setupDisputeModal(this)">
+                    <i class="bi bi-shield-exclamation"></i> Resolve Dispute
+                </button>
+            </div>
+            {% empty %}
+            <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                No disputed shipments.
+            </div>
+            {% endfor %}
         </div>
 
-        <div class="shrinkage-row">
-            <span>Shrinkage</span>
-            <span class="shrinkage-val {% if sh.status == 'Disputed' %}red{% else %}green{% endif %}">
-                {% if sh.received_mt == 'Pending' %}
-                    Awaiting delivery
-                {% else %}
-                    -{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)
-                {% endif %}
-            </span>
+        <!-- Column 4: Accepted / Delivered -->
+        <div class="kanban-col">
+            <div class="kanban-header-box green">
+                <span><i class="bi bi-check-circle-fill me-1"></i> Accepted / Delivered</span>
+                <span class="count-pill">{{ accepted_shipments|length }}</span>
+            </div>
+            {% for sh in accepted_shipments %}
+            <div class="shipment-card">
+                <div class="shipment-card-header">
+                    <strong>{{ sh.sh_code }}</strong>
+                    <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                </div>
+                <div class="shipment-customer">
+                    {{ sh.customer }}
+                    <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }}</span>
+                </div>
+                <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                <div class="progress-bar-wrap"><div class="progress-bar-fill green" style="width: {{ sh.prog_pct }}%;"></div></div>
+                <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
+                <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
+                <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
+                    <i class="bi bi-file-earmark-text"></i> View Contract
+                </a>
+            </div>
+            {% empty %}
+            <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                No completed shipments yet.
+            </div>
+            {% endfor %}
         </div>
 
-        <div class="headroom-row">
-            <span>Shrinkage vs ±2% limit</span>
-            {% if sh.received_mt == 'Pending' %}
-                <span class="headroom-val">—</span>
-            {% elif sh.over_limit > 0 %}
-                <span class="headroom-val red">{{ sh.over_limit|floatformat:2 }}% over limit</span>
-            {% else %}
-                <span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span>
-            {% endif %}
+    </div>
+</div>
+
+<!-- ALL SHIPMENTS DATA TABLE VIEW CONTAINER -->
+<div id="allShipmentsView" style="display: none;">
+    <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; padding: 1.25rem; box-shadow: var(--htc-shadow);">
+        <div class="flex-between mb-3">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--htc-primary); margin: 0;">Logistics Operational Master Ledger</h3>
+            <span class="text-muted text-xs">Total Records: {{ shipments|length }}</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="table-htc" style="margin: 0; width: 100%; font-size: 0.85rem;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--htc-border);">
+                        <th style="padding: 0.65rem 0.8rem;">Shipment Code</th>
+                        <th style="padding: 0.65rem 0.8rem;">Contract PO</th>
+                        <th style="padding: 0.65rem 0.8rem;">Customer</th>
+                        <th style="padding: 0.65rem 0.8rem;">Loaded (MT)</th>
+                        <th style="padding: 0.65rem 0.8rem;">Received (MT)</th>
+                        <th style="padding: 0.65rem 0.8rem;">Variance (%)</th>
+                        <th style="padding: 0.65rem 0.8rem;">Status</th>
+                        <th style="padding: 0.65rem 0.8rem; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sh in shipments %}
+                    <tr style="border-bottom: 1px solid var(--htc-border); vertical-align: middle;">
+                        <td style="padding: 0.75rem 0.8rem; font-weight: 700;">{{ sh.sh_code }}</td>
+                        <td style="padding: 0.75rem 0.8rem;">{{ sh.ref_code }}</td>
+                        <td style="padding: 0.75rem 0.8rem;">{{ sh.customer }}</td>
+                        <td style="padding: 0.75rem 0.8rem;">{{ sh.loaded_mt|floatformat:1 }} MT</td>
+                        <td style="padding: 0.75rem 0.8rem;">
+                            {% if sh.received_mt == 'Pending' %}
+                            <span class="text-muted">Pending</span>
+                            {% else %}
+                            {{ sh.received_mt|floatformat:1 }} MT
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem 0.8rem; font-weight: 600;">
+                            {% if sh.received_mt == 'Pending' %}
+                            <span class="text-muted">—</span>
+                            {% else %}
+                            <span class="{% if sh.status == 'disputed' %}text-danger{% else %}text-success{% endif %}">
+                                -{{ sh.shrinkage_pct|floatformat:2 }}%
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem 0.8rem;">
+                            <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                        </td>
+                        <td style="padding: 0.75rem 0.8rem; text-align: right;">
+                            <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;">
+                                <i class="bi bi-pencil-square"></i> Update
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="padding: 2rem; text-align: center; color: var(--htc-text-muted);">No logistics records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-    {% endfor %}
 </div>
+
+<!-- RESOLVE DISPUTE MODAL -->
+<div class="modal fade" id="resolveDisputeModal" tabindex="-1" aria-labelledby="resolveDisputeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
+        <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 14px 28px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1.25rem 1.5rem;">
+                <div>
+                    <h5 class="modal-title" id="resolveDisputeModalLabel" style="font-weight: 700; color: var(--htc-text);">Resolve Variance Dispute</h5>
+                    <div style="font-size: 0.8rem; color: var(--htc-text-muted);" id="modalSubhead">Shipment Resolution</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" id="disputeForm">
+                {% csrf_token %}
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <div style="background: var(--htc-danger-bg); border: 1px solid #fed7d7; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: #9b2c2c;">
+                        <strong>Variance Alert:</strong> Exceeded 1.0% shrinkage tolerance by <span id="modalShrinkageVal">0.0 MT (0.00%)</span>. Select how management will resolve this dispute:
+                    </div>
+
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; display: block;">Select Resolution Pathway</label>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resConcede" value="CONCEDED" checked>
+                            <label class="form-check-label" for="resConcede" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Concede &amp; Proceed As-Is <span class="badge bg-secondary" style="font-size: 0.65rem; margin-left: 0.25rem;">Default</span>
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Absorb the variance loss, maintain original contract terms, clear dispute flag, and proceed with the deal.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resAdjustBill" value="BILLING_ADJUSTED">
+                            <label class="form-check-label" for="resAdjustBill" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Adjust Billing to Received Volume
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Automatically adjust linked Sales Invoices to bill actual received MT instead of loaded MT.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resPenalty" value="BARGE_PENALTY">
+                            <label class="form-check-label" for="resPenalty" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Deduct Shortage Penalty from Logistics Partner
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Deduct shortage value from barge freight fees (`barge_fees`) to penalize transit loss.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resWaiver" value="WAIVED">
+                            <label class="form-check-label" for="resWaiver" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Management Waiver (Brix / Moisture Loss)
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Approve natural moisture evaporation / brix density shift waiver and clear dispute flag.
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted); margin-bottom: 0.25rem; display: block;">Resolution Audit Notes</label>
+                        <textarea name="resolution_notes" class="form-control-htc" rows="2" placeholder="e.g. Conceded 7 MT variance due to customer request, proceeding with deal as-is..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--htc-border); padding: 1rem 1.5rem;">
+                    <button type="button" class="btn-htc-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-htc" style="background: var(--htc-success); border-color: var(--htc-success);">
+                        <i class="bi bi-check-circle-fill"></i> Confirm Resolution
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchLogisticsTab(tab) {
+    const varianceView = document.getElementById('varianceAnalysisView');
+    const allView = document.getElementById('allShipmentsView');
+    const tabBtnVariance = document.getElementById('tabBtnVariance');
+    const tabBtnAll = document.getElementById('tabBtnAll');
+
+    if (tab === 'variance') {
+        varianceView.style.display = 'block';
+        allView.style.display = 'none';
+        tabBtnVariance.classList.add('active');
+        tabBtnAll.classList.remove('active');
+    } else {
+        varianceView.style.display = 'none';
+        allView.style.display = 'block';
+        tabBtnVariance.classList.remove('active');
+        tabBtnAll.classList.add('active');
+    }
+}
+
+function setupDisputeModal(btn) {
+    const form = document.getElementById('disputeForm');
+    const subhead = document.getElementById('modalSubhead');
+    const valText = document.getElementById('modalShrinkageVal');
+
+    if (btn && btn.dataset) {
+        if (form) form.action = btn.dataset.url;
+        if (subhead) subhead.textContent = `${btn.dataset.code} · ${btn.dataset.customer}`;
+        if (valText) valText.textContent = `-${btn.dataset.mt} MT (-${btn.dataset.pct}%)`;
+    }
+}
+</script>
 {% endblock %}
