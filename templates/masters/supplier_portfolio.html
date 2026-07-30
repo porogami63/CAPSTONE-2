@@ -1,0 +1,237 @@
+{% extends "app_base.html" %}
+{% load role_tags %}
+{% block title %}{{ mill.name }} · Supplier Portfolio{% endblock %}
+{% block topbar_title %}Supplier Portfolio · {{ mill.name }}{% endblock %}
+{% block content %}
+
+<div class="page-header flex-between compact mb-4" data-step="1" data-intro="Sugar mill supplier profile overview with company details, logo avatar photo, and profile management actions.">
+    <div class="flex gap-3 align-items-center">
+        <div class="position-relative" style="width: 64px; height: 64px;">
+            {% if mill.avatar %}
+                <img src="{{ mill.avatar.url }}" alt="{{ mill.name }}" class="rounded-circle border" style="width: 64px; height: 64px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="rounded-circle bg-success text-white align-items-center justify-content-center fw-bold fs-3" style="width: 64px; height: 64px; display: none;">
+                    {{ mill.name|slice:":2"|upper }}
+                </div>
+            {% else %}
+                <div class="rounded-circle bg-success text-white flex align-items-center justify-content-center fw-bold fs-3" style="width: 64px; height: 64px;">
+                    {{ mill.name|slice:":2"|upper }}
+                </div>
+            {% endif %}
+        </div>
+        <div>
+            <h2 class="mb-1">{{ mill.name }}</h2>
+            <p class="text-muted mb-0">Sugar Mill Supplier · Location: {{ mill.location|default:"Philippines" }} · <span class="badge bg-success-subtle text-success">Active Supplier</span></p>
+        </div>
+    </div>
+    <div class="flex gap-2">
+        <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#editMillModal">
+            <i class="bi bi-pencil"></i> Edit Profile
+        </button>
+        <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#uploadAvatarModal">
+            <i class="bi bi-camera"></i> Change Photo
+        </button>
+        <a href="{% url 'masters:partners' %}" class="btn-htc-outline"><i class="bi bi-arrow-left"></i> Partners List</a>
+    </div>
+</div>
+
+<div class="metric-grid mb-4" data-step="2" data-intro="Performance metrics summarizing total volume sourced in Metric Tons, total procurement spend, and supplier fulfillment history.">
+    <div class="metric-box">
+        <div class="label">Total Sourced Volume</div>
+        <div class="value">{{ total_sourced_volume|floatformat:0 }} MT</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Procurement Spend</div>
+        <div class="value">₱{{ total_spend|floatformat:0 }}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Reliability Score</div>
+        <div class="value text-success">{{ reliability }}%</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Avg Shrinkage Variance</div>
+        <div class="value {% if shrinkage_pct > 1.0 %}text-danger{% else %}text-primary{% endif %}">{{ shrinkage_pct|floatformat:2 }}%</div>
+    </div>
+</div>
+
+<div class="grid-3 mb-4">
+    <!-- Left Column: Performance Insights & Order History -->
+    <div style="grid-column: span 2;">
+        <div class="content-card mb-4">
+            <div class="card-header-htc">Sourcing Transactions History ({{ clusters|length }})</div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Reference</th>
+                            <th>Buyer Client</th>
+                            <th>Status</th>
+                            <th>Volume</th>
+                            <th>Logistics Partner</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in clusters %}
+                        <tr>
+                            <td><strong><a href="{% url 'operations:cluster_detail' c.pk %}">{{ c.reference_code }}</a></strong></td>
+                            <td>{{ c.client.name }}</td>
+                            <td><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></td>
+                            <td>{{ c.purchase_order.volume_mt|floatformat:0|default:"—" }} MT</td>
+                            <td>{{ c.logistics.partner.name|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-muted text-center py-3">No sourcing transactions recorded yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header-htc flex-between">
+                <span>Variance & Dispute History</span>
+                <span class="text-muted small">Tolerance Threshold: 1.0%</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Reference</th>
+                            <th>Loaded (MT)</th>
+                            <th>Received (MT)</th>
+                            <th>Variance %</th>
+                            <th>Dispute Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in logistics_records %}
+                        <tr>
+                            <td><strong><a href="{% url 'operations:cluster_detail' l.cluster.pk %}">{{ l.cluster.reference_code }}</a></strong></td>
+                            <td>{{ l.loaded_volume_mt|floatformat:2 }}</td>
+                            <td>{{ l.received_volume_mt|floatformat:2|default:"Pending" }}</td>
+                            <td>
+                                {% if l.variance_percent != None %}
+                                <span class="badge {% if l.variance_exceeds_tolerance %}bg-danger{% else %}bg-success{% endif %}">
+                                    {{ l.variance_percent|floatformat:2 }}%
+                                </span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td><span class="small text-muted">{{ l.get_dispute_status_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-muted text-center py-3">No logistics ledgers recorded.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Contact Details, Capability Notes & Interaction Log -->
+    <div>
+        <div class="content-card mb-4">
+            <div class="card-header-htc">Mill & Contact Information</div>
+            <div class="panel-body p-3">
+                <div class="mb-2"><strong>Location:</strong> {{ mill.location|default:"Philippines" }}</div>
+                <div class="mb-2"><strong>Contact Person:</strong> {{ mill.contact_person|default:"Not specified" }}</div>
+                <div class="mb-2"><strong>Phone:</strong> {{ mill.contact_phone|default:"N/A" }}</div>
+                <div class="mb-2"><strong>Email:</strong> {{ mill.email|default:"N/A" }}</div>
+                <div class="mb-2"><strong>Avg Lead Time:</strong> {{ lead_days }} days</div>
+                <hr>
+                <div class="text-muted small mb-1"><strong>Capability & Relationship Notes:</strong></div>
+                <div class="p-2 bg-light rounded border text-secondary" style="font-size:0.85rem; min-height: 50px;">
+                    {{ mill.notes|default:"No custom relationship notes recorded yet. Click 'Edit Profile' to add notes." }}
+                </div>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header-htc">Interaction Notes & Feed</div>
+            <div class="panel-body p-3">
+                <form method="post" action="{% url 'masters:add_partner_note' 'supplier' mill.pk %}" class="mb-3">
+                    {% csrf_token %}
+                    <textarea name="content" class="form-control form-control-sm mb-2" rows="2" placeholder="Add interaction note or mill update..." required></textarea>
+                    <button type="submit" class="btn-htc-sm btn-htc w-100"><i class="bi bi-plus-circle"></i> Add Note</button>
+                </form>
+
+                <div class="notes-feed" style="max-height: 300px; overflow-y: auto;">
+                    {% for n in notes_list %}
+                    <div class="p-2 mb-2 bg-light rounded border">
+                        <div class="flex-between text-muted small mb-1">
+                            <strong>{{ n.author.get_full_name|default:n.author.username }}</strong>
+                            <span>{{ n.created_at|date:"M d, Y H:i" }}</span>
+                        </div>
+                        <div style="font-size:0.85rem;">{{ n.content }}</div>
+                    </div>
+                    {% empty %}
+                    <div class="text-muted text-center small py-2">No interaction notes recorded yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT PROFILE MODAL -->
+<div class="modal fade" id="editMillModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="update_profile" value="1">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Supplier Profile</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" name="contact_person" class="form-control" value="{{ mill.contact_person }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" name="contact_phone" class="form-control" value="{{ mill.contact_phone }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" class="form-control" value="{{ mill.email }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Location / Region</label>
+                        <input type="text" name="location" class="form-control" value="{{ mill.location }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Capability & Supply Notes</label>
+                        <textarea name="notes" class="form-control" rows="3">{{ mill.notes }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-htc">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- UPLOAD AVATAR MODAL -->
+<div class="modal fade" id="uploadAvatarModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <form method="post" action="{% url 'masters:update_partner_avatar' 'supplier' mill.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload Profile Photo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="file" name="avatar" accept="image/*" class="form-control form-control-sm" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn-htc btn-htc-sm w-100">Upload Image</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

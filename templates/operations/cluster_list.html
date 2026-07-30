@@ -8,15 +8,19 @@
         <h2>Transactions</h2>
         <p>Purchase order management with immutable audit trail</p>
     </div>
-    <div class="flex gap-2">
-        <a href="?q=" class="btn-htc-outline"><i class="bi bi-funnel"></i> Filters</a>
+    <div class="flex gap-2" style="align-items:center;">
+        <form method="post" action="{% url 'operations:bulk_archive_completed' %}" style="display:inline;" onsubmit="return confirm('Archive all closed and paid transactions?');">
+            {% csrf_token %}
+            <button type="submit" class="btn-htc-outline" title="Clear completed transactions to Archive"><i class="bi bi-archive"></i> Archive Completed</button>
+        </form>
+        <a href="{% url 'operations:archive_list' %}" class="btn-htc-outline" data-step="4" data-intro="Access historical completed contracts stored in the secure Archive Vault."><i class="bi bi-box-seam"></i> Archive Vault</a>
         {% if user|has_perm:"create_transaction" %}
-        <a href="{% url 'operations:cluster_create' %}" class="btn-htc"><i class="bi bi-plus-lg"></i> New Transaction</a>
+        <a href="{% url 'operations:cluster_create' %}" class="btn-htc" data-step="3" data-intro="Create new standalone molasses trade contracts directly in the system."><i class="bi bi-plus-lg"></i> New Transaction</a>
         {% endif %}
     </div>
 </div>
 
-<div class="metric-grid">
+<div class="metric-grid" data-step="1" data-intro="Overview metrics showing total molasses volume (MT), combined profit, average margin %, and active transaction count.">
     <div class="metric-box">
         <div class="label">Total Volume</div>
         <div class="value">{{ total_volume|floatformat:0 }} MT</div>
@@ -35,7 +39,7 @@
     </div>
 </div>
 
-<form method="get" class="filters-bar">
+<form method="get" class="filters-bar" data-step="2" data-intro="Filter transactions by status (Draft, Active, Delivered, Closed) or search by reference code, client, or sugar mill.">
     <div class="search-input-wrap">
         <i class="bi bi-search"></i>
         <input type="text" name="q" value="{{ q }}" placeholder="Search by PO, Customer, or Supplier...">

@@ -76,7 +76,8 @@ def loan_list(request):
         elapsed_days = max((timezone.localdate() - loan.start_date).days, 0)
         loan.timeline_percent = min(max((elapsed_days / total_days) * 100, 8), 100)
         loan.days_remaining = max((loan.due_date - timezone.localdate()).days, 0)
-        loan.logistics_deposit = float(loan.principal) * 0.2916
+        loan.logistics_deposit = loan.funded_logistics_deposit
+        loan.daily_interest = loan.daily_interest_cost
 
         # Map timeline classes
         loan.timeline_color_class = "blue"
@@ -92,14 +93,50 @@ def loan_list(request):
         or 0
     )
 
+    if not logistics_deposits:
+        logistics_deposits = sum(float(l.funded_logistics_deposit) for l in loans)
+
     active_exposure_m = float(active_exposure) / 1000000.0
     logistics_deposits_m = float(logistics_deposits) / 1000000.0
+
+    # Build Cheque Ledger list
+    cheques = []
+    for idx, loan in enumerate(loans, 1):
+        cheques.append({
+            "cheque_number": loan.cheque_number or f"CHQ-8849{idx}",
+            "issue_date": loan.cheque_date or loan.start_date,
+            "bank_name": loan.bank_name,
+            "bank_account": loan.bank_account_number or f"0048-2910-{idx}",
+            "purpose": f"Bank Loan Facility ({loan.cluster.reference_code})",
+            "amount": loan.principal,
+            "cluster_ref": loan.cluster.reference_code,
+            "cluster_pk": loan.cluster.pk,
+            "type": "Capital Loan",
+            "status": loan.get_status_display(),
+        })
+
+    from .models import CashVoucher
+    vouchers = list(CashVoucher.objects.select_related("cluster"))
+    for idx, v in enumerate(vouchers, 1):
+        cheques.append({
+            "cheque_number": v.cheque_number or f"CV-CHQ-70{idx}",
+            "issue_date": v.cheque_date or v.issued_at,
+            "bank_name": "Operating Account",
+            "bank_account": "0048-5512-0",
+            "purpose": v.purpose or "Upfront Logistics Deposit",
+            "amount": v.amount,
+            "cluster_ref": v.cluster.reference_code,
+            "cluster_pk": v.cluster.pk,
+            "type": "Cash Voucher",
+            "status": "Issued",
+        })
 
     return render(
         request,
         "finance/loan_list.html",
         {
             "loans": loans,
+            "cheques": cheques,
             "active_exposure_m": active_exposure_m,
             "accrued_interest": accrued_interest,
             "logistics_deposits_m": logistics_deposits_m,
@@ -108,10 +145,41 @@ def loan_list(request):
     )
 
 
+@role_required(User.Role.MANAGEMENT, User.Role.FINANCE)
+def settle_loan(request, pk):
+    loan = get_object_or_404(CapitalLoan, pk=pk)
+    if request.method == "POST":
+        receipt_num = request.POST.get("settlement_receipt_number", "").strip()
+        settlement_date_str = request.POST.get("settlement_date")
+        settlement_notes = request.POST.get("settlement_notes", "").strip()
+        settlement_doc = request.FILES.get("settlement_document")
+
+        loan.status = CapitalLoan.Status.CLOSED
+        if receipt_num:
+            loan.settlement_receipt_number = receipt_num
+        if settlement_date_str:
+            loan.settlement_date = settlement_date_str
+        else:
+            loan.settlement_date = timezone.localdate()
+        if settlement_notes:
+            loan.settlement_notes = settlement_notes
+        if settlement_doc:
+            loan.settlement_document = settlement_doc
+
+        loan._audit_user = request.user
+        loan.save()
+        messages.success(
+            request,
+            f"Bank loan facility for {loan.cluster.reference_code} marked as SETTLED. Bank Clearance Advice #{receipt_num or 'Recorded'}.",
+        )
+    return redirect("finance:loan_list")
+
+
 @role_required(User.Role.MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING)
 def invoice_list(request):
+    show_archived = request.GET.get("archived", "").lower() in ("1", "true")
     invoice_rows = list(
-        Invoice.objects.select_related("cluster", "cluster__client", "cluster__sugar_mill").order_by("-issued_at", "-created_at")
+        Invoice.objects.filter(is_archived=show_archived).select_related("cluster", "cluster__client", "cluster__sugar_mill").order_by("-issued_at", "-created_at")
     )
 
     today = timezone.localdate()

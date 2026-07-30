@@ -116,18 +116,36 @@ def _supplier_note(name: str, margin: float, shrinkage: float) -> str:
 
 
 def partner_stats() -> dict:
+    from finance.models import Invoice
+
     clients = []
     for client in Client.objects.filter(is_active=True).annotate(
         txn_count=Count("clusters"),
         total_volume=Sum("clusters__purchase_order__volume_mt"),
     ):
+        invoices = Invoice.objects.filter(cluster__client=client)
+        total_invoiced = float(invoices.aggregate(total=Sum("amount"))["total"] or 0)
+        paid_invoiced = float(invoices.filter(status=Invoice.Status.PAID).aggregate(total=Sum("amount"))["total"] or 0)
+        pending_invoiced = total_invoiced - paid_invoiced
+        paid_ratio = round((paid_invoiced / total_invoiced * 100), 1) if total_invoiced > 0 else 100.0
+
         clients.append(
             {
+                "id": client.id,
                 "name": client.name,
+                "tin": client.tin or "N/A",
+                "address": client.address or "Philippines",
+                "contact_person": client.contact_person or "Not specified",
+                "contact_phone": client.contact_phone or "N/A",
                 "type": "Major Buyer",
                 "txn_count": client.txn_count or 0,
                 "total_volume": float(client.total_volume or 0),
+                "total_invoiced": total_invoiced,
+                "paid_invoiced": paid_invoiced,
+                "pending_invoiced": pending_invoiced,
+                "paid_ratio": paid_ratio,
                 "is_active": client.is_active,
+                "avatar_url": client.avatar.url if client.avatar else "",
             }
         )
 
@@ -136,14 +154,25 @@ def partner_stats() -> dict:
         txn_count=Count("clusters"),
         total_volume=Sum("clusters__purchase_order__volume_mt"),
     ):
+        shrinkage_pct = _avg_shrinkage_percent(mill.id)
+        lead_days = _avg_lead_days(mill.id)
+        reliability = min(95, round(60 + float(mill.txn_count or 0) * 4))
+
         suppliers.append(
             {
+                "id": mill.id,
                 "name": mill.name,
-                "type": "Sugar Mill" if "URC" not in mill.name.upper() else "Import Source",
                 "location": mill.location or "Philippines",
+                "contact_person": mill.contact_person or "Not specified",
+                "contact_phone": mill.contact_phone or "N/A",
+                "type": "Sugar Mill" if "URC" not in mill.name.upper() else "Import Source",
                 "txn_count": mill.txn_count or 0,
                 "total_volume": float(mill.total_volume or 0),
+                "shrinkage_pct": shrinkage_pct,
+                "lead_days": lead_days,
+                "reliability": reliability,
                 "is_active": mill.is_active,
+                "avatar_url": mill.avatar.url if mill.avatar else "",
             }
         )
 

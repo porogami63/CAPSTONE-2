@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from decimal import Decimal
 
-from django.db.models import Sum, Count, Q
+from django.db.models import Avg, Count, Q, Sum
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -235,6 +235,31 @@ def analytics(request):
         selling_price = 18500.0
 
     engine = build_supplier_rankings(order_qty, selling_price)
+
+    # Historical Logistics & Shrinkage Trends
+    mill_shrinkage = []
+    from masters.models import SugarMill, Client
+    for mill in SugarMill.objects.filter(is_active=True):
+        ledgers = LogisticsLedger.objects.filter(cluster__sugar_mill=mill, variance_percent__isnull=False)
+        avg_var = ledgers.aggregate(v=Avg("variance_percent"))["v"] or 0.0
+        disputed_cnt = ledgers.filter(variance_exceeds_tolerance=True).count()
+        mill_shrinkage.append({
+            "name": mill.name,
+            "avg_variance": round(float(avg_var), 2),
+            "disputed_count": disputed_cnt,
+        })
+
+    # Client Revenue Distribution
+    client_revenues = []
+    for client in Client.objects.filter(is_active=True):
+        rev = Invoice.objects.filter(cluster__client=client).aggregate(t=Sum("amount"))["t"] or Decimal("0")
+        if rev > 0:
+            client_revenues.append({
+                "name": client.name,
+                "revenue": float(rev),
+                "revenue_m": round(float(rev) / 1_000_000, 2),
+            })
+
     return render(
         request,
         "dashboard/analytics.html",
@@ -242,6 +267,10 @@ def analytics(request):
             "engine": engine,
             "order_qty": order_qty,
             "selling_price": selling_price,
+            "mill_shrinkage": mill_shrinkage,
+            "client_revenues": client_revenues,
+            "mill_shrinkage_json": json.dumps(mill_shrinkage),
+            "client_revenues_json": json.dumps(client_revenues),
         },
     )
 

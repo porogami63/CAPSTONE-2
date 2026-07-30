@@ -321,7 +321,7 @@
         <h2>HTC Core Dashboard</h2>
         <p>Heindrich Trading Corporation — Molasses Operations Overview</p>
     </div>
-    <div class="last-sync-block" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+    <div class="last-sync-block" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;" data-step="2" data-intro="Generate and download PDF operational reports for 24-hour, 7-day, 30-day, or annual management audits.">
         <div>
             Last sync
             <strong>{% if last_sync %}{{ last_sync|date:"d M Y, h:i A" }}{% else %}No data yet{% endif %}</strong>
@@ -349,7 +349,7 @@
 </div>
 
 <!-- Six Status Cards -->
-<div class="status-cards-row">
+<div class="status-cards-row" data-step="1" data-intro="Real-time KPI status cards displaying Total Revenue, Procurement & Logistics Expenses, Net Profit, and Dispatched Volume in Metric Tons.">
     <!-- Card 1: Total Revenue -->
     <div class="status-card stripe-green" data-step="1">
         <div class="status-card-header">

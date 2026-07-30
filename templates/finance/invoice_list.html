@@ -157,12 +157,12 @@
         <p>Manage sales invoices and cash vouchers</p>
     </div>
     {% if user|has_perm:"add_invoice" %}
-    <a href="{% url 'operations:cluster_list' %}" class="btn-htc" title="Select a transaction to create an invoice"><i class="bi bi-plus-lg"></i> Create Invoice</a>
+    <a href="{% url 'operations:cluster_list' %}" class="btn-htc" data-step="3" data-intro="Generate new customer sales invoices for active molasses trades."><i class="bi bi-plus-lg"></i> Create Invoice</a>
     {% endif %}
 </div>
 
 <!-- KPI Metrics Grid -->
-<div class="metric-grid">
+<div class="metric-grid" data-step="1" data-intro="Invoicing KPI deck displaying Total Invoiced revenue, Paid Collections, and Pending Accounts Receivable.">
     <div class="metric-box">
         <div class="label">Total Invoiced</div>
         <div class="value">₱{{ total_invoiced_m|floatformat:2 }}M</div>

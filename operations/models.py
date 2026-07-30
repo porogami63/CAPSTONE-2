@@ -23,6 +23,9 @@ class TransactionCluster(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    mro_file = models.FileField(upload_to="mro_scans/", null=True, blank=True, help_text="Scanned soft copy of Molasses Release Order (PDF/Image)")
     history = HistoricalRecords()
 
     class Meta:
@@ -92,6 +95,8 @@ class LogisticsLedger(models.Model):
     )
     resolution_notes = models.TextField(blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
     history = HistoricalRecords()
 
     def save(self, *args, **kwargs):

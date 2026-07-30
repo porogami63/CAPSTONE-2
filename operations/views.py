@@ -33,8 +33,10 @@ from django.db.models import Q
     User.Role.INVOICING,
 )
 def cluster_list(request):
+    show_archived = request.GET.get("archived", "").lower() in ("1", "true")
     clusters_qs = (
-        TransactionCluster.objects.select_related("client", "sugar_mill", "logistics", "logistics__partner")
+        TransactionCluster.objects.filter(is_archived=show_archived)
+        .select_related("client", "sugar_mill", "logistics", "logistics__partner")
         .prefetch_related("invoices", "purchase_order")
         .order_by("reference_code")
     )
@@ -122,7 +124,8 @@ def cluster_list(request):
     User.Role.INVOICING,
 )
 def logistics_list(request):
-    ledgers = LogisticsLedger.objects.select_related("cluster", "cluster__client", "partner").order_by("-updated_at")
+    show_archived = request.GET.get("archived", "").lower() in ("1", "true")
+    ledgers = LogisticsLedger.objects.filter(is_archived=show_archived).select_related("cluster", "cluster__client", "partner").order_by("-updated_at")
 
     in_transit_count = 0
     delivered_count = 0
@@ -334,6 +337,27 @@ def cluster_create(request):
     return render(request, "operations/cluster_form.html", {"form": form, "title": "New Transaction"})
 
 
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def cluster_edit(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST":
+        form = TransactionClusterForm(request.POST, instance=cluster)
+        if form.is_valid():
+            with transaction.atomic():
+                cluster = form.save()
+                po = getattr(cluster, "purchase_order", None)
+                if po:
+                    po.volume_mt = form.cleaned_data["volume_mt"]
+                    po.unit_price = form.cleaned_data["unit_price"]
+                    po.terms = form.cleaned_data.get("terms", "")
+                    po.save()
+            messages.success(request, f"Updated contract parameters for {cluster.reference_code}.")
+            return redirect("operations:cluster_detail", pk=cluster.pk)
+    else:
+        form = TransactionClusterForm(instance=cluster)
+    return render(request, "operations/cluster_form.html", {"form": form, "object": cluster, "title": f"Edit {cluster.reference_code}"})
+
+
 @role_required(
     User.Role.MANAGEMENT,
     User.Role.OPERATIONS,
@@ -454,7 +478,9 @@ def add_loan(request, pk):
             loan.cluster = cluster
             loan._audit_user = request.user
             loan.save()
-            messages.success(request, f"Capital loan from {loan.bank_name} recorded.")
+            messages.success(request, f"Capital loan facility from {loan.bank_name} recorded successfully.")
+        else:
+            messages.error(request, f"Failed to record loan facility: {form.errors.as_text()}")
     return redirect("operations:cluster_detail", pk=pk)
 
 
@@ -524,5 +550,120 @@ def resolve_dispute(request, pk):
     if next_url and "/operations/" in next_url:
         return redirect(next_url)
     return redirect("operations:cluster_detail", pk=pk)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def archive_cluster(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST":
+        now = timezone.now()
+        cluster.is_archived = True
+        cluster.archived_at = now
+        cluster._audit_user = request.user
+        cluster.save(update_fields=["is_archived", "archived_at"])
+
+        # Also archive associated invoices and logistics
+        cluster.invoices.update(is_archived=True, archived_at=now)
+        if hasattr(cluster, "logistics"):
+            cluster.logistics.is_archived = True
+            cluster.logistics.archived_at = now
+            cluster.logistics.save(update_fields=["is_archived", "archived_at"])
+
+        messages.success(request, f"Transaction cluster {cluster.reference_code} has been archived.")
+    return redirect("operations:cluster_list")
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def unarchive_cluster(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST":
+        cluster.is_archived = False
+        cluster.archived_at = None
+        cluster._audit_user = request.user
+        cluster.save(update_fields=["is_archived", "archived_at"])
+
+        cluster.invoices.update(is_archived=False, archived_at=None)
+        if hasattr(cluster, "logistics"):
+            cluster.logistics.is_archived = False
+            cluster.logistics.archived_at = None
+            cluster.logistics.save(update_fields=["is_archived", "archived_at"])
+
+        messages.success(request, f"Transaction cluster {cluster.reference_code} restored to active list.")
+    return redirect("operations:archive_list")
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def bulk_archive_completed(request):
+    if request.method == "POST":
+        now = timezone.now()
+        completed_clusters = TransactionCluster.objects.filter(
+            is_archived=False,
+            status__in=[TransactionCluster.Status.CLOSED, TransactionCluster.Status.DELIVERED],
+        )
+        count = 0
+        for cluster in completed_clusters:
+            # Check if invoices are paid
+            invoices = cluster.invoices.all()
+            all_paid = all(inv.status == Invoice.Status.PAID for inv in invoices) if invoices else True
+            if cluster.status == TransactionCluster.Status.CLOSED or all_paid:
+                cluster.is_archived = True
+                cluster.archived_at = now
+                cluster.save(update_fields=["is_archived", "archived_at"])
+                cluster.invoices.update(is_archived=True, archived_at=now)
+                if hasattr(cluster, "logistics"):
+                    cluster.logistics.is_archived = True
+                    cluster.logistics.archived_at = now
+                    cluster.logistics.save(update_fields=["is_archived", "archived_at"])
+                count += 1
+
+        messages.success(request, f"Archived {count} completed transactions, invoices, and logistics records.")
+    return redirect("operations:cluster_list")
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def archive_list(request):
+    q = request.GET.get("q", "").strip()
+    archived_clusters = (
+        TransactionCluster.objects.filter(is_archived=True)
+        .select_related("client", "sugar_mill", "logistics", "logistics__partner")
+        .prefetch_related("invoices", "purchase_order")
+        .order_by("-archived_at")
+    )
+    if q:
+        archived_clusters = archived_clusters.filter(
+            Q(reference_code__icontains=q) |
+            Q(client__name__icontains=q) |
+            Q(sugar_mill__name__icontains=q)
+        )
+
+    archived_invoices = Invoice.objects.filter(is_archived=True).select_related("cluster", "cluster__client")
+    archived_logistics = LogisticsLedger.objects.filter(is_archived=True).select_related("cluster", "cluster__client")
+
+    context = {
+        "archived_clusters": archived_clusters,
+        "archived_invoices": archived_invoices,
+        "archived_logistics": archived_logistics,
+        "q": q,
+        "total_archived_count": len(archived_clusters),
+    }
+    return render(request, "operations/archive_list.html", context)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def upload_mro(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST" and request.FILES.get("mro_file"):
+        cluster.mro_file = request.FILES["mro_file"]
+        cluster._audit_user = request.user
+        cluster.save(update_fields=["mro_file"])
+        messages.success(request, f"Scanned MRO document uploaded for {cluster.reference_code}.")
+    else:
+        messages.error(request, "Please select a valid PDF or scanned document to upload.")
+    
+    redirect_url = request.META.get("HTTP_REFERER")
+    if redirect_url:
+        return redirect(redirect_url)
+    return redirect("operations:cluster_detail", pk=pk)
+
 
 

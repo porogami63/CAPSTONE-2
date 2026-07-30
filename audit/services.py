@@ -16,13 +16,19 @@ FINANCIAL_MODELS = {
 
 
 def _serialize(value):
-    if isinstance(value, Decimal):
-        return str(value)
-    if isinstance(value, UUID):
+    if value is None:
+        return None
+    if isinstance(value, (int, float, bool, str)):
+        return value
+    if isinstance(value, (Decimal, UUID)):
         return str(value)
     if hasattr(value, "isoformat"):
         return value.isoformat()
-    return value
+    if hasattr(value, "name"):
+        return str(value.name)
+    if hasattr(value, "url"):
+        return str(value.url)
+    return str(value)
 
 
 def model_snapshot(instance: Model) -> dict:

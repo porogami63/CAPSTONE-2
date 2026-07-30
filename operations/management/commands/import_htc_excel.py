@@ -17,10 +17,10 @@ class Command(BaseCommand):
             help="Path to Excel file (default: HTC-2026-SUMMARY.xlsx in project root)",
         )
         parser.add_argument(
-            "--keep-users",
+            "--clear",
             action="store_true",
-            default=True,
-            help="Preserve user accounts (default: true)",
+            default=False,
+            help="Clear existing operational data before importing",
         )
 
     def handle(self, *args, **options):
@@ -32,8 +32,15 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f"File not found: {path}"))
             return
 
-        self.stdout.write("Clearing operational data...")
-        clear_operational_data()
+        from operations.models import TransactionCluster
+        if options["clear"]:
+            self.stdout.write("Clearing operational data as requested (--clear)...")
+            clear_operational_data()
+        elif TransactionCluster.objects.exists():
+            self.stdout.write(self.style.WARNING("Database already contains operational data. Skipping automatic import to preserve user entries. Use --clear to re-import."))
+            return
+        else:
+            self.stdout.write("Database is empty. Running initial import...")
 
         if not User.objects.exists():
             self.stdout.write("Creating default pilot users...")

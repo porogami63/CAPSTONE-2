@@ -21,6 +21,8 @@ class Invoice(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
     history = HistoricalRecords()
 
     class Meta:
@@ -35,6 +37,8 @@ class CashVoucher(models.Model):
     voucher_number = models.CharField(max_length=50, unique=True)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     purpose = models.CharField(max_length=200)
+    cheque_number = models.CharField(max_length=50, blank=True, help_text="Physical paper cheque reference number")
+    cheque_date = models.DateField(null=True, blank=True, help_text="Issue date of physical cheque")
     issued_at = models.DateField(default=date.today)
     created_at = models.DateTimeField(auto_now_add=True)
     history = HistoricalRecords()
@@ -62,7 +66,20 @@ class CapitalLoan(models.Model):
     )
     start_date = models.DateField()
     due_date = models.DateField()
+    cheque_number = models.CharField(max_length=50, blank=True, help_text="Physical paper cheque reference number")
+    cheque_date = models.DateField(null=True, blank=True, help_text="Issue date of physical cheque")
+    bank_account_number = models.CharField(max_length=50, blank=True, help_text="Originating bank account number")
+    logistics_deposit_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("50.00"),
+        help_text="Percentage of upfront logistics deposit funded (Default 50%)",
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    settlement_receipt_number = models.CharField(max_length=100, blank=True, help_text="Bank Release Advice / Official Receipt Number")
+    settlement_date = models.DateField(null=True, blank=True, help_text="Date facility was officially settled")
+    settlement_document = models.FileField(upload_to="loan_settlements/", null=True, blank=True, help_text="Scanned soft copy of Bank Release Clearance Advice / Receipt")
+    settlement_notes = models.TextField(blank=True, help_text="Notes on final loan settlement")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -76,6 +93,11 @@ class CapitalLoan(models.Model):
         return max((end - self.start_date).days, 0)
 
     @property
+    def daily_interest_cost(self):
+        daily_rate = (self.interest_rate_annual / Decimal("100")) / Decimal("365")
+        return (self.principal * daily_rate).quantize(Decimal("0.01"))
+
+    @property
     def accrued_interest(self):
         daily_rate = (self.interest_rate_annual / Decimal("100")) / Decimal("365")
         return (self.principal * daily_rate * Decimal(self.days_outstanding)).quantize(Decimal("0.01"))
@@ -83,6 +105,18 @@ class CapitalLoan(models.Model):
     @property
     def total_liability(self):
         return self.principal + self.accrued_interest
+
+    @property
+    def funded_logistics_deposit(self):
+        logistics = getattr(self.cluster, "logistics", None)
+        if logistics:
+            total_logistics_fee = (logistics.tracking_fees or Decimal("0")) + (logistics.barge_fees or Decimal("0"))
+            if total_logistics_fee > Decimal("0"):
+                return (total_logistics_fee * (self.logistics_deposit_percentage / Decimal("100"))).quantize(Decimal("0.01"))
+            # Fallback to standard 50% calculation based on loaded volume or estimate
+            estimated_deposit = (logistics.loaded_volume_mt * Decimal("450.00") * (self.logistics_deposit_percentage / Decimal("100")))
+            return estimated_deposit.quantize(Decimal("0.01"))
+        return Decimal("0.00")
 
     @property
     def is_overdue(self):

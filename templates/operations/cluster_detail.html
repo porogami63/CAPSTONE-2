@@ -4,14 +4,41 @@
 {% block topbar_title %}{{ cluster.reference_code }}{% endblock %}
 {% block content %}
 
-<div class="page-header flex-start mb-3">
+<div class="page-header flex-start mb-3" data-step="1" data-intro="Transaction Cluster details connecting buyer client, sugar mill supplier, contract status, and financial calculations under one reference code.">
     <div>
         <h2>{{ cluster.reference_code }}</h2>
         <p>{{ cluster.client.name }} · {{ cluster.sugar_mill.name }} · <span class="badge-status {{ cluster.status }}">{{ cluster.get_status_display }}</span></p>
     </div>
-    {% if user|has_perm:"reconcile_payments" %}
-    <a href="{% url 'finance:reconciliation' cluster.pk %}" class="btn-htc-outline"><i class="bi bi-link-45deg"></i> Payment Matching</a>
-    {% endif %}
+    <div class="flex gap-2" style="align-items:center;" data-step="2" data-intro="Action panel for editing contract parameters, uploading scanned MRO release orders, or opening payment matching reconciliation.">
+        {% if user|has_perm:"edit_transaction" %}
+        <a href="{% url 'operations:cluster_edit' cluster.pk %}" class="btn-htc-outline" title="Edit Contract Parameters"><i class="bi bi-pencil"></i> Edit Contract</a>
+        {% endif %}
+        {% if user|has_perm:"archive_transaction" %}
+            {% if cluster.is_archived %}
+            <form method="post" action="{% url 'operations:unarchive_cluster' cluster.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn-htc-outline"><i class="bi bi-arrow-counterclockwise"></i> Restore from Archive</button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'operations:archive_cluster' cluster.pk %}" style="display:inline;" onsubmit="return confirm('Archive this transaction cluster?');">
+                {% csrf_token %}
+                <button type="submit" class="btn-htc-outline" title="Archive completed transaction"><i class="bi bi-archive"></i> Archive</button>
+            </form>
+            {% endif %}
+        {% endif %}
+        {% if cluster.mro_file %}
+        <a href="{{ cluster.mro_file.url }}" target="_blank" class="btn-htc-outline text-success border-success" title="Preview MRO Scanned Copy">
+            <i class="bi bi-file-earmark-check-fill"></i> View MRO Soft Copy
+        </a>
+        {% elif user|has_perm:"upload_mro" %}
+        <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#uploadMroModal">
+            <i class="bi bi-upload"></i> Upload MRO Scan
+        </button>
+        {% endif %}
+        {% if user|has_perm:"reconcile_payments" %}
+        <a href="{% url 'finance:reconciliation' cluster.pk %}" class="btn-htc-outline"><i class="bi bi-link-45deg"></i> Payment Matching</a>
+        {% endif %}
+    </div>
 </div>
 
 {% if cluster.logistics.variance_exceeds_tolerance %}
@@ -376,6 +403,18 @@
                                 <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Maturity / Due Date</label>
                                 {{ loan_form.due_date }}
                             </div>
+                            <div class="col-md-4">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Paper Cheque # (Optional)</label>
+                                {{ loan_form.cheque_number }}
+                            </div>
+                            <div class="col-md-4">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Cheque Issue Date (Optional)</label>
+                                {{ loan_form.cheque_date }}
+                            </div>
+                            <div class="col-md-4">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Bank Account # (Optional)</label>
+                                {{ loan_form.bank_account_number }}
+                            </div>
                         </div>
                         <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Link Loan Facility</button>
                     </form>
@@ -419,6 +458,30 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+<!-- Modal for uploading MRO scanned copy -->
+<div class="modal fade" id="uploadMroModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'operations:upload_mro' cluster.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-upload text-primary"></i> Upload Scanned MRO Soft Copy</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <p class="mb-2">Upload the scanned soft copy (PDF or image) of Molasses Release Order for <strong>{{ cluster.reference_code }}</strong>.</p>
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Select MRO Soft Copy File (PDF/Image)</label>
+                        <input type="file" name="mro_file" class="form-control" accept="application/pdf,image/*" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-htc"><i class="bi bi-check-circle"></i> Upload Soft Copy</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

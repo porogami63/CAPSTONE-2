@@ -1,0 +1,80 @@
+{% extends "app_base.html" %}
+{% load role_tags %}
+{% block title %}Archive Vault · Molasses Trading{% endblock %}
+{% block topbar_title %}Archive Vault{% endblock %}
+{% block content %}
+<div class="page-header flex-start compact">
+    <div>
+        <h2><i class="bi bi-box-seam text-warning"></i> Archive Vault</h2>
+        <p>Cleared completed transactions, invoices, and delivery records</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline"><i class="bi bi-arrow-left"></i> Back to Active Transactions</a>
+    </div>
+</div>
+
+<div class="metric-grid">
+    <div class="metric-box">
+        <div class="label">Archived Clusters</div>
+        <div class="value">{{ archived_clusters|length }}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Archived Invoices</div>
+        <div class="value">{{ archived_invoices|length }}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Archived Logistics</div>
+        <div class="value">{{ archived_logistics|length }}</div>
+    </div>
+</div>
+
+<form method="get" class="filters-bar" style="margin-bottom: 1.5rem;">
+    <div class="search-input-wrap" style="flex:1;">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search archived reference, client, sugar mill..." class="form-control">
+    </div>
+    <button type="submit" class="btn-htc"><i class="bi bi-filter"></i> Search Archive</button>
+</form>
+
+<div class="content-card">
+    <div class="card-header-htc">Archived Transaction Clusters</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Reference</th>
+                    <th>Client</th>
+                    <th>Sugar Mill</th>
+                    <th>Status</th>
+                    <th>Archived Date</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cluster in archived_clusters %}
+                <tr>
+                    <td><strong><a href="{% url 'operations:cluster_detail' cluster.pk %}">{{ cluster.reference_code }}</a></strong></td>
+                    <td>{{ cluster.client.name }}</td>
+                    <td>{{ cluster.sugar_mill.name }}</td>
+                    <td><span class="badge bg-secondary">{{ cluster.get_status_display }}</span></td>
+                    <td>{{ cluster.archived_at|date:"M d, Y H:i"|default:"—" }}</td>
+                    <td class="text-end">
+                        <form method="post" action="{% url 'operations:unarchive_cluster' cluster.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-htc-sm btn-htc-outline" title="Restore to Active"><i class="bi bi-arrow-counterclockwise"></i> Restore</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                        No archived transactions found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

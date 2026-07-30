@@ -59,6 +59,12 @@ class TransactionClusterForm(forms.ModelForm):
         self.fields["client"].empty_label = "Select Customer (Client)..."
         self.fields["sugar_mill"].empty_label = "Select Supplier (Sugar Mill)..."
 
+        if self.instance and self.instance.pk and hasattr(self.instance, "purchase_order") and self.instance.purchase_order:
+            po = self.instance.purchase_order
+            self.fields["volume_mt"].initial = po.volume_mt
+            self.fields["unit_price"].initial = po.unit_price
+            self.fields["terms"].initial = po.terms
+
 
 class LogisticsUpdateForm(forms.ModelForm):
     class Meta:

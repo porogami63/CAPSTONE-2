@@ -49,6 +49,8 @@ services:
       - htc_net
     volumes:
       - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - ./templates:/app/templates
 
   nginx:
     image: nginx:1.27-alpine
@@ -57,6 +59,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
     depends_on:
       - web
     networks:
@@ -87,3 +90,4 @@ networks:
 volumes:
   postgres_data:
   static_volume:
+  media_volume:

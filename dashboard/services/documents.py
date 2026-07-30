@@ -31,11 +31,18 @@ def build_document_registry(query: str = "") -> dict:
             continue
         categories["release_orders"]["items"].append(
             {
+                "id": str(cluster.pk),
                 "name": label,
                 "date": cluster.created_at,
                 "size": _fmt_size(getattr(cluster, "purchase_order", None) and cluster.purchase_order.total_value or 50000),
                 "ref": cluster.reference_code,
+                "client_name": cluster.client.name,
+                "mill_name": cluster.sugar_mill.name,
                 "url": reverse("operations:cluster_detail", args=[cluster.pk]),
+                "upload_url": reverse("operations:upload_mro", args=[cluster.pk]),
+                "has_scan": bool(cluster.mro_file),
+                "scan_url": cluster.mro_file.url if cluster.mro_file else "",
+                "is_pdf": cluster.mro_file.name.lower().endswith(".pdf") if cluster.mro_file else True,
             }
         )
 
@@ -51,6 +58,7 @@ def build_document_registry(query: str = "") -> dict:
                 "size": _fmt_size(invoice.amount),
                 "ref": invoice.invoice_number,
                 "url": reverse("operations:cluster_detail", args=[invoice.cluster.pk]),
+                "pdf_url": reverse("finance:download_invoice_pdf", args=[invoice.pk]),
             }
         )
 
