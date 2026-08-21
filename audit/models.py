@@ -48,3 +48,27 @@ class SystemAuditTrail(models.Model):
 
     def __str__(self):
         return f"{self.action} {self.table_name}:{self.record_id} @ {self.timestamp:%Y-%m-%d %H:%M}"
+
+
+class Notification(models.Model):
+    class Level(models.TextChoices):
+        INFO = "info", "Information"
+        WARNING = "warning", "Warning"
+        SUCCESS = "success", "Success"
+        DANGER = "danger", "Alert"
+
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    level = models.CharField(max_length=20, choices=Level.choices, default=Level.INFO)
+    link = models.CharField(max_length=255, blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "User Notification"
+        verbose_name_plural = "User Notifications"
+
+    def __str__(self):
+        return f"[{self.level.upper()}] {self.recipient.username}: {self.title}"

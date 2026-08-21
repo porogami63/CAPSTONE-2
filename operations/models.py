@@ -1,3 +1,4 @@
+import re
 import uuid
 from decimal import Decimal
 
@@ -5,7 +6,7 @@ from django.conf import settings
 from django.db import models
 from simple_history.models import HistoricalRecords
 
-from masters.models import Client, LogisticsPartner, SugarMill
+from masters.models import Client, LogisticsPartner, Planter, SugarMill
 
 
 class TransactionCluster(models.Model):
@@ -134,3 +135,71 @@ class LogisticsLedger(models.Model):
 
     def __str__(self):
         return f"Logistics for {self.cluster.reference_code}"
+
+
+class MolassesReleaseOrder(models.Model):
+    mro_number = models.CharField("MRO #", max_length=50, db_index=True)
+    planter = models.ForeignKey(Planter, on_delete=models.PROTECT, related_name="mro_releases")
+    sugar_mill = models.ForeignKey(
+        SugarMill,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mro_releases",
+        help_text="Issuing Sugar Mill / Supplier",
+    )
+    sugar_mill_name = models.CharField("Supplier / Sugar Mill", max_length=120, blank=True, help_text="Supplier/Mill name fallback")
+    tons = models.DecimalField("Tons (MT)", max_digits=14, decimal_places=5)
+    release_date = models.DateField("Date", null=True, blank=True)
+    trader = models.CharField("Trader", max_length=120, default="HEINDRICH")
+    crop_year = models.CharField("Crop Year", max_length=30, db_index=True)
+    cluster = models.ForeignKey(
+        TransactionCluster,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mro_releases",
+        help_text="Optional transaction cluster contract linkage",
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        ordering = ["sugar_mill_name", "-crop_year", "mro_number", "planter__name", "id"]
+        verbose_name = "Molasses Release Order"
+        verbose_name_plural = "Molasses Release Orders"
+
+    @property
+    def display_sugar_mill(self):
+        if self.sugar_mill:
+            return self.sugar_mill.name
+        return self.sugar_mill_name or "Unknown Mill"
+
+    def save(self, *args, **kwargs):
+        if self.crop_year:
+            self.crop_year = normalize_crop_year(self.crop_year)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"MRO {self.mro_number} - {self.display_sugar_mill} - {self.planter.name} ({self.tons} MT)"
+
+
+def normalize_crop_year(raw):
+    if not raw:
+        return "2024 - 2025"
+    s = str(raw).strip()
+    digits = re.findall(r"\b\d{2,4}\b", s)
+    if len(digits) >= 2:
+        y1 = int(digits[0])
+        y2 = int(digits[1])
+        if y1 < 100:
+            y1 += 2000
+        if y2 < 100:
+            y2 += 2000
+        return f"{y1} - {y2}"
+    return s
+
+
+

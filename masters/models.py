@@ -68,3 +68,17 @@ class PartnerNote(models.Model):
         partner = self.client.name if self.client else (self.sugar_mill.name if self.sugar_mill else "Unknown")
         return f"Note for {partner} by {self.author.username} at {self.created_at.strftime('%Y-%m-%d')}"
 
+
+class Planter(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+    code = models.CharField(max_length=50, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+

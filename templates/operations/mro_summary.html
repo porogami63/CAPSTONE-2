@@ -1,0 +1,370 @@
+{% extends "app_base.html" %}
+{% load role_tags %}
+{% block title %}Molasses Release Orders (MRO) · HTC Core{% endblock %}
+{% block topbar_title %}MRO Summary by Supplier & Crop Year{% endblock %}
+
+{% block content %}
+<div class="page-header flex-between compact mb-3">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-file-earmark-ruled text-primary me-2"></i>Molasses Release Order Summary</h2>
+        <p class="text-muted mb-0">Company / Supplier MRO allocations (`BUSCO`, `HAWAIIAN`, `BISCOM`, `CASA`, `LOPEZ`), planter releases & subtotals</p>
+    </div>
+    <div class="flex gap-2 align-items-center">
+        <a href="{% url 'operations:mro_export_csv' %}?crop_year={{ current_crop_year }}&mill={{ current_mill }}&planter={{ current_planter }}&q={{ q }}" class="btn-htc-outline" title="Export current summary to CSV">
+            <i class="bi bi-download"></i> Export CSV
+        </a>
+        {% if user|has_perm:"create_transaction" %}
+        <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#importMroModal">
+            <i class="bi bi-file-earmark-excel"></i> Import Excel/CSV
+        </button>
+        <button type="button" class="btn-htc" data-bs-toggle="modal" data-bs-target="#createMroModal">
+            <i class="bi bi-plus-lg"></i> New MRO Entry
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Key Performance Metric Cards -->
+<div class="metric-grid mb-3">
+    <div class="metric-box">
+        <div class="label">Total Released Tonnage</div>
+        <div class="value text-primary">{{ total_tons|floatformat:4 }} <span class="fs-6 text-muted">MT</span></div>
+        <div class="small text-muted mt-1">{% if current_mill %}{{ current_mill }}{% else %}All Suppliers{% endif %} · {% if current_crop_year %}CY {{ current_crop_year }}{% else %}All CYs{% endif %}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Sugar Mills / Suppliers</div>
+        <div class="value text-warning">{% if current_mill %}{{ current_mill }}{% else %}{{ distinct_mills_count }} Mills{% endif %}</div>
+        <div class="small text-muted mt-1">BUSCO, HAWAIIAN, BISCOM, CASA, LOPEZ</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Total MRO Numbers</div>
+        <div class="value text-success">{{ total_mro_count }}</div>
+        <div class="small text-muted mt-1">Distinct release order numbers</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Planter Allocations</div>
+        <div class="value text-info">{{ item_count }}</div>
+        <div class="small text-muted mt-1">Individual release line items</div>
+    </div>
+</div>
+
+<!-- Supplier / Sugar Mill Pill Tabs (Matching Excel Sheets: BUSCO, HAWAIIAN, BISCOM, CASA, LOPEZ) -->
+<div class="card mb-3 border-0 shadow-sm">
+    <div class="card-body p-2">
+        <div class="d-flex align-items-center gap-2 overflow-auto">
+            <span class="fw-bold text-muted px-2 small text-uppercase" style="letter-spacing: 0.5px;"><i class="bi bi-building me-1"></i>Suppliers:</span>
+            <a href="{% url 'operations:mro_summary' %}?crop_year={{ current_crop_year }}&planter={{ current_planter }}&q={{ q }}" 
+               class="btn btn-sm {% if not current_mill %}btn-primary fw-bold{% else %}btn-outline-secondary border-0{% endif %}">
+                All Companies / Mills
+            </a>
+            {% for m in available_mills %}
+            <a href="{% url 'operations:mro_summary' %}?mill={{ m }}&crop_year={{ current_crop_year }}&planter={{ current_planter }}&q={{ q }}" 
+               class="btn btn-sm {% if current_mill == m %}btn-primary fw-bold{% else %}btn-outline-secondary border-0{% endif %}">
+                <i class="bi bi-journal-text me-1"></i>{{ m }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Crop Year & Filter Search Bar -->
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <div class="nav nav-pills flex-nowrap overflow-auto pb-1" style="gap: 0.35rem;">
+                    <a href="{% url 'operations:mro_summary' %}?mill={{ current_mill }}&planter={{ current_planter }}&q={{ q }}" 
+                       class="nav-link btn-sm py-1 px-3 {% if not current_crop_year %}active bg-secondary{% else %}bg-light text-dark{% endif %}">
+                       All Years
+                    </a>
+                    {% for cy in available_crop_years %}
+                    <a href="{% url 'operations:mro_summary' %}?crop_year={{ cy }}&mill={{ current_mill }}&planter={{ current_planter }}&q={{ q }}" 
+                       class="nav-link btn-sm py-1 px-3 {% if current_crop_year == cy %}active bg-secondary{% else %}bg-light text-dark{% endif %}">
+                       CY {{ cy }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <select name="planter" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- All Planters / Associations --</option>
+                    {% for p in available_planters %}
+                    <option value="{{ p.id }}" {% if current_planter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search MRO #, Planter, Trader, or Supplier...">
+                    {% if current_crop_year %}<input type="hidden" name="crop_year" value="{{ current_crop_year }}">{% endif %}
+                    {% if current_mill %}<input type="hidden" name="mill" value="{{ current_mill }}">{% endif %}
+                    <button type="submit" class="btn btn-outline-secondary">Search</button>
+                </div>
+            </div>
+
+            <div class="col-md-1 text-end">
+                <a href="{% url 'operations:mro_summary' %}" class="btn btn-sm btn-link text-muted" title="Reset Filters"><i class="bi bi-arrow-counterclockwise"></i> Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MRO Data Table matching spreadsheet layout -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 flex-between">
+        <h5 class="mb-0 font-weight-bold text-dark">
+            <i class="bi bi-table text-primary me-2"></i>
+            {% if current_mill %}
+            <span class="badge bg-primary text-white me-2" style="font-size: 0.9rem;">{{ current_mill }}</span>
+            {% endif %}
+            Release Order Summary Breakdown
+        </h5>
+        <span class="badge bg-light text-dark font-weight-normal fs-6">Showing {{ item_count }} line items</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+            <thead class="table-light">
+                <tr class="text-uppercase text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                    <th style="width: 14%;">Company / Supplier</th>
+                    <th style="width: 18%;">Planters</th>
+                    <th class="text-end" style="width: 13%;">Tons (MT)</th>
+                    <th class="text-center" style="width: 11%;">Date</th>
+                    <th style="width: 11%;">Trader</th>
+                    <th style="width: 11%;">MRO #</th>
+                    <th style="width: 10%;">Crop Year</th>
+                    <th class="text-end" style="width: 14%;">MRO Total Tons</th>
+                    {% if user|has_perm:"create_transaction" %}
+                    <th class="text-center" style="width: 4%;">Action</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in grouped_items %}
+                {% with item=row.item %}
+                <tr {% if row.is_last_in_mro %}style="border-bottom: 2px solid #cbd5e1;"{% endif %}>
+                    <td>
+                        <span class="badge bg-dark-subtle text-dark border font-weight-bold" style="font-size: 0.78rem;">
+                            <i class="bi bi-building me-1"></i>{{ item.display_sugar_mill }}
+                        </span>
+                    </td>
+                    <td>
+                        <strong class="text-primary">{{ item.planter.name }}</strong>
+                        {% if item.cluster %}
+                        <a href="{% url 'operations:cluster_detail' item.cluster.pk %}" class="badge bg-info-subtle text-info ms-1 text-decoration-none" title="Linked to cluster {{ item.cluster.reference_code }}">
+                            <i class="bi bi-link-45deg"></i> {{ item.cluster.reference_code }}
+                        </a>
+                        {% endif %}
+                    </td>
+                    <td class="text-end font-monospace font-weight-bold text-dark">
+                        {{ item.tons|floatformat:5 }}
+                    </td>
+                    <td class="text-center text-muted">
+                        {% if item.release_date %}{{ item.release_date|date:"m/d/Y" }}{% else %}<span class="text-muted small">—</span>{% endif %}
+                    </td>
+                    <td class="text-uppercase fw-semibold text-secondary">
+                        {{ item.trader }}
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary font-monospace" style="font-size: 0.85rem;">{{ item.mro_number }}</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark border">{{ item.crop_year }}</span>
+                    </td>
+                    <td class="text-end font-monospace">
+                        {% if row.is_last_in_mro %}
+                        <div class="px-2 py-1 bg-success-subtle text-success-emphasis rounded fw-bold" style="display: inline-block;">
+                            {{ row.mro_group_subtotal|floatformat:5 }} MT
+                        </div>
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    {% if user|has_perm:"create_transaction" %}
+                    <td class="text-center">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light p-1" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                <li>
+                                    <button class="dropdown-item text-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#editMroModal{{ item.id }}">
+                                        <i class="bi bi-pencil me-2"></i>Edit Line
+                                    </button>
+                                </li>
+                                <li>
+                                    <form method="post" action="{% url 'operations:mro_delete' item.id %}" onsubmit="return confirm('Delete this MRO entry ({{ item.mro_number }} - {{ item.planter.name }})?');">
+                                        {% csrf_token %}
+                                        <button class="dropdown-item text-danger btn-sm" type="submit">
+                                            <i class="bi bi-trash me-2"></i>Delete Line
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+
+                <!-- Edit Modal for Item -->
+                <div class="modal fade" id="editMroModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="post" action="{% url 'operations:mro_edit' item.id %}">
+                                {% csrf_token %}
+                                <div class="modal-header">
+                                    <h5 class="modal-title"><i class="bi bi-pencil-square text-primary me-2"></i>Edit MRO Release Item</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label font-weight-bold">Company / Supplier</label>
+                                            <input type="text" name="sugar_mill_name" class="form-control" value="{{ item.display_sugar_mill }}" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label font-weight-bold">MRO Number #</label>
+                                            <input type="text" name="mro_number" class="form-control" value="{{ item.mro_number }}" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label font-weight-bold">Crop Year</label>
+                                            <input type="text" name="crop_year" class="form-control" value="{{ item.crop_year }}" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label font-weight-bold">Planter Name</label>
+                                            <input type="text" name="planter_name" class="form-control" value="{{ item.planter.name }}" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label font-weight-bold">Tons (MT)</label>
+                                            <input type="number" step="0.00001" name="tons" class="form-control" value="{{ item.tons }}" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label font-weight-bold">Release Date</label>
+                                            <input type="date" name="release_date" class="form-control" value="{{ item.release_date|date:'Y-m-d' }}">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label font-weight-bold">Trader</label>
+                                            <input type="text" name="trader" class="form-control" value="{{ item.trader }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endwith %}
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center py-5 text-muted">
+                        <i class="bi bi-file-earmark-x fs-1 d-block mb-2 text-secondary"></i>
+                        No Molasses Release Orders found for the selected supplier/filter.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: New MRO Entry -->
+<div class="modal fade" id="createMroModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'operations:mro_create' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle text-primary me-2"></i>Add Molasses Release Order Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Company / Supplier (Sheet Name) <span class="text-danger">*</span></label>
+                            {{ create_form.sugar_mill_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">MRO Number # <span class="text-danger">*</span></label>
+                            {{ create_form.mro_number }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Crop Year <span class="text-danger">*</span></label>
+                            {{ create_form.crop_year }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Planter Name / Association <span class="text-danger">*</span></label>
+                            {{ create_form.planter_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Existing Planters Dropdown</label>
+                            {{ create_form.planter }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Volume Tons (MT) <span class="text-danger">*</span></label>
+                            {{ create_form.tons }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Release Date</label>
+                            {{ create_form.release_date }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Trader Entity</label>
+                            {{ create_form.trader }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Link to Contract (Optional)</label>
+                            {{ create_form.cluster }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label font-weight-bold">Notes / Remarks</label>
+                            {{ create_form.notes }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save MRO Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Import Excel / CSV -->
+<div class="modal fade" id="importMroModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'operations:mro_import_excel' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-excel text-success me-2"></i>Import Multi-Sheet MRO Spreadsheet</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2" style="font-size: 0.85rem;">
+                        <i class="bi bi-info-circle me-1"></i> Upload multi-sheet workbooks (`LBC MRO FINAL.xlsx`). Each sheet name (e.g. <strong>BUSCO, HAWAIIAN, BISCOM, CASA, LOPEZ</strong>) will automatically define the Supplier / Sugar Mill for its records.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Select File (.xlsx, .xls, .csv)</label>
+                        {{ import_form.file }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Default Crop Year Fallback</label>
+                        {{ import_form.crop_year_override }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-upload me-1"></i> Import Multi-Sheet Spreadsheet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

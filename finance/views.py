@@ -54,22 +54,26 @@ def add_match(request, pk):
     return redirect("finance:reconciliation", pk=pk)
 
 
-@role_required(User.Role.MANAGEMENT, User.Role.FINANCE)
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE)
 def loan_list(request):
-    loans = list(CapitalLoan.objects.select_related("cluster", "cluster__client"))
-    for loan in loans:
-        loan.refresh_status()
-        loan.save(update_fields=["status"])
+    loans = list(CapitalLoan.objects.select_related("cluster", "cluster__client", "verified_by").order_by("-created_at"))
 
-    active_exposure = 0
-    accrued_interest = 0
+    active_exposure = Decimal("0")
+    accrued_interest = Decimal("0")
     overdue_facilities = 0
+    pending_creation_loans = []
+    pending_settlement_loans = []
 
     for loan in loans:
-        if loan.status == loan.Status.ACTIVE:
+        if loan.status == CapitalLoan.Status.PENDING_CREATION:
+            pending_creation_loans.append(loan)
+        elif loan.status == CapitalLoan.Status.PENDING_SETTLEMENT:
+            pending_settlement_loans.append(loan)
+
+        if loan.status == CapitalLoan.Status.ACTIVE:
             active_exposure += loan.principal
         accrued_interest += loan.accrued_interest
-        if loan.is_overdue or loan.status == loan.Status.OVERDUE:
+        if loan.status == CapitalLoan.Status.OVERDUE:
             overdue_facilities += 1
 
         total_days = max((loan.due_date - loan.start_date).days, 1)
@@ -79,11 +83,11 @@ def loan_list(request):
         loan.logistics_deposit = loan.funded_logistics_deposit
         loan.daily_interest = loan.daily_interest_cost
 
-        # Map timeline classes
+        # Map timeline classes & status badge styling
         loan.timeline_color_class = "blue"
-        if loan.status == loan.Status.CLOSED:
+        if loan.status == CapitalLoan.Status.CLOSED:
             loan.timeline_color_class = "green"
-        elif loan.status == loan.Status.OVERDUE or loan.is_overdue:
+        elif loan.status in (CapitalLoan.Status.OVERDUE, CapitalLoan.Status.REJECTED):
             loan.timeline_color_class = "red"
 
     logistics_deposits = (
@@ -136,6 +140,9 @@ def loan_list(request):
         "finance/loan_list.html",
         {
             "loans": loans,
+            "pending_creation_loans": pending_creation_loans,
+            "pending_settlement_loans": pending_settlement_loans,
+            "pending_verification_count": len(pending_creation_loans) + len(pending_settlement_loans),
             "cheques": cheques,
             "active_exposure_m": active_exposure_m,
             "accrued_interest": accrued_interest,
@@ -154,7 +161,7 @@ def settle_loan(request, pk):
         settlement_notes = request.POST.get("settlement_notes", "").strip()
         settlement_doc = request.FILES.get("settlement_document")
 
-        loan.status = CapitalLoan.Status.CLOSED
+        loan.status = CapitalLoan.Status.PENDING_SETTLEMENT
         if receipt_num:
             loan.settlement_receipt_number = receipt_num
         if settlement_date_str:
@@ -168,10 +175,99 @@ def settle_loan(request, pk):
 
         loan._audit_user = request.user
         loan.save()
+
+        # Post team chat notification
+        from chat.views import send_system_notification
+        from audit.services import notify_roles
+        send_system_notification(
+            loan.cluster,
+            f"Loan settlement clearance advice #{receipt_num or 'Submitted'} recorded by {request.user.get_full_name() or request.user.username}. Pending Operations/Admin verification.",
+            sender_user=request.user,
+        )
+        notify_roles(
+            [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT],
+            title=f"Loan Settlement Clearance Pending Approval — {loan.cluster.reference_code}",
+            message=f"Finance submitted settlement clearance advice #{receipt_num or 'Recorded'} for {loan.bank_name}. Requires Ops verification.",
+            level="warning",
+            link="/finance/loans/",
+            exclude_user=request.user,
+        )
+
         messages.success(
             request,
-            f"Bank loan facility for {loan.cluster.reference_code} marked as SETTLED. Bank Clearance Advice #{receipt_num or 'Recorded'}.",
+            f"Bank loan facility for {loan.cluster.reference_code} submitted for SETTLEMENT VERIFICATION. Bank Clearance Advice #{receipt_num or 'Recorded'}.",
         )
+    return redirect("finance:loan_list")
+
+
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+def verify_loan_creation(request, pk):
+    loan = get_object_or_404(CapitalLoan, pk=pk)
+    if request.method == "POST":
+        action = request.POST.get("action", "approve").lower()
+        notes = request.POST.get("verification_notes", "").strip()
+
+        loan.verified_by = request.user
+        loan.verified_at = timezone.now()
+        loan.verification_notes = notes
+
+        from chat.views import send_system_notification
+
+        if action == "approve":
+            loan.status = CapitalLoan.Status.ACTIVE
+            loan.save()
+            send_system_notification(
+                loan.cluster,
+                f"Capital Loan facility ₱{loan.principal:,.2f} CREATION VERIFIED & APPROVED by {request.user.get_full_name() or request.user.username}. Interest tracking active.",
+                sender_user=request.user,
+            )
+            messages.success(request, f"Approved Capital Loan facility for {loan.cluster.reference_code}. Facility is now ACTIVE.")
+        else:
+            loan.status = CapitalLoan.Status.REJECTED
+            loan.save()
+            send_system_notification(
+                loan.cluster,
+                f"Capital Loan creation REJECTED by {request.user.get_full_name() or request.user.username}. Reason: {notes or 'No reason specified'}",
+                sender_user=request.user,
+            )
+            messages.warning(request, f"Rejected Capital Loan creation for {loan.cluster.reference_code}.")
+
+    return redirect("finance:loan_list")
+
+
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+def verify_loan_settlement(request, pk):
+    loan = get_object_or_404(CapitalLoan, pk=pk)
+    if request.method == "POST":
+        action = request.POST.get("action", "approve").lower()
+        notes = request.POST.get("verification_notes", "").strip()
+
+        loan.verified_by = request.user
+        loan.verified_at = timezone.now()
+        if notes:
+            loan.verification_notes = notes
+
+        from chat.views import send_system_notification
+
+        if action == "approve":
+            loan.status = CapitalLoan.Status.CLOSED
+            loan.save()
+            send_system_notification(
+                loan.cluster,
+                f"Capital Loan settlement clearance VERIFIED & CLOSED by {request.user.get_full_name() or request.user.username}. Facility is officially SETTLED.",
+                sender_user=request.user,
+            )
+            messages.success(request, f"Verified and closed Capital Loan settlement for {loan.cluster.reference_code}.")
+        else:
+            loan.status = CapitalLoan.Status.ACTIVE
+            loan.save()
+            send_system_notification(
+                loan.cluster,
+                f"Capital Loan settlement REJECTED by {request.user.get_full_name() or request.user.username}. Facility returned to Active status.",
+                sender_user=request.user,
+            )
+            messages.warning(request, f"Rejected settlement for {loan.cluster.reference_code}. Facility returned to Active status.")
+
     return redirect("finance:loan_list")
 
 

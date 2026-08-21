@@ -90,9 +90,12 @@ def home(request):
         status=TransactionCluster.Status.CLOSED
     ).count()
 
-    # ── Loan exposure ────────────────────────────────────────────────────
+    # ── Loan exposure & verification queue ──────────────────────────────
     active_loans = CapitalLoan.objects.filter(status=CapitalLoan.Status.ACTIVE)
     overdue_loans = CapitalLoan.objects.filter(status=CapitalLoan.Status.OVERDUE).count()
+    pending_verification_loans_count = CapitalLoan.objects.filter(
+        status__in=[CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.PENDING_SETTLEMENT]
+    ).count()
     total_loan_exposure = active_loans.aggregate(total=Sum("principal"))["total"] or Decimal("0")
 
     # ── Monthly chart data (from invoice issued_at dates) ────────────────
@@ -177,11 +180,42 @@ def home(request):
     profit_display = _format_millions(net_profit)
     pending_display = _format_millions(pending_receivables)
 
+    # ── Role-Specific Custom Metrics & Queues ─────────────────────────────
+    user_role = request.user.role if hasattr(request.user, "role") and request.user.role else "administrator"
+
+    # Operations role metrics
+    active_shipments_count = LogisticsLedger.objects.filter(
+        cluster__status__in=[TransactionCluster.Status.ACTIVE, TransactionCluster.Status.DRAFT]
+    ).count()
+    disputed_shortages_count = variance_alert_count
+    
+    from operations.models import MolassesReleaseOrder
+    mro_mill_balances = []
+    for mill_name in ["BUSCO", "HAWAIIAN", "BISCOM", "CASA", "LOPEZ"]:
+        tons_sum = MolassesReleaseOrder.objects.filter(
+            Q(sugar_mill_name__icontains=mill_name) | Q(sugar_mill__name__icontains=mill_name)
+        ).aggregate(total=Sum("tons"))["total"] or Decimal("0")
+        mro_mill_balances.append({"name": mill_name, "tons": float(tons_sum)})
+
+    # Finance role metrics
+    vouchers_count = CashVoucher.objects.count()
+    vouchers_total = CashVoucher.objects.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    vouchers_display = _format_millions(vouchers_total)
+    loans_total_display = _format_millions(total_loan_exposure)
+    recent_loans = CapitalLoan.objects.select_related("cluster").order_by("-created_at")[:5]
+
+    # Invoicing role metrics
+    draft_invoices_count = Invoice.objects.filter(status=Invoice.Status.DRAFT).count()
+    issued_invoices_count = Invoice.objects.filter(status=Invoice.Status.ISSUED).count()
+    overdue_invoices_count = unpaid_invoices
+    pending_invoices_list = Invoice.objects.exclude(status=Invoice.Status.PAID).select_related("cluster", "cluster__client").order_by("-issued_at")[:8]
+
     return render(
         request,
         "dashboard/home.html",
         {
-            # Status card values
+            # Core & Status card values
+            "user_role": user_role,
             "open_clusters": open_clusters,
             "total_transactions": total_transactions,
             "draft_count": draft_count,
@@ -202,6 +236,25 @@ def home(request):
             # Delivery stats
             "delivered_clusters": delivered_clusters,
             "active_clusters": active_clusters,
+            # Operations specific
+            "active_shipments_count": active_shipments_count,
+            "disputed_shortages_count": disputed_shortages_count,
+            "mro_mill_balances": mro_mill_balances,
+            # Finance specific
+            "vouchers_count": vouchers_count,
+            "vouchers_display": vouchers_display,
+            "overdue_loans": overdue_loans,
+            "pending_verification_loans_count": pending_verification_loans_count,
+            "total_loan_exposure": total_loan_exposure,
+            "total_loan_exposure_fmt": _format_millions(total_loan_exposure),
+            "loans_total_display": loans_total_display,
+            "recent_loans": recent_loans,
+            # Invoicing specific
+            "draft_invoices_count": draft_invoices_count,
+            "unpaid_invoices": unpaid_invoices,
+            "issued_invoices_count": issued_invoices_count,
+            "overdue_invoices_count": overdue_invoices_count,
+            "pending_invoices_list": pending_invoices_list,
             # Chart data (JSON-safe)
             "chart_months_json": json.dumps(chart_months),
             "revenue_data_json": json.dumps(revenue_data),

@@ -44,15 +44,22 @@
             </nav>
             <div class="user-block">
                 <div class="user-row">
+                    {% if user.avatar %}
+                    <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="rounded-circle me-2" style="width: 36px; height: 36px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2);">
+                    {% else %}
                     <div class="user-avatar">{{ user.username|slice:":1"|upper }}</div>
+                    {% endif %}
                     <div>
-                        <div class="user-name">{{ user.username }}</div>
+                        <a href="{% url 'accounts:profile' %}" class="user-name text-decoration-none text-white hover-underline" title="User Profile & Personalization">{{ user.get_full_name|default:user.username }}</a>
                         <div class="user-role">{{ user_role }}</div>
                     </div>
                 </div>
-                <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
-                    <button class="btn-logout" type="submit">Logout</button>
-                </form>
+                <div class="d-flex gap-1 mt-2">
+                    <a href="{% url 'accounts:profile' %}" class="btn btn-sm btn-outline-light flex-grow-1 py-1 fs-7" title="My Profile"><i class="bi bi-person-gear"></i> Profile</a>
+                    <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+                        <button class="btn-logout" type="submit">Logout</button>
+                    </form>
+                </div>
             </div>
         </aside>
         <div class="sidebar-backdrop" data-sidebar-backdrop></div>
@@ -67,7 +74,31 @@
                         <div class="topbar-subtitle">Integrated procurement and financial tracking</div>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.85rem;">
+                    <!-- Notification Bell Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn-theme-toggle text-decoration-none position-relative" type="button" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" title="System Alerts & Notifications" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
+                            <i class="bi bi-bell-fill"></i>
+                            <span id="unreadNotifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;">0</span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg border-0" aria-labelledby="notifDropdownBtn" style="width: 340px; max-height: 420px; overflow-y: auto;">
+                            <div class="p-3 bg-primary text-white d-flex justify-content-between align-items-center rounded-top">
+                                <span class="fw-bold fs-7"><i class="bi bi-bell me-1"></i> System Notifications</span>
+                                <button type="button" class="btn btn-sm btn-link text-white text-decoration-none p-0 fs-7" id="markNotifsReadBtn">Mark all read</button>
+                            </div>
+                            <div id="notifList" class="list-group list-group-flush fs-7">
+                                <div class="p-4 text-center text-muted">No unread notifications</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a href="{% url 'chat:room' %}" class="btn-theme-toggle text-decoration-none position-relative" title="Employee Chat & Collaboration" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem;">
+                        <i class="bi bi-chat-dots-fill"></i>
+                        <span id="unreadChatBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;">0</span>
+                    </a>
+                    <a href="{% url 'accounts:profile' %}" class="btn-theme-toggle text-decoration-none" title="User Profile & Avatar" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem;">
+                        <i class="bi bi-person-circle"></i>
+                    </a>
                     <button type="button" class="btn-theme-toggle" id="helpGuideBtn" title="Start Guided Tour" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
                         <i class="bi bi-question-circle"></i>
                     </button>
@@ -172,6 +203,89 @@
                         }
                     });
                 }
+
+                // Poll unread chat notifications for active authenticated user
+                const badge = document.getElementById('unreadChatBadge');
+                if (badge) {
+                    function updateUnreadBadge() {
+                        fetch("{% url 'chat:api_unread' %}")
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.status === "success" && data.unread_count > 0) {
+                                    badge.textContent = data.unread_count;
+                                    badge.classList.remove('d-none');
+                                } else {
+                                    badge.classList.add('d-none');
+                                }
+                            })
+                            .catch(err => {});
+                    }
+                    updateUnreadBadge();
+                    setInterval(updateUnreadBadge, 10000);
+                }
+
+                // Poll real-time system notifications
+                function fetchNotifications() {
+                    fetch("{% url 'audit:api_notifications' %}")
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === "success") {
+                                const notifBadge = document.getElementById("unreadNotifBadge");
+                                const notifList = document.getElementById("notifList");
+                                if (notifBadge) {
+                                    if (data.unread_count > 0) {
+                                        notifBadge.textContent = data.unread_count;
+                                        notifBadge.classList.remove("d-none");
+                                    } else {
+                                        notifBadge.classList.add("d-none");
+                                    }
+                                }
+                                if (notifList && data.notifications) {
+                                    if (data.notifications.length === 0) {
+                                        notifList.innerHTML = `<div class="p-4 text-center text-muted">No unread notifications</div>`;
+                                    } else {
+                                        let html = "";
+                                        data.notifications.forEach(n => {
+                                            let badgeClass = "bg-info-subtle text-info";
+                                            if (n.level === "warning") badgeClass = "bg-warning-subtle text-warning-emphasis";
+                                            if (n.level === "danger") badgeClass = "bg-danger-subtle text-danger";
+                                            if (n.level === "success") badgeClass = "bg-success-subtle text-success";
+
+                                            html += `
+                                                <a href="${n.link}" class="list-group-item list-group-item-action p-2 text-start">
+                                                    <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                                        <span class="badge ${badgeClass} px-2 py-0 fs-8">${n.level.toUpperCase()}</span>
+                                                        <small class="text-muted" style="font-size: 0.7rem;">${n.created_at}</small>
+                                                    </div>
+                                                    <div class="fw-bold text-dark mb-1" style="font-size: 0.82rem;">${n.title}</div>
+                                                    <div class="text-muted" style="font-size: 0.78rem; line-height: 1.3;">${n.message}</div>
+                                                </a>`;
+                                        });
+                                        notifList.innerHTML = html;
+                                    }
+                                }
+                            }
+                        })
+                        .catch(err => console.error("Notif error:", err));
+                }
+
+                const markBtn = document.getElementById("markNotifsReadBtn");
+                if (markBtn) {
+                    markBtn.addEventListener("click", function(e) {
+                        e.preventDefault();
+                        fetch("{% url 'audit:api_mark_notifications_read' %}", {
+                            method: "POST",
+                            headers: {
+                                "X-CSRFToken": "{{ csrf_token }}"
+                            }
+                        })
+                        .then(res => res.json())
+                        .then(() => fetchNotifications());
+                    });
+                }
+
+                fetchNotifications();
+                setInterval(fetchNotifications, 10000);
             });
         })();
     </script>

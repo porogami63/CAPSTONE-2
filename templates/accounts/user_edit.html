@@ -1,0 +1,68 @@
+{% extends "app_base.html" %}
+{% load role_tags %}
+{% block title %}Edit User Role · HTC Core{% endblock %}
+{% block topbar_title %}User Account Settings{% endblock %}
+
+{% block content %}
+<div class="page-header flex-between compact mb-3">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-pencil-square text-primary me-2"></i>Edit User Account: {{ target_user.username }}</h2>
+        <p class="text-muted mb-0">Modify user full name, email, system role, and access status</p>
+    </div>
+    <div>
+        <a href="{% url 'accounts:user_list' %}" class="btn-htc-outline"><i class="bi bi-arrow-left me-1"></i> Back to User List</a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="post">{% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">First Name</label>
+                            {{ form.first_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Last Name</label>
+                            {{ form.last_name }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label font-weight-bold">Email Address</label>
+                            {{ form.email }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label font-weight-bold">Assigned System Role</label>
+                            {{ form.role }}
+                            <div class="form-text mt-1 text-muted">
+                                <strong>Role Access Guide:</strong><br>
+                                • <strong>Administrator:</strong> Full system access, User Management, database administration.<br>
+                                • <strong>Operations Management:</strong> Executive access to Operations, Logistics, MRO Summary, Finance, and Invoicing.<br>
+                                • <strong>Finance:</strong> Access to Loans, Payment Reconciliations, Invoicing, and Financial Reports.<br>
+                                • <strong>Invoicing:</strong> Access to Invoicing, Transactions, MRO Summary, and Documents.
+                            </div>
+                        </div>
+                        <div class="col-md-6 mt-3">
+                            <div class="form-check form-switch">
+                                {{ form.is_active }}
+                                <label class="form-check-label font-weight-bold ms-2" for="{{ form.is_active.id_for_label }}">Active User Account</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mt-3">
+                            <div class="form-check form-switch">
+                                {{ form.is_staff }}
+                                <label class="form-check-label font-weight-bold ms-2" for="{{ form.is_staff.id_for_label }}">Staff Status (Django Admin Access)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-top d-flex justify-content-end gap-2">
+                        <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save User Profile</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

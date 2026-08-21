@@ -254,6 +254,181 @@
     </button>
 </div>
 
+<!-- PENDING LOAN VERIFICATION QUEUE FOR OPS MGMT & ADMIN -->
+{% if pending_verification_count > 0 %}
+<div class="card mb-4 border-warning shadow-sm">
+    <div class="card-header bg-warning-subtle py-3 flex-between">
+        <h6 class="mb-0 font-weight-bold text-warning-emphasis">
+            <i class="bi bi-shield-exclamation text-warning me-2 fs-5"></i> Dual-Authorization Loan Verification Queue
+        </h6>
+        <span class="badge bg-warning text-dark font-weight-bold fs-6">{{ pending_verification_count }} Action Pending</span>
+    </div>
+    <div class="card-body p-3">
+        {% if pending_creation_loans %}
+        <div class="mb-3">
+            <strong class="text-uppercase text-muted fs-7 d-block mb-2 font-weight-bold"><i class="bi bi-plus-circle-fill text-primary me-1"></i> Loans Awaiting Creation Verification ({{ pending_creation_loans|length }})</strong>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle bg-white border rounded mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr class="text-uppercase text-muted fs-7">
+                            <th>Facility Reference</th>
+                            <th>Bank & Account</th>
+                            <th>Principal Amount</th>
+                            <th>Deposit Funded</th>
+                            <th>Logged By / Date</th>
+                            <th class="text-end">Verification Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p_loan in pending_creation_loans %}
+                        <tr>
+                            <td><strong class="text-primary">{{ p_loan.cluster.reference_code }}</strong></td>
+                            <td>{{ p_loan.bank_name }} <small class="text-muted d-block">Acct: {{ p_loan.bank_account_number|default:"—" }}</small></td>
+                            <td class="fw-bold">₱{{ p_loan.principal|floatformat:2|intcomma }}</td>
+                            <td>{{ p_loan.logistics_deposit_percentage }}% (₱{{ p_loan.funded_logistics_deposit|floatformat:2|intcomma }})</td>
+                            <td class="text-muted">{{ p_loan.created_at|date:"M d, Y, h:i A" }}</td>
+                            <td class="text-end">
+                                {% if user|has_perm:"verify_loan" %}
+                                <button type="button" class="btn btn-sm btn-success px-3" data-bs-toggle="modal" data-bs-target="#verifyCreationModal{{ p_loan.pk }}">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Verify & Approve
+                                </button>
+                                {% else %}
+                                <span class="badge bg-light text-muted border">Requires Ops Mgmt / Admin Approval</span>
+                                {% endif %}
+
+                                <!-- VERIFY CREATION MODAL -->
+                                <div class="modal fade" id="verifyCreationModal{{ p_loan.pk }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content text-start">
+                                            <form method="post" action="{% url 'finance:verify_loan_creation' p_loan.pk %}">{% csrf_token %}
+                                                <div class="modal-header">
+                                                    <h6 class="modal-title font-weight-bold"><i class="bi bi-shield-check text-primary me-2"></i>Verify Loan Facility — {{ p_loan.bank_name }}</h6>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="alert alert-info py-2 px-3 fs-7 mb-3">
+                                                        <strong>Loan Audit Review:</strong> Contract: <strong>{{ p_loan.cluster.reference_code }}</strong> (Customer: {{ p_loan.cluster.client.name }}). Principal: <strong>₱{{ p_loan.principal|floatformat:2|intcomma }}</strong> @ {{ p_loan.interest_rate_annual }}% p.a.
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label font-weight-bold fs-7">Verification Notes / Audit Remarks</label>
+                                                        <textarea name="verification_notes" class="form-control" rows="2" placeholder="e.g. Verified contract PO terms and bank account, approval confirmed."></textarea>
+                                                    </div>
+                                                    <div class="d-flex gap-2">
+                                                        <button type="submit" name="action" value="approve" class="btn btn-success flex-grow-1"><i class="bi bi-check-lg me-1"></i> Approve & Activate Loan</button>
+                                                        <button type="submit" name="action" value="reject" class="btn btn-outline-danger"><i class="bi bi-x-lg me-1"></i> Reject</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if pending_settlement_loans %}
+        <div>
+            <strong class="text-uppercase text-muted fs-7 d-block mb-2 font-weight-bold"><i class="bi bi-file-earmark-check-fill text-info me-1"></i> Loans Awaiting Settlement Verification ({{ pending_settlement_loans|length }})</strong>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle bg-white border rounded mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr class="text-uppercase text-muted fs-7">
+                            <th>Facility Reference</th>
+                            <th>Bank Clearance Receipt #</th>
+                            <th>Principal + Accrued</th>
+                            <th>Proof Document</th>
+                            <th class="text-end">Settlement Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s_loan in pending_settlement_loans %}
+                        <tr>
+                            <td><strong class="text-primary">{{ s_loan.cluster.reference_code }}</strong></td>
+                            <td><strong class="text-dark">{{ s_loan.settlement_receipt_number|default:"—" }}</strong> <small class="text-muted d-block">{{ s_loan.settlement_date|date:"M d, Y" }}</small></td>
+                            <td>₱{{ s_loan.principal|floatformat:2|intcomma }} + <span class="text-danger">₱{{ s_loan.accrued_interest|floatformat:2|intcomma }}</span></td>
+                            <td>
+                                {% if s_loan.settlement_document %}
+                                <button type="button" class="btn btn-sm btn-outline-info py-0 px-2 fs-7" data-bs-toggle="modal" data-bs-target="#previewDocModal{{ s_loan.pk }}">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i> Preview PDF
+                                </button>
+
+                                <!-- DOCUMENT PREVIEW MODAL -->
+                                <div class="modal fade" id="previewDocModal{{ s_loan.pk }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                                        <div class="modal-content text-start">
+                                            <div class="modal-header">
+                                                <h6 class="modal-title font-weight-bold"><i class="bi bi-file-earmark-pdf text-info me-2"></i>Bank Release Clearance Advice — Receipt #{{ s_loan.settlement_receipt_number }}</h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body p-0" style="height: 520px; background: #525659;">
+                                                <iframe src="{{ s_loan.settlement_document.url }}" style="width: 100%; height: 100%; border: none;"></iframe>
+                                            </div>
+                                            <div class="modal-footer py-2 flex-between">
+                                                <small class="text-muted">Linked Contract: {{ s_loan.cluster.reference_code }}</small>
+                                                <div>
+                                                    <a href="{{ s_loan.settlement_document.url }}" target="_blank" download class="btn btn-sm btn-outline-primary"><i class="bi bi-download me-1"></i> Download PDF</a>
+                                                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted fs-7">No file uploaded</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if user|has_perm:"verify_loan" %}
+                                <button type="button" class="btn btn-sm btn-info text-white px-3" data-bs-toggle="modal" data-bs-target="#verifySettlementModal{{ s_loan.pk }}">
+                                    <i class="bi bi-shield-check me-1"></i> Verify Settlement Clearance
+                                </button>
+                                {% else %}
+                                <span class="badge bg-light text-muted border">Requires Ops Mgmt / Admin Approval</span>
+                                {% endif %}
+
+                                <!-- VERIFY SETTLEMENT MODAL -->
+                                <div class="modal fade" id="verifySettlementModal{{ s_loan.pk }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content text-start">
+                                            <form method="post" action="{% url 'finance:verify_loan_settlement' s_loan.pk %}">{% csrf_token %}
+                                                <div class="modal-header">
+                                                    <h6 class="modal-title font-weight-bold"><i class="bi bi-shield-check text-info me-2"></i>Verify Loan Settlement — {{ s_loan.cluster.reference_code }}</h6>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="alert alert-success py-2 px-3 fs-7 mb-3">
+                                                        <strong>Bank Clearance Verification:</strong> Advice Receipt #: <strong>{{ s_loan.settlement_receipt_number }}</strong>. Confirming that bank facility has been fully paid off and settled.
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label font-weight-bold fs-7">Verification Audit Notes</label>
+                                                        <textarea name="verification_notes" class="form-control" rows="2" placeholder="e.g. Verified clearance receipt and bank deposit slip. Loan officially closed."></textarea>
+                                                    </div>
+                                                    <div class="d-flex gap-2">
+                                                        <button type="submit" name="action" value="approve" class="btn btn-success flex-grow-1"><i class="bi bi-check-lg me-1"></i> Approve & Close Facility</button>
+                                                        <button type="submit" name="action" value="reject" class="btn btn-outline-danger"><i class="bi bi-x-lg me-1"></i> Reject Settlement</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Timeline Info Banner -->
 <div class="info-bar" data-step="3" data-intro="Each bank facility card displays real-time interest accrual, maturity timeline bars, paper cheque numbers, and settlement authorization controls.">
     <i class="bi bi-info-circle-fill"></i>
@@ -278,9 +453,17 @@
                     Contract Reference: <a href="{% url 'operations:cluster_detail' loan.cluster.pk %}" class="fw-bold text-decoration-none">{{ loan.cluster.reference_code }}</a>
                 </div>
                 <div class="card-subtext">
-                    {% if loan.status == 'closed' %}
+                    {% if loan.status == 'pending_creation' %}
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1">
+                            <i class="bi bi-clock-history me-1"></i> Pending Creation Approval
+                        </span>
+                    {% elif loan.status == 'pending_settlement' %}
+                        <span class="badge bg-info-subtle text-info border border-info px-2 py-1">
+                            <i class="bi bi-hourglass-split me-1"></i> Pending Settlement Approval
+                        </span>
+                    {% elif loan.status == 'closed' %}
                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                            <i class="bi bi-check-circle-fill me-1"></i> Settled
+                            <i class="bi bi-shield-check me-1"></i> Settled &amp; Closed
                             {% if loan.settlement_receipt_number %}
                                 · Receipt #{{ loan.settlement_receipt_number }}
                             {% endif %}
@@ -290,12 +473,25 @@
                                 <i class="bi bi-file-earmark-pdf"></i> View Release PDF
                             </a>
                         {% endif %}
-                    {% elif loan.is_overdue %}
+                    {% elif loan.status == 'rejected' %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1">
+                            <i class="bi bi-x-circle-fill me-1"></i> Verification Rejected
+                        </span>
+                    {% elif loan.is_overdue or loan.status == 'overdue' %}
                         <span class="text-urgent-red"><i class="bi bi-exclamation-triangle-fill"></i> Due Date: {{ loan.due_date|date:"M d, Y" }} (Overdue)</span>
                     {% else %}
-                        <span><i class="bi bi-calendar-event"></i> Due Date: <strong>{{ loan.due_date|date:"M d, Y" }}</strong> ({{ loan.days_remaining }} days left)</span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                            <i class="bi bi-check-circle-fill me-1"></i> Active Facility
+                        </span>
+                        <span class="ms-1 text-muted small"><i class="bi bi-calendar-event"></i> Due: <strong>{{ loan.due_date|date:"M d, Y" }}</strong> ({{ loan.days_remaining }} days left)</span>
                     {% endif %}
                 </div>
+                {% if loan.verified_by %}
+                <div class="card-subtext mt-1 text-muted" style="font-size: 0.73rem;">
+                    <i class="bi bi-shield-check text-success me-1"></i> Verified by <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y" }}
+                    {% if loan.verification_notes %}<span class="fst-italic">("{{ loan.verification_notes }}")</span>{% endif %}
+                </div>
+                {% endif %}
             </div>
 
             <div class="timeline-track-wrap">

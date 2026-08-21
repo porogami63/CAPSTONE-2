@@ -1,6 +1,7 @@
 from decimal import Decimal
 from datetime import date
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from simple_history.models import HistoricalRecords
@@ -52,9 +53,12 @@ class CashVoucher(models.Model):
 
 class CapitalLoan(models.Model):
     class Status(models.TextChoices):
-        ACTIVE = "active", "Active"
-        CLOSED = "closed", "Closed"
+        PENDING_CREATION = "pending_creation", "Pending Creation Approval"
+        ACTIVE = "active", "Active Facility"
+        PENDING_SETTLEMENT = "pending_settlement", "Pending Settlement Approval"
+        CLOSED = "closed", "Settled & Closed"
         OVERDUE = "overdue", "Overdue"
+        REJECTED = "rejected", "Verification Rejected"
 
     cluster = models.ForeignKey(TransactionCluster, on_delete=models.CASCADE, related_name="loans")
     bank_name = models.CharField(max_length=120)
@@ -75,11 +79,21 @@ class CapitalLoan(models.Model):
         default=Decimal("50.00"),
         help_text="Percentage of upfront logistics deposit funded (Default 50%)",
     )
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.PENDING_CREATION)
     settlement_receipt_number = models.CharField(max_length=100, blank=True, help_text="Bank Release Advice / Official Receipt Number")
     settlement_date = models.DateField(null=True, blank=True, help_text="Date facility was officially settled")
     settlement_document = models.FileField(upload_to="loan_settlements/", null=True, blank=True, help_text="Scanned soft copy of Bank Release Clearance Advice / Receipt")
     settlement_notes = models.TextField(blank=True, help_text="Notes on final loan settlement")
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verified_loans",
+        help_text="Operations Manager or Administrator who verified this loan",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verification_notes = models.TextField(blank=True, help_text="Audit notes on loan creation or settlement verification")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -1,9 +1,10 @@
+import csv
 from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -11,10 +12,11 @@ from accounts.decorators import role_required
 from accounts.models import User
 from finance.forms import CapitalLoanForm, CashVoucherForm, InvoiceForm
 from finance.models import CapitalLoan, CashVoucher, FinancialReconciliation, Invoice
-from masters.models import LogisticsPartner
+from django.http import HttpResponse
+from masters.models import LogisticsPartner, Planter
 
-from .forms import ExcelImportForm, LogisticsUpdateForm, TransactionClusterForm
-from .models import LogisticsLedger, PurchaseOrder, TransactionCluster
+from .forms import ExcelImportForm, LogisticsUpdateForm, TransactionClusterForm, MolassesReleaseOrderForm, MROExcelImportForm
+from .models import LogisticsLedger, PurchaseOrder, TransactionCluster, MolassesReleaseOrder, normalize_crop_year
 from .services.excel_import import (
     clear_operational_data,
     import_htc_summary,
@@ -125,7 +127,23 @@ def cluster_list(request):
 )
 def logistics_list(request):
     show_archived = request.GET.get("archived", "").lower() in ("1", "true")
-    ledgers = LogisticsLedger.objects.filter(is_archived=show_archived).select_related("cluster", "cluster__client", "partner").order_by("-updated_at")
+    q = request.GET.get("q", "").strip()
+    partner_id = request.GET.get("partner", "").strip()
+    status_filter = request.GET.get("status", "").strip()
+
+    ledgers_qs = LogisticsLedger.objects.filter(is_archived=show_archived).select_related("cluster", "cluster__client", "partner").order_by("-updated_at")
+
+    if q:
+        ledgers_qs = ledgers_qs.filter(
+            Q(cluster__reference_code__icontains=q) |
+            Q(cluster__client__name__icontains=q) |
+            Q(vessel_id__icontains=q) |
+            Q(partner__name__icontains=q)
+        )
+    if partner_id:
+        ledgers_qs = ledgers_qs.filter(partner_id=partner_id)
+
+    ledgers = list(ledgers_qs)
 
     in_transit_count = 0
     delivered_count = 0
@@ -195,6 +213,8 @@ def logistics_list(request):
             "sh_code": "SH-" + log.cluster.reference_code.split("-").pop(),
             "ref_code": log.cluster.reference_code,
             "customer": log.cluster.client.name,
+            "partner_name": log.partner.name if log.partner else "—",
+            "vessel_id": log.vessel_id or "—",
             "status": status,
             "sh_status_display": sh_status_display,
             "loaded_mt": float(log.loaded_volume_mt),
@@ -206,12 +226,26 @@ def logistics_list(request):
             "over_limit": over_limit,
             "pk": log.cluster.pk,
         }
+
+        # Apply status_filter if specified
+        if status_filter:
+            if status_filter == "transit" and status not in ("loading", "transit"):
+                continue
+            elif status_filter == "pending_review" and status != "pending_review":
+                continue
+            elif status_filter == "disputed" and status != "disputed":
+                continue
+            elif status_filter == "accepted" and status not in ("accepted", "delivered"):
+                continue
+
         shipments.append(item)
 
     transit_shipments = [s for s in shipments if s["status"] in ("loading", "transit")]
     pending_shipments = [s for s in shipments if s["status"] == "pending_review"]
     disputed_shipments = [s for s in shipments if s["status"] == "disputed"]
     accepted_shipments = [s for s in shipments if s["status"] in ("accepted", "delivered")]
+
+    available_partners = LogisticsPartner.objects.filter(is_active=True).order_by("name")
 
     return render(
         request,
@@ -228,8 +262,82 @@ def logistics_list(request):
             "pending_review_count": pending_review_count,
             "disputed_count": disputed_count,
             "tolerance_threshold": settings.VARIANCE_TOLERANCE_PERCENT,
+            "available_partners": available_partners,
+            "current_q": q,
+            "current_partner": partner_id,
+            "current_status": status_filter,
         },
     )
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def export_logistics_csv(request):
+    show_archived = request.GET.get("archived", "").lower() in ("1", "true")
+    q = request.GET.get("q", "").strip()
+    partner_id = request.GET.get("partner", "").strip()
+
+    ledgers_qs = LogisticsLedger.objects.filter(is_archived=show_archived).select_related("cluster", "cluster__client", "partner").order_by("-updated_at")
+
+    if q:
+        ledgers_qs = ledgers_qs.filter(
+            Q(cluster__reference_code__icontains=q) |
+            Q(cluster__client__name__icontains=q) |
+            Q(vessel_id__icontains=q) |
+            Q(partner__name__icontains=q)
+        )
+    if partner_id:
+        ledgers_qs = ledgers_qs.filter(partner_id=partner_id)
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="HTC_Logistics_Master_Ledger.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "Shipment Code",
+        "Contract Reference PO",
+        "Customer / Client",
+        "Logistics Partner",
+        "Vessel ID / Trip",
+        "Loaded Volume (MT)",
+        "Received Volume (MT)",
+        "Shrinkage (MT)",
+        "Shrinkage (%)",
+        "Variance Exceeded",
+        "Cluster Status",
+        "Last Updated",
+    ])
+
+    for log in ledgers_qs:
+        log._compute_variance()
+        shrinkage_mt = 0.0
+        shrinkage_pct = 0.0
+        if log.loaded_volume_mt and log.received_volume_mt is not None:
+            shrinkage_mt = float(log.loaded_volume_mt - log.received_volume_mt)
+            if float(log.loaded_volume_mt) > 0:
+                shrinkage_pct = (shrinkage_mt / float(log.loaded_volume_mt)) * 100.0
+
+        sh_code = "SH-" + log.cluster.reference_code.split("-").pop()
+        writer.writerow([
+            sh_code,
+            log.cluster.reference_code,
+            log.cluster.client.name,
+            log.partner.name if log.partner else "—",
+            log.vessel_id or "—",
+            float(log.loaded_volume_mt),
+            float(log.received_volume_mt) if log.received_volume_mt is not None else "Pending",
+            round(shrinkage_mt, 2),
+            round(shrinkage_pct, 2),
+            "YES" if log.variance_exceeds_tolerance else "NO",
+            log.cluster.get_status_display(),
+            log.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+        ])
+
+    return response
 
 
 @role_required(User.Role.MANAGEMENT)
@@ -379,7 +487,7 @@ def cluster_detail(request, pk):
     logistics_form = LogisticsUpdateForm(instance=getattr(cluster, "logistics", None))
     invoice_form = InvoiceForm()
     voucher_form = CashVoucherForm()
-    loan_form = CapitalLoanForm()
+    loan_form = CapitalLoanForm(user=request.user)
 
     # Collect Audit Trail
     audit_events = []
@@ -433,6 +541,15 @@ def update_logistics(request, pk):
                     request,
                     f"Variance alert: {logistics.variance_percent:.2f}% exceeds 1% tolerance.",
                 )
+                from audit.services import notify_roles
+                notify_roles(
+                    [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.MANAGEMENT],
+                    title=f"Shrinkage Tolerance Alert — {cluster.reference_code}",
+                    message=f"Receiving volume for {cluster.reference_code} incurred a variance of {logistics.variance_percent:.2f}%. Dispute flag active.",
+                    level="danger",
+                    link=f"/operations/{cluster.pk}/",
+                    exclude_user=request.user,
+                )
             else:
                 messages.success(request, "Logistics updated.")
             cluster.status = TransactionCluster.Status.DELIVERED
@@ -472,13 +589,49 @@ def add_voucher(request, pk):
 def add_loan(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
-        form = CapitalLoanForm(request.POST)
+        form = CapitalLoanForm(request.POST, user=request.user)
         if form.is_valid():
             loan = form.save(commit=False)
             loan.cluster = cluster
             loan._audit_user = request.user
+
+            # If user is authorized (Admin / Ops Mgmt) and explicitly selected ACTIVE, verify immediately.
+            # Otherwise, force PENDING_CREATION for verification workflow.
+            from accounts.permissions import user_has_perm
+            if user_has_perm(request.user, "verify_loan") and form.cleaned_data.get("status") == CapitalLoan.Status.ACTIVE:
+                loan.status = CapitalLoan.Status.ACTIVE
+                loan.verified_by = request.user
+                loan.verified_at = timezone.now()
+                loan.verification_notes = "Pre-approved active facility on creation."
+            else:
+                loan.status = CapitalLoan.Status.PENDING_CREATION
+
             loan.save()
-            messages.success(request, f"Capital loan facility from {loan.bank_name} recorded successfully.")
+
+            from chat.views import send_system_notification
+            from audit.services import notify_roles
+            if loan.status == CapitalLoan.Status.PENDING_CREATION:
+                send_system_notification(
+                    cluster,
+                    f"Capital loan facility ₱{loan.principal:,.2f} from {loan.bank_name} logged by {request.user.get_full_name() or request.user.username}. Pending Operations/Admin verification.",
+                    sender_user=request.user,
+                )
+                notify_roles(
+                    [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT],
+                    title=f"New Loan Facility Pending Approval — {loan.bank_name}",
+                    message=f"A ₱{loan.principal:,.2f} loan facility for {cluster.reference_code} requires verification.",
+                    level="warning",
+                    link="/finance/loans/",
+                    exclude_user=request.user,
+                )
+                messages.success(request, f"Capital loan facility from {loan.bank_name} recorded and submitted for VERIFICATION.")
+            else:
+                send_system_notification(
+                    cluster,
+                    f"Capital loan facility ₱{loan.principal:,.2f} from {loan.bank_name} logged as ACTIVE by {request.user.get_full_name() or request.user.username}.",
+                    sender_user=request.user,
+                )
+                messages.success(request, f"Capital loan facility from {loan.bank_name} recorded as ACTIVE facility.")
         else:
             messages.error(request, f"Failed to record loan facility: {form.errors.as_text()}")
     return redirect("operations:cluster_detail", pk=pk)
@@ -664,6 +817,218 @@ def upload_mro(request, pk):
     if redirect_url:
         return redirect(redirect_url)
     return redirect("operations:cluster_detail", pk=pk)
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS_MANAGER,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def mro_summary_view(request):
+    crop_year_filter = request.GET.get("crop_year", "").strip()
+    planter_filter = request.GET.get("planter", "").strip()
+    mill_filter = request.GET.get("mill", "").strip()
+    q = request.GET.get("q", "").strip()
+
+    mro_qs = MolassesReleaseOrder.objects.select_related("planter", "sugar_mill", "cluster").all()
+
+    # Get available filter dropdown options
+    available_crop_years = (
+        MolassesReleaseOrder.objects.values_list("crop_year", flat=True)
+        .distinct()
+        .order_by("-crop_year")
+    )
+    available_planters = Planter.objects.filter(mro_releases__isnull=False).distinct()
+    available_mills = (
+        MolassesReleaseOrder.objects.exclude(sugar_mill_name="")
+        .values_list("sugar_mill_name", flat=True)
+        .distinct()
+        .order_by("sugar_mill_name")
+    )
+
+    if crop_year_filter:
+        norm_cy = normalize_crop_year(crop_year_filter)
+        mro_qs = mro_qs.filter(Q(crop_year=crop_year_filter) | Q(crop_year=norm_cy))
+
+    if planter_filter:
+        mro_qs = mro_qs.filter(planter_id=planter_filter)
+
+    if mill_filter:
+        mro_qs = mro_qs.filter(Q(sugar_mill_name__iexact=mill_filter) | Q(sugar_mill__name__icontains=mill_filter))
+
+    if q:
+        mro_qs = mro_qs.filter(
+            Q(mro_number__icontains=q) |
+            Q(planter__name__icontains=q) |
+            Q(trader__icontains=q) |
+            Q(crop_year__icontains=q) |
+            Q(sugar_mill_name__icontains=q)
+        )
+
+    # Compute metric KPIs
+    total_tons = mro_qs.aggregate(total=Sum("tons"))["total"] or Decimal("0")
+    total_mro_count = mro_qs.values("mro_number").distinct().count()
+    distinct_mills_count = mro_qs.values("sugar_mill_name").distinct().count()
+    item_count = mro_qs.count()
+
+    # Calculate subtotal per MRO + Supplier + Crop Year group to reproduce column G "TOTAL" in the Excel sheet
+    mro_subtotals = {}
+    for item in mro_qs:
+        key = (item.mro_number, item.sugar_mill_name, item.crop_year)
+        mro_subtotals[key] = mro_subtotals.get(key, Decimal("0")) + item.tons
+
+    # Decorate items with group subtotal indicators
+    grouped_items = []
+    mro_group_items = {}
+
+    for item in mro_qs:
+        key = (item.mro_number, item.sugar_mill_name, item.crop_year)
+        if key not in mro_group_items:
+            mro_group_items[key] = []
+        mro_group_items[key].append(item)
+
+    # Build flat list with group totals attached
+    for key, items in mro_group_items.items():
+        group_subtotal = mro_subtotals[key]
+        for idx, item in enumerate(items):
+            is_last = (idx == len(items) - 1)
+            grouped_items.append({
+                "item": item,
+                "is_last_in_mro": is_last,
+                "mro_group_subtotal": group_subtotal if is_last else None,
+                "rowspan": len(items) if idx == 0 else 0,
+            })
+
+    create_form = MolassesReleaseOrderForm(initial={"trader": "HEINDRICH", "crop_year": crop_year_filter or "2024 - 25", "sugar_mill_name": mill_filter or "BUSCO"})
+    import_form = MROExcelImportForm(initial={"crop_year_override": crop_year_filter or "2024 - 25"})
+
+    context = {
+        "grouped_items": grouped_items,
+        "total_tons": total_tons,
+        "total_mro_count": total_mro_count,
+        "distinct_mills_count": distinct_mills_count,
+        "item_count": item_count,
+        "available_crop_years": available_crop_years,
+        "available_planters": available_planters,
+        "available_mills": available_mills,
+        "current_crop_year": crop_year_filter,
+        "current_planter": planter_filter,
+        "current_mill": mill_filter,
+        "q": q,
+        "create_form": create_form,
+        "import_form": import_form,
+    }
+    return render(request, "operations/mro_summary.html", context)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.OPERATIONS)
+def mro_create_view(request):
+    if request.method == "POST":
+        form = MolassesReleaseOrderForm(request.POST)
+        if form.is_valid():
+            mro = form.save()
+            messages.success(request, f"MRO Release Order entry #{mro.mro_number} ({mro.display_sugar_mill}) saved successfully.")
+            return redirect("operations:mro_summary")
+        else:
+            messages.error(request, "Error saving MRO entry. Please check the form values.")
+    return redirect("operations:mro_summary")
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.OPERATIONS)
+def mro_edit_view(request, pk):
+    mro = get_object_or_404(MolassesReleaseOrder, pk=pk)
+    if request.method == "POST":
+        form = MolassesReleaseOrderForm(request.POST, instance=mro)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Updated MRO #{mro.mro_number} ({mro.display_sugar_mill}).")
+            return redirect("operations:mro_summary")
+        else:
+            messages.error(request, "Error updating MRO entry.")
+    return redirect("operations:mro_summary")
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.OPERATIONS)
+def mro_delete_view(request, pk):
+    mro = get_object_or_404(MolassesReleaseOrder, pk=pk)
+    mro_num = mro.mro_number
+    planter_name = mro.planter.name
+    mro.delete()
+    messages.success(request, f"Deleted MRO item #{mro_num} ({planter_name}).")
+    return redirect("operations:mro_summary")
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.OPERATIONS)
+def mro_import_excel_view(request):
+    if request.method == "POST":
+        form = MROExcelImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = request.FILES["file"]
+            crop_override = form.cleaned_data.get("crop_year_override", "").strip() or "2024 - 25"
+
+            from .services.mro_import import import_mro_workbook
+            try:
+                created, updated = import_mro_workbook(file, default_crop_year=crop_override)
+                messages.success(request, f"Successfully imported MRO data across supplier sheets! ({created} created, {updated} updated)")
+            except Exception as e:
+                messages.error(request, f"Error importing MRO spreadsheet: {str(e)}")
+
+    return redirect("operations:mro_summary")
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS_MANAGER,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def mro_export_csv_view(request):
+    crop_year_filter = request.GET.get("crop_year", "").strip()
+    planter_filter = request.GET.get("planter", "").strip()
+    mill_filter = request.GET.get("mill", "").strip()
+    q = request.GET.get("q", "").strip()
+
+    mro_qs = MolassesReleaseOrder.objects.select_related("planter", "sugar_mill").all()
+    if crop_year_filter:
+        norm_cy = normalize_crop_year(crop_year_filter)
+        mro_qs = mro_qs.filter(Q(crop_year=crop_year_filter) | Q(crop_year=norm_cy))
+    if planter_filter:
+        mro_qs = mro_qs.filter(planter_id=planter_filter)
+    if mill_filter:
+        mro_qs = mro_qs.filter(Q(sugar_mill_name__iexact=mill_filter) | Q(sugar_mill__name__icontains=mill_filter))
+    if q:
+        mro_qs = mro_qs.filter(
+            Q(mro_number__icontains=q) |
+            Q(planter__name__icontains=q) |
+            Q(trader__icontains=q) |
+            Q(sugar_mill_name__icontains=q)
+        )
+
+    import csv
+    response = HttpResponse(content_type="text/csv")
+    filename = f"MRO_Release_Summary_{mill_filter or 'All_Suppliers'}_{crop_year_filter or 'All'}.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow(["SUPPLIER / MILL", "PLANTERS", "TONS", "DATE", "TRADER", "MRO #", "CROP YEAR"])
+
+    for item in mro_qs:
+        writer.writerow([
+            item.display_sugar_mill,
+            item.planter.name,
+            f"{item.tons:.5f}",
+            item.release_date.strftime("%m/%d/%Y") if item.release_date else "",
+            item.trader,
+            item.mro_number,
+            item.crop_year,
+        ])
+
+    return response
+
+
 
 
 

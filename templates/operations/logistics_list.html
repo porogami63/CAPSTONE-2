@@ -230,6 +230,30 @@
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
 
+    /* Scrollable Kanban Column Container */
+    .kanban-cards-body {
+        max-height: 580px;
+        overflow-y: auto;
+        padding-right: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+    .kanban-cards-body::-webkit-scrollbar {
+        width: 6px;
+    }
+    .kanban-cards-body::-webkit-scrollbar-track {
+        background: var(--htc-bg);
+        border-radius: 4px;
+    }
+    .kanban-cards-body::-webkit-scrollbar-thumb {
+        background: var(--htc-border-color, #cbd5e1);
+        border-radius: 4px;
+    }
+    .kanban-cards-body::-webkit-scrollbar-thumb:hover {
+        background: var(--htc-primary-light, #94a3b8);
+    }
+
     /* Shipment Card styles */
     .shipment-card {
         background: var(--htc-surface);
@@ -333,13 +357,51 @@
     .status-badge.pending_review { background-color: var(--htc-warning-bg); color: #c05621; }
 </style>
 
-<div class="page-header flex-start mb-4">
+<div class="page-header flex-between compact mb-3">
     <div>
-        <h2>Logistics Tracking</h2>
-        <p>Volume variance tracker — ±{{ tolerance_threshold|floatformat:1 }}% standard shrinkage tolerance</p>
+        <h2 class="mb-1"><i class="bi bi-truck text-primary me-2"></i>Logistics & Vessel Tracking</h2>
+        <p class="text-muted mb-0">Volume variance tracker — ±{{ tolerance_threshold|floatformat:1 }}% standard shrinkage tolerance</p>
     </div>
     <div class="engine-badge">
         <i class="bi bi-lightning-charge-fill"></i> variance engine active (±{{ tolerance_threshold|floatformat:1 }}%)
+    </div>
+</div>
+
+<!-- Search & Filtering Toolbar Bar -->
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Search PO #, Customer, Vessel, Partner..." value="{{ current_q }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="partner" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- All Logistics Partners --</option>
+                    {% for p in available_partners %}
+                    <option value="{{ p.id }}" {% if current_partner == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- All Status Swimlanes --</option>
+                    <option value="transit" {% if current_status == "transit" %}selected{% endif %}>In Transit / Loading</option>
+                    <option value="pending_review" {% if current_status == "pending_review" %}selected{% endif %}>Pending Review</option>
+                    <option value="disputed" {% if current_status == "disputed" %}selected{% endif %}>Disputed / Over Tolerance</option>
+                    <option value="accepted" {% if current_status == "accepted" %}selected{% endif %}>Accepted / Delivered</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary flex-grow-1"><i class="bi bi-funnel-fill me-1"></i> Filter</button>
+                <a href="{% url 'operations:export_logistics_csv' %}?q={{ current_q }}&partner={{ current_partner }}" class="btn btn-sm btn-outline-success text-nowrap" title="Export Filtered CSV"><i class="bi bi-file-earmark-excel-fill me-1"></i> CSV</a>
+                {% if current_q or current_partner or current_status %}
+                <a href="{% url 'operations:logistics_list' %}" class="btn btn-sm btn-outline-secondary" title="Reset Filters"><i class="bi bi-x-circle"></i></a>
+                {% endif %}
+            </div>
+        </form>
     </div>
 </div>
 
@@ -426,29 +488,33 @@
                 <span><i class="bi bi-truck me-1"></i> In Transit / Loading</span>
                 <span class="count-pill">{{ transit_shipments|length }}</span>
             </div>
-            {% for sh in transit_shipments %}
-            <div class="shipment-card">
-                <div class="shipment-card-header">
-                    <strong>{{ sh.sh_code }}</strong>
-                    <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search in transit..." onkeyup="filterColumnCards(this, 'colTransitBody')" style="font-size: 0.78rem;">
+            
+            <div class="kanban-cards-body" id="colTransitBody">
+                {% for sh in transit_shipments %}
+                <div class="shipment-card" data-search-text="{{ sh.sh_code|lower }} {{ sh.ref_code|lower }} {{ sh.customer|lower }} {{ sh.partner_name|lower }} {{ sh.vessel_id|lower }}">
+                    <div class="shipment-card-header">
+                        <strong>{{ sh.sh_code }}</strong>
+                        <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                    </div>
+                    <div class="shipment-customer">
+                        {{ sh.customer }}
+                        <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }} · {{ sh.partner_name }}</span>
+                    </div>
+                    <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                    <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width: {{ sh.prog_pct }}%;"></div></div>
+                    <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>Pending</span></div>
+                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val text-muted">Awaiting delivery</span></div>
+                    <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
+                        <i class="bi bi-pencil-square"></i> Update Receiving
+                    </a>
                 </div>
-                <div class="shipment-customer">
-                    {{ sh.customer }}
-                    <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }}</span>
+                {% empty %}
+                <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                    No shipments in transit.
                 </div>
-                <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
-                <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width: {{ sh.prog_pct }}%;"></div></div>
-                <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>Pending</span></div>
-                <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val text-muted">Awaiting delivery</span></div>
-                <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
-                    <i class="bi bi-pencil-square"></i> Update Receiving
-                </a>
+                {% endfor %}
             </div>
-            {% empty %}
-            <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
-                No shipments in transit.
-            </div>
-            {% endfor %}
         </div>
 
         <!-- Column 2: Pending Review -->
@@ -457,30 +523,34 @@
                 <span><i class="bi bi-hourglass-split me-1"></i> Pending Review</span>
                 <span class="count-pill">{{ pending_shipments|length }}</span>
             </div>
-            {% for sh in pending_shipments %}
-            <div class="shipment-card border-orange">
-                <div class="shipment-card-header">
-                    <strong>{{ sh.sh_code }}</strong>
-                    <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search pending..." onkeyup="filterColumnCards(this, 'colPendingBody')" style="font-size: 0.78rem;">
+
+            <div class="kanban-cards-body" id="colPendingBody">
+                {% for sh in pending_shipments %}
+                <div class="shipment-card border-orange" data-search-text="{{ sh.sh_code|lower }} {{ sh.ref_code|lower }} {{ sh.customer|lower }} {{ sh.partner_name|lower }} {{ sh.vessel_id|lower }}">
+                    <div class="shipment-card-header">
+                        <strong>{{ sh.sh_code }}</strong>
+                        <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                    </div>
+                    <div class="shipment-customer">
+                        {{ sh.customer }}
+                        <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }} · {{ sh.partner_name }}</span>
+                    </div>
+                    <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                    <div class="progress-bar-wrap"><div class="progress-bar-fill green" style="width: {{ sh.prog_pct }}%;"></div></div>
+                    <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
+                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                    <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
+                    <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
+                        <i class="bi bi-pencil-square"></i> Review Shipment
+                    </a>
                 </div>
-                <div class="shipment-customer">
-                    {{ sh.customer }}
-                    <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }}</span>
+                {% empty %}
+                <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                    No shipments pending review.
                 </div>
-                <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
-                <div class="progress-bar-wrap"><div class="progress-bar-fill green" style="width: {{ sh.prog_pct }}%;"></div></div>
-                <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
-                <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
-                <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
-                <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
-                    <i class="bi bi-pencil-square"></i> Review Shipment
-                </a>
+                {% endfor %}
             </div>
-            {% empty %}
-            <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
-                No shipments pending review.
-            </div>
-            {% endfor %}
         </div>
 
         <!-- Column 3: Disputed / Flagged -->
@@ -489,31 +559,35 @@
                 <span><i class="bi bi-exclamation-triangle-fill me-1"></i> Disputed / Flagged</span>
                 <span class="count-pill">{{ disputed_shipments|length }}</span>
             </div>
-            {% for sh in disputed_shipments %}
-            <div class="shipment-card border-red">
-                <div class="shipment-card-header">
-                    <strong>{{ sh.sh_code }}</strong>
-                    <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search disputed..." onkeyup="filterColumnCards(this, 'colDisputedBody')" style="font-size: 0.78rem;">
+
+            <div class="kanban-cards-body" id="colDisputedBody">
+                {% for sh in disputed_shipments %}
+                <div class="shipment-card border-red" data-search-text="{{ sh.sh_code|lower }} {{ sh.ref_code|lower }} {{ sh.customer|lower }} {{ sh.partner_name|lower }} {{ sh.vessel_id|lower }}">
+                    <div class="shipment-card-header">
+                        <strong>{{ sh.sh_code }}</strong>
+                        <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                    </div>
+                    <div class="shipment-customer">
+                        {{ sh.customer }}
+                        <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }} · {{ sh.partner_name }}</span>
+                    </div>
+                    <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                    <div class="progress-bar-wrap"><div class="progress-bar-fill red" style="width: {{ sh.prog_pct }}%;"></div></div>
+                    <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
+                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val red">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                    <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val red">{{ sh.over_limit|floatformat:2 }}% over limit</span></div>
+                    
+                    <button type="button" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; font-size: 0.73rem; color: var(--htc-accent); border-color: rgba(229,62,62,0.4);" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal" data-url="{% url 'operations:resolve_dispute' sh.pk %}" data-code="{{ sh.sh_code }}" data-customer="{{ sh.customer }}" data-mt="{{ sh.shrinkage_mt|floatformat:1 }}" data-pct="{{ sh.shrinkage_pct|floatformat:2 }}" onclick="setupDisputeModal(this)">
+                        <i class="bi bi-shield-exclamation"></i> Resolve Dispute
+                    </button>
                 </div>
-                <div class="shipment-customer">
-                    {{ sh.customer }}
-                    <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }}</span>
+                {% empty %}
+                <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                    No disputed shipments.
                 </div>
-                <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
-                <div class="progress-bar-wrap"><div class="progress-bar-fill red" style="width: {{ sh.prog_pct }}%;"></div></div>
-                <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
-                <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val red">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
-                <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val red">{{ sh.over_limit|floatformat:2 }}% over limit</span></div>
-                
-                <button type="button" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; font-size: 0.73rem; color: var(--htc-accent); border-color: rgba(229,62,62,0.4);" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal" data-url="{% url 'operations:resolve_dispute' sh.pk %}" data-code="{{ sh.sh_code }}" data-customer="{{ sh.customer }}" data-mt="{{ sh.shrinkage_mt|floatformat:1 }}" data-pct="{{ sh.shrinkage_pct|floatformat:2 }}" onclick="setupDisputeModal(this)">
-                    <i class="bi bi-shield-exclamation"></i> Resolve Dispute
-                </button>
+                {% endfor %}
             </div>
-            {% empty %}
-            <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
-                No disputed shipments.
-            </div>
-            {% endfor %}
         </div>
 
         <!-- Column 4: Accepted / Delivered -->
@@ -522,30 +596,34 @@
                 <span><i class="bi bi-check-circle-fill me-1"></i> Accepted / Delivered</span>
                 <span class="count-pill">{{ accepted_shipments|length }}</span>
             </div>
-            {% for sh in accepted_shipments %}
-            <div class="shipment-card">
-                <div class="shipment-card-header">
-                    <strong>{{ sh.sh_code }}</strong>
-                    <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search accepted..." onkeyup="filterColumnCards(this, 'colAcceptedBody')" style="font-size: 0.78rem;">
+
+            <div class="kanban-cards-body" id="colAcceptedBody">
+                {% for sh in accepted_shipments %}
+                <div class="shipment-card" data-search-text="{{ sh.sh_code|lower }} {{ sh.ref_code|lower }} {{ sh.customer|lower }} {{ sh.partner_name|lower }} {{ sh.vessel_id|lower }}">
+                    <div class="shipment-card-header">
+                        <strong>{{ sh.sh_code }}</strong>
+                        <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                    </div>
+                    <div class="shipment-customer">
+                        {{ sh.customer }}
+                        <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }} · {{ sh.partner_name }}</span>
+                    </div>
+                    <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                    <div class="progress-bar-wrap"><div class="progress-bar-fill green" style="width: {{ sh.prog_pct }}%;"></div></div>
+                    <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
+                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                    <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
+                    <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
+                        <i class="bi bi-file-earmark-text"></i> View Contract
+                    </a>
                 </div>
-                <div class="shipment-customer">
-                    {{ sh.customer }}
-                    <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }}</span>
+                {% empty %}
+                <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                    No completed shipments yet.
                 </div>
-                <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
-                <div class="progress-bar-wrap"><div class="progress-bar-fill green" style="width: {{ sh.prog_pct }}%;"></div></div>
-                <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
-                <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
-                <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
-                <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
-                    <i class="bi bi-file-earmark-text"></i> View Contract
-                </a>
+                {% endfor %}
             </div>
-            {% empty %}
-            <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
-                No completed shipments yet.
-            </div>
-            {% endfor %}
         </div>
 
     </div>
@@ -723,6 +801,22 @@ function setupDisputeModal(btn) {
         if (form) form.action = btn.dataset.url;
         if (subhead) subhead.textContent = `${btn.dataset.code} · ${btn.dataset.customer}`;
         if (valText) valText.textContent = `-${btn.dataset.mt} MT (-${btn.dataset.pct}%)`;
+    }
+}
+
+function filterColumnCards(inputEl, bodyId) {
+    const filter = inputEl.value.toLowerCase().trim();
+    const body = document.getElementById(bodyId);
+    if (!body) return;
+    const cards = body.getElementsByClassName('shipment-card');
+
+    for (let i = 0; i < cards.length; i++) {
+        const text = cards[i].getAttribute('data-search-text') || cards[i].innerText.toLowerCase();
+        if (text.includes(filter)) {
+            cards[i].style.display = 'block';
+        } else {
+            cards[i].style.display = 'none';
+        }
     }
 }
 </script>

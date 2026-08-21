@@ -1,0 +1,15 @@
+.git
+.gitignore
+.venv
+venv
+staticfiles
+media
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.vscode
+.claude
+.agents
+*.log

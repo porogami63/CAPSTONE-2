@@ -23,8 +23,9 @@ class Command(BaseCommand):
         self.stdout.write("Seeding HTC Core demo data...")
 
         users = [
-            ("admin", User.Role.MANAGEMENT, True),
-            ("operations", User.Role.OPERATIONS, False),
+            ("admin", User.Role.ADMINISTRATOR, True),
+            ("ops_mgmt", User.Role.OPERATIONS_MANAGEMENT, True),
+            ("operations", User.Role.OPERATIONS_MANAGEMENT, False),
             ("finance", User.Role.FINANCE, False),
             ("invoicing", User.Role.INVOICING, False),
         ]

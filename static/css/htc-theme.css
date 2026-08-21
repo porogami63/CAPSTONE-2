@@ -1510,6 +1510,10 @@ a:hover { text-decoration: underline; }
 
 .glass-login-card .form-label-htc {
     color: var(--htc-text);
+    text-align: left !important;
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 0.35rem !important;
 }
 
 .glass-login-card .form-control-htc {
@@ -1816,6 +1820,99 @@ ul.dropdown-menu li, .dropdown-menu li {
     font-size: 1.4rem;
     font-weight: 800;
     color: var(--htc-success);
+}
+
+/* ==========================================================================
+   Modern Login & Signup Page Overhaul
+   ========================================================================== */
+.login-page-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 20%, #1e293b 0%, #0f172a 100%);
+    padding: 2rem 1rem;
+}
+[data-theme="light"] .login-page-wrapper {
+    background: radial-gradient(circle at 50% 20%, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.glass-login-card {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 2.75rem 2.25rem;
+    width: 100%;
+    max-width: 440px;
+    text-align: center;
+    position: relative;
+}
+[data-theme="light"] .glass-login-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.login-brand-badge {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: #ffffff;
+    padding: 6px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    margin: 0 auto 1.25rem auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.login-brand-badge img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.login-company-name {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--htc-text);
+    margin-bottom: 0.35rem;
+}
+
+.input-password-wrapper {
+    position: relative;
+    width: 100%;
+    display: block;
+}
+.input-password-wrapper input {
+    width: 100% !important;
+    padding-right: 44px !important;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--htc-text-muted, #94a3b8);
+    cursor: pointer;
+    padding: 6px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    border-radius: 6px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+.password-toggle-btn:hover {
+    color: var(--htc-primary-light, #3b82f6);
+    background: rgba(59, 130, 246, 0.1);
 }
 
 

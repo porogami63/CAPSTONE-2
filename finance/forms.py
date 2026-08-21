@@ -59,12 +59,32 @@ class CapitalLoanForm(forms.ModelForm):
             "status": forms.Select(attrs={"class": "form-select-htc"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["cheque_number"].required = False
         self.fields["cheque_date"].required = False
         self.fields["bank_account_number"].required = False
         self.fields["logistics_deposit_percentage"].required = False
+
+        # Restrict status choices on loan addition:
+        # Default is PENDING_CREATION.
+        # Only Admins and Ops Managers can select between Pending Creation and Active Facility (pre-approved).
+        from accounts.permissions import user_has_perm
+        can_verify = user and user_has_perm(user, "verify_loan")
+
+        if can_verify:
+            self.fields["status"].choices = [
+                (CapitalLoan.Status.PENDING_CREATION, "Pending Creation Approval (Default)"),
+                (CapitalLoan.Status.ACTIVE, "Active Facility (Pre-Approved / Existing)"),
+            ]
+            self.fields["status"].initial = CapitalLoan.Status.PENDING_CREATION
+        else:
+            self.fields["status"].choices = [
+                (CapitalLoan.Status.PENDING_CREATION, "Pending Creation Approval"),
+            ]
+            self.fields["status"].initial = CapitalLoan.Status.PENDING_CREATION
+            self.fields["status"].disabled = True
+            self.fields["status"].required = False
 
 
 class PaymentExpenseMatchForm(forms.ModelForm):

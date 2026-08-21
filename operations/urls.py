@@ -7,6 +7,7 @@ app_name = "operations"
 urlpatterns = [
     path("", views.cluster_list, name="cluster_list"),
     path("logistics/", views.logistics_list, name="logistics_list"),
+    path("logistics/export/", views.export_logistics_csv, name="export_logistics_csv"),
     path("import/", views.import_excel, name="import_excel"),
     path("clear-database/", views.clear_database_view, name="clear_database"),
     path("new/", views.cluster_create, name="cluster_create"),
@@ -23,4 +24,11 @@ urlpatterns = [
     path("<uuid:pk>/archive/", views.archive_cluster, name="archive_cluster"),
     path("<uuid:pk>/unarchive/", views.unarchive_cluster, name="unarchive_cluster"),
     path("<uuid:pk>/upload-mro/", views.upload_mro, name="upload_mro"),
+    path("mro-summary/", views.mro_summary_view, name="mro_summary"),
+    path("mro-summary/create/", views.mro_create_view, name="mro_create"),
+    path("mro-summary/<int:pk>/edit/", views.mro_edit_view, name="mro_edit"),
+    path("mro-summary/<int:pk>/delete/", views.mro_delete_view, name="mro_delete"),
+    path("mro-summary/import/", views.mro_import_excel_view, name="mro_import_excel"),
+    path("mro-summary/export/", views.mro_export_csv_view, name="mro_export_csv"),
 ]
+

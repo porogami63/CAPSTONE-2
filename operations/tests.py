@@ -230,4 +230,64 @@ class DisputeResolutionTests(TestCase):
         self.assertEqual(ledger.resolution_type, "CONCEDED")
 
 
+class MROSummaryTests(TestCase):
+    def setUp(self):
+        from masters.models import Planter
+        from operations.models import MolassesReleaseOrder
+        self.user = User.objects.create_user(
+            username="ops_mro",
+            password="password123",
+            role=User.Role.OPERATIONS,
+            is_staff=True,
+        )
+        self.planter = Planter.objects.create(name="ABSFI", code="ABSFI")
+        self.mro = MolassesReleaseOrder.objects.create(
+            mro_number="000731",
+            planter=self.planter,
+            tons=913.11889,
+            trader="HEINDRICH",
+            crop_year="2024 - 25",
+        )
+
+    def test_mro_summary_view_renders(self):
+        self.client.login(username="ops_mro", password="password123")
+        response = self.client.get(reverse("operations:mro_summary"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Molasses Release Order Summary")
+        self.assertContains(response, "000731")
+        self.assertContains(response, "ABSFI")
+
+    def test_mro_create_and_delete(self):
+        self.client.login(username="ops_mro", password="password123")
+        url = reverse("operations:mro_create")
+        post_data = {
+            "mro_number": "000800",
+            "planter_name": "SGABI",
+            "tons": "500.25",
+            "crop_year": "2025 - 2026",
+            "trader": "HEINDRICH",
+        }
+        response = self.client.post(url, post_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        from operations.models import MolassesReleaseOrder
+        self.assertTrue(MolassesReleaseOrder.objects.filter(mro_number="000800").exists())
+
+        # Test deletion
+        new_mro = MolassesReleaseOrder.objects.get(mro_number="000800")
+        del_url = reverse("operations:mro_delete", kwargs={"pk": new_mro.pk})
+        del_response = self.client.post(del_url, follow=True)
+        self.assertEqual(del_response.status_code, 200)
+        self.assertFalse(MolassesReleaseOrder.objects.filter(mro_number="000800").exists())
+
+    def test_mro_export_csv(self):
+        self.client.login(username="ops_mro", password="password123")
+        response = self.client.get(reverse("operations:mro_export_csv"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertContains(response, "PLANTERS,TONS,DATE,TRADER,MRO #,CROP YEAR")
+        self.assertContains(response, "ABSFI")
+
+
+
 

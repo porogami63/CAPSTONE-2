@@ -392,7 +392,12 @@
                                 {{ loan_form.interest_rate_annual }}
                             </div>
                             <div class="col-md-6">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Status</label>
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">
+                                    Initial Verification Status
+                                    {% if not user|has_perm:"verify_loan" %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning ms-1" style="font-size: 0.65rem;">Auto-Submitted as Pending</span>
+                                    {% endif %}
+                                </label>
                                 {{ loan_form.status }}
                             </div>
                             <div class="col-md-6">

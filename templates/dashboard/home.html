@@ -317,34 +317,114 @@
 
 <div class="system-status-header">
     <div class="dashboard-title-group">
-        <span class="system-live-pill">System Live</span>
+        <span class="system-live-pill">
+            {% if user_role == 'administrator' %}Executive Command Center
+            {% elif user_role == 'operations_management' %}Operations & Logistics Center
+            {% elif user_role == 'finance' %}Finance & Treasury Center
+            {% else %}Billing & Revenue Desk{% endif %}
+        </span>
         <h2>HTC Core Dashboard</h2>
-        <p>Heindrich Trading Corporation — Molasses Operations Overview</p>
+        <p>
+            {% if user_role == 'administrator' %}Heindrich Trading Corporation — Complete Executive Overview
+            {% elif user_role == 'operations_management' %}Vessel dispatching, Sugar Mill release balances, loaded vs received volume MT
+            {% elif user_role == 'finance' %}Capital loans portfolio, cash vouchers, and financial contract reconciliations
+            {% else %}Customer invoice tracking, accounts receivable, and payment receipts{% endif %}
+        </p>
     </div>
-    <div class="last-sync-block" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;" data-step="2" data-intro="Generate and download PDF operational reports for 24-hour, 7-day, 30-day, or annual management audits.">
-        <div>
-            Last sync
-            <strong>{% if last_sync %}{{ last_sync|date:"d M Y, h:i A" }}{% else %}No data yet{% endif %}</strong>
+    <div class="last-sync-block" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.6rem;" data-step="2" data-intro="Generate and download PDF operational reports for management audits.">
+        <!-- Live Real-time Clock & Calendar Widget -->
+        <div class="d-flex align-items-center gap-2 bg-body-tertiary border rounded-3 px-3 py-1 shadow-sm" style="font-size: 0.85rem;">
+            <div class="d-flex align-items-center gap-1 text-primary fw-bold">
+                <i class="bi bi-calendar3"></i>
+                <span id="liveDashboardDate">--</span>
+            </div>
+            <span class="text-muted opacity-50">|</span>
+            <div class="d-flex align-items-center gap-1 text-dark fw-bold">
+                <i class="bi bi-clock text-muted"></i>
+                <span id="liveDashboardTime" class="font-monospace">--:--:--</span>
+            </div>
         </div>
-        <div class="dropdown">
-            <button class="btn-htc btn-htc-sm" style="background-color: var(--htc-surface); color: var(--htc-primary-light); border: 1px solid var(--htc-border); padding: 0.4rem 0.85rem; border-radius: 8px;" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-file-earmark-pdf-fill"></i> Generate PDF Report <i class="bi bi-chevron-down ms-1" style="font-size: 0.75rem;"></i>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="reportDropdown">
-                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}"><i class="bi bi-clock-history me-2 text-primary"></i> Last 24 Hours</a></li>
-                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}"><i class="bi bi-calendar-week me-2 text-info"></i> Last 7 Days</a></li>
-                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}"><i class="bi bi-calendar-month me-2 text-success"></i> Last 30 Days</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'year' %}"><i class="bi bi-calendar3 me-2 text-warning"></i> Annual Report</a></li>
-            </ul>
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="text-end">
+                <small class="text-muted" style="font-size: 0.75rem;">
+                    Last Data Sync 
+                    <i class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Last Sync shows the exact timestamp when operational data (Logistics receiving, MRO releases, excel imports, bank loans) was last updated in the system."></i>
+                </small>
+                <strong style="font-size: 0.82rem;">{% if last_sync %}{{ last_sync|date:"d M Y, h:i A" }}{% else %}No data yet{% endif %}</strong>
+            </div>
+            <div class="dropdown">
+                <button class="btn-htc btn-htc-sm" style="background-color: var(--htc-surface); color: var(--htc-primary-light); border: 1px solid var(--htc-border); padding: 0.4rem 0.85rem; border-radius: 8px;" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-file-earmark-pdf-fill"></i> Generate PDF Report <i class="bi bi-chevron-down ms-1" style="font-size: 0.75rem;"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="reportDropdown">
+                    <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}"><i class="bi bi-clock-history me-2 text-primary"></i> Last 24 Hours</a></li>
+                    <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}"><i class="bi bi-calendar-week me-2 text-info"></i> Last 7 Days</a></li>
+                    <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}"><i class="bi bi-calendar-month me-2 text-success"></i> Last 30 Days</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'year' %}"><i class="bi bi-calendar3 me-2 text-warning"></i> Annual Report</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Department Quick Action Shortcuts Bar -->
+<div class="card mb-3 border-0 shadow-sm bg-primary-subtle border-start border-4 border-primary">
+    <div class="card-body p-3 flex-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-lightning-charge-fill text-primary fs-4"></i>
+            <div>
+                <strong class="text-primary d-block lh-1">Department Quick Actions</strong>
+                <small class="text-muted fs-7">Frequent shortcuts for {{ user_role|title }} role</small>
+            </div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            {% if user_role == 'operations_management' or user_role == 'administrator' %}
+            {% if pending_verification_loans_count > 0 %}
+            <a href="{% url 'finance:loan_list' %}" class="btn btn-sm btn-warning text-dark font-weight-bold">
+                <i class="bi bi-shield-exclamation me-1"></i> Verify Pending Loans ({{ pending_verification_loans_count }})
+            </a>
+            {% endif %}
+            <a href="{% url 'operations:cluster_create' %}" class="btn btn-sm btn-primary font-weight-bold">
+                <i class="bi bi-plus-circle-fill me-1"></i> New Cluster Contract
+            </a>
+            <a href="{% url 'operations:mro_summary' %}" class="btn btn-sm btn-outline-primary bg-white">
+                <i class="bi bi-file-earmark-excel me-1"></i> Import MRO Release Sheet
+            </a>
+            <a href="{% url 'operations:logistics_list' %}" class="btn btn-sm btn-outline-secondary bg-white">
+                <i class="bi bi-truck me-1"></i> View In-Transit Shipments
+            </a>
+            {% endif %}
+
+            {% if user_role == 'finance' or user_role == 'administrator' %}
+            <a href="{% url 'finance:loan_list' %}" class="btn btn-sm btn-success font-weight-bold text-white">
+                <i class="bi bi-bank me-1"></i> Issue Capital Loan
+            </a>
+            <a href="{% url 'finance:loan_list' %}" class="btn btn-sm btn-outline-success bg-white">
+                <i class="bi bi-receipt-cutoff me-1"></i> Record Cash Voucher
+            </a>
+            <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-outline-secondary bg-white">
+                <i class="bi bi-cash-stack me-1"></i> Reconcile Payments
+            </a>
+            {% endif %}
+
+            {% if user_role == 'invoicing' or user_role == 'administrator' %}
+            <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-info font-weight-bold text-white">
+                <i class="bi bi-file-earmark-plus me-1"></i> Create Customer Invoice
+            </a>
+            <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-outline-info bg-white">
+                <i class="bi bi-check-circle me-1"></i> Record Payment Receipts
+            </a>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <div class="aggregation-bar">
-    <div class="left-info">Data Aggregation Layer – Click any card to see source rows</div>
+    <div class="left-info">Data Aggregation Layer – {{ user_role|title }} Specialized Metrics View</div>
     <div class="right-info">
-        <i class="bi bi-layers"></i> {{ total_transactions }} transaction{{ total_transactions|pluralize }} → 6 status cards
+        <i class="bi bi-layers"></i> {{ total_transactions }} transaction{{ total_transactions|pluralize }} → {{ user_role|title }} metrics
     </div>
 </div>
 
@@ -440,6 +520,118 @@
         </div>
     </div>
 </div>
+
+{% if user_role == 'operations_management' or user_role == 'administrator' %}
+<!-- Operations Management Specialized Widget: Sugar Mill MRO Release Allocations -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3 flex-between">
+        <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-building text-primary me-2"></i>Sugar Mill Supplier MRO Release Balances</h6>
+        <a href="{% url 'operations:mro_summary' %}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-7">View Full MRO Summary <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="card-body p-3">
+        <div class="row g-2">
+            {% for mro_mill in mro_mill_balances %}
+            <div class="col-md-2 col-6">
+                <div class="p-2 border rounded text-center bg-light">
+                    <small class="text-muted font-weight-bold d-block text-truncate" style="font-size: 0.75rem;">{{ mro_mill.name }}</small>
+                    <span class="fs-6 font-weight-bold text-primary">{{ mro_mill.tons|floatformat:2 }} <small class="text-muted">MT</small></span>
+                </div>
+            </div>
+            {% endfor %}
+            <div class="col-md-2 col-12">
+                <div class="p-2 border rounded text-center bg-primary-subtle text-primary">
+                    <small class="text-primary font-weight-bold d-block text-truncate" style="font-size: 0.75rem;">Total Mill Releases</small>
+                    <span class="fs-6 font-weight-bold">{{ total_volume_mt|floatformat:2 }} <small>MT</small></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if user_role == 'finance' or user_role == 'administrator' %}
+<!-- Finance Specialized Widget: Capital Loans & Cash Vouchers -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 flex-between">
+                <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-bank text-success me-2"></i>Capital Loans Portfolio Summary</h6>
+                <span class="badge bg-success-subtle text-success">{{ loans_total_display }} Total Exposure</span>
+            </div>
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2 fs-7">
+                    <span class="text-muted">Active Loans:</span>
+                    <strong class="text-dark">{{ active_loans|default:0 }}</strong>
+                </div>
+                <div class="d-flex align-items-center justify-content-between fs-7">
+                    <span class="text-muted">Overdue Loan Alerts:</span>
+                    <strong class="{% if overdue_loans > 0 %}text-danger{% else %}text-success{% endif %}">{{ overdue_loans }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 flex-between">
+                <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-receipt-cutoff text-info me-2"></i>Cash Vouchers Issued</h6>
+                <span class="badge bg-info-subtle text-info">{{ vouchers_display }} Disbursed</span>
+            </div>
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2 fs-7">
+                    <span class="text-muted">Total Vouchers Processed:</span>
+                    <strong class="text-dark">{{ vouchers_count }}</strong>
+                </div>
+                <div class="d-flex align-items-center justify-content-between fs-7">
+                    <span class="text-muted">Unmatched Reconciliations:</span>
+                    <strong class="text-warning">{{ unmatched_reconciliations }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if user_role == 'invoicing' or user_role == 'administrator' %}
+<!-- Invoicing Specialized Widget: Pending Invoices Queue -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3 flex-between">
+        <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-receipt text-info me-2"></i>Pending Accounts Receivable & Customer Invoices</h6>
+        <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-outline-info py-0 px-2 fs-7">View All Invoices <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light">
+                <tr class="text-uppercase text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                    <th>Invoice #</th>
+                    <th>Customer</th>
+                    <th>Amount (PHP)</th>
+                    <th>Issued Date</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in pending_invoices_list %}
+                <tr>
+                    <td><strong class="text-primary">{{ inv.invoice_number }}</strong></td>
+                    <td>{{ inv.cluster.client.name }}</td>
+                    <td class="fw-bold">₱{{ inv.amount|floatformat:2 }}</td>
+                    <td class="text-muted">{{ inv.issued_at|date:"M d, Y" }}</td>
+                    <td class="text-center">
+                        <span class="badge {% if inv.status == 'issued' %}bg-primary{% elif inv.status == 'overdue' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ inv.get_status_display }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-3">No pending customer invoices. All accounts settled!</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 
 {% if is_empty %}
 <!-- Empty State Message -->
@@ -647,6 +839,21 @@
             }
         });
     }
+
+    // Live Real-Time Clock & Calendar Ticker
+    function updateDashboardClock() {
+        const now = new Date();
+        const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+        const dateStr = now.toLocaleDateString('en-US', dateOptions);
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+        const dateEl = document.getElementById('liveDashboardDate');
+        const timeEl = document.getElementById('liveDashboardTime');
+        if (dateEl) dateEl.textContent = dateStr;
+        if (timeEl) timeEl.textContent = timeStr;
+    }
+    updateDashboardClock();
+    setInterval(updateDashboardClock, 1000);
 </script>
 {% endif %}
 {% endblock %}
