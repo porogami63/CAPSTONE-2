@@ -182,6 +182,9 @@ def home(request):
 
     # ── Role-Specific Custom Metrics & Queues ─────────────────────────────
     user_role = request.user.role if hasattr(request.user, "role") and request.user.role else "administrator"
+    role_override = request.GET.get("role") or request.GET.get("view_as")
+    if role_override in [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING]:
+        user_role = role_override
 
     # Operations role metrics
     active_shipments_count = LogisticsLedger.objects.filter(
