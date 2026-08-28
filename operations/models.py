@@ -43,14 +43,25 @@ class PurchaseOrder(models.Model):
         related_name="purchase_order",
     )
     volume_mt = models.DecimalField(max_digits=14, decimal_places=3)
-    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    unit_price = models.DecimalField("Supplier Sourcing Price (₱/MT)", max_digits=12, decimal_places=2)
+    selling_price = models.DecimalField("Customer Selling Price (₱/MT)", max_digits=12, decimal_places=2, null=True, blank=True, help_text="Unit price billed to customer")
     terms = models.CharField(max_length=200, blank=True)
+    brix_level = models.DecimalField("Brix Level (%)", max_digits=5, decimal_places=2, null=True, blank=True, help_text="Target / Verified Brix % quality level")
+    chai_specs = models.CharField("CHAI Specs", max_length=120, blank=True, help_text="Chemical / CHAI specifications")
     approved_at = models.DateTimeField(null=True, blank=True)
     history = HistoricalRecords()
 
     @property
     def total_value(self):
-        return self.volume_mt * self.unit_price
+        """Sourcing product cost paid to supplier."""
+        return (self.volume_mt or Decimal("0")) * (self.unit_price or Decimal("0"))
+
+    @property
+    def total_selling_value(self):
+        """Gross sales revenue billed to customer."""
+        if self.selling_price and self.volume_mt:
+            return self.volume_mt * self.selling_price
+        return Decimal("0")
 
     def __str__(self):
         return f"PO for {self.cluster.reference_code}"
@@ -73,7 +84,23 @@ class LogisticsLedger(models.Model):
         on_delete=models.CASCADE,
         related_name="logistics",
     )
-    partner = models.ForeignKey(LogisticsPartner, on_delete=models.PROTECT)
+    partner = models.ForeignKey(LogisticsPartner, on_delete=models.PROTECT, null=True, blank=True)
+    trucking_partner = models.ForeignKey(
+        LogisticsPartner,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trucking_ledgers",
+        help_text="Land Transport / Trucking Service Provider",
+    )
+    barge_partner = models.ForeignKey(
+        LogisticsPartner,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="barge_ledgers",
+        help_text="Marine Transport / Barging Service Provider",
+    )
     vessel_id = models.CharField(max_length=100, blank=True)
     loaded_volume_mt = models.DecimalField(max_digits=14, decimal_places=3)
     received_volume_mt = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
@@ -95,6 +122,8 @@ class LogisticsLedger(models.Model):
         blank=True,
     )
     resolution_notes = models.TextField(blank=True, default="")
+    waybill_file = models.FileField(upload_to="waybills/", null=True, blank=True, help_text="Scanned soft copy of Waybill")
+    dr_file = models.FileField(upload_to="delivery_receipts/", null=True, blank=True, help_text="Scanned soft copy of Delivery Receipt (DR)")
     updated_at = models.DateTimeField(auto_now=True)
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
@@ -161,6 +190,8 @@ class MolassesReleaseOrder(models.Model):
         related_name="mro_releases",
         help_text="Optional transaction cluster contract linkage",
     )
+    brix_level = models.DecimalField("Brix Level (%)", max_digits=5, decimal_places=2, null=True, blank=True, help_text="Brix quality level")
+    chai_specs = models.CharField("CHAI Specs", max_length=120, blank=True, help_text="Chemical / CHAI quality specs")
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,19 +1,14 @@
 {% extends "app_base.html" %}
 {% load role_tags %}
 {% block title %}User Management · HTC Core{% endblock %}
-{% block topbar_title %}User Roles & Accounts{% endblock %}
+{% block topbar_title %}User Management{% endblock %}
+{% block topbar_subtitle %}System roles (Administrator, Operations Management, Finance, Invoicing), active status & credentials{% endblock %}
 
 {% block content %}
-<div class="page-header flex-between compact mb-3">
-    <div>
-        <h2 class="mb-1"><i class="bi bi-people-fill text-primary me-2"></i>User Management</h2>
-        <p class="text-muted mb-0">System roles (Administrator, Operations Management, Finance, Invoicing), active status, and credentials</p>
-    </div>
-    <div>
-        <a href="{% url 'accounts:signup' %}" class="btn-htc" target="_blank">
-            <i class="bi bi-person-plus-fill me-1"></i> Register New User
-        </a>
-    </div>
+<div class="d-flex justify-content-end align-items-center mb-3">
+    <a href="{% url 'accounts:signup' %}" class="btn-htc" target="_blank">
+        <i class="bi bi-person-plus-fill me-1"></i> Register New User
+    </a>
 </div>
 
 <div class="card border-0 shadow-sm">

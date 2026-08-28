@@ -36,15 +36,17 @@ from django.db.models import Q
 )
 def cluster_list(request):
     show_archived = request.GET.get("archived", "").lower() in ("1", "true")
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip()
+    client_id = request.GET.get("client", "").strip()
+    mill_id = request.GET.get("mill", "").strip()
+    sort_by = request.GET.get("sort", "newest").strip()
+
     clusters_qs = (
         TransactionCluster.objects.filter(is_archived=show_archived)
         .select_related("client", "sugar_mill", "logistics", "logistics__partner")
         .prefetch_related("invoices", "purchase_order")
-        .order_by("reference_code")
     )
-
-    q = request.GET.get("q", "").strip()
-    status = request.GET.get("status", "").strip()
 
     if q:
         clusters_qs = clusters_qs.filter(
@@ -54,8 +56,21 @@ def cluster_list(request):
         )
     if status:
         clusters_qs = clusters_qs.filter(status=status)
+    if client_id:
+        clusters_qs = clusters_qs.filter(client_id=client_id)
+    if mill_id:
+        clusters_qs = clusters_qs.filter(sugar_mill_id=mill_id)
+
+    if sort_by == "oldest":
+        clusters_qs = clusters_qs.order_by("created_at")
+    else:
+        clusters_qs = clusters_qs.order_by("-created_at")
 
     clusters = list(clusters_qs)
+
+    from masters.models import Client, SugarMill
+    clients_list = list(Client.objects.filter(is_active=True).order_by("name"))
+    mills_list = list(SugarMill.objects.filter(is_active=True).order_by("name"))
 
     total_volume = 0.0
     combined_profit = 0.0
@@ -104,6 +119,11 @@ def cluster_list(request):
         total_revenue += fin["revenue"]
         total_profit += fin["profit"]
 
+    if sort_by == "highest_profit":
+        clusters.sort(key=lambda x: x.profit, reverse=True)
+    elif sort_by == "highest_volume":
+        clusters.sort(key=lambda x: x.vol_mt, reverse=True)
+
     avg_margin = round((total_profit / total_revenue) * 100, 1) if total_revenue > 0 else 0.0
 
     context = {
@@ -113,7 +133,12 @@ def cluster_list(request):
         "avg_margin": avg_margin,
         "total_transactions": total_transactions,
         "status_choices": TransactionCluster.Status.choices,
+        "clients_list": clients_list,
+        "mills_list": mills_list,
         "current_status": status,
+        "current_client": client_id,
+        "current_mill": mill_id,
+        "current_sort": sort_by,
         "q": q,
     }
     return render(request, "operations/cluster_list.html", context)
@@ -427,15 +452,25 @@ def cluster_create(request):
                     cluster=cluster,
                     volume_mt=form.cleaned_data["volume_mt"],
                     unit_price=form.cleaned_data["unit_price"],
+                    selling_price=form.cleaned_data.get("selling_price"),
                     terms=form.cleaned_data.get("terms", ""),
+                    brix_level=form.cleaned_data.get("brix_level"),
+                    chai_specs=form.cleaned_data.get("chai_specs", ""),
                     approved_at=timezone.now(),
                 )
                 default_partner = LogisticsPartner.objects.filter(is_active=True).first()
+                vol = form.cleaned_data["volume_mt"]
+                est_trucking_rate = form.cleaned_data.get("est_trucking_rate") or Decimal("0")
+                est_barge_rate = form.cleaned_data.get("est_barge_rate") or Decimal("0")
+                tracking_fee = vol * est_trucking_rate
+                barge_fee = vol * est_barge_rate
                 if default_partner:
                     LogisticsLedger.objects.create(
                         cluster=cluster,
                         partner=default_partner,
-                        loaded_volume_mt=form.cleaned_data["volume_mt"],
+                        loaded_volume_mt=vol,
+                        tracking_fees=tracking_fee,
+                        barge_fees=barge_fee,
                     )
                 FinancialReconciliation.objects.create(cluster=cluster)
             messages.success(request, f"Transaction cluster {cluster.reference_code} created.")
@@ -457,8 +492,22 @@ def cluster_edit(request, pk):
                 if po:
                     po.volume_mt = form.cleaned_data["volume_mt"]
                     po.unit_price = form.cleaned_data["unit_price"]
+                    po.selling_price = form.cleaned_data.get("selling_price")
                     po.terms = form.cleaned_data.get("terms", "")
+                    po.brix_level = form.cleaned_data.get("brix_level")
+                    po.chai_specs = form.cleaned_data.get("chai_specs", "")
                     po.save()
+                log = getattr(cluster, "logistics", None)
+                if log:
+                    vol = form.cleaned_data["volume_mt"]
+                    est_trucking_rate = form.cleaned_data.get("est_trucking_rate")
+                    est_barge_rate = form.cleaned_data.get("est_barge_rate")
+                    if est_trucking_rate is not None:
+                        log.tracking_fees = vol * est_trucking_rate
+                    if est_barge_rate is not None:
+                        log.barge_fees = vol * est_barge_rate
+                    log.loaded_volume_mt = vol
+                    log.save()
             messages.success(request, f"Updated contract parameters for {cluster.reference_code}.")
             return redirect("operations:cluster_detail", pk=cluster.pk)
     else:
@@ -512,6 +561,7 @@ def cluster_detail(request, pk):
             audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": f"Voucher {h.voucher_number}", "desc": f"Amount: {h.amount}"})
 
     audit_events.sort(key=lambda x: x["date"], reverse=True)
+    debrief = cluster_financials(cluster)
 
     return render(
         request,
@@ -523,6 +573,7 @@ def cluster_detail(request, pk):
             "voucher_form": voucher_form,
             "loan_form": loan_form,
             "audit_events": audit_events,
+            "debrief": debrief,
         },
     )
 
@@ -532,7 +583,7 @@ def update_logistics(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     logistics = get_object_or_404(LogisticsLedger, cluster=cluster)
     if request.method == "POST":
-        form = LogisticsUpdateForm(request.POST, instance=logistics)
+        form = LogisticsUpdateForm(request.POST, request.FILES, instance=logistics)
         if form.is_valid():
             form.save()
             logistics._compute_variance()
@@ -575,13 +626,25 @@ def add_invoice(request, pk):
 def add_voucher(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
+        # Enforce prerequisite: Cluster must have a linked Capital Loan Facility
+        active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_CREATION])
+        if not active_loans.exists():
+            messages.error(
+                request,
+                f"Prerequisite Error: Cash Vouchers / Outlays CANNOT be issued for deal {cluster.reference_code} until a Capital Loan Facility is created and linked.",
+            )
+            return redirect("operations:cluster_detail", pk=pk)
+
         form = CashVoucherForm(request.POST)
         if form.is_valid():
             voucher = form.save(commit=False)
             voucher.cluster = cluster
+            voucher.loan = active_loans.first()
             voucher._audit_user = request.user
             voucher.save()
-            messages.success(request, f"Cash voucher {voucher.voucher_number} recorded.")
+            messages.success(request, f"Cash voucher {voucher.voucher_number} recorded and linked to facility.")
+        else:
+            messages.error(request, "Error issuing cash voucher. Please check your inputs.")
     return redirect("operations:cluster_detail", pk=pk)
 
 

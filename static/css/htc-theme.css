@@ -1757,7 +1757,16 @@ ul.dropdown-menu li, .dropdown-menu li {
 
 .input-addon-group {
     display: flex;
-    align-items: center;
+    align-items: stretch;
+    width: 100%;
+}
+
+.input-addon-group .form-control-htc,
+.input-addon-group input {
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+    margin-bottom: 0;
 }
 
 .input-addon-group .addon {
@@ -1767,6 +1776,10 @@ ul.dropdown-menu li, .dropdown-menu li {
     padding: 0.65rem 0.85rem;
     font-size: 0.85rem;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
 }
 
 .input-addon-group .addon-prefix {
@@ -1781,12 +1794,18 @@ ul.dropdown-menu li, .dropdown-menu li {
     border-left: none;
 }
 
-.input-addon-group .form-control-htc.has-prefix {
+.input-addon-group .addon-prefix + .form-control-htc,
+.input-addon-group .addon-prefix + input,
+.input-addon-group .has-prefix {
     border-top-left-radius: 0 !important;
     border-bottom-left-radius: 0 !important;
 }
 
-.input-addon-group .form-control-htc.has-suffix {
+.input-addon-group .form-control-htc:first-child,
+.input-addon-group input:first-child,
+.input-addon-group .form-control-htc:not(:last-child),
+.input-addon-group input:not(:last-child),
+.input-addon-group .has-suffix {
     border-top-right-radius: 0 !important;
     border-bottom-right-radius: 0 !important;
 }
@@ -1914,5 +1933,249 @@ ul.dropdown-menu li, .dropdown-menu li {
     color: var(--htc-primary-light, #3b82f6);
     background: rgba(59, 130, 246, 0.1);
 }
+
+/* ==========================================================================
+   Role Identity & Context Banners
+   ========================================================================== */
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: var(--htc-surface);
+    border: 1px solid var(--htc-border);
+    color: var(--htc-text);
+}
+
+.role-badge-administrator {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.18), rgba(15, 23, 42, 0.5));
+    border-color: rgba(251, 191, 36, 0.45);
+    color: var(--htc-gold);
+}
+.role-badge-operations_management {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(15, 23, 42, 0.5));
+    border-color: rgba(16, 185, 129, 0.45);
+    color: var(--htc-success);
+}
+.role-badge-finance {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.18), rgba(15, 23, 42, 0.5));
+    border-color: rgba(96, 165, 250, 0.45);
+    color: var(--htc-primary-light);
+}
+.role-badge-invoicing {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.18), rgba(15, 23, 42, 0.5));
+    border-color: rgba(6, 182, 212, 0.45);
+    color: #38bdf8;
+}
+
+[data-theme="light"] .role-badge-administrator {
+    background: #fef3c7;
+    border-color: #fde68a;
+    color: #92400e;
+}
+[data-theme="light"] .role-badge-operations_management {
+    background: #d1fae5;
+    border-color: #a7f3d0;
+    color: #065f46;
+}
+[data-theme="light"] .role-badge-finance {
+    background: #dbeafe;
+    border-color: #bfdbfe;
+    color: #1e40af;
+}
+[data-theme="light"] .role-badge-invoicing {
+    background: #cff4fc;
+    border-color: #9eeaf9;
+    color: #055160;
+}
+
+.role-welcome-banner {
+    position: relative;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, var(--htc-surface), var(--htc-bg));
+    border: 1px solid var(--htc-border);
+    box-shadow: var(--htc-shadow);
+    overflow: hidden;
+}
+.role-welcome-banner::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--htc-primary-light);
+}
+.role-welcome-banner.banner-admin::before { background: var(--htc-gold); }
+.role-welcome-banner.banner-ops::before { background: var(--htc-success); }
+.role-welcome-banner.banner-finance::before { background: var(--htc-primary-light); }
+.role-welcome-banner.banner-invoicing::before { background: #06b6d4; }
+
+.hover-zoom-card {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
+}
+.hover-zoom-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.25) !important;
+    border-color: var(--htc-primary-light) !important;
+}
+
+/* ==========================================================================
+   Dashboard Hero Card & Floating Quick Action Dock Redesign
+   ========================================================================== */
+
+.dashboard-hero-card {
+    background: var(--htc-surface);
+    border: 1px solid var(--htc-border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+[data-theme="light"] .dashboard-hero-card {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+}
+
+.dashboard-hero-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--htc-text);
+    letter-spacing: -0.025em;
+    margin-bottom: 0.25rem;
+}
+
+.dashboard-role-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--htc-primary-light);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.dashboard-user-greeting {
+    font-size: 0.875rem;
+    color: var(--htc-text-muted);
+    margin-bottom: 0;
+}
+
+.dashboard-sync-text {
+    font-size: 0.8rem;
+    color: var(--htc-text-muted) !important;
+}
+
+/* Floating Quick Action Dock */
+.quick-action-dock {
+    background: var(--htc-sidebar-hover);
+    border: 1px solid var(--htc-border);
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .quick-action-dock {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+/* Button Hierarchy & Solid Fill Styles */
+.btn-action-primary {
+    background-color: #10b981 !important; /* Vibrant Emerald Green */
+    color: #ffffff !important;
+    border: none !important;
+    font-weight: 700 !important;
+    font-size: 0.85rem !important;
+    padding: 0.45rem 1.15rem !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
+    transition: all 0.2s ease !important;
+}
+.btn-action-primary:hover {
+    background-color: #059669 !important;
+    color: #ffffff !important;
+    transform: translateY(-1.5px) !important;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.45) !important;
+}
+
+.btn-action-primary-blue {
+    background-color: #1e40af !important; /* Deep Brand Blue */
+    color: #ffffff !important;
+    border: none !important;
+    font-weight: 700 !important;
+    font-size: 0.85rem !important;
+    padding: 0.45rem 1.15rem !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.35) !important;
+    transition: all 0.2s ease !important;
+}
+.btn-action-primary-blue:hover {
+    background-color: #1d4ed8 !important;
+    color: #ffffff !important;
+    transform: translateY(-1.5px) !important;
+    box-shadow: 0 6px 16px rgba(30, 64, 175, 0.45) !important;
+}
+
+.btn-action-secondary {
+    background-color: var(--htc-surface) !important;
+    color: var(--htc-text) !important;
+    border: 1px solid var(--htc-border) !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    padding: 0.45rem 1rem !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease !important;
+}
+[data-theme="light"] .btn-action-secondary {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+.btn-action-secondary:hover {
+    background-color: var(--htc-sidebar-hover) !important;
+    color: var(--htc-primary-light) !important;
+    border-color: var(--htc-primary-light) !important;
+    transform: translateY(-1px) !important;
+}
+[data-theme="light"] .btn-action-secondary:hover {
+    background-color: #f8fafc !important;
+    color: #2563eb !important;
+    border-color: #2563eb !important;
+}
+
+.action-icon {
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+
+
 
 

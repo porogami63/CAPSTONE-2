@@ -1,24 +1,20 @@
 {% extends "app_base.html" %}
+{% load humanize %}
 {% block title %}Suppliers & Customers · Molasses Trading{% endblock %}
 {% block topbar_title %}Suppliers & Customers{% endblock %}
+{% block topbar_subtitle %}Manage sugar mill suppliers and buyer client relationships{% endblock %}
 {% block content %}
-<div class="page-header compact flex-between align-items-center">
-    <div>
-        <h2>Suppliers & Customers</h2>
-        <p>Manage your sugar mill suppliers and buyer client relationships</p>
+<div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+    <div class="search-input-wrap" style="width: 240px;">
+        <i class="bi bi-search"></i>
+        <input type="text" id="partnerSearch" placeholder="Search supplier or customer..." class="form-control form-control-sm" onkeyup="filterPartners()">
     </div>
-    <div class="flex gap-2 align-items-center">
-        <div class="search-input-wrap" style="width: 240px;">
-            <i class="bi bi-search"></i>
-            <input type="text" id="partnerSearch" placeholder="Search supplier or customer..." class="form-control form-control-sm" onkeyup="filterPartners()">
-        </div>
-        <button type="button" class="btn-htc btn-htc-sm" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
-            <i class="bi bi-plus-lg"></i> Add Supplier
-        </button>
-        <button type="button" class="btn-htc btn-htc-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
-            <i class="bi bi-plus-lg"></i> Add Customer
-        </button>
-    </div>
+    <button type="button" class="btn-htc btn-htc-sm" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
+        <i class="bi bi-plus-lg"></i> Add Supplier
+    </button>
+    <button type="button" class="btn-htc btn-htc-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+        <i class="bi bi-plus-lg"></i> Add Customer
+    </button>
 </div>
 
 <div class="partners-split">
@@ -54,7 +50,7 @@
                 </div>
             </div>
             <div class="partner-stats text-end">
-                <strong class="d-block" style="font-size: 1.05rem;">{{ s.total_volume|floatformat:0 }} MT</strong>
+                <strong class="d-block" style="font-size: 1.05rem;">{{ s.total_volume|floatformat:3|intcomma }} MT</strong>
                 <span class="text-muted small">{{ s.txn_count }} transactions</span>
             </div>
         </a>
@@ -87,15 +83,15 @@
                 <div class="type text-muted small">{{ c.type }} · TIN: {{ c.tin }}</div>
                 <div class="mt-1 flex gap-2 align-items-center">
                     <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.7rem;">
-                        <i class="bi bi-cash-stack"></i> ₱{{ c.total_invoiced|floatformat:0 }} Invoiced
+                        <i class="bi bi-cash-stack"></i> ₱{{ c.total_invoiced|floatformat:2|intcomma }} Invoiced
                     </span>
                     <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">
-                        {{ c.paid_ratio }}% Paid
+                        {{ c.paid_ratio|floatformat:2 }}% Paid
                     </span>
                 </div>
             </div>
             <div class="partner-stats text-end">
-                <strong class="d-block" style="font-size: 1.05rem;">{{ c.total_volume|floatformat:0 }} MT</strong>
+                <strong class="d-block" style="font-size: 1.05rem;">{{ c.total_volume|floatformat:3|intcomma }} MT</strong>
                 <span class="text-muted small">{{ c.txn_count }} transactions</span>
             </div>
         </a>

@@ -24,6 +24,9 @@ services:
 
   web:
     build: .
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
@@ -47,6 +50,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/accounts/login/\")' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     networks:
       - htc_net
     volumes:
@@ -63,12 +72,16 @@ services:
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/media:ro
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     networks:
       - htc_net
 
   celery_worker:
     build: .
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     command: >
       sh -c "celery -A config worker -l INFO"
     environment:

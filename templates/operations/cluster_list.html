@@ -1,37 +1,32 @@
 {% extends "app_base.html" %}
-{% load role_tags %}
+{% load role_tags humanize %}
 {% block title %}Transactions · Molasses Trading{% endblock %}
 {% block topbar_title %}Transactions{% endblock %}
+{% block topbar_subtitle %}Purchase order management with immutable audit trail{% endblock %}
 {% block content %}
-<div class="page-header flex-start compact">
-    <div>
-        <h2>Transactions</h2>
-        <p>Purchase order management with immutable audit trail</p>
-    </div>
-    <div class="flex gap-2" style="align-items:center;">
-        <form method="post" action="{% url 'operations:bulk_archive_completed' %}" style="display:inline;" onsubmit="return confirm('Archive all closed and paid transactions?');">
-            {% csrf_token %}
-            <button type="submit" class="btn-htc-outline" title="Clear completed transactions to Archive"><i class="bi bi-archive"></i> Archive Completed</button>
-        </form>
-        <a href="{% url 'operations:archive_list' %}" class="btn-htc-outline" data-step="4" data-intro="Access historical completed contracts stored in the secure Archive Vault."><i class="bi bi-box-seam"></i> Archive Vault</a>
-        {% if user|has_perm:"create_transaction" %}
-        <a href="{% url 'operations:cluster_create' %}" class="btn-htc" data-step="3" data-intro="Create new standalone molasses trade contracts directly in the system."><i class="bi bi-plus-lg"></i> New Transaction</a>
-        {% endif %}
-    </div>
+<div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+    <form method="post" action="{% url 'operations:bulk_archive_completed' %}" style="display:inline;" onsubmit="return confirm('Archive all closed and paid transactions?');">
+        {% csrf_token %}
+        <button type="submit" class="btn-htc-outline" title="Clear completed transactions to Archive"><i class="bi bi-archive"></i> Archive Completed</button>
+    </form>
+    <a href="{% url 'operations:archive_list' %}" class="btn-htc-outline" data-step="4" data-intro="Access historical completed contracts stored in the secure Archive Vault."><i class="bi bi-box-seam"></i> Archive Vault</a>
+    {% if user|has_perm:"create_transaction" %}
+    <a href="{% url 'operations:cluster_create' %}" class="btn-htc" data-step="3" data-intro="Create new standalone molasses trade contracts directly in the system."><i class="bi bi-plus-lg"></i> New Transaction</a>
+    {% endif %}
 </div>
 
 <div class="metric-grid" data-step="1" data-intro="Overview metrics showing total molasses volume (MT), combined profit, average margin %, and active transaction count.">
     <div class="metric-box">
         <div class="label">Total Volume</div>
-        <div class="value">{{ total_volume|floatformat:0 }} MT</div>
+        <div class="value">{{ total_volume|floatformat:3|intcomma }} MT</div>
     </div>
     <div class="metric-box">
         <div class="label">Combined Profit</div>
-        <div class="value">₱{{ combined_profit|floatformat:2 }}M</div>
+        <div class="value">₱{{ combined_profit|floatformat:2|intcomma }}M</div>
     </div>
     <div class="metric-box">
         <div class="label">Avg. Margin</div>
-        <div class="value">{{ avg_margin }}%</div>
+        <div class="value">{{ avg_margin|floatformat:2 }}%</div>
     </div>
     <div class="metric-box">
         <div class="label">Transactions</div>
@@ -39,11 +34,12 @@
     </div>
 </div>
 
-<form method="get" class="filters-bar" data-step="2" data-intro="Filter transactions by status (Draft, Active, Delivered, Closed) or search by reference code, client, or sugar mill.">
-    <div class="search-input-wrap">
+<form method="get" class="filters-bar" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;" data-step="2" data-intro="Filter transactions by status, customer client, sugar mill supplier, sort order, or text search.">
+    <div class="search-input-wrap" style="flex: 1; min-width: 220px;">
         <i class="bi bi-search"></i>
-        <input type="text" name="q" value="{{ q }}" placeholder="Search by PO, Customer, or Supplier...">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search by PO code, Customer, or Sugar Mill...">
     </div>
+
     <div>
         <select name="status" class="filter-select" onchange="this.form.submit()">
             <option value="">All Statuses</option>
@@ -52,6 +48,39 @@
             {% endfor %}
         </select>
     </div>
+
+    <div>
+        <select name="client" class="filter-select" onchange="this.form.submit()">
+            <option value="">All Customers</option>
+            {% for client_obj in clients_list %}
+            <option value="{{ client_obj.pk }}" {% if current_client == client_obj.pk|stringformat:"s" %}selected{% endif %}>{{ client_obj.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div>
+        <select name="mill" class="filter-select" onchange="this.form.submit()">
+            <option value="">All Suppliers</option>
+            {% for mill_obj in mills_list %}
+            <option value="{{ mill_obj.pk }}" {% if current_mill == mill_obj.pk|stringformat:"s" %}selected{% endif %}>{{ mill_obj.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div>
+        <select name="sort" class="filter-select" onchange="this.form.submit()">
+            <option value="newest" {% if current_sort == "newest" or not current_sort %}selected{% endif %}>Sort: Newest First</option>
+            <option value="oldest" {% if current_sort == "oldest" %}selected{% endif %}>Sort: Oldest First</option>
+            <option value="highest_profit" {% if current_sort == "highest_profit" %}selected{% endif %}>Sort: Highest Profit</option>
+            <option value="highest_volume" {% if current_sort == "highest_volume" %}selected{% endif %}>Sort: Highest Volume</option>
+        </select>
+    </div>
+
+    {% if q or current_status or current_client or current_mill or current_sort and current_sort != 'newest' %}
+    <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; height: 38px; display: inline-flex; align-items: center; gap: 0.3rem;">
+        <i class="bi bi-x-circle"></i> Clear Filters
+    </a>
+    {% endif %}
 </form>
 
 <div class="tabs-row">
@@ -85,16 +114,16 @@
                         data-customer="{{ c.client.name }}"
                         data-supplier="{{ c.sugar_mill.name }}"
                         data-partner="{{ c.partner_name }}"
-                        data-qty="{{ c.vol_mt|floatformat:0 }} MT"
-                        data-total-value="₱{{ c.order_value|floatformat:0 }}"
-                        data-revenue="₱{{ c.revenue|floatformat:0 }}"
+                        data-qty="{{ c.vol_mt|floatformat:3|intcomma }} MT"
+                        data-total-value="₱{{ c.order_value|floatformat:2|intcomma }}"
+                        data-revenue="₱{{ c.revenue|floatformat:2|intcomma }}"
                         data-created="{{ c.created_at|date:'Y-m-d' }}"
                         data-updated="{{ c.updated_at|date:'Y-m-d' }}"
-                        data-purchase-price="₱{{ c.purchase_price|floatformat:0 }}/MT"
-                        data-selling-price="₱{{ c.selling_price|floatformat:0 }}/MT"
-                        data-profit="₱{{ c.profit|floatformat:0 }}"
-                        data-margin="{{ c.margin|floatformat:1 }}%"
-                        data-logistics="₱{{ c.logistics_cost|floatformat:0 }}"
+                        data-purchase-price="₱{{ c.purchase_price|floatformat:2|intcomma }}/MT"
+                        data-selling-price="₱{{ c.selling_price|floatformat:2|intcomma }}/MT"
+                        data-profit="₱{{ c.profit|floatformat:2|intcomma }}"
+                        data-margin="{{ c.margin|floatformat:2 }}%"
+                        data-logistics="₱{{ c.logistics_cost|floatformat:2|intcomma }}"
                         data-invoice="{{ c.invoice_number }}"
                         data-notes="{{ c.notes|escapejs }}"
                         data-variance="{{ c.variance_text }}"
@@ -105,10 +134,10 @@
                         <td><strong>{{ c.reference_code }}</strong></td>
                         <td>{{ c.client.name }}</td>
                         <td>{{ c.sugar_mill.name }}</td>
-                        <td>{{ c.vol_mt|floatformat:0 }}</td>
+                        <td>{{ c.vol_mt|floatformat:3|intcomma }}</td>
                         <td><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></td>
                         <td>₱{{ c.profit_m|floatformat:2 }}M</td>
-                        <td>{{ c.margin|floatformat:1 }}%</td>
+                        <td>{{ c.margin|floatformat:2 }}%</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--htc-text-muted);">No transaction records match search.</td></tr>
@@ -139,14 +168,14 @@
         </div>
 
         <div class="detail-section">
-            <div class="detail-section-title">Pricing & Profit</div>
-            <div class="detail-row"><span>Purchase Price</span><span id="panelPurchase">—</span></div>
-            <div class="detail-row"><span>Selling Price</span><span id="panelSelling">—</span></div>
-            <div class="detail-row"><span>Revenue</span><span id="panelRevenue">—</span></div>
-            <div class="detail-row"><span>Logistics Cost</span><span id="panelLogistics">—</span></div>
-            <div class="detail-row"><span>Total Profit</span><span id="panelProfit" style="color:var(--htc-success);font-weight:700;">—</span></div>
-            <div class="detail-row"><span>Order Value</span><span id="panelOrderValue">—</span></div>
-            <div class="detail-row"><span>Margin</span><span id="panelMargin">—</span></div>
+            <div class="detail-section-title">Pricing &amp; Profit Derivation</div>
+            <div class="detail-row"><span>Supplier Sourcing Price</span><span id="panelPurchase">—</span></div>
+            <div class="detail-row"><span>Customer Selling Price</span><span id="panelSelling">—</span></div>
+            <div class="detail-row"><span>Supplier Outlay (Cost)</span><span id="panelOrderValue">—</span></div>
+            <div class="detail-row"><span>Customer Sales (Revenue)</span><span id="panelRevenue">—</span></div>
+            <div class="detail-row"><span>Logistics Freight Cost</span><span id="panelLogistics">—</span></div>
+            <div class="detail-row"><span>Net Trade Profit</span><span id="panelProfit" style="color:var(--htc-success);font-weight:700;">—</span></div>
+            <div class="detail-row"><span>Net Margin</span><span id="panelMargin">—</span></div>
         </div>
 
         <div class="detail-section">

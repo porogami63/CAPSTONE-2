@@ -1,7 +1,8 @@
 {% extends "app_base.html" %}
 {% load role_tags %}
 {% block title %}{{ client.name }} · Customer Portfolio{% endblock %}
-{% block topbar_title %}Customer Portfolio · {{ client.name }}{% endblock %}
+{% block topbar_title %}Customer Portfolio{% endblock %}
+{% block topbar_subtitle %}{{ client.name }} — Buyer Account Profile & Transaction History{% endblock %}
 {% block content %}
 
 <div class="page-header flex-between compact mb-4">
@@ -37,19 +38,19 @@
 <div class="metric-grid mb-4">
     <div class="metric-box">
         <div class="label">Lifetime Volume</div>
-        <div class="value">{{ total_volume|floatformat:0 }} MT</div>
+        <div class="value">{{ total_volume|floatformat:3|intcomma }} MT</div>
     </div>
     <div class="metric-box">
         <div class="label">Total Invoiced Sales</div>
-        <div class="value">₱{{ total_invoiced|floatformat:0 }}</div>
+        <div class="value">₱{{ total_invoiced|floatformat:2|intcomma }}</div>
     </div>
     <div class="metric-box">
         <div class="label">Paid Receivables</div>
-        <div class="value text-success">₱{{ paid_invoiced|floatformat:0 }}</div>
+        <div class="value text-success">₱{{ paid_invoiced|floatformat:2|intcomma }}</div>
     </div>
     <div class="metric-box">
         <div class="label">Payment Promptness</div>
-        <div class="value text-primary">{{ paid_ratio }}%</div>
+        <div class="value text-primary">{{ paid_ratio|floatformat:2 }}%</div>
     </div>
 </div>
 
@@ -87,7 +88,7 @@
                             <td><strong><a href="{% url 'operations:cluster_detail' c.pk %}">{{ c.reference_code }}</a></strong></td>
                             <td>{{ c.sugar_mill.name }}</td>
                             <td><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></td>
-                            <td>{{ c.purchase_order.volume_mt|floatformat:0|default:"—" }} MT</td>
+                            <td>{{ c.purchase_order.volume_mt|floatformat:3|default:"—" }} MT</td>
                             <td>{{ c.created_at|date:"M d, Y" }}</td>
                         </tr>
                         {% empty %}

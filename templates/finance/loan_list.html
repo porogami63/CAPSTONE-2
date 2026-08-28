@@ -1,7 +1,8 @@
 {% extends "app_base.html" %}
 {% load role_tags humanize %}
 {% block title %}Finance & Loans · HTC Core{% endblock %}
-{% block topbar_title %}Financial Lifecycle & Cheque Ledger{% endblock %}
+{% block topbar_title %}Financial Operations & Cheque Ledger{% endblock %}
+{% block topbar_subtitle %}Multi-tiered financial lifecycle engine — loans, paper cheques, 50% deposits & settlement{% endblock %}
 
 {% block content %}
 <style>
@@ -208,14 +209,8 @@
     }
 </style>
 
-<div class="page-header flex-between compact mb-4">
-    <div>
-        <h2>Financial Operations & Cheque Ledger</h2>
-        <p class="text-muted mb-0">Multi-tiered financial lifecycle engine — loans, paper cheques, 50% upfront logistics deposits & settlement documentation</p>
-    </div>
-    <div>
-        <span class="clocks-badge"><i class="bi bi-clock-history"></i> Daily Aging Clocks Active</span>
-    </div>
+<div class="d-flex justify-content-end align-items-center mb-3">
+    <span class="clocks-badge"><i class="bi bi-clock-history"></i> Daily Aging Clocks Active</span>
 </div>
 
 <!-- TOP KPI CARDS -->

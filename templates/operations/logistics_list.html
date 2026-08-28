@@ -1,7 +1,8 @@
 {% extends "app_base.html" %}
-{% load role_tags %}
-{% block title %}Logistics Tracking · HTC Core{% endblock %}
-{% block topbar_title %}Logistics Tracking{% endblock %}
+{% load role_tags humanize %}
+{% block title %}Logistics & Shrinkage · Molasses Trading{% endblock %}
+{% block topbar_title %}Logistics & Vessel Tracking{% endblock %}
+{% block topbar_subtitle %}Volume variance tracker — ±{{ tolerance_threshold|floatformat:1 }}% standard shrinkage tolerance{% endblock %}
 
 {% block content %}
 <style>
@@ -357,11 +358,7 @@
     .status-badge.pending_review { background-color: var(--htc-warning-bg); color: #c05621; }
 </style>
 
-<div class="page-header flex-between compact mb-3">
-    <div>
-        <h2 class="mb-1"><i class="bi bi-truck text-primary me-2"></i>Logistics & Vessel Tracking</h2>
-        <p class="text-muted mb-0">Volume variance tracker — ±{{ tolerance_threshold|floatformat:1 }}% standard shrinkage tolerance</p>
-    </div>
+<div class="d-flex justify-content-end align-items-center mb-3">
     <div class="engine-badge">
         <i class="bi bi-lightning-charge-fill"></i> variance engine active (±{{ tolerance_threshold|floatformat:1 }}%)
     </div>
@@ -657,12 +654,12 @@
                         <td style="padding: 0.75rem 0.8rem; font-weight: 700;">{{ sh.sh_code }}</td>
                         <td style="padding: 0.75rem 0.8rem;">{{ sh.ref_code }}</td>
                         <td style="padding: 0.75rem 0.8rem;">{{ sh.customer }}</td>
-                        <td style="padding: 0.75rem 0.8rem;">{{ sh.loaded_mt|floatformat:1 }} MT</td>
+                        <td style="padding: 0.75rem 0.8rem;">{{ sh.loaded_mt|floatformat:3|intcomma }} MT</td>
                         <td style="padding: 0.75rem 0.8rem;">
                             {% if sh.received_mt == 'Pending' %}
                             <span class="text-muted">Pending</span>
                             {% else %}
-                            {{ sh.received_mt|floatformat:1 }} MT
+                            {{ sh.received_mt|floatformat:3|intcomma }} MT
                             {% endif %}
                         </td>
                         <td style="padding: 0.75rem 0.8rem; font-weight: 600;">

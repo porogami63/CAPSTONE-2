@@ -12,5 +12,6 @@ urlpatterns = [
     path("invoices/", views.invoice_list, name="invoice_list"),
     path("reconciliation/<uuid:pk>/", views.reconciliation_detail, name="reconciliation"),
     path("reconciliation/<uuid:pk>/match/", views.add_match, name="add_match"),
+    path("reconciliation/<uuid:cluster_pk>/match/<int:match_pk>/delete/", views.delete_match, name="delete_match"),
     path("invoice/<int:pk>/pdf/", views.download_invoice_pdf, name="download_invoice_pdf"),
 ]

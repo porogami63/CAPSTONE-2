@@ -56,26 +56,37 @@ PERMISSIONS = {
 }
 
 
+def _normalize_role(role_str: str) -> str:
+    if role_str == "operations":
+        return Role.OPERATIONS_MANAGEMENT
+    if role_str == "management":
+        return Role.ADMINISTRATOR
+    return role_str
+
+
 def user_has_perm(user, perm: str) -> bool:
     if not user.is_authenticated:
         return False
     if user.is_superuser:
         return True
+    role = _normalize_role(user.role)
     allowed = PERMISSIONS.get(perm, set())
-    return user.role in allowed
+    return role in allowed or user.role in allowed
 
 
 def get_user_permissions(user) -> set[str]:
     if user.is_superuser:
         return set(PERMISSIONS.keys())
-    return {p for p, roles in PERMISSIONS.items() if user.role in roles}
+    role = _normalize_role(user.role)
+    return {p for p, roles in PERMISSIONS.items() if role in roles or user.role in roles}
 
 
 def get_nav_items(user):
     if user.is_superuser:
-        items = NAV_ITEMS[Role.MANAGEMENT]
+        items = NAV_ITEMS[Role.ADMINISTRATOR]
     else:
-        items = NAV_ITEMS.get(user.role, NAV_ITEMS[Role.OPERATIONS])
+        role = _normalize_role(user.role)
+        items = NAV_ITEMS.get(role, NAV_ITEMS.get(Role.OPERATIONS_MANAGEMENT, CORE_NAV_ITEMS))
     return items
 
 

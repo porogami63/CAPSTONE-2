@@ -28,11 +28,14 @@
                     <div class="logo-sub" style="font-size: 0.68rem; line-height: 1.2;">Corporation</div>
                 </div>
             </div>
-            <nav>
+            <nav data-intro="Sidebar Navigation: Access your role-scoped Dashboard, Sourcing Contracts, Logistics Ledger, Invoicing, Capital Loan Facilities, and Master Data." data-step="1">
                 {% for url_name, label, icon, match_prefixes in nav_items %}
                 {% is_nav_active current_view_name url_name match_prefixes as active_status %}
                 <a class="nav-link {% if active_status %}active{% endif %}"
-                   href="{% url url_name %}">
+                   href="{% url url_name %}"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="right"
+                   title="{{ label }} Module">
                     <i class="bi {{ icon }}"></i> {{ label }}
                 </a>
                 {% endfor %}
@@ -51,7 +54,7 @@
                     {% endif %}
                     <div>
                         <a href="{% url 'accounts:profile' %}" class="user-name text-decoration-none text-white hover-underline" title="User Profile & Personalization">{{ user.get_full_name|default:user.username }}</a>
-                        <div class="user-role">{{ user_role }}</div>
+                        <div class="user-role role-badge-{{ user_role_code }}" style="font-size: 0.68rem; padding: 0.15rem 0.5rem; display: inline-block; margin-top: 0.25rem;">{{ user_role }}</div>
                     </div>
                 </div>
                 <div class="d-flex gap-1 mt-2">
@@ -71,10 +74,10 @@
                     </button>
                     <div>
                         <h1>{% block topbar_title %}HTC Core{% endblock %}</h1>
-                        <div class="topbar-subtitle">Integrated procurement and financial tracking</div>
+                        <div class="topbar-subtitle">{% block topbar_subtitle %}Integrated procurement & financial tracking{% endblock %}</div>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.85rem;">
+                <div style="display: flex; align-items: center; gap: 0.85rem;" data-intro="System Header Toolbar: Access real-time alerts, team chat, tour guide, theme toggle, and active user role badge." data-step="2">
                     <!-- Notification Bell Dropdown -->
                     <div class="dropdown">
                         <button class="btn-theme-toggle text-decoration-none position-relative" type="button" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" title="System Alerts & Notifications" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
@@ -99,13 +102,13 @@
                     <a href="{% url 'accounts:profile' %}" class="btn-theme-toggle text-decoration-none" title="User Profile & Avatar" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem;">
                         <i class="bi bi-person-circle"></i>
                     </a>
-                    <button type="button" class="btn-theme-toggle" id="helpGuideBtn" title="Start Guided Tour" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
+                    <button type="button" class="btn-theme-toggle" id="helpGuideBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Start Interactive Guided Tour" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
                         <i class="bi bi-question-circle"></i>
                     </button>
-                    <button type="button" class="btn-theme-toggle" id="themeToggleBtn" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
+                    <button type="button" class="btn-theme-toggle" id="themeToggleBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle Light / Dark Mode" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
                         <i class="bi bi-moon-stars-fill"></i>
                     </button>
-                    <span class="role-badge">{{ user_role }}</span>
+                    <span class="role-badge role-badge-{{ user_role_code }}">{{ user_role }}</span>
                 </div>
             </header>
             <main class="app-main">

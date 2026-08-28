@@ -14,7 +14,7 @@ class ChatModuleTests(TestCase):
         self.user1 = User.objects.create_user(username="alice", password="password123", role=User.Role.ADMINISTRATOR)
         self.user2 = User.objects.create_user(username="bob", password="password123", role=User.Role.OPERATIONS_MANAGEMENT)
 
-        self.client_obj = Client.objects.create(name="Test Client", code="TC01")
+        self.client_obj = Client.objects.create(name="Test Client")
         self.mill = SugarMill.objects.create(name="Test Sugar Mill")
         self.cluster = TransactionCluster.objects.create(
             reference_code="HTC-2026-001",

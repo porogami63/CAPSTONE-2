@@ -20,6 +20,8 @@ class Invoice(models.Model):
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     issued_at = models.DateField(default=date.today)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    tax_rate_vat = models.DecimalField("VAT Rate (%)", max_digits=5, decimal_places=2, default=Decimal("12.00"))
+    tax_rate_ewt = models.DecimalField("EWT Rate (%)", max_digits=5, decimal_places=2, default=Decimal("1.00"))
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_archived = models.BooleanField(default=False, db_index=True)
@@ -29,12 +31,51 @@ class Invoice(models.Model):
     class Meta:
         ordering = ["-issued_at"]
 
+    @property
+    def net_vat_base(self):
+        """Net Sales Base Amount excluding 12% VAT."""
+        if not self.amount:
+            return Decimal("0.00")
+        if self.tax_rate_vat > Decimal("0"):
+            divisor = Decimal("1.00") + (self.tax_rate_vat / Decimal("100.00"))
+            return (self.amount / divisor).quantize(Decimal("0.01"))
+        return self.amount
+
+    @property
+    def vat_amount(self):
+        """Output VAT Amount (12%)."""
+        if not self.amount or self.tax_rate_vat <= Decimal("0"):
+            return Decimal("0.00")
+        return (self.amount - self.net_vat_base).quantize(Decimal("0.01"))
+
+    @property
+    def ewt_amount(self):
+        """Creditable Expanded Withholding Tax (1% or 2% of Net Base)."""
+        if not self.amount or self.tax_rate_ewt <= Decimal("0"):
+            return Decimal("0.00")
+        return (self.net_vat_base * (self.tax_rate_ewt / Decimal("100.00"))).quantize(Decimal("0.01"))
+
+    @property
+    def net_amount_after_tax(self):
+        """Net Receivable Proceeds collected after EWT withholding."""
+        if not self.amount:
+            return Decimal("0.00")
+        return (self.amount - self.ewt_amount).quantize(Decimal("0.01"))
+
     def __str__(self):
         return self.invoice_number
 
 
 class CashVoucher(models.Model):
     cluster = models.ForeignKey(TransactionCluster, on_delete=models.CASCADE, related_name="cash_vouchers")
+    loan = models.ForeignKey(
+        "CapitalLoan",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cash_vouchers",
+        help_text="Capital Loan Facility backing this outlay",
+    )
     voucher_number = models.CharField(max_length=50, unique=True)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     purpose = models.CharField(max_length=200)

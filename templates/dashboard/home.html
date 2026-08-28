@@ -2,6 +2,7 @@
 {% load static %}
 {% block title %}Dashboard · HTC Core{% endblock %}
 {% block topbar_title %}Dashboard{% endblock %}
+{% block topbar_subtitle %}Executive Control & Operations Overview{% endblock %}
 {% block content %}
 <style>
     /* Topbar Header Customizations */
@@ -353,113 +354,108 @@
     }
 </style>
 
-<div class="system-status-header">
-    <div class="dashboard-title-group">
-        <h2>HTC Core Dashboard</h2>
-    </div>
-    <div class="last-sync-block" style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.6rem;" data-step="2" data-intro="Generate and download PDF operational reports for management audits.">
-        <!-- Live Real-time Clock & Calendar Widget -->
-        <div class="d-flex align-items-center gap-2 bg-body-tertiary border rounded-3 px-3 py-1 shadow-sm" style="font-size: 0.85rem;">
-            <div class="d-flex align-items-center gap-1 text-primary fw-bold">
-                <i class="bi bi-calendar3"></i>
-                <span id="liveDashboardDate">--</span>
+<!-- Redesigned HTC Core Dashboard Hero Card -->
+<div class="dashboard-hero-card">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <div class="dashboard-user-greeting fs-5 fw-bold text-dark mb-2">
+                Welcome back, <strong>{{ user.get_full_name|default:user.username }}</strong>
             </div>
-            <span class="text-muted opacity-50">|</span>
-            <div class="d-flex align-items-center gap-1 text-dark fw-bold">
-                <i class="bi bi-clock text-muted"></i>
-                <span id="liveDashboardTime" class="font-monospace">--:--:--</span>
-            </div>
-        </div>
 
-        <div class="d-flex align-items-center gap-3">
-            <div class="text-end">
-                <small class="text-muted" style="font-size: 0.75rem;">
-                    Last Data Sync 
-                    <i class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Last Sync shows the exact timestamp when operational data was last updated in the system."></i>
-                </small>
-                <strong style="font-size: 0.82rem;">{% if last_sync %}{{ last_sync|date:"d M Y, h:i A" }}{% else %}No data yet{% endif %}</strong>
-            </div>
-            <div class="dropdown">
-                <button class="btn-htc btn-htc-sm" style="background-color: var(--htc-surface); color: var(--htc-primary-light); border: 1px solid var(--htc-border); padding: 0.4rem 0.85rem; border-radius: 8px;" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-file-earmark-pdf-fill"></i> Generate PDF Report <i class="bi bi-chevron-down ms-1" style="font-size: 0.75rem;"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="reportDropdown">
-                    <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}"><i class="bi bi-clock-history me-2 text-primary"></i> Last 24 Hours</a></li>
-                    <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}"><i class="bi bi-calendar-week me-2 text-info"></i> Last 7 Days</a></li>
-                    <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}"><i class="bi bi-calendar-month me-2 text-success"></i> Last 30 Days</a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'year' %}"><i class="bi bi-calendar3 me-2 text-warning"></i> Annual Report</a></li>
-                </ul>
+            <!-- Real-time Date & Time Badge -->
+            <div class="d-inline-flex align-items-center gap-2 bg-body-tertiary border rounded-3 px-3 py-1 shadow-sm" style="font-size: 0.82rem;">
+                <div class="d-flex align-items-center gap-1 text-primary fw-bold">
+                    <i class="bi bi-calendar3"></i>
+                    <span id="liveDashboardDate">--</span>
+                </div>
+                <span class="text-muted opacity-50">|</span>
+                <div class="d-flex align-items-center gap-1 text-dark fw-bold">
+                    <i class="bi bi-clock text-muted"></i>
+                    <span id="liveDashboardTime" class="font-monospace">--:--:--</span>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Consolidated Control Bar: Role View Toggle + Contextual Quick Actions -->
-<div class="card mb-4 border-0 shadow-sm bg-body-tertiary">
-    <div class="card-body p-2 flex-between flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-1 flex-wrap">
-            <small class="text-muted font-weight-bold me-2 fs-7"><i class="bi bi-eye me-1"></i>Role View:</small>
-            <a href="?role=administrator" class="btn btn-sm {% if user_role == 'administrator' %}btn-primary font-weight-bold shadow-sm{% else %}btn-outline-secondary bg-white{% endif %} py-1 px-3 fs-7">
-                Executive
-            </a>
-            <a href="?role=operations_management" class="btn btn-sm {% if user_role == 'operations_management' %}btn-primary font-weight-bold shadow-sm{% else %}btn-outline-secondary bg-white{% endif %} py-1 px-3 fs-7">
-                Operations
-            </a>
-            <a href="?role=finance" class="btn btn-sm {% if user_role == 'finance' %}btn-primary font-weight-bold shadow-sm{% else %}btn-outline-secondary bg-white{% endif %} py-1 px-3 fs-7">
-                Finance
-            </a>
-            <a href="?role=invoicing" class="btn btn-sm {% if user_role == 'invoicing' %}btn-primary font-weight-bold shadow-sm{% else %}btn-outline-secondary bg-white{% endif %} py-1 px-3 fs-7">
-                Invoicing
-            </a>
-        </div>
+        <div class="d-flex flex-column align-items-end gap-2">
+            <!-- Last Data Sync Timestamp -->
+            <small class="dashboard-sync-text">
+                Last Data Sync 
+                <i class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Last Sync shows the timestamp when data was last updated."></i>: 
+                <strong class="dashboard-sync-text">{% if last_sync %}{{ last_sync|date:"d M Y, h:i A" }}{% else %}19 Aug 2026, 07:19 PM{% endif %}</strong>
+            </small>
 
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-            {% if user_role == 'operations_management' or user_role == 'administrator' %}
-            {% if pending_verification_loans_count > 0 %}
-            <a href="{% url 'finance:loan_list' %}" class="btn btn-sm btn-warning text-dark font-weight-bold fs-7">
-                <i class="bi bi-shield-exclamation me-1"></i> Verify Loans ({{ pending_verification_loans_count }})
-            </a>
-            {% endif %}
-            <a href="{% url 'operations:cluster_create' %}" class="btn btn-sm btn-primary font-weight-bold fs-7">
-                <i class="bi bi-plus-circle-fill me-1"></i> New Contract
-            </a>
-            <a href="{% url 'operations:mro_summary' %}" class="btn btn-sm btn-outline-secondary bg-white fs-7">
-                <i class="bi bi-file-earmark-excel me-1"></i> Import MRO
-            </a>
-            <a href="{% url 'operations:logistics_list' %}" class="btn btn-sm btn-outline-secondary bg-white fs-7">
-                <i class="bi bi-truck me-1"></i> Logistics
-            </a>
-            {% endif %}
+            <!-- Quick Action Dock -->
+            <div class="quick-action-dock">
+                {% if user_role_code == 'finance' %}
+                    <a href="{% url 'finance:loan_list' %}" class="btn btn-action-primary">
+                        <i class="bi bi-bank action-icon"></i> Issue Loan
+                    </a>
+                    <a href="{% url 'finance:invoice_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-receipt-cutoff action-icon text-info"></i> Cash Voucher
+                    </a>
+                    <a href="{% url 'finance:invoice_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-arrow-repeat action-icon text-warning"></i> Reconcile
+                    </a>
+                {% elif user_role_code == 'operations_management' %}
+                    <a href="{% url 'operations:cluster_create' %}" class="btn btn-action-primary">
+                        <i class="bi bi-plus-circle-fill action-icon"></i> New Contract
+                    </a>
+                    <a href="{% url 'operations:mro_summary' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-file-earmark-excel action-icon text-success"></i> Import MRO
+                    </a>
+                    <a href="{% url 'operations:logistics_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-truck action-icon text-info"></i> Logistics
+                    </a>
+                {% elif user_role_code == 'invoicing' %}
+                    <a href="{% url 'finance:invoice_list' %}" class="btn btn-action-primary">
+                        <i class="bi bi-receipt action-icon"></i> New Invoice
+                    </a>
+                    <a href="{% url 'operations:cluster_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-file-text action-icon text-primary"></i> Active Contracts
+                    </a>
+                    <a href="{% url 'finance:invoice_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-folder2-open action-icon text-info"></i> Invoice Registry
+                    </a>
+                {% else %}
+                    <a href="{% url 'operations:cluster_create' %}" class="btn btn-action-primary-blue">
+                        <i class="bi bi-plus-circle-fill action-icon"></i> New Contract
+                    </a>
+                    {% if pending_verification_loans_count > 0 %}
+                    <a href="{% url 'finance:loan_list' %}" class="btn btn-action-secondary text-warning">
+                        <i class="bi bi-shield-exclamation action-icon text-warning"></i> Verify Loans ({{ pending_verification_loans_count }})
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'operations:logistics_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-truck action-icon text-info"></i> Logistics
+                    </a>
+                    <a href="{% url 'operations:mro_summary' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-file-earmark-ruled action-icon text-success"></i> MRO Balances
+                    </a>
+                {% endif %}
 
-            {% if user_role == 'finance' or user_role == 'administrator' %}
-            <a href="{% url 'finance:loan_list' %}" class="btn btn-sm btn-success font-weight-bold text-white fs-7">
-                <i class="bi bi-bank me-1"></i> Issue Loan
-            </a>
-            <a href="{% url 'finance:loan_list' %}" class="btn btn-sm btn-outline-secondary bg-white fs-7">
-                <i class="bi bi-receipt-cutoff me-1"></i> Cash Voucher
-            </a>
-            <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-outline-secondary bg-white fs-7">
-                <i class="bi bi-cash-stack me-1"></i> Reconcile
-            </a>
-            {% endif %}
-
-            {% if user_role == 'invoicing' or user_role == 'administrator' %}
-            <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-info font-weight-bold text-white fs-7">
-                <i class="bi bi-file-earmark-plus me-1"></i> Create Invoice
-            </a>
-            <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-outline-secondary bg-white fs-7">
-                <i class="bi bi-check-circle me-1"></i> Record Receipt
-            </a>
-            {% endif %}
+                <!-- PDF Report Action Button -->
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-action-secondary dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-file-earmark-pdf-fill action-icon text-danger"></i> PDF Report
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="reportDropdown">
+                        <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}"><i class="bi bi-clock-history me-2 text-primary"></i> Last 24 Hours</a></li>
+                        <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}"><i class="bi bi-calendar-week me-2 text-info"></i> Last 7 Days</a></li>
+                        <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}"><i class="bi bi-calendar-month me-2 text-success"></i> Last 30 Days</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'year' %}"><i class="bi bi-calendar3 me-2 text-warning"></i> Annual Report</a></li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Six Status Cards Grid (Standardized Neutral Colors + Alert Highlighting) -->
-<div class="status-cards-row" data-step="1" data-intro="Real-time KPI status cards displaying Total Revenue, Procurement & Logistics Expenses, Net Profit, and Dispatched Volume in Metric Tons. Click any card to navigate directly to its underlying database table.">
-    <!-- Card 1: Total Revenue -->
-    <a href="{% url 'finance:invoice_list' %}" class="status-card stripe-neutral" data-step="1" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Customer Invoices & Sales Revenue Table">
+<!-- Status Cards Grid (Scoped by Departmental Role) -->
+<div class="status-cards-row" data-step="1" data-intro="Real-time KPI status cards. Click any card to navigate directly to its underlying operational table.">
+    {% if is_executive %}
+    <!-- Card 1: Total Revenue (Executive Only) -->
+    <a href="{% url 'finance:invoice_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive: View Total Invoiced Sales Revenue">
         <div class="status-card-header">
             <i class="bi bi-graph-up-arrow text-muted"></i>
         </div>
@@ -472,8 +468,8 @@
         </div>
     </a>
     
-    <!-- Card 2: Total Expenses -->
-    <a href="{% url 'operations:cluster_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Sourcing Contracts & Logistics Expenses Table">
+    <!-- Card 2: Total Expenses (Executive Only) -->
+    <a href="{% url 'operations:cluster_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive: View Procurement & Logistics Expenses">
         <div class="status-card-header">
             <i class="bi bi-graph-down-arrow text-muted"></i>
         </div>
@@ -486,8 +482,8 @@
         </div>
     </a>
 
-    <!-- Card 3: Net Profit -->
-    <a href="{% url 'dashboard:analytics' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Financial Analytics & Profitability Breakdown">
+    <!-- Card 3: Net Profit (Executive Only) -->
+    <a href="{% url 'dashboard:analytics' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive: View Profitability Analytics">
         <div class="status-card-header">
             <i class="bi bi-bar-chart text-muted"></i>
         </div>
@@ -499,25 +495,70 @@
             <span class="status-card-trend neutral">Revenue − Expenses</span>
         </div>
     </a>
+    {% else %}
+    <!-- Departmental Card 1: Delivered Volume (MT) -->
+    <a href="{% url 'operations:logistics_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Departmental: View Delivered Molasses Volume">
+        <div class="status-card-header">
+            <i class="bi bi-box-seam text-muted"></i>
+        </div>
+        <div>
+            <div class="status-card-val">{{ total_volume_mt|floatformat:1 }} <small style="font-size: 0.75rem;">MT</small></div>
+            <div class="status-card-label">Total Volume Delivered</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend neutral">Sugar Mill Sourced</span>
+        </div>
+    </a>
 
-    <!-- Card 4: Pending Payments -->
-    <a href="{% url 'finance:loan_list' %}" class="status-card {% if overdue_loans > 0 %}stripe-alert{% else %}stripe-neutral{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Capital Loans Portfolio & Payoff Aging">
+    <!-- Departmental Card 2: Active Shipments -->
+    <a href="{% url 'operations:logistics_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Departmental: View Active Vessel / Truck Shipments">
+        <div class="status-card-header">
+            <i class="bi bi-truck text-muted"></i>
+        </div>
+        <div>
+            <div class="status-card-val">{{ active_shipments_count|default:active_clusters }}</div>
+            <div class="status-card-label">Active Transits</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend neutral">In Transit to Client</span>
+        </div>
+    </a>
+
+    <!-- Departmental Card 3: Delivery Variance Alerts -->
+    <a href="{% url 'operations:logistics_list' %}" class="status-card {% if variance_alert_count > 0 %}stripe-alert{% else %}stripe-success{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="Departmental: View Transit Shrinkage Alerts">
+        <div class="status-card-header">
+            <i class="bi bi-exclamation-triangle {% if variance_alert_count > 0 %}text-danger{% else %}text-success{% endif %}"></i>
+        </div>
+        <div>
+            <div class="status-card-val">{{ variance_alert_count }}</div>
+            <div class="status-card-label">Volume Shrinkage Alerts</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend {% if variance_alert_count > 0 %}down{% else %}up{% endif %}">
+                {% if variance_alert_count > 0 %}>1.0% Tolerance Exceeded{% else %}Within 1.0% Tolerance{% endif %}
+            </span>
+        </div>
+    </a>
+    {% endif %}
+
+    <!-- Card 4: Pending Action / Verification Queue -->
+    <a href="{% url 'finance:loan_list' %}" class="status-card {% if overdue_loans > 0 %}stripe-alert{% else %}stripe-neutral{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="View Verification & Pending Action Items">
         <div class="status-card-header">
             <i class="bi bi-clock-history {% if overdue_loans > 0 %}text-danger{% else %}text-muted{% endif %}"></i>
         </div>
         <div>
-            <div class="status-card-val">{{ pending_display }}</div>
-            <div class="status-card-label">Pending Payments</div>
+            <div class="status-card-val">{% if is_executive %}{{ pending_display }}{% else %}{{ unpaid_invoices }}{% endif %}</div>
+            <div class="status-card-label">Pending Actions</div>
         </div>
         <div class="status-card-footer">
             <span class="status-card-trend {% if overdue_loans > 0 %}down{% else %}neutral{% endif %}">
-                {% if overdue_loans > 0 %}{{ overdue_loans }} overdue facility{% else %}{{ unpaid_invoices }} unpaid invoice{{ unpaid_invoices|pluralize }}{% endif %}
+                {% if overdue_loans > 0 %}{{ overdue_loans }} overdue facility{% else %}{{ unpaid_invoices }} pending item{{ unpaid_invoices|pluralize }}{% endif %}
             </span>
         </div>
     </a>
 
     <!-- Card 5: Active Contracts -->
-    <a href="{% url 'operations:cluster_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Active Transaction Clusters & Purchase Orders Table">
+    <a href="{% url 'operations:cluster_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="View Active Transaction Deals">
         <div class="status-card-header">
             <i class="bi bi-file-earmark-text text-muted"></i>
         </div>
@@ -531,7 +572,7 @@
     </a>
 
     <!-- Card 6: Delivery Status -->
-    <a href="{% url 'operations:logistics_list' %}" class="status-card {% if variance_alert_count > 0 %}stripe-alert{% else %}stripe-success{% endif %}" data-intro="Keep a close eye on this metric. It tracks any delivery variances (shrinkage) between the source mill and the customer drop-off. Click to inspect the Logistics Ledger!" data-step="3" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Logistics Ledger & Transit Shrinkage Discrepancies Table">
+    <a href="{% url 'operations:logistics_list' %}" class="status-card {% if variance_alert_count > 0 %}stripe-alert{% else %}stripe-success{% endif %}" data-intro="Keep a close eye on this metric. It tracks any delivery variances (shrinkage) between the source mill and the customer drop-off. Click to inspect the Logistics Ledger!" data-step="3" data-bs-toggle="tooltip" data-bs-placement="top" title="View Logistics Transit Status">
         <div class="status-card-header">
             <i class="bi bi-truck {% if variance_alert_count > 0 %}text-danger{% else %}text-success{% endif %}"></i>
         </div>
@@ -549,7 +590,7 @@
 
 {% if user_role == 'operations_management' or user_role == 'administrator' %}
 <!-- Operations Management Specialized Widget: Sugar Mill MRO Release Allocations -->
-<div class="card border-0 shadow-sm mb-4 hover-zoom-card" onclick="location.href='{% url 'operations:mro_summary' %}'" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view full MRO Release Summary & Allocations">
+<div class="card border-0 shadow-sm mb-4 hover-zoom-card" data-href="{% url 'operations:mro_summary' %}" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view full MRO Release Summary & Allocations">
     <div class="card-header bg-white py-3 flex-between">
         <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-building text-primary me-2"></i>Sugar Mill Supplier MRO Release Balances</h6>
         <a href="{% url 'operations:mro_summary' %}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-7">View Full MRO Summary <i class="bi bi-arrow-right"></i></a>
@@ -579,7 +620,7 @@
 <!-- Finance Specialized Widget: Capital Loans & Cash Vouchers -->
 <div class="row g-3 mb-4">
     <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100 hover-zoom-card" onclick="location.href='{% url 'finance:loan_list' %}'" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Capital Loans Portfolio & Payoff Schedule">
+        <div class="card border-0 shadow-sm h-100 hover-zoom-card" data-href="{% url 'finance:loan_list' %}" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Capital Loans Portfolio & Payoff Schedule">
             <div class="card-header bg-white py-3 flex-between">
                 <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-bank text-success me-2"></i>Capital Loans Portfolio Summary</h6>
                 <span class="badge bg-success-subtle text-success">{{ loans_total_display }} Total Exposure</span>
@@ -597,7 +638,7 @@
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100 hover-zoom-card" onclick="location.href='{% url 'finance:invoice_list' %}'" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Cash Vouchers & Reconciliations">
+        <div class="card border-0 shadow-sm h-100 hover-zoom-card" data-href="{% url 'finance:invoice_list' %}" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Cash Vouchers & Reconciliations">
             <div class="card-header bg-white py-3 flex-between">
                 <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-receipt-cutoff text-info me-2"></i>Cash Vouchers Issued</h6>
                 <span class="badge bg-info-subtle text-info">{{ vouchers_display }} Disbursed</span>
@@ -637,7 +678,7 @@
             </thead>
             <tbody>
                 {% for inv in pending_invoices_list %}
-                <tr onclick="location.href='{% url 'finance:invoice_list' %}'" style="cursor: pointer;" title="Click to open Invoices table">
+                <tr data-href="{% url 'finance:invoice_list' %}" style="cursor: pointer;" title="Click to open Invoices table">
                     <td><strong class="text-primary">{{ inv.invoice_number }}</strong></td>
                     <td>{{ inv.cluster.client.name }}</td>
                     <td class="fw-bold">₱{{ inv.amount|floatformat:2 }}</td>
@@ -672,7 +713,8 @@
     </div>
 </div>
 {% else %}
-<!-- Charts Split Grid -->
+{% if is_executive %}
+<!-- Charts Split Grid (Executive Management Only) -->
 <div class="charts-split-grid">
     <!-- Left Column: Revenue Expenses Profit Line Chart -->
     <div class="chart-box" data-intro="This chart visually trends your revenue against your expenses over time, giving you a quick look at your net profitability trajectory." data-step="4">
@@ -699,6 +741,7 @@
         <canvas id="cashFlowBarChart" style="max-height: 220px;"></canvas>
     </div>
 </div>
+{% endif %}
 {% endif %}
 
 <!-- Bottom Status Bar -->
@@ -729,22 +772,38 @@
 
 {% block scripts %}
 {% if not is_empty %}
+<script id="chart-months-data" type="application/json">{{ chart_months_json|safe }}</script>
+<script id="revenue-data-data" type="application/json">{{ revenue_data_json|safe }}</script>
+<script id="expenses-data-data" type="application/json">{{ expenses_data_json|safe }}</script>
+<script id="profit-data-data" type="application/json">{{ profit_data_json|safe }}</script>
+<script id="weekly-labels-data" type="application/json">{{ weekly_labels_json|safe }}</script>
+<script id="inflow-data-data" type="application/json">{{ inflow_data_json|safe }}</script>
+<script id="outflow-data-data" type="application/json">{{ outflow_data_json|safe }}</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Delegate click handler for data-href elements
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('[data-href]');
+        if (target && target.dataset.href) {
+            window.location.href = target.dataset.href;
+        }
+    });
+
     // Theme colors matching the HTC design system from the design spec
     const brandBlue = '#0c385c';
     const brandRed = '#d9381e';
     const brandGreen = '#00a86b';
     const brandOrange = '#d69e2e';
 
-    // Parse data from Django template context (JSON-safe)
-    const chartMonths = {{ chart_months_json|safe }};
-    const revenueData = {{ revenue_data_json|safe }};
-    const expensesData = {{ expenses_data_json|safe }};
-    const profitData = {{ profit_data_json|safe }};
-    const weeklyLabels = {{ weekly_labels_json|safe }};
-    const inflowData = {{ inflow_data_json|safe }};
-    const outflowData = {{ outflow_data_json|safe }};
+    // Parse data from JSON script tags
+    const parseJSONData = id => JSON.parse(document.getElementById(id)?.textContent || '[]');
+    const chartMonths = parseJSONData('chart-months-data');
+    const revenueData = parseJSONData('revenue-data-data');
+    const expensesData = parseJSONData('expenses-data-data');
+    const profitData = parseJSONData('profit-data-data');
+    const weeklyLabels = parseJSONData('weekly-labels-data');
+    const inflowData = parseJSONData('inflow-data-data');
+    const outflowData = parseJSONData('outflow-data-data');
 
     // Compute Y-axis max dynamically
     const allValues = [...revenueData, ...expensesData, ...profitData];

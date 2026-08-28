@@ -1,16 +1,12 @@
 {% extends "app_base.html" %}
+{% load humanize %}
 {% block title %}Analytics · Molasses Trading{% endblock %}
 {% block topbar_title %}Analytics{% endblock %}
+{% block topbar_subtitle %}Performance insights & Predictive Margin Engine{% endblock %}
 {% block content %}
-<div class="page-toolbar">
-    <div class="page-header compact mb-0">
-        <h2>Analytics</h2>
-        <p>Performance insights — Predictive Margin Engine</p>
-    </div>
-    <div class="page-filters">
-        <select aria-label="Company filter"><option>All Companies</option></select>
-        <select aria-label="Period filter"><option>Year to Date</option></select>
-    </div>
+<div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+    <select class="form-select form-select-sm" style="width: auto;" aria-label="Company filter"><option>All Companies</option></select>
+    <select class="form-select form-select-sm" style="width: auto;" aria-label="Period filter"><option>Year to Date</option></select>
 </div>
 
 <div class="tabs-row">
@@ -32,11 +28,11 @@
         <div class="param-grid">
             <div>
                 <label for="qty">Order Quantity (MT)</label>
-                <input id="qty" name="qty" type="number" step="any" min="1" value="{{ order_qty|floatformat:0 }}">
+                <input id="qty" name="qty" type="number" step="any" min="1" value="{{ order_qty|floatformat:3 }}">
             </div>
             <div>
                 <label for="price">Selling Price (₱ / MT)</label>
-                <input id="price" name="price" type="number" step="any" min="1" value="{{ selling_price|floatformat:0 }}">
+                <input id="price" name="price" type="number" step="any" min="1" value="{{ selling_price|floatformat:2 }}">
             </div>
         </div>
         <button type="submit" class="btn-htc btn-htc-sm" style="margin-top:0.75rem;"><i class="bi bi-arrow-repeat"></i> Recalculate</button>
@@ -70,14 +66,14 @@
         <i class="bi bi-exclamation-triangle" style="color:var(--htc-gold);"></i>
         <div class="kpi-text">
             <div class="label">Expected Shrinkage</div>
-            <div class="val">{{ engine.best.projected_loss|floatformat:2 }} MT ({{ engine.best.shrinkage_pct|floatformat:2 }}%)</div>
+            <div class="val">{{ engine.best.projected_loss|floatformat:3 }} MT ({{ engine.best.shrinkage_pct|floatformat:2 }}%)</div>
         </div>
     </div>
     <div class="analytics-kpi">
         <i class="bi bi-droplet" style="color:#0891b2;"></i>
         <div class="kpi-text">
             <div class="label">Deliverable Volume</div>
-            <div class="val">{{ engine.best.deliverable_volume|floatformat:2 }} MT</div>
+            <div class="val">{{ engine.best.deliverable_volume|floatformat:3 }} MT</div>
         </div>
     </div>
 </div>
@@ -104,15 +100,15 @@
                 <div class="supplier-metric">
                     <div class="val">{{ s.score }}</div>
                     <div class="lbl">Score</div>
-                    <div class="score-bar"><div class="fill" style="width:{{ s.score }}%;"></div></div>
+                    <div class="score-bar"><div class="fill" style="--score: {{ s.score }}; width: calc(var(--score) * 1%);"></div></div>
                 </div>
             </div>
             <div class="supplier-detail-grid">
-                <div><span class="lbl">Purchase Price</span>₱{{ s.purchase_price|floatformat:0 }}/MT</div>
-                <div><span class="lbl">Supplier Cost</span>₱{{ s.supplier_cost|floatformat:0 }}</div>
-                <div><span class="lbl">Deliverable</span>{{ s.deliverable_volume|floatformat:2 }} MT</div>
-                <div><span class="lbl">Projected Loss</span>{{ s.projected_loss|floatformat:2 }} MT</div>
-                <div><span class="lbl">Gross Revenue</span>₱{{ s.gross_revenue|floatformat:0 }}</div>
+                <div><span class="lbl">Purchase Price</span>₱{{ s.purchase_price|floatformat:2|intcomma }}/MT</div>
+                <div><span class="lbl">Supplier Cost</span>₱{{ s.supplier_cost|floatformat:2|intcomma }}</div>
+                <div><span class="lbl">Deliverable</span>{{ s.deliverable_volume|floatformat:3|intcomma }} MT</div>
+                <div><span class="lbl">Projected Loss</span>{{ s.projected_loss|floatformat:3|intcomma }} MT</div>
+                <div><span class="lbl">Gross Revenue</span>₱{{ s.gross_revenue|floatformat:2|intcomma }}</div>
                 <div><span class="lbl">Lead Time</span>{{ s.lead_days }} days</div>
             </div>
             <p class="supplier-note">{{ s.note }}</p>
@@ -171,50 +167,57 @@
 {% endblock %}
 
 {% block scripts %}
+{{ engine.top_three|json_script:"top-three-data" }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const topThree = {{ engine.top_three|length|default:0 }};
-    {% if engine.top_three %}
-    const labels = [{% for s in engine.top_three %}'{{ s.name|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}];
-    const colors = ['rgba(5, 150, 105, 0.2)', 'rgba(37, 99, 235, 0.2)', 'rgba(217, 119, 6, 0.2)'];
-    const borderColors = ['#059669', '#2563eb', '#d97706'];
-    const radarCtx = document.getElementById('radarChart');
-    if (radarCtx) {
-        new Chart(radarCtx, {
-            type: 'radar',
-            data: {
-                labels: ['Margin', 'Reliability', 'Low Shrinkage', 'Price Edge', 'Lead Time'],
-                datasets: [
-                    {% for s in engine.top_three %}
-                    {
-                        label: '{{ s.name|escapejs }}',
-                        data: [{{ s.net_margin|floatformat:1 }}, {{ s.reliability|floatformat:0 }}, {{ s.score }}, {{ s.purchase_price|floatformat:0 }}, {{ s.lead_days }}],
-                        borderColor: borderColors[{{ forloop.counter0 }}],
-                        backgroundColor: colors[{{ forloop.counter0 }}],
-                        borderWidth: 1.5,
-                    }{% if not forloop.last %},{% endif %}
-                    {% endfor %}
-                ]
-            },
-            options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { r: { ticks: { display: false } } } }
-        });
+    const topThreeEl = document.getElementById('top-three-data');
+    if (topThreeEl) {
+        const topThree = JSON.parse(topThreeEl.textContent || '[]');
+        if (topThree.length > 0) {
+            const labels = topThree.map(s => s.name);
+            const colors = ['rgba(5, 150, 105, 0.2)', 'rgba(37, 99, 235, 0.2)', 'rgba(217, 119, 6, 0.2)'];
+            const borderColors = ['#059669', '#2563eb', '#d97706'];
+            const radarCtx = document.getElementById('radarChart');
+            if (radarCtx) {
+                new Chart(radarCtx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Margin', 'Reliability', 'Low Shrinkage', 'Price Edge', 'Lead Time'],
+                        datasets: topThree.map((s, i) => ({
+                            label: s.name,
+                            data: [
+                                Number(s.net_margin.toFixed(1)),
+                                Number(s.reliability.toFixed(0)),
+                                s.score,
+                                Number(s.purchase_price.toFixed(0)),
+                                s.lead_days
+                            ],
+                            borderColor: borderColors[i % borderColors.length],
+                            backgroundColor: colors[i % colors.length],
+                            borderWidth: 1.5
+                        }))
+                    },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { r: { ticks: { display: false } } } }
+                });
+            }
+            const barCtx = document.getElementById('marginBarChart');
+            if (barCtx) {
+                new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Net Margin %',
+                            data: topThree.map(s => Number(s.net_margin.toFixed(2))),
+                            backgroundColor: ['#059669', '#2563eb', '#d97706'],
+                            borderRadius: 4
+                        }]
+                    },
+                    options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { callback: v => v + '%' } } } }
+                });
+            }
+        }
     }
-    const barCtx = document.getElementById('marginBarChart');
-    if (barCtx) {
-        new Chart(barCtx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Net Margin %',
-                    data: [{% for s in engine.top_three %}{{ s.net_margin|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}],
-                    backgroundColor: ['#059669', '#2563eb', '#d97706'],
-                    borderRadius: 4,
-                }]
-            },
-            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { callback: v => v + '%' } } } }
-        });
-    }
-    {% endif %}
 </script>
 {% endblock %}
+

@@ -1,27 +1,22 @@
 {% extends "app_base.html" %}
 {% load role_tags %}
 {% block title %}Molasses Release Orders (MRO) · HTC Core{% endblock %}
-{% block topbar_title %}MRO Summary by Supplier & Crop Year{% endblock %}
+{% block topbar_title %}Molasses Release Order Summary{% endblock %}
+{% block topbar_subtitle %}Company & supplier allocations, planter releases, and crop year subtotals{% endblock %}
 
 {% block content %}
-<div class="page-header flex-between compact mb-3">
-    <div>
-        <h2 class="mb-1"><i class="bi bi-file-earmark-ruled text-primary me-2"></i>Molasses Release Order Summary</h2>
-        <p class="text-muted mb-0">Company / Supplier MRO allocations (`BUSCO`, `HAWAIIAN`, `BISCOM`, `CASA`, `LOPEZ`), planter releases & subtotals</p>
-    </div>
-    <div class="flex gap-2 align-items-center">
-        <a href="{% url 'operations:mro_export_csv' %}?crop_year={{ current_crop_year }}&mill={{ current_mill }}&planter={{ current_planter }}&q={{ q }}" class="btn-htc-outline" title="Export current summary to CSV">
-            <i class="bi bi-download"></i> Export CSV
-        </a>
-        {% if user|has_perm:"create_transaction" %}
-        <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#importMroModal">
-            <i class="bi bi-file-earmark-excel"></i> Import Excel/CSV
-        </button>
-        <button type="button" class="btn-htc" data-bs-toggle="modal" data-bs-target="#createMroModal">
-            <i class="bi bi-plus-lg"></i> New MRO Entry
-        </button>
-        {% endif %}
-    </div>
+<div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+    <a href="{% url 'operations:mro_export_csv' %}?crop_year={{ current_crop_year }}&mill={{ current_mill }}&planter={{ current_planter }}&q={{ q }}" class="btn-htc-outline" title="Export current summary to CSV">
+        <i class="bi bi-download"></i> Export CSV
+    </a>
+    {% if user|has_perm:"create_transaction" %}
+    <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#importMroModal">
+        <i class="bi bi-file-earmark-excel"></i> Import Excel/CSV
+    </button>
+    <button type="button" class="btn-htc" data-bs-toggle="modal" data-bs-target="#createMroModal">
+        <i class="bi bi-plus-lg"></i> New MRO Entry
+    </button>
+    {% endif %}
 </div>
 
 <!-- Key Performance Metric Cards -->

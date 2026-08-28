@@ -56,29 +56,24 @@ def home(request):
     )["total"] or Decimal("0")
     pending_receivables = total_receivables - paid_receivables
 
-    # ── Volume ───────────────────────────────────────────────────────────
+    # ── Volume & Cluster Financials ─────────────────────────────────────
     total_volume = LogisticsLedger.objects.aggregate(total=Sum("loaded_volume_mt"))["total"] or Decimal("0")
 
-    # ── Revenue, Expenses, Profit (real data) ────────────────────────────
-    # Revenue = total invoice amounts (sales)
-    total_revenue = total_receivables
+    from operations.services.pricing import cluster_financials
 
-    # Expenses = total procurement cost (PO value) + total logistics costs
-    po_total = PurchaseOrder.objects.aggregate(
-        total=Sum("volume_mt")  # We need value, not just volume
-    )
-    # Calculate total procurement expense: sum(volume_mt * unit_price) for each PO
-    total_procurement = Decimal("0")
-    for po in PurchaseOrder.objects.all():
-        total_procurement += po.volume_mt * po.unit_price
+    total_revenue = Decimal("0")
+    total_expenses = Decimal("0")
 
-    total_logistics_cost = LogisticsLedger.objects.aggregate(
-        tracking=Sum("tracking_fees"),
-        barge=Sum("barge_fees"),
+    clusters_all = list(
+        TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics")
+        .prefetch_related("invoices")
+        .all()
     )
-    total_tracking = total_logistics_cost["tracking"] or Decimal("0")
-    total_barge = total_logistics_cost["barge"] or Decimal("0")
-    total_expenses = total_procurement + total_tracking + total_barge
+
+    for cluster in clusters_all:
+        fin = cluster_financials(cluster)
+        total_revenue += Decimal(str(fin["revenue"]))
+        total_expenses += Decimal(str(fin["purchase_total"])) + Decimal(str(fin["logistics_cost"]))
 
     net_profit = total_revenue - total_expenses
 
@@ -98,26 +93,26 @@ def home(request):
     ).count()
     total_loan_exposure = active_loans.aggregate(total=Sum("principal"))["total"] or Decimal("0")
 
-    # ── Monthly chart data (from invoice issued_at dates) ────────────────
+    # ── Monthly chart data ───────────────────────────────────────────────
     month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     revenue_by_month = defaultdict(float)
     expense_by_month = defaultdict(float)
 
-    for inv in Invoice.objects.all():
-        month_idx = inv.issued_at.month - 1  # 0-indexed
-        revenue_by_month[month_idx] += float(inv.amount)
+    for cluster in clusters_all:
+        fin = cluster_financials(cluster)
+        po = getattr(cluster, "purchase_order", None)
+        invs = list(cluster.invoices.all()) if hasattr(cluster, "invoices") else []
+        primary_inv = invs[0] if invs else None
 
-    for po in PurchaseOrder.objects.select_related("cluster__logistics").all():
-        if po.approved_at:
-            month_idx = po.approved_at.month - 1
+        if primary_inv and primary_inv.issued_at:
+            m_idx = primary_inv.issued_at.month - 1
+        elif po and po.approved_at:
+            m_idx = po.approved_at.month - 1
         else:
-            month_idx = 0
-        po_cost = float(po.volume_mt * po.unit_price)
-        logistics = getattr(po.cluster, "logistics", None)
-        logistics_cost = 0
-        if logistics:
-            logistics_cost = float(logistics.tracking_fees + logistics.barge_fees)
-        expense_by_month[month_idx] += po_cost + logistics_cost
+            m_idx = cluster.created_at.month - 1
+
+        revenue_by_month[m_idx] += float(fin["revenue"])
+        expense_by_month[m_idx] += float(fin["purchase_total"] + fin["logistics_cost"])
 
     # Determine which months have data
     all_months_with_data = sorted(set(list(revenue_by_month.keys()) + list(expense_by_month.keys())))
@@ -217,6 +212,10 @@ def home(request):
         request,
         "dashboard/home.html",
         {
+            # Role-scoped access flags
+            "is_executive": request.user.role in [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, "administrator", "operations_management"] or request.user.is_superuser,
+            "is_operations": request.user.role in [User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS, "operations_management"],
+            "is_finance": request.user.role in [User.Role.FINANCE, User.Role.INVOICING, "finance", "invoicing"],
             # Core & Status card values
             "user_role": user_role,
             "open_clusters": open_clusters,
