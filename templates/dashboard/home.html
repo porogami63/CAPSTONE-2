@@ -2,6 +2,7 @@
 {% load static %}
 {% block title %}Dashboard · HTC Core{% endblock %}
 {% block topbar_title %}Dashboard{% endblock %}
+{% block topbar_subtitle %}Executive Control & Operations Overview{% endblock %}
 {% block content %}
 <style>
     /* Topbar Header Customizations */
@@ -59,7 +60,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background-color: #f7fafc;
+        background-color: var(--htc-sidebar-hover);
         border: 1px dashed var(--htc-border);
         border-radius: var(--htc-radius-sm);
         padding: 0.6rem 1rem;
@@ -105,30 +106,68 @@
         flex-direction: column;
         justify-content: space-between;
         box-shadow: 0 2px 4px rgba(15, 45, 92, 0.02);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s ease, border-color 0.28s ease;
         overflow: hidden;
         cursor: pointer;
+        text-decoration: none !important;
+        color: inherit !important;
     }
     .status-card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--htc-shadow);
+        transform: translateY(-6px) scale(1.03);
+        box-shadow: 0 12px 28px -6px rgba(15, 45, 92, 0.18), 0 0 0 1px var(--htc-primary-light);
+        border-color: var(--htc-primary-light);
+        z-index: 10;
     }
-    /* Colored top stripes */
+    .status-card:active {
+        transform: translateY(-2px) scale(1.01);
+    }
+    /* Metric Card Top Stripes: Standardized 1-2 Color Palette */
     .status-card::before {
         content: "";
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        height: 4px;
-        background-color: transparent;
+        height: 3px;
+        background-color: var(--htc-border);
+        transition: height 0.2s ease, background-color 0.2s ease;
     }
-    .status-card.stripe-green::before { background-color: var(--htc-success); }
-    .status-card.stripe-red::before { background-color: var(--htc-accent); }
-    .status-card.stripe-blue::before { background-color: var(--htc-primary-light); }
-    .status-card.stripe-orange::before { background-color: var(--htc-gold); }
-    .status-card.stripe-purple::before { background-color: #805ad5; }
-    .status-card.stripe-darkred::before { background-color: #9b2c2c; }
+    .status-card:hover::before {
+        height: 5px;
+        background-color: var(--htc-primary-light);
+    }
+    /* Reserve high-contrast colors strictly for status alerts or variance flags */
+    .status-card.stripe-alert::before,
+    .status-card.stripe-danger::before {
+        background-color: var(--htc-accent);
+    }
+    .status-card.stripe-alert:hover::before,
+    .status-card.stripe-danger:hover::before {
+        background-color: var(--htc-accent);
+    }
+    .status-card.stripe-warning::before {
+        background-color: var(--htc-gold);
+    }
+    .status-card.stripe-success::before {
+        background-color: var(--htc-success);
+    }
+    .status-card.stripe-neutral::before {
+        background-color: var(--htc-border);
+    }
+
+    /* Interactive hover zoom for widget cards */
+    .hover-zoom-card {
+        transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s ease, border-color 0.28s ease;
+        cursor: pointer;
+    }
+    .hover-zoom-card:hover {
+        transform: translateY(-4px) scale(1.015);
+        box-shadow: 0 12px 24px -6px rgba(15, 45, 92, 0.14) !important;
+        border-color: var(--htc-primary-light) !important;
+    }
+    .hover-zoom-card:active {
+        transform: translateY(-1px) scale(1.005);
+    }
 
     .status-card-header {
         display: flex;
@@ -167,6 +206,7 @@
     }
     .status-card-trend.up { color: var(--htc-success); }
     .status-card-trend.down { color: var(--htc-accent); }
+    .status-card-trend.neutral { color: var(--htc-text-muted); }
     .status-card-source {
         color: var(--htc-text-muted);
         display: flex;
@@ -220,6 +260,10 @@
         gap: 0.75rem;
         margin-bottom: 1rem;
     }
+    .cash-flow-banner.negative {
+        background-color: var(--htc-danger-bg);
+        border-color: #fed7d7;
+    }
     .cash-flow-banner i {
         background-color: #c6f6d5;
         color: #276749;
@@ -231,6 +275,10 @@
         justify-content: center;
         font-size: 0.9rem;
     }
+    .cash-flow-banner.negative i {
+        background-color: #fed7d7;
+        color: #9b2c2c;
+    }
     .cash-flow-banner .banner-text {
         font-size: 0.8rem;
         color: var(--htc-text-muted);
@@ -241,6 +289,31 @@
         font-size: 0.95rem;
         display: block;
         margin-top: 0.1rem;
+    }
+    .cash-flow-banner.negative .banner-text strong {
+        color: #9b2c2c;
+    }
+
+    /* Empty State */
+    .empty-state-overlay {
+        text-align: center;
+        padding: 2rem 1rem;
+        color: var(--htc-text-muted);
+    }
+    .empty-state-overlay i {
+        font-size: 3rem;
+        margin-bottom: 0.75rem;
+        opacity: 0.3;
+    }
+    .empty-state-overlay h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem 0;
+        color: var(--htc-text);
+    }
+    .empty-state-overlay p {
+        font-size: 0.85rem;
+        margin: 0 0 1rem 0;
     }
 
     /* Bottom System Status Bar */
@@ -281,125 +354,373 @@
     }
 </style>
 
-<div class="system-status-header">
-    <div class="dashboard-title-group">
-        <span class="system-live-pill">System Live</span>
-        <h2>HTC Core Dashboard</h2>
-        <p>Heindrich Trading Corporation — Molasses Operations Overview</p>
-    </div>
-    <div class="last-sync-block">
-        Last sync
-        <strong>19 Jun 2026, 09:42 AM</strong>
+<!-- Redesigned HTC Core Dashboard Hero Card -->
+<div class="dashboard-hero-card">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <div class="dashboard-user-greeting fs-5 fw-bold text-dark mb-2">
+                Welcome back, <strong>{{ user.get_full_name|default:user.username }}</strong>
+            </div>
+
+            <!-- Real-time Date & Time Badge -->
+            <div class="d-inline-flex align-items-center gap-2 bg-body-tertiary border rounded-3 px-3 py-1 shadow-sm" style="font-size: 0.82rem;">
+                <div class="d-flex align-items-center gap-1 text-primary fw-bold">
+                    <i class="bi bi-calendar3"></i>
+                    <span id="liveDashboardDate">--</span>
+                </div>
+                <span class="text-muted opacity-50">|</span>
+                <div class="d-flex align-items-center gap-1 text-dark fw-bold">
+                    <i class="bi bi-clock text-muted"></i>
+                    <span id="liveDashboardTime" class="font-monospace">--:--:--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-column align-items-end gap-2">
+            <!-- Last Data Sync Timestamp -->
+            <small class="dashboard-sync-text">
+                Last Data Sync 
+                <i class="bi bi-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Last Sync shows the timestamp when data was last updated."></i>: 
+                <strong class="dashboard-sync-text">{% if last_sync %}{{ last_sync|date:"d M Y, h:i A" }}{% else %}19 Aug 2026, 07:19 PM{% endif %}</strong>
+            </small>
+
+            <!-- Quick Action Dock -->
+            <div class="quick-action-dock">
+                {% if user_role_code == 'finance' %}
+                    <a href="{% url 'finance:loan_list' %}" class="btn btn-action-primary">
+                        <i class="bi bi-bank action-icon"></i> Issue Loan
+                    </a>
+                    <a href="{% url 'finance:invoice_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-receipt-cutoff action-icon text-info"></i> Cash Voucher
+                    </a>
+                    <a href="{% url 'finance:invoice_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-arrow-repeat action-icon text-warning"></i> Reconcile
+                    </a>
+                {% elif user_role_code == 'operations_management' %}
+                    <a href="{% url 'operations:cluster_create' %}" class="btn btn-action-primary">
+                        <i class="bi bi-plus-circle-fill action-icon"></i> New Contract
+                    </a>
+                    <a href="{% url 'operations:mro_summary' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-file-earmark-excel action-icon text-success"></i> Import MRO
+                    </a>
+                    <a href="{% url 'operations:logistics_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-truck action-icon text-info"></i> Logistics
+                    </a>
+                {% elif user_role_code == 'invoicing' %}
+                    <a href="{% url 'finance:invoice_list' %}" class="btn btn-action-primary">
+                        <i class="bi bi-receipt action-icon"></i> New Invoice
+                    </a>
+                    <a href="{% url 'operations:cluster_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-file-text action-icon text-primary"></i> Active Contracts
+                    </a>
+                    <a href="{% url 'finance:invoice_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-folder2-open action-icon text-info"></i> Invoice Registry
+                    </a>
+                {% else %}
+                    <a href="{% url 'operations:cluster_create' %}" class="btn btn-action-primary-blue">
+                        <i class="bi bi-plus-circle-fill action-icon"></i> New Contract
+                    </a>
+                    {% if pending_verification_loans_count > 0 %}
+                    <a href="{% url 'finance:loan_list' %}" class="btn btn-action-secondary text-warning">
+                        <i class="bi bi-shield-exclamation action-icon text-warning"></i> Verify Loans ({{ pending_verification_loans_count }})
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'operations:logistics_list' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-truck action-icon text-info"></i> Logistics
+                    </a>
+                    <a href="{% url 'operations:mro_summary' %}" class="btn btn-action-secondary">
+                        <i class="bi bi-file-earmark-ruled action-icon text-success"></i> MRO Balances
+                    </a>
+                {% endif %}
+
+                <!-- PDF Report Action Button -->
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-action-secondary dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-file-earmark-pdf-fill action-icon text-danger"></i> PDF Report
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="reportDropdown">
+                        <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}"><i class="bi bi-clock-history me-2 text-primary"></i> Last 24 Hours</a></li>
+                        <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}"><i class="bi bi-calendar-week me-2 text-info"></i> Last 7 Days</a></li>
+                        <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}"><i class="bi bi-calendar-month me-2 text-success"></i> Last 30 Days</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'year' %}"><i class="bi bi-calendar3 me-2 text-warning"></i> Annual Report</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="aggregation-bar">
-    <div class="left-info">Data Aggregation Layer – Click any card to see source rows</div>
-    <div class="right-info">
-        <i class="bi bi-layers"></i> 24 raw rows → 6 status cards
-    </div>
-</div>
-
-<!-- Six Status Cards -->
-<div class="status-cards-row">
-    <!-- Card 1: Total Revenue -->
-    <div class="status-card stripe-green">
+<!-- Status Cards Grid (Scoped by Departmental Role) -->
+<div class="status-cards-row" data-step="1" data-intro="Real-time KPI status cards. Click any card to navigate directly to its underlying operational table.">
+    {% if is_executive %}
+    <!-- Card 1: Total Revenue (Executive Only) -->
+    <a href="{% url 'finance:invoice_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive: View Total Invoiced Sales Revenue">
         <div class="status-card-header">
-            <i class="bi bi-graph-up-arrow"></i>
+            <i class="bi bi-graph-up-arrow text-muted"></i>
         </div>
         <div>
-            <div class="status-card-val">₱46.00M</div>
+            <div class="status-card-val">{{ revenue_display }}</div>
             <div class="status-card-label">Total Revenue</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend up">▲ +12.5%</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 5 source rows</span>
+            <span class="status-card-trend neutral">{{ total_invoices }} invoice{{ total_invoices|pluralize }}</span>
         </div>
-    </div>
+    </a>
     
-    <!-- Card 2: Total Expenses -->
-    <div class="status-card stripe-red">
+    <!-- Card 2: Total Expenses (Executive Only) -->
+    <a href="{% url 'operations:cluster_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive: View Procurement & Logistics Expenses">
         <div class="status-card-header">
-            <i class="bi bi-graph-down-arrow"></i>
+            <i class="bi bi-graph-down-arrow text-muted"></i>
         </div>
         <div>
-            <div class="status-card-val">₱33.75M</div>
+            <div class="status-card-val">{{ expenses_display }}</div>
             <div class="status-card-label">Total Expenses</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend down">▲ +8.2%</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 5 source rows</span>
+            <span class="status-card-trend neutral">Procurement + Logistics</span>
         </div>
-    </div>
+    </a>
 
-    <!-- Card 3: Net Profit -->
-    <div class="status-card stripe-blue">
+    <!-- Card 3: Net Profit (Executive Only) -->
+    <a href="{% url 'dashboard:analytics' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive: View Profitability Analytics">
         <div class="status-card-header">
-            <i class="bi bi-bar-chart"></i>
+            <i class="bi bi-bar-chart text-muted"></i>
         </div>
         <div>
-            <div class="status-card-val">₱12.25M</div>
+            <div class="status-card-val">{{ profit_display }}</div>
             <div class="status-card-label">Net Profit</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend up">▲ +18.3%</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 10 source rows</span>
+            <span class="status-card-trend neutral">Revenue − Expenses</span>
         </div>
-    </div>
-
-    <!-- Card 4: Pending Payments -->
-    <div class="status-card stripe-orange">
+    </a>
+    {% else %}
+    <!-- Departmental Card 1: Delivered Volume (MT) -->
+    <a href="{% url 'operations:logistics_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Departmental: View Delivered Molasses Volume">
         <div class="status-card-header">
-            <i class="bi bi-clock-history"></i>
+            <i class="bi bi-box-seam text-muted"></i>
         </div>
         <div>
-            <div class="status-card-val">₱12.21M</div>
-            <div class="status-card-label">Pending Payments</div>
+            <div class="status-card-val">{{ total_volume_mt|floatformat:1 }} <small style="font-size: 0.75rem;">MT</small></div>
+            <div class="status-card-label">Total Volume Delivered</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend down">1 overdue</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 3 source rows</span>
+            <span class="status-card-trend neutral">Sugar Mill Sourced</span>
         </div>
-    </div>
+    </a>
+
+    <!-- Departmental Card 2: Active Shipments -->
+    <a href="{% url 'operations:logistics_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Departmental: View Active Vessel / Truck Shipments">
+        <div class="status-card-header">
+            <i class="bi bi-truck text-muted"></i>
+        </div>
+        <div>
+            <div class="status-card-val">{{ active_shipments_count|default:active_clusters }}</div>
+            <div class="status-card-label">Active Transits</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend neutral">In Transit to Client</span>
+        </div>
+    </a>
+
+    <!-- Departmental Card 3: Delivery Variance Alerts -->
+    <a href="{% url 'operations:logistics_list' %}" class="status-card {% if variance_alert_count > 0 %}stripe-alert{% else %}stripe-success{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="Departmental: View Transit Shrinkage Alerts">
+        <div class="status-card-header">
+            <i class="bi bi-exclamation-triangle {% if variance_alert_count > 0 %}text-danger{% else %}text-success{% endif %}"></i>
+        </div>
+        <div>
+            <div class="status-card-val">{{ variance_alert_count }}</div>
+            <div class="status-card-label">Volume Shrinkage Alerts</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend {% if variance_alert_count > 0 %}down{% else %}up{% endif %}">
+                {% if variance_alert_count > 0 %}>1.0% Tolerance Exceeded{% else %}Within 1.0% Tolerance{% endif %}
+            </span>
+        </div>
+    </a>
+    {% endif %}
+
+    <!-- Card 4: Pending Action / Verification Queue -->
+    <a href="{% url 'finance:loan_list' %}" class="status-card {% if overdue_loans > 0 %}stripe-alert{% else %}stripe-neutral{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="View Verification & Pending Action Items">
+        <div class="status-card-header">
+            <i class="bi bi-clock-history {% if overdue_loans > 0 %}text-danger{% else %}text-muted{% endif %}"></i>
+        </div>
+        <div>
+            <div class="status-card-val">{% if is_executive %}{{ pending_display }}{% else %}{{ unpaid_invoices }}{% endif %}</div>
+            <div class="status-card-label">Pending Actions</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="status-card-trend {% if overdue_loans > 0 %}down{% else %}neutral{% endif %}">
+                {% if overdue_loans > 0 %}{{ overdue_loans }} overdue facility{% else %}{{ unpaid_invoices }} pending item{{ unpaid_invoices|pluralize }}{% endif %}
+            </span>
+        </div>
+    </a>
 
     <!-- Card 5: Active Contracts -->
-    <div class="status-card stripe-purple">
+    <a href="{% url 'operations:cluster_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="View Active Transaction Deals">
         <div class="status-card-header">
-            <i class="bi bi-file-earmark-text"></i>
+            <i class="bi bi-file-earmark-text text-muted"></i>
         </div>
         <div>
             <div class="status-card-val">{{ open_clusters }}</div>
             <div class="status-card-label">Active Contracts</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend up">▲ 6 total</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 6 source rows</span>
+            <span class="status-card-trend neutral">{{ total_transactions }} total contracts</span>
         </div>
-    </div>
+    </a>
 
     <!-- Card 6: Delivery Status -->
-    <div class="status-card stripe-darkred">
+    <a href="{% url 'operations:logistics_list' %}" class="status-card {% if variance_alert_count > 0 %}stripe-alert{% else %}stripe-success{% endif %}" data-intro="Keep a close eye on this metric. It tracks any delivery variances (shrinkage) between the source mill and the customer drop-off. Click to inspect the Logistics Ledger!" data-step="3" data-bs-toggle="tooltip" data-bs-placement="top" title="View Logistics Transit Status">
         <div class="status-card-header">
-            <i class="bi bi-truck"></i>
+            <i class="bi bi-truck {% if variance_alert_count > 0 %}text-danger{% else %}text-success{% endif %}"></i>
         </div>
         <div>
-            <div class="status-card-val">3/5</div>
+            <div class="status-card-val">{{ delivered_clusters }}/{{ total_transactions }}</div>
             <div class="status-card-label">Delivery Status</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend down">1 variance flag</span>
-            <span class="status-card-source"><i class="bi bi-grid-3x3-gap"></i> 5 source rows</span>
+            <span class="status-card-trend {% if variance_alert_count > 0 %}down{% else %}up{% endif %}">
+                {% if variance_alert_count > 0 %}{{ variance_alert_count }} shrinkage alert{{ variance_alert_count|pluralize }}{% else %}Within 1% tolerance{% endif %}
+            </span>
+        </div>
+    </a>
+</div>
+
+{% if user_role == 'operations_management' or user_role == 'administrator' %}
+<!-- Operations Management Specialized Widget: Sugar Mill MRO Release Allocations -->
+<div class="card border-0 shadow-sm mb-4 hover-zoom-card" data-href="{% url 'operations:mro_summary' %}" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view full MRO Release Summary & Allocations">
+    <div class="card-header bg-white py-3 flex-between">
+        <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-building text-primary me-2"></i>Sugar Mill Supplier MRO Release Balances</h6>
+        <a href="{% url 'operations:mro_summary' %}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-7">View Full MRO Summary <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="card-body p-3">
+        <div class="row g-2">
+            {% for mro_mill in mro_mill_balances %}
+            <div class="col-md-2 col-6">
+                <div class="p-2 border rounded text-center bg-light">
+                    <small class="text-muted font-weight-bold d-block text-truncate" style="font-size: 0.75rem;">{{ mro_mill.name }}</small>
+                    <span class="fs-6 font-weight-bold text-primary">{{ mro_mill.tons|floatformat:2 }} <small class="text-muted">MT</small></span>
+                </div>
+            </div>
+            {% endfor %}
+            <div class="col-md-2 col-12">
+                <div class="p-2 border rounded text-center bg-primary-subtle text-primary">
+                    <small class="text-primary font-weight-bold d-block text-truncate" style="font-size: 0.75rem;">Total Mill Releases</small>
+                    <span class="fs-6 font-weight-bold">{{ total_volume_mt|floatformat:2 }} <small>MT</small></span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+{% endif %}
 
-<!-- Charts Split Grid -->
+{% if user_role == 'finance' or user_role == 'administrator' %}
+<!-- Finance Specialized Widget: Capital Loans & Cash Vouchers -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100 hover-zoom-card" data-href="{% url 'finance:loan_list' %}" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Capital Loans Portfolio & Payoff Schedule">
+            <div class="card-header bg-white py-3 flex-between">
+                <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-bank text-success me-2"></i>Capital Loans Portfolio Summary</h6>
+                <span class="badge bg-success-subtle text-success">{{ loans_total_display }} Total Exposure</span>
+            </div>
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2 fs-7">
+                    <span class="text-muted">Active Loans:</span>
+                    <strong class="text-dark">{{ active_loans|default:0 }}</strong>
+                </div>
+                <div class="d-flex align-items-center justify-content-between fs-7">
+                    <span class="text-muted">Overdue Loan Alerts:</span>
+                    <strong class="{% if overdue_loans > 0 %}text-danger{% else %}text-success{% endif %}">{{ overdue_loans }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100 hover-zoom-card" data-href="{% url 'finance:invoice_list' %}" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view Cash Vouchers & Reconciliations">
+            <div class="card-header bg-white py-3 flex-between">
+                <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-receipt-cutoff text-info me-2"></i>Cash Vouchers Issued</h6>
+                <span class="badge bg-info-subtle text-info">{{ vouchers_display }} Disbursed</span>
+            </div>
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2 fs-7">
+                    <span class="text-muted">Total Vouchers Processed:</span>
+                    <strong class="text-dark">{{ vouchers_count }}</strong>
+                </div>
+                <div class="d-flex align-items-center justify-content-between fs-7">
+                    <span class="text-muted">Unmatched Reconciliations:</span>
+                    <strong class="text-warning">{{ unmatched_reconciliations }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if user_role == 'invoicing' or user_role == 'administrator' %}
+<!-- Invoicing Specialized Widget: Pending Invoices Queue -->
+<div class="card border-0 shadow-sm mb-4 hover-zoom-card">
+    <div class="card-header bg-white py-3 flex-between">
+        <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-receipt text-info me-2"></i>Pending Accounts Receivable & Customer Invoices</h6>
+        <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-outline-info py-0 px-2 fs-7">View All Invoices <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light">
+                <tr class="text-uppercase text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                    <th>Invoice #</th>
+                    <th>Customer</th>
+                    <th>Amount (PHP)</th>
+                    <th>Issued Date</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in pending_invoices_list %}
+                <tr data-href="{% url 'finance:invoice_list' %}" style="cursor: pointer;" title="Click to open Invoices table">
+                    <td><strong class="text-primary">{{ inv.invoice_number }}</strong></td>
+                    <td>{{ inv.cluster.client.name }}</td>
+                    <td class="fw-bold">₱{{ inv.amount|floatformat:2 }}</td>
+                    <td class="text-muted">{{ inv.issued_at|date:"M d, Y" }}</td>
+                    <td class="text-center">
+                        <span class="badge {% if inv.status == 'issued' %}bg-primary{% elif inv.status == 'overdue' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ inv.get_status_display }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-3">No pending customer invoices. All accounts settled!</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if is_empty %}
+<!-- Empty State Message -->
+<div class="chart-box" style="margin-bottom: 1.5rem;">
+    <div class="empty-state-overlay">
+        <i class="bi bi-database"></i>
+        <h3>No Transaction Data</h3>
+        <p>Import your Excel spreadsheet or create a new transaction to see live analytics.</p>
+        <a href="{% url 'operations:import_excel' %}" class="btn-htc" style="display: inline-block;">
+            <i class="bi bi-file-earmark-arrow-up"></i> Import Excel
+        </a>
+    </div>
+</div>
+{% else %}
+{% if is_executive %}
+<!-- Charts Split Grid (Executive Management Only) -->
 <div class="charts-split-grid">
     <!-- Left Column: Revenue Expenses Profit Line Chart -->
-    <div class="chart-box">
+    <div class="chart-box" data-intro="This chart visually trends your revenue against your expenses over time, giving you a quick look at your net profitability trajectory." data-step="4">
         <div class="chart-box-header">
             <h3>Revenue · Expenses · Profit</h3>
-            <p>6-month aggregated financial trend (PHP)</p>
+            <p>Monthly aggregated financial trend (PHP in Millions)</p>
         </div>
         <canvas id="financialLineChart" style="max-height: 320px;"></canvas>
     </div>
@@ -408,18 +729,20 @@
     <div class="chart-box">
         <div class="chart-box-header">
             <h3>Weekly Cash Flow</h3>
-            <p>Inflow vs Outflow — June 2026</p>
+            <p>Inflow vs Outflow — Current Month</p>
         </div>
         <div class="cash-flow-banner">
             <i class="bi bi-lightning-charge-fill"></i>
             <div class="banner-text">
                 Net Cash Flow
-                <strong>₱1,100,000</strong>
+                <strong>{{ net_cash_flow_str }}</strong>
             </div>
         </div>
         <canvas id="cashFlowBarChart" style="max-height: 220px;"></canvas>
     </div>
 </div>
+{% endif %}
+{% endif %}
 
 <!-- Bottom Status Bar -->
 <div class="system-status-bar">
@@ -438,21 +761,54 @@
     <div class="status-bar-item success">
         <i class="bi bi-check-circle-fill"></i> Aggregation Layer: Synced
     </div>
+    {% if variance_alert_count > 0 %}
     <div class="status-bar-item danger">
-        <i class="bi bi-exclamation-circle-fill"></i> Overdue Alerts: 1 flagged
+        <i class="bi bi-exclamation-circle-fill"></i> Overdue Alerts: {{ variance_alert_count }} flagged
     </div>
+    {% endif %}
 </div>
 
 {% endblock %}
 
 {% block scripts %}
+{% if not is_empty %}
+<script id="chart-months-data" type="application/json">{{ chart_months_json|safe }}</script>
+<script id="revenue-data-data" type="application/json">{{ revenue_data_json|safe }}</script>
+<script id="expenses-data-data" type="application/json">{{ expenses_data_json|safe }}</script>
+<script id="profit-data-data" type="application/json">{{ profit_data_json|safe }}</script>
+<script id="weekly-labels-data" type="application/json">{{ weekly_labels_json|safe }}</script>
+<script id="inflow-data-data" type="application/json">{{ inflow_data_json|safe }}</script>
+<script id="outflow-data-data" type="application/json">{{ outflow_data_json|safe }}</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Delegate click handler for data-href elements
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('[data-href]');
+        if (target && target.dataset.href) {
+            window.location.href = target.dataset.href;
+        }
+    });
+
     // Theme colors matching the HTC design system from the design spec
     const brandBlue = '#0c385c';
     const brandRed = '#d9381e';
     const brandGreen = '#00a86b';
     const brandOrange = '#d69e2e';
+
+    // Parse data from JSON script tags
+    const parseJSONData = id => JSON.parse(document.getElementById(id)?.textContent || '[]');
+    const chartMonths = parseJSONData('chart-months-data');
+    const revenueData = parseJSONData('revenue-data-data');
+    const expensesData = parseJSONData('expenses-data-data');
+    const profitData = parseJSONData('profit-data-data');
+    const weeklyLabels = parseJSONData('weekly-labels-data');
+    const inflowData = parseJSONData('inflow-data-data');
+    const outflowData = parseJSONData('outflow-data-data');
+
+    // Compute Y-axis max dynamically
+    const allValues = [...revenueData, ...expensesData, ...profitData];
+    const yMax = Math.max(Math.ceil(Math.max(...allValues) * 1.3), 1);
+    const yStep = Math.max(Math.round(yMax / 4 * 10) / 10, 0.5);
 
     // 1. Line Chart: Revenue, Expenses, Profit
     const lineCtx = document.getElementById('financialLineChart');
@@ -460,11 +816,11 @@
         new Chart(lineCtx, {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                labels: chartMonths,
                 datasets: [
                     {
                         label: 'Revenue',
-                        data: [3.2, 3.8, 3.5, 4.2, 4.8, 4.6], // represented in millions
+                        data: revenueData,
                         borderColor: brandBlue,
                         backgroundColor: 'transparent',
                         borderWidth: 2.5,
@@ -474,7 +830,7 @@
                     },
                     {
                         label: 'Expenses',
-                        data: [2.6, 2.9, 2.8, 3.1, 3.4, 3.2],
+                        data: expensesData,
                         borderColor: brandRed,
                         backgroundColor: 'transparent',
                         borderWidth: 2,
@@ -484,7 +840,7 @@
                     },
                     {
                         label: 'Profit',
-                        data: [0.6, 0.9, 0.7, 1.1, 1.4, 1.4],
+                        data: profitData,
                         borderColor: brandGreen,
                         backgroundColor: 'transparent',
                         borderWidth: 2,
@@ -511,16 +867,16 @@
                         grid: { display: false }
                     },
                     y: {
-                        min: 0,
-                        max: 6,
+                        min: Math.min(0, ...profitData),
+                        max: yMax,
                         ticks: {
                             callback: function(value) {
                                 return '₱' + value.toFixed(1) + 'M';
                             },
-                            stepSize: 1.5
+                            stepSize: yStep
                         },
                         grid: {
-                            color: '#e2e8f0',
+                            color: 'var(--htc-border)',
                             borderDash: [3, 3]
                         }
                     }
@@ -535,17 +891,17 @@
         new Chart(barCtx, {
             type: 'bar',
             data: {
-                labels: ['W1', 'W2', 'W3', 'W4'],
+                labels: weeklyLabels,
                 datasets: [
                     {
                         label: 'Inflow',
-                        data: [1.2, 1.5, 1.1, 1.8],
+                        data: inflowData,
                         backgroundColor: brandBlue,
                         borderRadius: 2
                     },
                     {
                         label: 'Outflow',
-                        data: [0.9, 1.2, 1.4, 1.0],
+                        data: outflowData,
                         backgroundColor: brandOrange,
                         borderRadius: 2
                     }
@@ -568,5 +924,21 @@
             }
         });
     }
+
+    // Live Real-Time Clock & Calendar Ticker
+    function updateDashboardClock() {
+        const now = new Date();
+        const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+        const dateStr = now.toLocaleDateString('en-US', dateOptions);
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+
+        const dateEl = document.getElementById('liveDashboardDate');
+        const timeEl = document.getElementById('liveDashboardTime');
+        if (dateEl) dateEl.textContent = dateStr;
+        if (timeEl) timeEl.textContent = timeStr;
+    }
+    updateDashboardClock();
+    setInterval(updateDashboardClock, 1000);
 </script>
+{% endif %}
 {% endblock %}

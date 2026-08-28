@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Consolidated Report - {{ period|title }}</title>
+    <style>
+        @page { size: a4 portrait; margin: 2cm; }
+        body { font-family: Helvetica, sans-serif; font-size: 11px; color: #333; }
+        h1 { color: #0f2d5c; font-size: 22px; margin-bottom: 5px; }
+        h2 { color: #0f2d5c; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .summary-box { border: 2px solid #0f2d5c; padding: 15px; margin-bottom: 20px; background-color: #f8fafc; }
+        .summary-table { width: 100%; }
+        .summary-table td { padding: 5px; font-size: 14px; }
+        .summary-val { font-weight: bold; text-align: right; color: #0f2d5c; }
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .data-table th { background-color: #0f2d5c; color: white; padding: 8px; text-align: left; font-size: 10px; }
+        .data-table td { border-bottom: 1px solid #eee; padding: 8px; font-size: 10px; }
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>HEINDRICH TRADING CORPORATION</h1>
+        <p>Consolidated Operations & Financial Report ({{ period|title }})<br>
+        Generated on: {% now "F j, Y H:i" %}</p>
+    </div>
+
+    <div class="summary-box">
+        <table class="summary-table">
+            <tr>
+                <td>Total Transactions:</td><td class="summary-val">{{ total_transactions }}</td>
+                <td>Total Revenue:</td><td class="summary-val">PHP {{ total_revenue|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Total Volume:</td><td class="summary-val">{{ total_volume|floatformat:2 }} MT</td>
+                <td>Net Profit:</td><td class="summary-val">PHP {{ net_profit|floatformat:2 }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <h2>Transaction Clusters</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Ref Code</th>
+                <th>Client</th>
+                <th>Mill</th>
+                <th>Status</th>
+                <th>Volume (MT)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cluster in clusters %}
+            <tr>
+                <td>{{ cluster.reference_code }}</td>
+                <td>{{ cluster.client.name }}</td>
+                <td>{{ cluster.sugar_mill.name }}</td>
+                <td>{{ cluster.get_status_display }}</td>
+                <td>{{ cluster.purchase_order.volume_mt }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;">No transactions found for this period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Logistics & Deliveries</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Ref Code</th>
+                <th>Partner</th>
+                <th>Loaded (MT)</th>
+                <th>Received (MT)</th>
+                <th>Variance %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logistics %}
+            <tr>
+                <td>{{ log.cluster.reference_code }}</td>
+                <td>{{ log.partner.name }}</td>
+                <td>{{ log.loaded_volume_mt }}</td>
+                <td>{{ log.received_volume_mt|default:"-" }}</td>
+                <td>{% if log.variance_percent is not None %}{{ log.variance_percent|floatformat:2 }}%{% else %}-{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;">No logistics records found for this period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Financial Invoices</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Invoice No.</th>
+                <th>Ref Code</th>
+                <th>Status</th>
+                <th>Issued At</th>
+                <th>Amount (PHP)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in invoices %}
+            <tr>
+                <td>{{ inv.invoice_number }}</td>
+                <td>{{ inv.cluster.reference_code }}</td>
+                <td>{{ inv.get_status_display }}</td>
+                <td>{{ inv.issued_at }}</td>
+                <td>{{ inv.amount }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;">No invoices found for this period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Strictly Confidential · Heindrich Trading Corporation Core ERP System
+    </div>
+</body>
+</html>

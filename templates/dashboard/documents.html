@@ -1,77 +1,206 @@
 {% extends "app_base.html" %}
 {% block title %}Documents · Molasses Trading{% endblock %}
 {% block topbar_title %}Document Management{% endblock %}
+{% block topbar_subtitle %}Centralized repository for scanned MRO soft copies, invoices, delivery receipts & cash vouchers{% endblock %}
 {% block content %}
-<div class="page-header flex-between compact">
-    <div>
-        <h2>Document Management</h2>
-        <p>Centralized repository for operational and financial records</p>
+
+<div class="d-flex justify-content-end align-items-center mb-3" data-step="1" data-intro="Centralized document management repository for searching scanned Molasses Release Orders (MRO), invoices, delivery receipts, and cash vouchers.">
+    <div style="width: 320px;">
+        <form method="get">
+            <div class="search-input-wrap">
+                <i class="bi bi-search"></i>
+                <input class="form-control form-control-sm" type="search" name="q" value="{{ query }}" placeholder="Search invoice, MRO, CV, or PO...">
+            </div>
+        </form>
     </div>
-    <button class="btn-htc btn-htc-sm" type="button"><i class="bi bi-cloud-upload"></i> Upload Document</button>
 </div>
 
-<form method="get">
-    <input class="doc-search" type="search" name="q" value="{{ query }}" placeholder="Search by invoice, PO, CV number, or document name...">
-</form>
+<div class="tabs-row mb-4" data-step="2" data-intro="Filter documents by category tab: Release Orders (MRO), Sales Invoices, Delivery Receipts, or Cash Vouchers.">
+    <button type="button" class="tab-btn active" onclick="showCategory('all', this)">
+        <i class="bi bi-collection"></i> All Categories
+    </button>
+    <button type="button" class="tab-btn" onclick="showCategory('release_orders', this)">
+        <i class="bi bi-file-earmark-ruled"></i> Release Orders (MRO)
+    </button>
+    <button type="button" class="tab-btn" onclick="showCategory('sales_invoices', this)">
+        <i class="bi bi-receipt"></i> Sales Invoices
+    </button>
+    <button type="button" class="tab-btn" onclick="showCategory('delivery_receipts', this)">
+        <i class="bi bi-truck"></i> Delivery Receipts
+    </button>
+    <button type="button" class="tab-btn" onclick="showCategory('cash_vouchers', this)">
+        <i class="bi bi-cash-stack"></i> Cash Vouchers
+    </button>
+</div>
 
-<div class="doc-grid">
+<div class="row g-4 mb-4" id="documentsGrid" data-step="3" data-intro="Document cards grid. Click on any file to open the full-screen in-app PDF and Image previewer.">
     {% for key, cat in categories.items %}
-    <div class="doc-category">
-        <div class="doc-category-header">
-            <h3>{{ cat.title }}</h3>
-            <span class="doc-count">{{ cat.items|length }}</span>
-        </div>
-        {% for doc in cat.items|slice:":4" %}
-        <div class="doc-item">
-            <i class="bi bi-file-earmark-pdf-fill"></i>
-            <div class="doc-item-meta">
-                <div class="name">{{ doc.name }}</div>
-                <div class="sub">{{ doc.date|date:"M d, Y" }} · {{ doc.size }}</div>
+    <div class="col-lg-6 doc-category-col" data-cat="{{ key }}">
+        <div class="card h-100 border shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 px-3">
+                <h5 class="mb-0 fs-6 fw-bold text-dark">
+                    <i class="bi {{ cat.icon }} me-1 text-primary"></i> {{ cat.title }}
+                </h5>
+                <span class="badge bg-secondary rounded-pill">{{ cat.items|length }}</span>
             </div>
-            <div class="doc-actions">
-                <span title="View"><i class="bi bi-eye"></i></span>
-                <span title="Download"><i class="bi bi-download"></i></span>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for doc in cat.items|slice:":8" %}
+                    <div class="list-group-item d-flex align-items-center justify-content-between py-2 px-3">
+                        <div class="d-flex align-items-center gap-3" style="min-width: 0;">
+                            <div class="flex-shrink-0">
+                                {% if doc.has_scan %}
+                                    <i class="bi bi-file-earmark-check-fill text-success fs-4" title="Scanned Soft Copy Available"></i>
+                                {% elif doc.pdf_url %}
+                                    <i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>
+                                {% else %}
+                                    <i class="bi bi-file-earmark-pdf text-danger fs-4"></i>
+                                {% endif %}
+                            </div>
+                            <div style="min-width: 0;">
+                                <div class="fw-bold text-truncate text-dark" style="max-width: 260px;" title="{{ doc.name }}">{{ doc.name }}</div>
+                                <div class="text-muted small">
+                                    {{ doc.date|date:"M d, Y" }} · {{ doc.size }}
+                                    {% if key == "release_orders" %}
+                                        {% if doc.has_scan %}
+                                            · <span class="badge bg-success-subtle text-success border border-success-subtle">Soft Copy Scanned</span>
+                                        {% else %}
+                                            · <span class="badge bg-warning-subtle text-warning border border-warning-subtle">No Soft Copy</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                            {% if doc.has_scan %}
+                                <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" title="Preview Scanned MRO" onclick="previewSoftCopy('{{ doc.scan_url }}', '{{ doc.name }}', {{ doc.is_pdf|yesno:'true,false' }})">
+                                    <i class="bi bi-eye-fill"></i> Preview MRO
+                                </button>
+                            {% elif doc.pdf_url %}
+                                <a href="{{ doc.pdf_url }}" class="btn btn-sm btn-outline-danger py-1 px-2" title="Download PDF" download>
+                                    <i class="bi bi-file-earmark-pdf"></i> Invoice PDF
+                                </a>
+                            {% endif %}
+
+                            {% if key == "release_orders" %}
+                                <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" title="Upload Scanned MRO" data-bs-toggle="modal" data-bs-target="#uploadMroModal{{ forloop.counter }}">
+                                    <i class="bi bi-upload"></i> Upload
+                                </button>
+                                <!-- Modal for uploading MRO scanned copy -->
+                                <div class="modal fade" id="uploadMroModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <form method="post" action="{{ doc.upload_url }}" enctype="multipart/form-data">
+                                                {% csrf_token %}
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title"><i class="bi bi-upload text-primary"></i> Upload Scanned MRO Soft Copy</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body text-start">
+                                                    <p class="mb-2">Upload the scanned soft copy (PDF or image) of Molasses Release Order for transaction <strong>{{ doc.ref }}</strong>.</p>
+                                                    <div class="mb-3">
+                                                        <label class="form-label font-weight-bold">Select MRO Soft Copy File (PDF/Image)</label>
+                                                        <input type="file" name="mro_file" class="form-control" accept="application/pdf,image/*" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn-htc"><i class="bi bi-check-circle"></i> Upload Soft Copy</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <a href="{{ doc.url }}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="View Transaction Detail">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item text-muted text-center py-3">No documents available in this category.</div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
-        {% empty %}
-        <div class="doc-item text-muted">No documents in this category yet.</div>
-        {% endfor %}
     </div>
     {% endfor %}
 </div>
 
-<div class="kpi-grid">
-    <div class="kpi-card">
-        <div class="kpi-icon blue"><i class="bi bi-files"></i></div>
-        <div>
-            <div class="kpi-label">Total Documents</div>
-            <div class="kpi-value" style="font-size:1.5rem;">{{ total_documents }}</div>
-            <div class="kpi-sub">All categories</div>
-        </div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-icon green"><i class="bi bi-calendar-plus"></i></div>
-        <div>
-            <div class="kpi-label">Uploaded This Month</div>
-            <div class="kpi-value" style="font-size:1.5rem;">{{ uploaded_this_month }}</div>
-            <div class="kpi-sub">New documents</div>
-        </div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-icon amber"><i class="bi bi-hdd"></i></div>
-        <div>
-            <div class="kpi-label">Storage Used</div>
-            <div class="kpi-value" style="font-size:1.5rem;">{{ storage_used_gb }} GB</div>
-            <div class="kpi-sub">Of 10 GB available</div>
-        </div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-icon red"><i class="bi bi-hourglass-split"></i></div>
-        <div>
-            <div class="kpi-label">Pending Review</div>
-            <div class="kpi-value" style="font-size:1.5rem;">{{ pending_review }}</div>
-            <div class="kpi-sub">Require attention</div>
+<!-- Soft Copy PDF / Image In-App Previewer Modal -->
+<div class="modal fade" id="previewDocModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 90vw;">
+        <div class="modal-content" style="height: 85vh;">
+            <div class="modal-header py-2">
+                <h5 class="modal-title fs-6 fw-bold" id="previewModalTitle"><i class="bi bi-file-earmark-pdf text-danger"></i> Document Preview</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <a id="previewDownloadBtn" href="#" class="btn btn-sm btn-outline-primary" download><i class="bi bi-download"></i> Download Soft Copy</a>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0 bg-dark position-relative" style="height: calc(85vh - 50px);">
+                <iframe id="pdfPreviewIframe" src="" style="width: 100%; height: 100%; border: none; display: none;"></iframe>
+                <img id="imgPreview" src="" alt="Scanned Document" style="max-width: 100%; max-height: 100%; object-fit: contain; margin: auto; display: none;" class="position-absolute top-50 start-50 translate-middle">
+            </div>
         </div>
     </div>
 </div>
+
+<div class="metric-grid mb-4">
+    <div class="metric-box">
+        <div class="label">Total Documents</div>
+        <div class="value">{{ total_documents }}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Uploaded This Month</div>
+        <div class="value text-success">{{ uploaded_this_month }}</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Storage Used</div>
+        <div class="value">{{ storage_used_gb }} GB</div>
+    </div>
+    <div class="metric-box">
+        <div class="label">Pending Review</div>
+        <div class="value text-warning">{{ pending_review }}</div>
+    </div>
+</div>
+
+<script>
+function showCategory(catKey, btn) {
+    document.querySelectorAll('.tabs-row .tab-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    document.querySelectorAll('.doc-category-col').forEach(col => {
+        if (catKey === 'all' || col.getAttribute('data-cat') === catKey) {
+            col.style.display = 'block';
+        } else {
+            col.style.display = 'none';
+        }
+    });
+}
+
+function previewSoftCopy(url, title, isPdf) {
+    document.getElementById('previewModalTitle').innerText = title;
+    document.getElementById('previewDownloadBtn').setAttribute('href', url);
+
+    const iframe = document.getElementById('pdfPreviewIframe');
+    const img = document.getElementById('imgPreview');
+
+    if (isPdf) {
+        iframe.src = url;
+        iframe.style.display = 'block';
+        img.style.display = 'none';
+    } else {
+        img.src = url;
+        img.style.display = 'block';
+        iframe.style.display = 'none';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('previewDocModal'));
+    modal.show();
+}
+</script>
+
 {% endblock %}

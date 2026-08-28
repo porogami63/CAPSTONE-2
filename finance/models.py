@@ -1,8 +1,10 @@
 from decimal import Decimal
 from datetime import date
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from simple_history.models import HistoricalRecords
 
 from operations.models import TransactionCluster
 
@@ -18,11 +20,47 @@ class Invoice(models.Model):
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     issued_at = models.DateField(default=date.today)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    tax_rate_vat = models.DecimalField("VAT Rate (%)", max_digits=5, decimal_places=2, default=Decimal("12.00"))
+    tax_rate_ewt = models.DecimalField("EWT Rate (%)", max_digits=5, decimal_places=2, default=Decimal("1.00"))
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["-issued_at"]
+
+    @property
+    def net_vat_base(self):
+        """Net Sales Base Amount excluding 12% VAT."""
+        if not self.amount:
+            return Decimal("0.00")
+        if self.tax_rate_vat > Decimal("0"):
+            divisor = Decimal("1.00") + (self.tax_rate_vat / Decimal("100.00"))
+            return (self.amount / divisor).quantize(Decimal("0.01"))
+        return self.amount
+
+    @property
+    def vat_amount(self):
+        """Output VAT Amount (12%)."""
+        if not self.amount or self.tax_rate_vat <= Decimal("0"):
+            return Decimal("0.00")
+        return (self.amount - self.net_vat_base).quantize(Decimal("0.01"))
+
+    @property
+    def ewt_amount(self):
+        """Creditable Expanded Withholding Tax (1% or 2% of Net Base)."""
+        if not self.amount or self.tax_rate_ewt <= Decimal("0"):
+            return Decimal("0.00")
+        return (self.net_vat_base * (self.tax_rate_ewt / Decimal("100.00"))).quantize(Decimal("0.01"))
+
+    @property
+    def net_amount_after_tax(self):
+        """Net Receivable Proceeds collected after EWT withholding."""
+        if not self.amount:
+            return Decimal("0.00")
+        return (self.amount - self.ewt_amount).quantize(Decimal("0.01"))
 
     def __str__(self):
         return self.invoice_number
@@ -30,11 +68,22 @@ class Invoice(models.Model):
 
 class CashVoucher(models.Model):
     cluster = models.ForeignKey(TransactionCluster, on_delete=models.CASCADE, related_name="cash_vouchers")
+    loan = models.ForeignKey(
+        "CapitalLoan",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cash_vouchers",
+        help_text="Capital Loan Facility backing this outlay",
+    )
     voucher_number = models.CharField(max_length=50, unique=True)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     purpose = models.CharField(max_length=200)
+    cheque_number = models.CharField(max_length=50, blank=True, help_text="Physical paper cheque reference number")
+    cheque_date = models.DateField(null=True, blank=True, help_text="Issue date of physical cheque")
     issued_at = models.DateField(default=date.today)
     created_at = models.DateTimeField(auto_now_add=True)
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["-issued_at"]
@@ -45,9 +94,12 @@ class CashVoucher(models.Model):
 
 class CapitalLoan(models.Model):
     class Status(models.TextChoices):
-        ACTIVE = "active", "Active"
-        CLOSED = "closed", "Closed"
+        PENDING_CREATION = "pending_creation", "Pending Creation Approval"
+        ACTIVE = "active", "Active Facility"
+        PENDING_SETTLEMENT = "pending_settlement", "Pending Settlement Approval"
+        CLOSED = "closed", "Settled & Closed"
         OVERDUE = "overdue", "Overdue"
+        REJECTED = "rejected", "Verification Rejected"
 
     cluster = models.ForeignKey(TransactionCluster, on_delete=models.CASCADE, related_name="loans")
     bank_name = models.CharField(max_length=120)
@@ -59,7 +111,30 @@ class CapitalLoan(models.Model):
     )
     start_date = models.DateField()
     due_date = models.DateField()
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    cheque_number = models.CharField(max_length=50, blank=True, help_text="Physical paper cheque reference number")
+    cheque_date = models.DateField(null=True, blank=True, help_text="Issue date of physical cheque")
+    bank_account_number = models.CharField(max_length=50, blank=True, help_text="Originating bank account number")
+    logistics_deposit_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("50.00"),
+        help_text="Percentage of upfront logistics deposit funded (Default 50%)",
+    )
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.PENDING_CREATION)
+    settlement_receipt_number = models.CharField(max_length=100, blank=True, help_text="Bank Release Advice / Official Receipt Number")
+    settlement_date = models.DateField(null=True, blank=True, help_text="Date facility was officially settled")
+    settlement_document = models.FileField(upload_to="loan_settlements/", null=True, blank=True, help_text="Scanned soft copy of Bank Release Clearance Advice / Receipt")
+    settlement_notes = models.TextField(blank=True, help_text="Notes on final loan settlement")
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verified_loans",
+        help_text="Operations Manager or Administrator who verified this loan",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verification_notes = models.TextField(blank=True, help_text="Audit notes on loan creation or settlement verification")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -73,6 +148,11 @@ class CapitalLoan(models.Model):
         return max((end - self.start_date).days, 0)
 
     @property
+    def daily_interest_cost(self):
+        daily_rate = (self.interest_rate_annual / Decimal("100")) / Decimal("365")
+        return (self.principal * daily_rate).quantize(Decimal("0.01"))
+
+    @property
     def accrued_interest(self):
         daily_rate = (self.interest_rate_annual / Decimal("100")) / Decimal("365")
         return (self.principal * daily_rate * Decimal(self.days_outstanding)).quantize(Decimal("0.01"))
@@ -80,6 +160,18 @@ class CapitalLoan(models.Model):
     @property
     def total_liability(self):
         return self.principal + self.accrued_interest
+
+    @property
+    def funded_logistics_deposit(self):
+        logistics = getattr(self.cluster, "logistics", None)
+        if logistics:
+            total_logistics_fee = (logistics.tracking_fees or Decimal("0")) + (logistics.barge_fees or Decimal("0"))
+            if total_logistics_fee > Decimal("0"):
+                return (total_logistics_fee * (self.logistics_deposit_percentage / Decimal("100"))).quantize(Decimal("0.01"))
+            # Fallback to standard 50% calculation based on loaded volume or estimate
+            estimated_deposit = (logistics.loaded_volume_mt * Decimal("450.00") * (self.logistics_deposit_percentage / Decimal("100")))
+            return estimated_deposit.quantize(Decimal("0.01"))
+        return Decimal("0.00")
 
     @property
     def is_overdue(self):

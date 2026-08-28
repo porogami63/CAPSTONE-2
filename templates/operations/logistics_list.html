@@ -1,89 +1,820 @@
 {% extends "app_base.html" %}
-{% block title %}Logistics · HTC Core{% endblock %}
-{% block topbar_title %}Logistics{% endblock %}
+{% load role_tags humanize %}
+{% block title %}Logistics & Shrinkage · Molasses Trading{% endblock %}
+{% block topbar_title %}Logistics & Vessel Tracking{% endblock %}
+{% block topbar_subtitle %}Volume variance tracker — ±{{ tolerance_threshold|floatformat:1 }}% standard shrinkage tolerance{% endblock %}
+
 {% block content %}
 <style>
-    .logistics-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-    @media (max-width: 1200px) { .logistics-kpis { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 700px) { .logistics-kpis { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 520px) { .logistics-kpis { grid-template-columns: 1fr; } }
-    .lifecycle-strip { background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius); box-shadow: var(--htc-shadow); padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
-    .lifecycle-strip h3 { margin: 0 0 1rem; font-size: 1rem; color: var(--htc-primary); }
-    .lifecycle-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; }
-    @media (max-width: 760px) { .lifecycle-steps { grid-template-columns: repeat(2, 1fr); } }
-    .step { border: 1px solid var(--htc-border); border-radius: 12px; padding: 0.85rem; background: #fbfcfe; display: flex; gap: 0.7rem; align-items: center; }
-    .step i { font-size: 1.15rem; color: var(--htc-primary-light); }
-    .step span { font-weight: 600; color: var(--htc-text); }
-    .logistics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-    @media (max-width: 1080px) { .logistics-grid { grid-template-columns: 1fr; } }
-    .shipment-card { background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius); box-shadow: var(--htc-shadow); overflow: hidden; }
-    .shipment-card.alert { border-color: rgba(229, 62, 62, 0.35); box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.06); }
-    .shipment-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--htc-border); display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-    .shipment-head strong { color: var(--htc-primary); font-size: 1rem; }
-    .shipment-head .sub { font-size: 0.8rem; color: var(--htc-text-muted); }
-    .shipment-body { padding: 1rem 1.25rem 1.25rem; }
-    .shipment-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; margin-bottom: 0.9rem; }
-    .shipment-meta div { font-size: 0.85rem; color: var(--htc-text-muted); }
-    .shipment-meta strong { color: var(--htc-text); display: block; margin-top: 0.15rem; }
-    .progress-track { height: 10px; background: #edf2f7; border-radius: 999px; overflow: hidden; margin: 0.75rem 0 0.5rem; }
-    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--htc-primary-light), #39a0ed); border-radius: inherit; }
-    .chip-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem; }
-    .alert-note { color: #9b2c2c; background: var(--htc-danger-bg); border: 1px solid #feb2b2; border-radius: 10px; padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+    /* Top engine badge */
+    .engine-badge {
+        background-color: #fef3c7;
+        color: #d97706;
+        border: 1px solid #fde68a;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* Executive KPI Deck */
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 992px) {
+        .metric-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    @media (max-width: 576px) {
+        .metric-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    .metric-box {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-top: 3px solid var(--htc-primary-light);
+        border-radius: var(--htc-radius-sm);
+        padding: 1rem;
+        box-shadow: 0 2px 4px rgba(15, 45, 92, 0.04);
+        transition: transform 0.15s ease-in-out;
+    }
+    .metric-box:hover {
+        transform: translateY(-2px);
+    }
+    .metric-box.blue { border-top-color: #3182ce; }
+    .metric-box.teal { border-top-color: #319795; }
+    .metric-box.green { border-top-color: #38a169; }
+    .metric-box.gold { border-top-color: #dd6b20; }
+    .metric-box.red { border-top-color: #e53e3e; }
+
+    .metric-box .label {
+        font-size: 0.68rem;
+        color: var(--htc-text-muted);
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .metric-box .value {
+        font-size: 1.55rem;
+        font-weight: 800;
+        color: var(--htc-primary);
+        margin-top: 0.25rem;
+        line-height: 1;
+    }
+
+    /* Executive Shipment Lifecycle Pipeline */
+    .lifecycle-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--htc-shadow);
+    }
+    .lifecycle-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .lifecycle-header h3 {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--htc-primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .lifecycle-header p {
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+        margin: 0.15rem 0 0 0;
+    }
+    
+    .lifecycle-legend-pills {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .legend-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.73rem;
+        font-weight: 600;
+        padding: 0.25rem 0.65rem;
+        border-radius: 9999px;
+        border: 1px solid var(--htc-border);
+        background-color: var(--htc-bg);
+    }
+    .legend-pill.green { border-color: rgba(56, 161, 105, 0.3); color: #22543d; background: #f0fff4; }
+    .legend-pill.orange { border-color: rgba(221, 107, 32, 0.3); color: #7b341e; background: #fffaf0; }
+    .legend-pill.red { border-color: rgba(229, 62, 62, 0.3); color: #742a2a; background: #fff5f5; }
+
+    .pipeline-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        background-color: var(--htc-bg);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 0.75rem 1rem;
+        overflow-x: auto;
+    }
+    .pipeline-step {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.5rem 0.9rem;
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius-sm);
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--htc-primary);
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .pipeline-step .step-num {
+        background: var(--htc-primary-light);
+        color: #ffffff;
+        font-size: 0.68rem;
+        font-weight: 800;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .pipeline-arrow {
+        color: var(--htc-text-muted);
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
+
+    /* 4-Column Status Kanban Grid */
+    .kanban-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.25rem;
+        align-items: start;
+    }
+    @media (max-width: 1200px) {
+        .kanban-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 768px) {
+        .kanban-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .kanban-col {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .kanban-header-box {
+        border-radius: var(--htc-radius-sm);
+        padding: 0.85rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .kanban-header-box.blue {
+        background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%);
+        border: 1px solid #bee3f8;
+        color: #2b6cb0;
+    }
+    .kanban-header-box.orange {
+        background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%);
+        border: 1px solid #fbd38d;
+        color: #c05621;
+    }
+    .kanban-header-box.red {
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        border: 1px solid #feb2b2;
+        color: #9b2c2c;
+    }
+    .kanban-header-box.green {
+        background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+        border: 1px solid #9ae6b4;
+        color: #22543d;
+    }
+
+    .count-pill {
+        background: rgba(255, 255, 255, 0.85);
+        padding: 0.15rem 0.55rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    /* Scrollable Kanban Column Container */
+    .kanban-cards-body {
+        max-height: 580px;
+        overflow-y: auto;
+        padding-right: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+    .kanban-cards-body::-webkit-scrollbar {
+        width: 6px;
+    }
+    .kanban-cards-body::-webkit-scrollbar-track {
+        background: var(--htc-bg);
+        border-radius: 4px;
+    }
+    .kanban-cards-body::-webkit-scrollbar-thumb {
+        background: var(--htc-border-color, #cbd5e1);
+        border-radius: 4px;
+    }
+    .kanban-cards-body::-webkit-scrollbar-thumb:hover {
+        background: var(--htc-primary-light, #94a3b8);
+    }
+
+    /* Shipment Card styles */
+    .shipment-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1.1rem;
+        box-shadow: var(--htc-shadow);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .shipment-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(15, 45, 92, 0.06);
+    }
+    .shipment-card.border-orange {
+        border: 2px solid var(--htc-gold);
+    }
+    .shipment-card.border-red {
+        border: 2px solid var(--htc-accent);
+    }
+
+    .shipment-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.65rem;
+    }
+    .shipment-card-header strong {
+        font-size: 0.95rem;
+        color: var(--htc-primary);
+    }
+    .shipment-customer {
+        font-size: 0.8rem;
+        color: var(--htc-text-muted);
+        margin-bottom: 0.85rem;
+        font-weight: 500;
+    }
+
+    /* Progress bar */
+    .progress-label-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--htc-text-muted);
+        margin-bottom: 0.35rem;
+    }
+    .progress-bar-wrap {
+        background-color: var(--htc-bg);
+        height: 8px;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 0.85rem;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        background-color: var(--htc-primary-light);
+    }
+    .progress-bar-fill.green { background-color: var(--htc-success); }
+    .progress-bar-fill.red { background-color: var(--htc-accent); }
+
+    .shrinkage-row {
+        background-color: var(--htc-sidebar-hover);
+        border-radius: var(--htc-radius-sm);
+        padding: 0.45rem 0.65rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin-bottom: 0.65rem;
+    }
+    .shrinkage-row .shrinkage-val.green { color: var(--htc-success); }
+    .shrinkage-row .shrinkage-val.red { color: var(--htc-accent); }
+
+    .headroom-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.73rem;
+        font-weight: 600;
+        color: var(--htc-text-muted);
+    }
+    .headroom-val.green { color: var(--htc-success); }
+    .headroom-val.red { color: var(--htc-accent); }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .status-badge.loading { background-color: var(--htc-bg); color: var(--htc-text-muted); }
+    .status-badge.transit { background-color: #ebf8ff; color: #2b6cb0; }
+    .status-badge.delivered { background-color: #ebf8f2; color: #22543d; }
+    .status-badge.accepted { background-color: #c6f6d5; color: #276749; }
+    .status-badge.disputed { background-color: #fed7d7; color: #9b2c2c; }
+    .status-badge.pending_review { background-color: var(--htc-warning-bg); color: #c05621; }
 </style>
 
-<div class="page-header flex-start mb-4">
-    <div>
-        <h2>Logistics</h2>
-        <p>Shipment lifecycle monitoring with variance and exception tracking.</p>
+<div class="d-flex justify-content-end align-items-center mb-3">
+    <div class="engine-badge">
+        <i class="bi bi-lightning-charge-fill"></i> variance engine active (±{{ tolerance_threshold|floatformat:1 }}%)
     </div>
 </div>
 
-<div class="logistics-kpis">
-    <div class="kpi-card"><div class="kpi-icon blue"><i class="bi bi-truck"></i></div><div><div class="kpi-label">In Transit</div><div class="kpi-value">{{ in_transit }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon green"><i class="bi bi-check2-circle"></i></div><div><div class="kpi-label">Delivered</div><div class="kpi-value">{{ delivered }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon green"><i class="bi bi-patch-check"></i></div><div><div class="kpi-label">Accepted</div><div class="kpi-value">{{ accepted }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon amber"><i class="bi bi-hourglass-split"></i></div><div><div class="kpi-label">Pending Review</div><div class="kpi-value">{{ pending_review }}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon red"><i class="bi bi-exclamation-triangle"></i></div><div><div class="kpi-label">Disputed</div><div class="kpi-value">{{ disputed }}</div></div></div>
+<!-- Search & Filtering Toolbar Bar -->
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Search PO #, Customer, Vessel, Partner..." value="{{ current_q }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="partner" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- All Logistics Partners --</option>
+                    {% for p in available_partners %}
+                    <option value="{{ p.id }}" {% if current_partner == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- All Status Swimlanes --</option>
+                    <option value="transit" {% if current_status == "transit" %}selected{% endif %}>In Transit / Loading</option>
+                    <option value="pending_review" {% if current_status == "pending_review" %}selected{% endif %}>Pending Review</option>
+                    <option value="disputed" {% if current_status == "disputed" %}selected{% endif %}>Disputed / Over Tolerance</option>
+                    <option value="accepted" {% if current_status == "accepted" %}selected{% endif %}>Accepted / Delivered</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary flex-grow-1"><i class="bi bi-funnel-fill me-1"></i> Filter</button>
+                <a href="{% url 'operations:export_logistics_csv' %}?q={{ current_q }}&partner={{ current_partner }}" class="btn btn-sm btn-outline-success text-nowrap" title="Export Filtered CSV"><i class="bi bi-file-earmark-excel-fill me-1"></i> CSV</a>
+                {% if current_q or current_partner or current_status %}
+                <a href="{% url 'operations:logistics_list' %}" class="btn btn-sm btn-outline-secondary" title="Reset Filters"><i class="bi bi-x-circle"></i></a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
 </div>
 
-<section class="lifecycle-strip">
-    <h3>Shipment Lifecycle</h3>
-    <div class="lifecycle-steps">
-        {% for step in lifecycle_steps %}
-        <div class="step"><i class="bi {{ step.icon }}"></i><span>{{ step.label }}</span></div>
-        {% endfor %}
+<!-- TOP KPI CARDS (Step 1 of Intro.js Tour) -->
+<div class="metric-grid"
+     data-intro="Monitor real-time shipment counts across all active transit, delivery, pending review, and disputed states."
+     data-title="Logistics Metrics Deck"
+     data-step="1">
+    <div class="metric-box blue">
+        <div class="label">In Transit / Loading</div>
+        <div class="value">{{ in_transit_count }}</div>
     </div>
-</section>
+    <div class="metric-box teal">
+        <div class="label">Delivered</div>
+        <div class="value">{{ delivered_count }}</div>
+    </div>
+    <div class="metric-box green">
+        <div class="label">Accepted</div>
+        <div class="value">{{ accepted_count }}</div>
+    </div>
+    <div class="metric-box gold">
+        <div class="label">Pending Review</div>
+        <div class="value">{{ pending_review_count }}</div>
+    </div>
+    <div class="metric-box red">
+        <div class="label">Disputed / Flagged</div>
+        <div class="value">{{ disputed_count }}</div>
+    </div>
+</div>
 
-<section class="logistics-grid">
-    {% for record in records %}
-    <article class="shipment-card {% if record.lifecycle_class == 'alert' %}alert{% endif %}">
-        <div class="shipment-head">
-            <div>
-                <strong>{{ record.cluster.reference_code }}</strong>
-                <div class="sub">{{ record.cluster.client.name }} · {{ record.partner.name }}</div>
-            </div>
-            <span class="badge-status {{ record.lifecycle_class }}">{{ record.lifecycle_state }}</span>
+<!-- Shipment Lifecycle Diagram (Step 2 of Intro.js Tour) -->
+<div class="lifecycle-card"
+     data-intro="Every shipment follows a strict 5-stage lifecycle from loading to variance checks and final acceptance."
+     data-title="Shipment Lifecycle Flow"
+     data-step="2">
+    <div class="lifecycle-header">
+        <div>
+            <h3><i class="bi bi-diagram-3-fill"></i> Shipment Operational Lifecycle</h3>
+            <p>Standard 5-stage shipment sequence — shrinkage variance is evaluated at destination discharge.</p>
         </div>
-        <div class="shipment-body">
-            <div class="shipment-meta">
-                <div>Loaded<strong>{{ record.loaded_volume_mt|floatformat:1 }} MT</strong></div>
-                <div>Received<strong>{% if record.received_volume_mt is not None %}{{ record.received_volume_mt|floatformat:1 }} MT{% else %}—{% endif %}</strong></div>
-                <div>Variance<strong>{{ record.variance_text }}</strong></div>
-                <div>Updated<strong>{{ record.updated_at|date:"Y-m-d" }}</strong></div>
-            </div>
-            <div class="progress-track"><div class="progress-bar" style="width: {{ record.progress_percent }}%;"></div></div>
-            <div class="chip-row">
-                <span class="badge-status {% if record.lifecycle_class == 'alert' %}alert{% elif record.lifecycle_class == 'delivered' %}delivered{% else %}active{% endif %}">{{ record.lifecycle_state }}</span>
-                <span class="badge-status {% if record.variance_exceeds_tolerance %}alert{% else %}draft{% endif %}">Tolerance {% if record.variance_exceeds_tolerance %}Exceeded{% else %}Within{% endif %}</span>
-            </div>
-            {% if record.variance_exceeds_tolerance %}
-            <div class="alert-note" style="margin-top:0.85rem;">Variance requires manual review before acceptance.</div>
-            {% endif %}
+        <div class="lifecycle-legend-pills">
+            <span class="legend-pill green"><i class="bi bi-check-circle-fill"></i> Accepted (within ±{{ tolerance_threshold|floatformat:1 }}%)</span>
+            <span class="legend-pill orange"><i class="bi bi-hourglass-split"></i> Pending Review</span>
+            <span class="legend-pill red"><i class="bi bi-exclamation-triangle-fill"></i> Disputed (over tolerance)</span>
         </div>
-    </article>
-    {% empty %}
-    <div class="text-muted">No logistics records recorded.</div>
-    {% endfor %}
-</section>
+    </div>
+
+    <div class="pipeline-container">
+        <div class="pipeline-step"><span class="step-num">1</span> <i class="bi bi-box-seam me-1"></i> Mill Loading</div>
+        <i class="bi bi-chevron-right pipeline-arrow"></i>
+        <div class="pipeline-step"><span class="step-num">2</span> <i class="bi bi-truck me-1"></i> Barge Transit</div>
+        <i class="bi bi-chevron-right pipeline-arrow"></i>
+        <div class="pipeline-step"><span class="step-num">3</span> <i class="bi bi-building-check me-1"></i> Port Discharge</div>
+        <i class="bi bi-chevron-right pipeline-arrow"></i>
+        <div class="pipeline-step"><span class="step-num">4</span> <i class="bi bi-calculator me-1"></i> Variance Check</div>
+        <i class="bi bi-chevron-right pipeline-arrow"></i>
+        <div class="pipeline-step"><span class="step-num">5</span> <i class="bi bi-file-earmark-check me-1"></i> Resolution / Sign-Off</div>
+    </div>
+</div>
+
+<!-- TABS (Step 3 of Intro.js Tour) -->
+<div class="tabs-row" style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem;"
+     data-intro="Switch between the Visual Variance Analysis Cards view and the All Shipments Operational Data Table view."
+     data-title="Interactive View Switcher"
+     data-step="3">
+    <button class="tab-btn active" id="tabBtnVariance" onclick="switchLogisticsTab('variance')">
+        <i class="bi bi-bezier2"></i> Variance Analysis (Status Swimlanes)
+    </button>
+    <button class="tab-btn" id="tabBtnAll" onclick="switchLogisticsTab('all')">
+        <i class="bi bi-list-task"></i> All Shipments Master Table
+    </button>
+</div>
+
+<!-- VARIANCE ANALYSIS VIEW CONTAINER (4-COLUMN SWIMLANES) -->
+<div id="varianceAnalysisView">
+    <div class="kanban-grid"
+         data-intro="Shipments are organized into 4 status columns: In Transit, Pending Review, Disputed, and Accepted."
+         data-title="Status Swimlanes & Categorized Cards"
+         data-step="4">
+        
+        <!-- Column 1: In Transit / Loading -->
+        <div class="kanban-col">
+            <div class="kanban-header-box blue">
+                <span><i class="bi bi-truck me-1"></i> In Transit / Loading</span>
+                <span class="count-pill">{{ transit_shipments|length }}</span>
+            </div>
+            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search in transit..." onkeyup="filterColumnCards(this, 'colTransitBody')" style="font-size: 0.78rem;">
+            
+            <div class="kanban-cards-body" id="colTransitBody">
+                {% for sh in transit_shipments %}
+                <div class="shipment-card" data-search-text="{{ sh.sh_code|lower }} {{ sh.ref_code|lower }} {{ sh.customer|lower }} {{ sh.partner_name|lower }} {{ sh.vessel_id|lower }}">
+                    <div class="shipment-card-header">
+                        <strong>{{ sh.sh_code }}</strong>
+                        <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                    </div>
+                    <div class="shipment-customer">
+                        {{ sh.customer }}
+                        <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }} · {{ sh.partner_name }}</span>
+                    </div>
+                    <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                    <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width: {{ sh.prog_pct }}%;"></div></div>
+                    <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>Pending</span></div>
+                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val text-muted">Awaiting delivery</span></div>
+                    <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
+                        <i class="bi bi-pencil-square"></i> Update Receiving
+                    </a>
+                </div>
+                {% empty %}
+                <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                    No shipments in transit.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Column 2: Pending Review -->
+        <div class="kanban-col">
+            <div class="kanban-header-box orange">
+                <span><i class="bi bi-hourglass-split me-1"></i> Pending Review</span>
+                <span class="count-pill">{{ pending_shipments|length }}</span>
+            </div>
+            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search pending..." onkeyup="filterColumnCards(this, 'colPendingBody')" style="font-size: 0.78rem;">
+
+            <div class="kanban-cards-body" id="colPendingBody">
+                {% for sh in pending_shipments %}
+                <div class="shipment-card border-orange" data-search-text="{{ sh.sh_code|lower }} {{ sh.ref_code|lower }} {{ sh.customer|lower }} {{ sh.partner_name|lower }} {{ sh.vessel_id|lower }}">
+                    <div class="shipment-card-header">
+                        <strong>{{ sh.sh_code }}</strong>
+                        <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                    </div>
+                    <div class="shipment-customer">
+                        {{ sh.customer }}
+                        <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }} · {{ sh.partner_name }}</span>
+                    </div>
+                    <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                    <div class="progress-bar-wrap"><div class="progress-bar-fill green" style="width: {{ sh.prog_pct }}%;"></div></div>
+                    <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
+                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                    <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
+                    <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
+                        <i class="bi bi-pencil-square"></i> Review Shipment
+                    </a>
+                </div>
+                {% empty %}
+                <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                    No shipments pending review.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Column 3: Disputed / Flagged -->
+        <div class="kanban-col">
+            <div class="kanban-header-box red">
+                <span><i class="bi bi-exclamation-triangle-fill me-1"></i> Disputed / Flagged</span>
+                <span class="count-pill">{{ disputed_shipments|length }}</span>
+            </div>
+            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search disputed..." onkeyup="filterColumnCards(this, 'colDisputedBody')" style="font-size: 0.78rem;">
+
+            <div class="kanban-cards-body" id="colDisputedBody">
+                {% for sh in disputed_shipments %}
+                <div class="shipment-card border-red" data-search-text="{{ sh.sh_code|lower }} {{ sh.ref_code|lower }} {{ sh.customer|lower }} {{ sh.partner_name|lower }} {{ sh.vessel_id|lower }}">
+                    <div class="shipment-card-header">
+                        <strong>{{ sh.sh_code }}</strong>
+                        <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                    </div>
+                    <div class="shipment-customer">
+                        {{ sh.customer }}
+                        <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }} · {{ sh.partner_name }}</span>
+                    </div>
+                    <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                    <div class="progress-bar-wrap"><div class="progress-bar-fill red" style="width: {{ sh.prog_pct }}%;"></div></div>
+                    <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
+                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val red">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                    <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val red">{{ sh.over_limit|floatformat:2 }}% over limit</span></div>
+                    
+                    <button type="button" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; font-size: 0.73rem; color: var(--htc-accent); border-color: rgba(229,62,62,0.4);" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal" data-url="{% url 'operations:resolve_dispute' sh.pk %}" data-code="{{ sh.sh_code }}" data-customer="{{ sh.customer }}" data-mt="{{ sh.shrinkage_mt|floatformat:1 }}" data-pct="{{ sh.shrinkage_pct|floatformat:2 }}" onclick="setupDisputeModal(this)">
+                        <i class="bi bi-shield-exclamation"></i> Resolve Dispute
+                    </button>
+                </div>
+                {% empty %}
+                <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                    No disputed shipments.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Column 4: Accepted / Delivered -->
+        <div class="kanban-col">
+            <div class="kanban-header-box green">
+                <span><i class="bi bi-check-circle-fill me-1"></i> Accepted / Delivered</span>
+                <span class="count-pill">{{ accepted_shipments|length }}</span>
+            </div>
+            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search accepted..." onkeyup="filterColumnCards(this, 'colAcceptedBody')" style="font-size: 0.78rem;">
+
+            <div class="kanban-cards-body" id="colAcceptedBody">
+                {% for sh in accepted_shipments %}
+                <div class="shipment-card" data-search-text="{{ sh.sh_code|lower }} {{ sh.ref_code|lower }} {{ sh.customer|lower }} {{ sh.partner_name|lower }} {{ sh.vessel_id|lower }}">
+                    <div class="shipment-card-header">
+                        <strong>{{ sh.sh_code }}</strong>
+                        <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                    </div>
+                    <div class="shipment-customer">
+                        {{ sh.customer }}
+                        <span class="text-muted small" style="display:block;">PO: {{ sh.ref_code }} · {{ sh.partner_name }}</span>
+                    </div>
+                    <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
+                    <div class="progress-bar-wrap"><div class="progress-bar-fill green" style="width: {{ sh.prog_pct }}%;"></div></div>
+                    <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
+                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                    <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
+                    <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
+                        <i class="bi bi-file-earmark-text"></i> View Contract
+                    </a>
+                </div>
+                {% empty %}
+                <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
+                    No completed shipments yet.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ALL SHIPMENTS DATA TABLE VIEW CONTAINER -->
+<div id="allShipmentsView" style="display: none;">
+    <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; padding: 1.25rem; box-shadow: var(--htc-shadow);">
+        <div class="flex-between mb-3">
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--htc-primary); margin: 0;">Logistics Operational Master Ledger</h3>
+            <span class="text-muted text-xs">Total Records: {{ shipments|length }}</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="table-htc" style="margin: 0; width: 100%; font-size: 0.85rem;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--htc-border);">
+                        <th style="padding: 0.65rem 0.8rem;">Shipment Code</th>
+                        <th style="padding: 0.65rem 0.8rem;">Contract PO</th>
+                        <th style="padding: 0.65rem 0.8rem;">Customer</th>
+                        <th style="padding: 0.65rem 0.8rem;">Loaded (MT)</th>
+                        <th style="padding: 0.65rem 0.8rem;">Received (MT)</th>
+                        <th style="padding: 0.65rem 0.8rem;">Variance (%)</th>
+                        <th style="padding: 0.65rem 0.8rem;">Status</th>
+                        <th style="padding: 0.65rem 0.8rem; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sh in shipments %}
+                    <tr style="border-bottom: 1px solid var(--htc-border); vertical-align: middle;">
+                        <td style="padding: 0.75rem 0.8rem; font-weight: 700;">{{ sh.sh_code }}</td>
+                        <td style="padding: 0.75rem 0.8rem;">{{ sh.ref_code }}</td>
+                        <td style="padding: 0.75rem 0.8rem;">{{ sh.customer }}</td>
+                        <td style="padding: 0.75rem 0.8rem;">{{ sh.loaded_mt|floatformat:3|intcomma }} MT</td>
+                        <td style="padding: 0.75rem 0.8rem;">
+                            {% if sh.received_mt == 'Pending' %}
+                            <span class="text-muted">Pending</span>
+                            {% else %}
+                            {{ sh.received_mt|floatformat:3|intcomma }} MT
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem 0.8rem; font-weight: 600;">
+                            {% if sh.received_mt == 'Pending' %}
+                            <span class="text-muted">—</span>
+                            {% else %}
+                            <span class="{% if sh.status == 'disputed' %}text-danger{% else %}text-success{% endif %}">
+                                -{{ sh.shrinkage_pct|floatformat:2 }}%
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem 0.8rem;">
+                            <span class="status-badge {{ sh.status }}">{{ sh.sh_status_display }}</span>
+                        </td>
+                        <td style="padding: 0.75rem 0.8rem; text-align: right;">
+                            <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;">
+                                <i class="bi bi-pencil-square"></i> Update
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="padding: 2rem; text-align: center; color: var(--htc-text-muted);">No logistics records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- RESOLVE DISPUTE MODAL -->
+<div class="modal fade" id="resolveDisputeModal" tabindex="-1" aria-labelledby="resolveDisputeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
+        <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 14px 28px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1.25rem 1.5rem;">
+                <div>
+                    <h5 class="modal-title" id="resolveDisputeModalLabel" style="font-weight: 700; color: var(--htc-text);">Resolve Variance Dispute</h5>
+                    <div style="font-size: 0.8rem; color: var(--htc-text-muted);" id="modalSubhead">Shipment Resolution</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" id="disputeForm">
+                {% csrf_token %}
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <div style="background: var(--htc-danger-bg); border: 1px solid #fed7d7; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: #9b2c2c;">
+                        <strong>Variance Alert:</strong> Exceeded 1.0% shrinkage tolerance by <span id="modalShrinkageVal">0.0 MT (0.00%)</span>. Select how management will resolve this dispute:
+                    </div>
+
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; display: block;">Select Resolution Pathway</label>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resConcede" value="CONCEDED" checked>
+                            <label class="form-check-label" for="resConcede" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Concede &amp; Proceed As-Is <span class="badge bg-secondary" style="font-size: 0.65rem; margin-left: 0.25rem;">Default</span>
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Absorb the variance loss, maintain original contract terms, clear dispute flag, and proceed with the deal.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resAdjustBill" value="BILLING_ADJUSTED">
+                            <label class="form-check-label" for="resAdjustBill" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Adjust Billing to Received Volume
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Automatically adjust linked Sales Invoices to bill actual received MT instead of loaded MT.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resPenalty" value="BARGE_PENALTY">
+                            <label class="form-check-label" for="resPenalty" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Deduct Shortage Penalty from Logistics Partner
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Deduct shortage value from barge freight fees (`barge_fees`) to penalize transit loss.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resWaiver" value="WAIVED">
+                            <label class="form-check-label" for="resWaiver" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Management Waiver (Brix / Moisture Loss)
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Approve natural moisture evaporation / brix density shift waiver and clear dispute flag.
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted); margin-bottom: 0.25rem; display: block;">Resolution Audit Notes</label>
+                        <textarea name="resolution_notes" class="form-control-htc" rows="2" placeholder="e.g. Conceded 7 MT variance due to customer request, proceeding with deal as-is..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--htc-border); padding: 1rem 1.5rem;">
+                    <button type="button" class="btn-htc-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-htc" style="background: var(--htc-success); border-color: var(--htc-success);">
+                        <i class="bi bi-check-circle-fill"></i> Confirm Resolution
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchLogisticsTab(tab) {
+    const varianceView = document.getElementById('varianceAnalysisView');
+    const allView = document.getElementById('allShipmentsView');
+    const tabBtnVariance = document.getElementById('tabBtnVariance');
+    const tabBtnAll = document.getElementById('tabBtnAll');
+
+    if (tab === 'variance') {
+        varianceView.style.display = 'block';
+        allView.style.display = 'none';
+        tabBtnVariance.classList.add('active');
+        tabBtnAll.classList.remove('active');
+    } else {
+        varianceView.style.display = 'none';
+        allView.style.display = 'block';
+        tabBtnVariance.classList.remove('active');
+        tabBtnAll.classList.add('active');
+    }
+}
+
+function setupDisputeModal(btn) {
+    const form = document.getElementById('disputeForm');
+    const subhead = document.getElementById('modalSubhead');
+    const valText = document.getElementById('modalShrinkageVal');
+
+    if (btn && btn.dataset) {
+        if (form) form.action = btn.dataset.url;
+        if (subhead) subhead.textContent = `${btn.dataset.code} · ${btn.dataset.customer}`;
+        if (valText) valText.textContent = `-${btn.dataset.mt} MT (-${btn.dataset.pct}%)`;
+    }
+}
+
+function filterColumnCards(inputEl, bodyId) {
+    const filter = inputEl.value.toLowerCase().trim();
+    const body = document.getElementById(bodyId);
+    if (!body) return;
+    const cards = body.getElementsByClassName('shipment-card');
+
+    for (let i = 0; i < cards.length; i++) {
+        const text = cards[i].getAttribute('data-search-text') || cards[i].innerText.toLowerCase();
+        if (text.includes(filter)) {
+            cards[i].style.display = 'block';
+        } else {
+            cards[i].style.display = 'none';
+        }
+    }
+}
+</script>
 {% endblock %}

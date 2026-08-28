@@ -1,0 +1,85 @@
+{% extends "app_base.html" %}
+{% load role_tags %}
+{% block title %}User Profile & Settings · HTC Core{% endblock %}
+{% block topbar_title %}User Profile & Settings{% endblock %}
+{% block topbar_subtitle %}Personalize your avatar profile picture, account details, and system preferences{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center g-4">
+    <div class="col-lg-4 col-md-5">
+        <div class="card border-0 shadow-sm text-center p-4 h-100">
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <div class="position-relative mb-3">
+                    {% if user.avatar %}
+                    <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="rounded-circle shadow-sm" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid var(--htc-border-color, #e0e0e0);">
+                    {% else %}
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm font-weight-bold" style="width: 120px; height: 120px; font-size: 2.8rem; border: 3px solid var(--htc-border-color, #e0e0e0);">
+                        {{ user.username|slice:":1"|upper }}
+                    </div>
+                    {% endif %}
+                </div>
+                <h4 class="mb-1 font-weight-bold">{{ user.get_full_name|default:user.username }}</h4>
+                <div class="text-muted mb-2">@{{ user.username }}</div>
+                <div>
+                    {% if user.role == 'administrator' %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger font-weight-bold py-1 px-3 fs-6">
+                        <i class="bi bi-shield-lock-fill me-1"></i>Administrator
+                    </span>
+                    {% elif user.role == 'operations_management' %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary font-weight-bold py-1 px-3 fs-6">
+                        <i class="bi bi-briefcase-fill me-1"></i>Operations Management
+                    </span>
+                    {% elif user.role == 'finance' %}
+                    <span class="badge bg-success-subtle text-success border border-success font-weight-bold py-1 px-3 fs-6">
+                        <i class="bi bi-bank me-1"></i>Finance
+                    </span>
+                    {% else %}
+                    <span class="badge bg-info-subtle text-info border border-info font-weight-bold py-1 px-3 fs-6">
+                        <i class="bi bi-receipt me-1"></i>Invoicing
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="mt-4 text-start w-100 fs-7 text-muted border-top pt-3">
+                    <div><i class="bi bi-envelope-fill me-2 text-primary"></i><strong>Email:</strong> {{ user.email|default:"Not specified" }}</div>
+                    <div class="mt-2"><i class="bi bi-calendar-check-fill me-2 text-primary"></i><strong>Member Since:</strong> {{ user.date_joined|date:"F d, Y" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8 col-md-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 font-weight-bold"><i class="bi bi-sliders text-primary me-2"></i>Update Personal Details</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data">{% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">First Name</label>
+                            {{ form.first_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-weight-bold">Last Name</label>
+                            {{ form.last_name }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label font-weight-bold">Email Address</label>
+                            {{ form.email }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label font-weight-bold">Upload Custom Profile Picture (Avatar)</label>
+                            {{ form.avatar }}
+                            <div class="form-text text-muted mt-1">Upload a JPG, PNG, or WebP photo to customize your avatar icon across HTC Core.</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-top d-flex justify-content-end gap-2">
+                        <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i> Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

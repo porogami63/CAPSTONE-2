@@ -1,41 +1,157 @@
 {% extends "app_base.html" %}
-{% load role_tags %}
-{% block title %}{{ cluster.reference_code }} · HTC Core{% endblock %}
-{% block topbar_title %}{{ cluster.reference_code }}{% endblock %}
+{% load role_tags humanize %}
+{% block title %}{{ cluster.reference_code }} · Transaction Detail{% endblock %}
+{% block topbar_title %}Transaction Detail · {{ cluster.reference_code }}{% endblock %}
+{% block topbar_subtitle %}{{ cluster.client.name }} · {{ cluster.sugar_mill.name }} · Status: {{ cluster.get_status_display }}{% endblock %}
 {% block content %}
 
-<div class="page-header flex-start mb-3">
-    <div>
-        <h2>{{ cluster.reference_code }}</h2>
-        <p>{{ cluster.client.name }} · {{ cluster.sugar_mill.name }} · <span class="badge-status {{ cluster.status }}">{{ cluster.get_status_display }}</span></p>
-    </div>
+<div class="d-flex justify-content-end align-items-center gap-2 mb-3" data-step="2" data-intro="Action panel for editing contract parameters, uploading scanned MRO release orders, or opening payment matching reconciliation.">
+    {% if user|has_perm:"edit_transaction" %}
+    <a href="{% url 'operations:cluster_edit' cluster.pk %}" class="btn-htc-outline" title="Edit Contract Parameters"><i class="bi bi-pencil"></i> Edit Contract</a>
+    {% endif %}
+    {% if user|has_perm:"archive_transaction" %}
+        {% if cluster.is_archived %}
+        <form method="post" action="{% url 'operations:unarchive_cluster' cluster.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn-htc-outline"><i class="bi bi-arrow-counterclockwise"></i> Restore from Archive</button>
+        </form>
+        {% else %}
+        <form method="post" action="{% url 'operations:archive_cluster' cluster.pk %}" style="display:inline;" onsubmit="return confirm('Move this transaction to Archive Vault?');">
+            {% csrf_token %}
+            <button type="submit" class="btn-htc-outline" title="Archive completed transaction"><i class="bi bi-archive"></i> Archive</button>
+        </form>
+        {% endif %}
+    {% endif %}
+    {% if cluster.mro_file %}
+    <a href="{{ cluster.mro_file.url }}" target="_blank" class="btn-htc-outline text-success border-success" title="Preview MRO Scanned Copy">
+        <i class="bi bi-file-earmark-check-fill"></i> View MRO Soft Copy
+    </a>
+    {% elif user|has_perm:"upload_mro" %}
+    <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#uploadMroModal">
+        <i class="bi bi-upload"></i> Upload MRO Scan
+    </button>
+    {% endif %}
     {% if user|has_perm:"reconcile_payments" %}
     <a href="{% url 'finance:reconciliation' cluster.pk %}" class="btn-htc-outline"><i class="bi bi-link-45deg"></i> Payment Matching</a>
     {% endif %}
+    <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#debriefModal" style="color: var(--htc-primary-light); border-color: var(--htc-primary-light);" title="View complete step-by-step transaction debrief and formula breakdown"><i class="bi bi-calculator"></i> Audit Debrief</button>
+    <a href="{% url 'dashboard:download_report' period='all' %}" class="btn-htc" target="_blank" data-step="8" data-intro="Generate and download official PDF transaction report with full financial & shipment breakdown."><i class="bi bi-file-earmark-pdf"></i> Export PDF Report</a>
 </div>
 
 {% if cluster.logistics.variance_exceeds_tolerance %}
-<div class="alert-banner" style="border: 2px solid #e53e3e; box-shadow: 0 0 10px rgba(229, 62, 62, 0.2);"><i class="bi bi-exclamation-triangle-fill"></i>
-    <strong>Variance Alert:</strong> <span class="badge-variance-danger" style="margin-left: 0.5rem; margin-right: 0.5rem;">{{ cluster.logistics.variance_percent|floatformat:2 }}%</span> exceeds 1% tolerance threshold.
+<div class="alert-banner" style="border: 2px solid #e53e3e; box-shadow: 0 0 10px rgba(229, 62, 62, 0.2); display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <strong>Variance Alert:</strong> <span class="badge-variance-danger" style="margin-left: 0.5rem; margin-right: 0.5rem;">{{ cluster.logistics.variance_percent|floatformat:2 }}%</span> exceeds 1.0% tolerance threshold.
+    </div>
+    {% if user|has_perm:"edit_logistics" %}
+    <button type="button" class="btn-htc" style="background: #e53e3e; border-color: #e53e3e; padding: 0.35rem 0.85rem; font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal">
+        <i class="bi bi-shield-exclamation"></i> Resolve Dispute
+    </button>
+    {% endif %}
+</div>
+
+<!-- RESOLVE DISPUTE MODAL -->
+<div class="modal fade" id="resolveDisputeModal" tabindex="-1" aria-labelledby="resolveDisputeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
+        <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 14px 28px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1.25rem 1.5rem;">
+                <div>
+                    <h5 class="modal-title" id="resolveDisputeModalLabel" style="font-weight: 700; color: var(--htc-text);">Resolve Variance Dispute</h5>
+                    <div style="font-size: 0.8rem; color: var(--htc-text-muted);">{{ cluster.reference_code }} · {{ cluster.client.name }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'operations:resolve_dispute' cluster.pk %}">
+                {% csrf_token %}
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <div style="background: var(--htc-danger-bg); border: 1px solid #fed7d7; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: #9b2c2c;">
+                        <strong>Variance Alert:</strong> Exceeded 1.0% shrinkage tolerance ({{ cluster.logistics.variance_percent|floatformat:2 }}%). Select how management will resolve this dispute:
+                    </div>
+
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; display: block;">Select Resolution Pathway</label>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resConcede" value="CONCEDED" checked>
+                            <label class="form-check-label" for="resConcede" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Concede &amp; Proceed As-Is <span class="badge bg-secondary" style="font-size: 0.65rem; margin-left: 0.25rem;">Default</span>
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Absorb the variance loss, maintain original contract terms, clear dispute flag, and proceed with the deal.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resAdjustBill" value="BILLING_ADJUSTED">
+                            <label class="form-check-label" for="resAdjustBill" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Adjust Billing to Received Volume
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Automatically adjust linked Sales Invoices to bill actual received MT instead of loaded MT.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resPenalty" value="BARGE_PENALTY">
+                            <label class="form-check-label" for="resPenalty" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Deduct Shortage Penalty from Logistics Partner
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Deduct shortage value from barge freight fees (`barge_fees`) to penalize transit loss.
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
+                            <input class="form-check-input" type="radio" name="resolution_type" id="resWaiver" value="WAIVED">
+                            <label class="form-check-label" for="resWaiver" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
+                                Management Waiver (Brix / Moisture Loss)
+                                <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                    Approve natural moisture evaporation / brix density shift waiver and clear dispute flag.
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted); margin-bottom: 0.25rem; display: block;">Resolution Audit Notes</label>
+                        <textarea name="resolution_notes" class="form-control-htc" rows="2" placeholder="e.g. Conceded 7 MT variance due to customer request, proceeding with deal as-is..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid var(--htc-border); padding: 1rem 1.5rem;">
+                    <button type="button" class="btn-htc-outline" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-htc" style="background: var(--htc-success); border-color: var(--htc-success);">
+                        <i class="bi bi-check-circle-fill"></i> Confirm Resolution
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endif %}
 
 <div class="grid-detail">
     <div>
         <div class="panel mb-3">
-            <div class="panel-header">Purchase Order</div>
+            <div class="panel-header">Supplier Sourcing &amp; Customer Commercial Specs</div>
             <div class="panel-body readonly-panel">
-                <p><strong>Volume:</strong> {{ cluster.purchase_order.volume_mt }} MT</p>
-                <p><strong>Unit price:</strong> ₱{{ cluster.purchase_order.unit_price|floatformat:2 }}</p>
-                <p><strong>Total:</strong> ₱{{ cluster.purchase_order.total_value|floatformat:2 }}</p>
+                <p><strong>Contract Volume:</strong> {{ cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</p>
+                <p><strong>Supplier Sourcing Price:</strong> ₱{{ cluster.purchase_order.unit_price|floatformat:2|intcomma }} / MT <span class="text-muted small">(Paid to {{ cluster.sugar_mill.name }})</span></p>
+                <p><strong>Supplier Sourcing Outlay (Cost):</strong> ₱{{ cluster.purchase_order.total_value|floatformat:2|intcomma }}</p>
+                <hr style="margin: 0.5rem 0; border-color: var(--htc-border);">
+                <p><strong>Customer Selling Price:</strong> ₱{{ cluster.purchase_order.selling_price|floatformat:2|intcomma }} / MT <span class="text-muted small">(Billed to {{ cluster.client.name }})</span></p>
+                <p><strong>Customer Gross Sales (Revenue):</strong> ₱{{ cluster.purchase_order.total_selling_value|floatformat:2|intcomma }}</p>
+                <hr style="margin: 0.5rem 0; border-color: var(--htc-border);">
+                <p><strong>Brix Quality Level:</strong> {% if cluster.purchase_order.brix_level %}<strong>{{ cluster.purchase_order.brix_level }}% Brix</strong>{% else %}<span class="text-muted">—</span>{% endif %}</p>
+                <p><strong>CHAI Specs:</strong> {{ cluster.purchase_order.chai_specs|default:"—" }}</p>
             </div>
         </div>
 
         <div class="panel">
-            <div class="panel-header">Logistics &amp; Volume Variance</div>
+            <div class="panel-header">Logistics, Volume Variance & Supporting Documents</div>
             <div class="panel-body">
                 {% if user|has_perm:"edit_logistics" %}
-                <form method="post" action="{% url 'operations:update_logistics' cluster.pk %}" class="form-stack">{% csrf_token %}
+                <form method="post" action="{% url 'operations:update_logistics' cluster.pk %}" enctype="multipart/form-data" class="form-stack">{% csrf_token %}
                     {% for field in logistics_form %}
                     <div class="form-field">
                         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -43,18 +159,90 @@
                         {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
                         {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
                     </div>
+                    {% if field.name == 'barge_fees' %}
+                    <!-- Live Auto-Computed Logistics Outlay Summary placed immediately below Barging Freight Rate -->
+                    <div class="live-calc-box mt-2 mb-3" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 0.85rem 1rem;">
+                        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted); margin-bottom: 0.5rem;">Live Computed Logistics Freight Outlay</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 0.75rem; align-items: center;">
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--htc-text-muted);">Land Trucking</div>
+                                <div id="liveTruckingDisplay" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱0.00</div>
+                                <div id="liveTruckingRateDisplay" style="font-size: 0.72rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--htc-text-muted);">Marine Barging</div>
+                                <div id="liveBargingDisplay" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱0.00</div>
+                                <div id="liveBargingRateDisplay" style="font-size: 0.72rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
+                            </div>
+                            <div style="border-left: 1px solid var(--htc-border); padding-left: 0.75rem;">
+                                <div style="font-size: 0.7rem; font-weight: 700; color: var(--htc-gold);">Total Logistics Outlay</div>
+                                <div id="liveTotalLogisticsDisplay" style="font-size: 1.1rem; font-weight: 800; color: var(--htc-gold);">₱0.00</div>
+                                <div id="liveTotalLogisticsRateDisplay" style="font-size: 0.75rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% endfor %}
+
                     <button type="submit" class="btn-htc btn-htc-sm mt-3">Update Logistics</button>
                 </form>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const trackingInput = document.getElementById('{{ logistics_form.tracking_fees.id_for_label }}');
+                    const bargeInput = document.getElementById('{{ logistics_form.barge_fees.id_for_label }}');
+                    const volInput = document.getElementById('{{ logistics_form.loaded_volume_mt.id_for_label }}');
+
+                    const liveTrucking = document.getElementById('liveTruckingDisplay');
+                    const liveTruckingRate = document.getElementById('liveTruckingRateDisplay');
+                    const liveBarging = document.getElementById('liveBargingDisplay');
+                    const liveBargingRate = document.getElementById('liveBargingRateDisplay');
+                    const liveTotal = document.getElementById('liveTotalLogisticsDisplay');
+                    const liveTotalRate = document.getElementById('liveTotalLogisticsRateDisplay');
+
+                    function updateLogisticsCalc() {
+                        const trackingFee = parseFloat(trackingInput ? trackingInput.value : 0) || 0;
+                        const bargeFee = parseFloat(bargeInput ? bargeInput.value : 0) || 0;
+                        const vol = parseFloat(volInput ? volInput.value : 0) || 0;
+
+                        const total = trackingFee + bargeFee;
+                        const trackingRate = vol > 0 ? trackingFee / vol : 0;
+                        const bargeRate = vol > 0 ? bargeFee / vol : 0;
+                        const combinedRate = vol > 0 ? total / vol : 0;
+
+                        if (liveTrucking) liveTrucking.textContent = `₱${trackingFee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                        if (liveTruckingRate) liveTruckingRate.textContent = vol > 0 ? `₱${trackingRate.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} / MT` : `₱0.00 / MT`;
+
+                        if (liveBarging) liveBarging.textContent = `₱${bargeFee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                        if (liveBargingRate) liveBargingRate.textContent = vol > 0 ? `₱${bargeRate.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} / MT` : `₱0.00 / MT`;
+
+                        if (liveTotal) liveTotal.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                        if (liveTotalRate) liveTotalRate.textContent = vol > 0 ? `Combined: ₱${combinedRate.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} / MT` : `₱0.00 / MT`;
+                    }
+
+                    if (trackingInput) trackingInput.addEventListener('input', updateLogisticsCalc);
+                    if (bargeInput) bargeInput.addEventListener('input', updateLogisticsCalc);
+                    if (volInput) volInput.addEventListener('input', updateLogisticsCalc);
+                    updateLogisticsCalc();
+                });
+                </script>
                 {% else %}
                 <div class="readonly-panel">
-                    <p><strong>Barge:</strong> {{ cluster.logistics.partner.name }}</p>
-                    <p><strong>Delivered:</strong> {{ cluster.logistics.loaded_volume_mt }} MT</p>
-                    <p><strong>Received:</strong> {{ cluster.logistics.received_volume_mt|default:"—" }} MT</p>
-                    <p><strong>Trucking:</strong> ₱{{ cluster.logistics.tracking_fees|floatformat:2 }}</p>
-                    <p><strong>Barging:</strong> ₱{{ cluster.logistics.barge_fees|floatformat:2 }}</p>
+                    <p><strong>Barge Partner:</strong> {{ cluster.logistics.partner.name }}</p>
+                    <p><strong>Delivered:</strong> {{ cluster.logistics.loaded_volume_mt|floatformat:3|intcomma }} MT</p>
+                    <p><strong>Received:</strong> {{ cluster.logistics.received_volume_mt|floatformat:3|intcomma|default:"—" }} MT</p>
+                    <p><strong>Trucking Fee:</strong> ₱{{ cluster.logistics.tracking_fees|floatformat:2|intcomma }}</p>
+                    <p><strong>Barging Fee:</strong> ₱{{ cluster.logistics.barge_fees|floatformat:2|intcomma }}</p>
+                    <p><strong>Total Logistics Freight Outlay:</strong> ₱{{ cluster.logistics.total_logistics_cost|floatformat:2|intcomma }}</p>
                 </div>
                 {% endif %}
+
+                <div class="mt-3 pt-2 border-top">
+                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Uploaded Delivery Documents</div>
+                    <p class="mb-1" style="font-size: 0.85rem;"><strong>Waybill Scan:</strong> {% if cluster.logistics.waybill_file %}<a href="{{ cluster.logistics.waybill_file.url }}" target="_blank" class="text-decoration-none fw-semibold"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>View Waybill</a>{% else %}<span class="text-muted">Not uploaded</span>{% endif %}</p>
+                    <p class="mb-0" style="font-size: 0.85rem;"><strong>Delivery Receipt (DR):</strong> {% if cluster.logistics.dr_file %}<a href="{{ cluster.logistics.dr_file.url }}" target="_blank" class="text-decoration-none fw-semibold"><i class="bi bi-file-earmark-check-fill text-primary me-1"></i>View DR Scan</a>{% else %}<span class="text-muted">Not uploaded</span>{% endif %}</p>
+                </div>
+
                 {% if cluster.logistics.variance_percent is not None %}
                 <p class="small mt-3 mb-0">Computed variance: <strong>{{ cluster.logistics.variance_percent|floatformat:4 }}%</strong></p>
                 {% endif %}
@@ -63,66 +251,450 @@
     </div>
 
     <div>
-        <div class="panel mb-3">
-            <div class="panel-header">Sales Invoice</div>
-            <div class="panel-body">
-                {% if user|has_perm:"add_invoice" %}
-                <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}" class="form-stack">{% csrf_token %}
-                    {% for field in invoice_form %}
-                    <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
-                    {% endfor %}
-                    <button type="submit" class="btn-htc btn-htc-sm">Add Invoice</button>
-                </form>
-                {% endif %}
-                <ul class="record-list">
-                    {% for inv in cluster.invoices.all %}
-                    <li>{{ inv.invoice_number }} · ₱{{ inv.amount|floatformat:2 }} · {{ inv.get_status_display }}</li>
-                    {% empty %}<li class="text-muted">No invoices yet.</li>{% endfor %}
-                </ul>
-            </div>
-        </div>
-
-        {% if user|has_perm:"add_voucher" %}
-        <div class="panel mb-3">
-            <div class="panel-header">Cash Voucher</div>
-            <div class="panel-body">
-                <form method="post" action="{% url 'operations:add_voucher' cluster.pk %}" class="form-stack">{% csrf_token %}
-                    {% for field in voucher_form %}
-                    <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
-                    {% endfor %}
-                    <button type="submit" class="btn-htc btn-htc-sm">Add Voucher</button>
-                </form>
-                <ul class="record-list">
-                    {% for v in cluster.cash_vouchers.all %}
-                    <li>{{ v.voucher_number }} · ₱{{ v.amount|floatformat:2 }} · {{ v.purpose }}</li>
-                    {% empty %}<li class="text-muted">No vouchers yet.</li>{% endfor %}
-                </ul>
-            </div>
-        </div>
-        {% endif %}
-
-        {% if user|has_perm:"add_loan" or user|has_perm:"view_loans" %}
-        <div class="panel">
-            <div class="panel-header">Capital Loan &amp; Interest</div>
-            <div class="panel-body">
-                {% if user|has_perm:"add_loan" %}
-                <form method="post" action="{% url 'operations:add_loan' cluster.pk %}" class="form-stack">{% csrf_token %}
-                    {% for field in loan_form %}
-                    <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
-                    {% endfor %}
-                    <button type="submit" class="btn-htc btn-htc-sm">Add Loan</button>
-                </form>
-                {% endif %}
-                {% for loan in cluster.loans.all %}
-                <div class="loan-box">
-                    <strong>{{ loan.bank_name }}</strong> · Principal ₱{{ loan.principal|floatformat:2 }}<br>
-                    <span class="text-muted small">{{ loan.interest_rate_annual }}% p.a. · {{ loan.days_outstanding }} days</span><br>
-                    <span class="text-danger">Accrued interest: ₱{{ loan.accrued_interest|floatformat:2 }}</span>
+        <!-- Prominent Payment & Expense Matching Banner -->
+        {% if user|has_perm:"add_match" or user|has_perm:"view_reconciliation" %}
+        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; border-radius: 12px;">
+            <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-warning text-dark font-weight-bold text-uppercase mb-1" style="font-size: 0.68rem; letter-spacing: 0.5px;">
+                        <i class="bi bi-patch-check-fill me-1"></i> Core Finance Workflow
+                    </span>
+                    <h5 class="fw-bold mb-0 text-white">Payment &amp; Expense Matching Workspace</h5>
+                    <small class="text-white-50">Match bank receipts to outlays &amp; auto-issue cash vouchers for this deal.</small>
                 </div>
-                {% empty %}<p class="text-muted mt-3 mb-0">No loans linked.</p>{% endfor %}
+                <div>
+                    <a href="{% url 'finance:reconciliation' cluster.pk %}" class="btn btn-warning btn-md fw-bold text-dark shadow-sm px-3 py-2" data-bs-toggle="tooltip" title="Open 3-Step Guided Payment Matching Workspace">
+                        <i class="bi bi-arrow-repeat me-1"></i> Open Payment Matching
+                    </a>
+                </div>
             </div>
         </div>
         {% endif %}
+
+        <!-- Sales Invoices Panel -->
+        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem; font-weight: 700; font-size: 1rem; color: var(--htc-primary-light); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-file-earmark-text-fill"></i> Sales Invoices
+            </div>
+            <div class="panel-body" style="padding: 1.25rem;">
+                {% if cluster.invoices.all %}
+                <div style="overflow-x: auto; margin-bottom: 1.25rem;">
+                    <table class="table-htc" style="margin: 0; width: 100%; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--htc-border);">
+                                <th style="padding: 0.6rem 0.8rem;">Invoice #</th>
+                                <th style="padding: 0.6rem 0.8rem;">Date</th>
+                                <th style="padding: 0.6rem 0.8rem;">Amount</th>
+                                <th style="padding: 0.6rem 0.8rem;">Status</th>
+                                <th style="padding: 0.6rem 0.8rem; text-align: right;">Update Status / Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in cluster.invoices.all %}
+                            <tr style="border-bottom: 1px solid var(--htc-border); vertical-align: middle;">
+                                <td style="padding: 0.65rem 0.8rem; font-weight: 700;">{{ inv.invoice_number }}</td>
+                                <td style="padding: 0.65rem 0.8rem; color: var(--htc-text-muted);">{{ inv.issued_at|date:"M d, Y" }}</td>
+                                <td style="padding: 0.65rem 0.8rem; font-weight: 600;">₱{{ inv.amount|floatformat:2|intcomma }}</td>
+                                <td style="padding: 0.65rem 0.8rem;">
+                                    <span class="badge-status {{ inv.status }}">{{ inv.get_status_display }}</span>
+                                </td>
+                                <td style="padding: 0.65rem 0.8rem; text-align: right;">
+                                    <div style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                                        {% if user|has_perm:"add_invoice" %}
+                                        <form method="post" action="{% url 'operations:update_invoice_status' inv.pk %}" style="display: inline-flex; gap: 0.25rem; margin: 0;">{% csrf_token %}
+                                            {% if inv.status == 'draft' %}
+                                            <button type="submit" name="status" value="issued" class="btn-htc-outline" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; color: var(--htc-primary-light); border-color: rgba(96,165,250,0.4);" title="Mark as Issued">
+                                                <i class="bi bi-send-check"></i> Issue
+                                            </button>
+                                            {% endif %}
+                                            {% if inv.status != 'paid' %}
+                                            <button type="submit" name="status" value="paid" class="btn-htc" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; background: var(--htc-success); border-color: var(--htc-success);" title="Mark as Paid">
+                                                <i class="bi bi-check-circle-fill"></i> Mark Paid
+                                            </button>
+                                            {% endif %}
+                                        </form>
+                                        {% endif %}
+                                        <a href="{% url 'finance:download_invoice_pdf' inv.pk %}" class="btn-htc-outline" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" title="Download PDF Report">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="color: var(--htc-text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">No invoices recorded for this transaction yet.</p>
+                {% endif %}
+
+                {% if user|has_perm:"add_invoice" %}
+                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Issue New Invoice
+                    </summary>
+                    <div style="font-size: 0.78rem; color: var(--htc-text-muted); margin-top: 0.4rem;" class="d-flex align-items-center gap-2">
+                        <i class="bi bi-info-circle text-primary"></i> Supporting documents (Waybill &amp; DR scans) uploaded in Logistics will be attached to customer invoices.
+                    </div>
+                    <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}" class="form-stack mt-3">{% csrf_token %}
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Invoice Number</label>
+                                {{ invoice_form.invoice_number }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Amount (₱)</label>
+                                {{ invoice_form.amount }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Issue Date</label>
+                                {{ invoice_form.issued_at }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Status</label>
+                                {{ invoice_form.status }}
+                            </div>
+                            <div class="col-12">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Notes</label>
+                                {{ invoice_form.notes }}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Record Invoice</button>
+                    </form>
+                </details>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Cash Vouchers Panel -->
+        {% if user|has_perm:"add_voucher" %}
+        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem; font-weight: 700; font-size: 1rem; color: var(--htc-primary-light); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-receipt-cutoff"></i> Cash Outlays &amp; Vouchers
+            </div>
+            <div class="panel-body" style="padding: 1.25rem;">
+                {% if cluster.cash_vouchers.all %}
+                <div style="overflow-x: auto; margin-bottom: 1.25rem;">
+                    <table class="table-htc" style="margin: 0; width: 100%; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--htc-border);">
+                                <th style="padding: 0.6rem 0.8rem;">Voucher #</th>
+                                <th style="padding: 0.6rem 0.8rem;">Date</th>
+                                <th style="padding: 0.6rem 0.8rem;">Purpose</th>
+                                <th style="padding: 0.6rem 0.8rem; text-align: right;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v in cluster.cash_vouchers.all %}
+                            <tr style="border-bottom: 1px solid var(--htc-border);">
+                                <td style="padding: 0.65rem 0.8rem; font-weight: 700;">{{ v.voucher_number }}</td>
+                                <td style="padding: 0.65rem 0.8rem; color: var(--htc-text-muted);">{{ v.issued_at|date:"M d, Y" }}</td>
+                                <td style="padding: 0.65rem 0.8rem;">{{ v.purpose }}</td>
+                                <td style="padding: 0.65rem 0.8rem; font-weight: 600; text-align: right;">₱{{ v.amount|floatformat:2|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="color: var(--htc-text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">No cash outlays recorded yet.</p>
+                {% endif %}
+
+                {% if not cluster.loans.all %}
+                <div class="alert alert-danger shadow-sm mb-3 p-3" style="border-radius: 8px; background: rgba(220,53,69,0.08); border: 1px solid rgba(220,53,69,0.3);">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-shield-exclamation fs-4 text-danger"></i>
+                        <div>
+                            <strong style="font-size: 0.88rem; color: #dc3545;">Prerequisite Warning: Linked Capital Loan Facility Required</strong>
+                            <p class="mb-0 text-xs text-muted" style="font-size: 0.78rem;">Company policy requires a Capital Loan Facility to be linked to this deal before issuing cash outlays or vouchers.</p>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{% url 'finance:loan_list' %}" class="btn btn-sm btn-danger py-1 px-3 fs-7 font-weight-bold">
+                            <i class="bi bi-plus-circle-fill me-1"></i> Create &amp; Link Capital Loan Facility Now
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Record Cash Outlay / Voucher
+                    </summary>
+                    <form method="post" action="{% url 'operations:add_voucher' cluster.pk %}" class="form-stack mt-3">{% csrf_token %}
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Voucher Number</label>
+                                {{ voucher_form.voucher_number }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Amount (₱)</label>
+                                {{ voucher_form.amount }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Issued Date</label>
+                                {{ voucher_form.issued_at }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Purpose / Outlay Notes</label>
+                                {{ voucher_form.purpose }}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Save Cash Voucher</button>
+                    </form>
+                </details>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Capital Loans & Daily Interest Panel -->
+        {% if user|has_perm:"add_loan" or user|has_perm:"view_loans" %}
+        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem; font-weight: 700; font-size: 1rem; color: var(--htc-primary-light); display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-bank2"></i> Capital Credit Facility &amp; Daily Interest
+            </div>
+            <div class="panel-body" style="padding: 1.25rem;">
+                {% for loan in cluster.loans.all %}
+                <div style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1.1rem; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                        <div>
+                            <strong style="font-size: 1rem; color: var(--htc-text);">{{ loan.bank_name }}</strong>
+                            <div style="font-size: 0.75rem; color: var(--htc-text-muted);">Linked Credit Line · Term: {{ loan.start_date|date:"M d, Y" }} to {{ loan.due_date|date:"M d, Y" }}</div>
+                        </div>
+                        <span class="badge-status {{ loan.status }}">{{ loan.get_status_display }}</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem;">
+                        <div>
+                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Principal</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱{{ loan.principal|floatformat:2|intcomma }}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Annual Rate</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">{{ loan.interest_rate_annual }}%</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Accrued Interest</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--htc-accent);">₱{{ loan.accrued_interest|floatformat:2|intcomma }} <span style="font-size: 0.7rem; color: var(--htc-text-muted); font-weight: normal;">({{ loan.days_outstanding }}d)</span></div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Total Liability</div>
+                            <div style="font-size: 0.95rem; font-weight: 800; color: var(--htc-primary-light);">₱{{ loan.total_liability|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="color: var(--htc-text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">No capital bank credit facilities linked to this trade.</p>
+                {% endfor %}
+
+                {% if user|has_perm:"add_loan" %}
+                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Link Capital Loan Facility
+                    </summary>
+                    <form method="post" action="{% url 'operations:add_loan' cluster.pk %}" class="form-stack mt-3">{% csrf_token %}
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Bank / Financing Partner</label>
+                                {{ loan_form.bank_name }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Principal Amount (₱)</label>
+                                {{ loan_form.principal }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Annual Interest Rate (%)</label>
+                                {{ loan_form.interest_rate_annual }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">
+                                    Initial Verification Status
+                                    {% if not user|has_perm:"verify_loan" %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning ms-1" style="font-size: 0.65rem;">Auto-Submitted as Pending</span>
+                                    {% endif %}
+                                </label>
+                                {{ loan_form.status }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Facility Start Date</label>
+                                {{ loan_form.start_date }}
+                            </div>
+                            <div class="col-md-6">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Maturity / Due Date</label>
+                                {{ loan_form.due_date }}
+                            </div>
+                            <div class="col-md-4">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Paper Cheque # (Optional)</label>
+                                {{ loan_form.cheque_number }}
+                            </div>
+                            <div class="col-md-4">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Cheque Issue Date (Optional)</label>
+                                {{ loan_form.cheque_date }}
+                            </div>
+                            <div class="col-md-4">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Bank Account # (Optional)</label>
+                                {{ loan_form.bank_account_number }}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Link Loan Facility</button>
+                    </form>
+                </details>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="panel mt-4">
+    <div class="panel-header" style="background-color: var(--htc-surface);"><i class="bi bi-clock-history"></i> Comprehensive Audit Log (Simple History)</div>
+    <div class="panel-body">
+        <table class="table-htc">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Model</th>
+                    <th>Action</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in audit_events %}
+                <tr>
+                    <td>{{ event.date|date:"M d, Y H:i:s" }}</td>
+                    <td><strong>{{ event.user|default:"System" }}</strong></td>
+                    <td><span class="badge-status {{ event.model|lower }}">{{ event.model }}</span></td>
+                    <td>
+                        {% if event.type == '+' %}<span class="text-success"><i class="bi bi-plus-circle"></i> Created</span>
+                        {% elif event.type == '~' %}<span class="text-warning"><i class="bi bi-pencil-square"></i> Updated</span>
+                        {% elif event.type == '-' %}<span class="text-danger"><i class="bi bi-trash"></i> Deleted</span>
+                        {% else %}{{ event.type }}{% endif %}
+                    </td>
+                    <td>{{ event.desc }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-muted text-center" style="padding: 2rem;">No audit logs available for this transaction.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+<!-- Modal for uploading MRO scanned copy -->
+<div class="modal fade" id="uploadMroModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'operations:upload_mro' cluster.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-upload text-primary"></i> Upload Scanned MRO Soft Copy</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <p class="mb-2">Upload the scanned soft copy (PDF or image) of Molasses Release Order for <strong>{{ cluster.reference_code }}</strong>.</p>
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Select MRO Soft Copy File (PDF/Image)</label>
+                        <input type="file" name="mro_file" class="form-control" accept="application/pdf,image/*" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-htc"><i class="bi bi-check-circle"></i> Upload Soft Copy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- TRANSACTION AUDIT DEBRIEF MODAL -->
+<div class="modal fade" id="debriefModal" tabindex="-1" aria-labelledby="debriefModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 820px;">
+        <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 14px 28px rgba(0,0,0,0.3);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1.25rem 1.5rem;">
+                <div>
+                    <h5 class="modal-title" id="debriefModalLabel" style="font-weight: 700; color: var(--htc-text);">Transaction Audit Debrief Statement</h5>
+                    <div style="font-size: 0.8rem; color: var(--htc-text-muted);">{{ cluster.reference_code }} · {{ cluster.client.name }} · Supplying Mill: {{ cluster.sugar_mill.name }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem; font-size: 0.85rem;">
+                
+                <!-- Section 1: Sourcing -->
+                <div class="mb-4" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 1rem 1.25rem;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">1. Product Procurement (Purchase Order)</span>
+                        <span class="badge bg-secondary" style="font-size: 0.7rem;">Contracted</span>
+                    </div>
+                    <div class="row g-2 mb-2" style="color: var(--htc-text);">
+                        <div class="col-md-6"><strong>PO Reference:</strong> {{ cluster.reference_code }}</div>
+                        <div class="col-md-6"><strong>Supplier (Mill):</strong> {{ cluster.sugar_mill.name }}</div>
+                        <div class="col-md-6"><strong>Commercial Terms:</strong> {{ cluster.purchase_order.terms|default:"Net 30" }}</div>
+                        <div class="col-md-6"><strong>Contract Volume:</strong> {{ debrief.volume_mt|floatformat:3|intcomma }} MT</div>
+                    </div>
+                    <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 6px; padding: 0.6rem 0.85rem; font-family: monospace; font-size: 0.82rem; color: var(--htc-primary-light);">
+                        <strong>Sourcing Formula:</strong> {{ debrief.sourcing_formula }}
+                    </div>
+                </div>
+
+                <!-- Section 2: Logistics Separation -->
+                <div class="mb-4" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 1rem 1.25rem;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">2. Separated Logistics &amp; Transit Freight</span>
+                        <span class="badge bg-secondary" style="font-size: 0.7rem;">Logistics Breakdown</span>
+                    </div>
+                    <div class="row g-2 mb-2" style="color: var(--htc-text);">
+                        <div class="col-md-6"><strong>Trucking Partner (Land):</strong> {{ debrief.trucking_partner_name }}</div>
+                        <div class="col-md-6"><strong>Trucking Fee:</strong> ₱{{ debrief.tracking_fees|floatformat:2|intcomma }}</div>
+                        <div class="col-md-6"><strong>Barging Partner (Marine):</strong> {{ debrief.barge_partner_name }}</div>
+                        <div class="col-md-6"><strong>Barging Fee:</strong> ₱{{ debrief.barge_fees|floatformat:2|intcomma }}</div>
+                        <div class="col-md-6"><strong>Loaded Port Volume (BL):</strong> {{ debrief.loaded_volume_mt|floatformat:3|intcomma }} MT</div>
+                        <div class="col-md-6"><strong>Received Destination Volume:</strong> {{ debrief.received_volume_mt|floatformat:3|intcomma }} MT ({{ debrief.shrinkage_pct|floatformat:2 }}% Variance)</div>
+                    </div>
+                    <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 6px; padding: 0.6rem 0.85rem; font-family: monospace; font-size: 0.82rem; color: var(--htc-primary-light);">
+                        <strong>Freight Formula:</strong> {{ debrief.freight_formula }}
+                    </div>
+                </div>
+
+                <!-- Section 3: Sales Invoicing & Tax Breakdown -->
+                <div class="mb-4" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 1rem 1.25rem;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">3. Sales Invoicing &amp; Tax Withholding</span>
+                        <span class="badge bg-secondary" style="font-size: 0.7rem;">Invoicing &amp; Tax</span>
+                    </div>
+                    <div class="row g-2 mb-2" style="color: var(--htc-text);">
+                        <div class="col-md-6"><strong>Invoice Number:</strong> {{ debrief.invoice_number|default:"Pending Invoice" }}</div>
+                        <div class="col-md-6"><strong>Customer (Client):</strong> {{ cluster.client.name }}</div>
+                        <div class="col-md-6"><strong>Invoiced Qty:</strong> {{ debrief.received_volume_mt|floatformat:3|intcomma }} MT</div>
+                        <div class="col-md-6"><strong>Selling Unit Price:</strong> ₱{{ debrief.selling_price|floatformat:2|intcomma }} / MT</div>
+                    </div>
+                    <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 6px; padding: 0.65rem 0.85rem; font-family: monospace; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.3rem;">
+                        <div><strong>Gross Invoice Sales:</strong> {{ debrief.sales_formula }}</div>
+                        <div><strong>12% Output VAT Component:</strong> {{ debrief.vat_formula }}</div>
+                        <div><strong>1% EWT Withholding Tax:</strong> {{ debrief.ewt_formula }}</div>
+                        <div style="color: var(--htc-success);"><strong>Net Proceeds After Tax:</strong> {{ debrief.net_sales_formula }}</div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Net Trade Profitability Derivation -->
+                <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 1rem 1.25rem;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--htc-success); text-transform: uppercase; letter-spacing: 0.5px;">4. Executive Net Trade Profitability</span>
+                        <span class="badge bg-success" style="font-size: 0.7rem;">Net Margin {{ debrief.margin|floatformat:2 }}%</span>
+                    </div>
+                    <div style="font-family: monospace; font-size: 0.85rem; color: var(--htc-text); margin-bottom: 0.5rem;">
+                        <div>Gross Sales Revenue:   ₱{{ debrief.revenue|floatformat:2|intcomma }}</div>
+                        <div>Sourcing Product Cost: - ₱{{ debrief.purchase_total|floatformat:2|intcomma }}</div>
+                        <div>Trucking Freight Fee:  - ₱{{ debrief.tracking_fees|floatformat:2|intcomma }}</div>
+                        <div>Barging Freight Fee:   - ₱{{ debrief.barge_fees|floatformat:2|intcomma }}</div>
+                        <hr style="margin: 0.4rem 0; border-color: var(--htc-border);">
+                        <div style="font-weight: 700; color: var(--htc-success); font-size: 0.95rem;">NET TRADE PROFIT: ₱{{ debrief.profit|floatformat:2|intcomma }}  (Net Margin: {{ debrief.margin|floatformat:2 }}%)</div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid var(--htc-border); padding: 1rem 1.5rem;">
+                <button type="button" class="btn-htc-outline" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -1,40 +1,189 @@
 {% extends "app_base.html" %}
-{% block title %}Reconciliation · HTC Core{% endblock %}
-{% block topbar_title %}Payment Matching{% endblock %}
+{% load humanize role_tags %}
+{% block title %}Payment Matching · {{ cluster.reference_code }} · HTC Core{% endblock %}
+{% block topbar_title %}Payment &amp; Expense Matching Workspace{% endblock %}
+{% block topbar_subtitle %}{{ cluster.reference_code }} — {{ cluster.client.name }} [{{ cluster.sugar_mill.name }}]{% endblock %}
+
 {% block content %}
-<div class="page-header mb-4">
-    <h2>Payment–Expense Matching</h2>
-    <p>{{ cluster.reference_code }} · {{ cluster.client.name }}</p>
-</div>
-<div class="grid-2">
-    <div class="form-panel">
-        <div class="form-panel-header">Add Match</div>
-        <form method="post" action="{% url 'finance:add_match' cluster.pk %}" class="form-stack">{% csrf_token %}
-            {% for field in form %}
-            <div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
-            {% endfor %}
-            <button type="submit" class="btn-htc mt-3">Record Match</button>
-        </form>
+<!-- Top Financial Match Overview Card -->
+<div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border-radius: 12px;">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <span class="badge bg-{{ match_badge }} fs-7 px-3 py-1 mb-1">{{ match_status }}</span>
+                <h4 class="fw-bold mb-0 text-dark">{{ cluster.reference_code }} Financial Reconciliation</h4>
+                <small class="text-muted">Customer: <strong>{{ cluster.client.name }}</strong> | Supplier: <strong>{{ cluster.sugar_mill.name }}</strong> | Volume: <strong>{{ cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</strong></small>
+            </div>
+            <div class="text-end">
+                <a href="{% url 'operations:cluster_detail' cluster.pk %}" class="btn-htc-outline btn-sm"><i class="bi bi-arrow-left me-1"></i> Back to Deal Detail</a>
+            </div>
+        </div>
+
+        <!-- Matching Progress Bar -->
+        <div class="mb-2">
+            <div class="d-flex justify-content-between fs-7 font-weight-bold mb-1">
+                <span>Matching Progress</span>
+                <span class="text-{{ match_badge }}">{{ match_pct }}% Matched (₱{{ total_matched|floatformat:2|intcomma }} of ₱{{ total_target|floatformat:2|intcomma }})</span>
+            </div>
+            <div class="progress" style="height: 10px; border-radius: 5px; background: rgba(0,0,0,0.06);">
+                <div class="progress-bar bg-{{ match_badge }}" role="progressbar" style="width: {{ match_pct }}%;" aria-valuenow="{{ match_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        </div>
+
+        <!-- Financial Breakdown Pill Grid (Separated Sourcing & Combined Logistics) -->
+        <div class="row g-2 mt-2">
+            <div class="col" style="min-width: 180px;">
+                <div class="p-2 border rounded text-center bg-light">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Customer Invoiced Revenue</small>
+                    <span class="fs-6 font-weight-bold text-primary">₱{{ total_target|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+            <div class="col" style="min-width: 180px;">
+                <div class="p-2 border rounded text-center bg-light">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Supplier Sourcing Cost</small>
+                    <span class="fs-6 font-weight-bold text-danger">₱{{ sourcing_total|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+            <div class="col" style="min-width: 180px;">
+                <div class="p-2 border rounded text-center bg-light">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Total Freight (Trucking &amp; Barging)</small>
+                    <span class="fs-6 font-weight-bold text-danger">₱{{ logistics_total|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+            <div class="col" style="min-width: 180px;">
+                <div class="p-2 border rounded text-center bg-light">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Recorded Matched Payments</small>
+                    <span class="fs-6 font-weight-bold text-success">₱{{ total_matched|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+            <div class="col" style="min-width: 180px;">
+                <div class="p-2 border rounded text-center bg-light">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Remaining Balance to Match</small>
+                    <span class="fs-6 font-weight-bold {% if remaining_balance > 0 %}text-warning{% else %}text-muted{% endif %}">₱{{ remaining_balance|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="content-card">
-        <div class="card-header-htc">Matched Entries · ₱{{ total_matched|floatformat:2 }}</div>
-        <table class="table-htc">
-            <thead><tr><th>Payment Ref</th><th>Expense</th><th>Amount</th><th>Date</th></tr></thead>
-            <tbody>
-            {% for m in reconciliation.matches.all %}
-            <tr>
-                <td>{{ m.payment_reference }}</td>
-                <td>{{ m.get_expense_type_display }}</td>
-                <td>₱{{ m.amount|floatformat:2 }}</td>
-                <td>{{ m.matched_at|date:"M d, Y" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" style="padding:1.5rem;text-align:center;color:#718096;">No matches recorded.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        <div style="padding:1rem;">
-            <a href="{% url 'operations:cluster_detail' cluster.pk %}" class="btn-htc-outline">Back to Transaction</a>
+</div>
+
+<div class="row g-4">
+    <!-- Step-by-Step Payment Matching Form -->
+    <div class="col-md-5">
+        {% if not cluster.loans.all %}
+        <div class="alert alert-danger shadow-sm mb-3 p-3" style="border-radius: 10px; background: rgba(220,53,69,0.08); border: 1px solid rgba(220,53,69,0.3);">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-shield-exclamation fs-4 text-danger"></i>
+                <div>
+                    <strong style="font-size: 0.88rem; color: #dc3545;">Prerequisite Notice: Capital Loan Facility Link Recommended</strong>
+                    <p class="mb-0 text-xs text-muted" style="font-size: 0.78rem;">Linking an active Capital Loan Facility to this contract enables automatic cash voucher creation upon recording matched outlays.</p>
+                </div>
+            </div>
+            <div class="mt-2">
+                <a href="{% url 'finance:loan_list' %}" class="btn btn-sm btn-danger py-1 px-3 fs-7 font-weight-bold">
+                    <i class="bi bi-plus-circle-fill me-1"></i> Create &amp; Link Capital Loan Facility
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card border-0 shadow-sm" style="border-radius: 12px; background: var(--htc-surface);">
+            <div class="card-header bg-primary text-white py-3">
+                <h6 class="mb-0 font-weight-bold"><i class="bi bi-patch-check-fill me-2"></i>3-Step Payment Matching Entry</h6>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" action="{% url 'finance:add_match' cluster.pk %}" class="form-stack">{% csrf_token %}
+                    {% for field in form %}
+                    <div class="form-field mb-3">
+                        <label for="{{ field.id_for_label }}" class="form-label font-semibold text-sm">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<div class="field-help text-xs text-muted mt-1">{{ field.help_text }}</div>{% endif %}
+                        {% if field.errors %}<div class="field-error text-xs text-danger mt-1">{{ field.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn-htc w-100 mt-2 py-2">
+                        <i class="bi bi-check-circle-fill me-1"></i> Record &amp; Verify Payment Match
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Ledger of Recorded Matches -->
+    <div class="col-md-7">
+        <div class="card border-0 shadow-sm" style="border-radius: 12px; background: var(--htc-surface);">
+            <div class="card-header bg-white py-3 flex-between">
+                <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-list-check text-primary me-2"></i>Matched Payment Audit Ledger</h6>
+                <span class="badge bg-secondary">Total: ₱{{ total_matched|floatformat:2|intcomma }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr class="text-uppercase text-muted" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                            <th>Payment Ref #</th>
+                            <th>Allocation Category</th>
+                            <th class="text-end">Matched Amount</th>
+                            <th>Date</th>
+                            {% if user|has_perm:"verify_loan" or user.is_superuser %}
+                            <th class="text-end">Action</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in reconciliation.matches.all %}
+                        <tr>
+                            <td><strong class="text-primary font-monospace">{{ m.payment_reference }}</strong></td>
+                            <td><span class="badge bg-light text-dark border">{{ m.get_expense_type_display }}</span></td>
+                            <td class="text-end font-weight-bold text-success">₱{{ m.amount|floatformat:2|intcomma }}</td>
+                            <td class="text-muted" style="font-size: 0.8rem;">{{ m.matched_at|date:"M d, Y" }}</td>
+                            {% if user|has_perm:"verify_loan" or user.is_superuser %}
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 fs-7" data-bs-toggle="modal" data-bs-target="#deleteMatchModal{{ m.pk }}" title="Delete / Remove Payment Match">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+
+                                <!-- Confirmation Modal for Match Removal -->
+                                <div class="modal fade text-start" id="deleteMatchModal{{ m.pk }}" tabindex="-1" aria-labelledby="deleteMatchModalLabel{{ m.pk }}" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+                                        <div class="modal-content" style="border-radius: 12px; background: var(--htc-surface);">
+                                            <div class="modal-header bg-danger text-white py-3">
+                                                <h6 class="modal-title font-weight-bold mb-0" id="deleteMatchModalLabel{{ m.pk }}">
+                                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirm Removal of Payment Match
+                                                </h6>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body p-4">
+                                                <div class="alert alert-warning mb-3 p-3 text-xs" style="border-radius: 8px;">
+                                                    <strong>CAUTION (Management / Admin Action):</strong> Removing this matched payment entry will adjust reconciliation totals and void any linked auto-generated cash voucher.
+                                                </div>
+                                                <div class="mb-2 fs-7">
+                                                    <div>Payment Reference: <strong class="font-monospace text-primary">{{ m.payment_reference }}</strong></div>
+                                                    <div>Allocation Category: <strong>{{ m.get_expense_type_display }}</strong></div>
+                                                    <div>Amount: <strong class="text-danger">₱{{ m.amount|floatformat:2|intcomma }}</strong></div>
+                                                </div>
+                                                <p class="text-muted text-xs mb-0 mt-3">Are you sure you want to proceed with deleting this record?</p>
+                                            </div>
+                                            <div class="modal-footer bg-light py-2">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                                                <form method="post" action="{% url 'finance:delete_match' cluster.pk m.pk %}" class="d-inline">{% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-danger px-3 font-weight-bold">
+                                                        <i class="bi bi-trash-fill me-1"></i> Confirm &amp; Delete Match
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No payment matches recorded yet. Fill out the matching entry form on the left to reconcile bank receipts and outlays.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

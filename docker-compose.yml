@@ -15,29 +15,53 @@ services:
     networks:
       - htc_net
 
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - htc_net
+
   web:
     build: .
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             python manage.py import_htc_excel &&
+             (python manage.py import_htc_excel || true) &&
+             (python manage.py seed_mro_24_25 || true) &&
+             (python manage.py seed_demo || true) &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
     environment:
       DEBUG: "False"
       SECRET_KEY: pilot-change-me-before-uat
       ALLOWED_HOSTS: localhost,127.0.0.1,nginx
       DATABASE_URL: postgres://htc:htc@db:5432/htc_core
-      CELERY_TASK_ALWAYS_EAGER: "True"
-      CELERY_TASK_EAGER_PROPAGATES: "True"
+      CELERY_TASK_ALWAYS_EAGER: "False"
+      CELERY_TASK_EAGER_PROPAGATES: "False"
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/0"
     expose:
       - "8000"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/accounts/login/\")' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     networks:
       - htc_net
     volumes:
       - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - ./templates:/app/templates
 
   nginx:
     image: nginx:1.27-alpine
@@ -46,8 +70,31 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
     depends_on:
-      - web
+      web:
+        condition: service_healthy
+    networks:
+      - htc_net
+
+  celery_worker:
+    build: .
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    command: >
+      sh -c "celery -A config worker -l INFO"
+    environment:
+      DEBUG: "False"
+      SECRET_KEY: pilot-change-me-before-uat
+      DATABASE_URL: postgres://htc:htc@db:5432/htc_core
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - htc_net
 
@@ -58,3 +105,4 @@ networks:
 volumes:
   postgres_data:
   static_volume:
+  media_volume:

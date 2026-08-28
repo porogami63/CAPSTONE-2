@@ -1,27 +1,254 @@
 {% extends "app_base.html" %}
-{% block title %}New Transaction · HTC Core{% endblock %}
-{% block topbar_title %}New Transaction{% endblock %}
+{% block title %}{% if object %}Edit {{ object.reference_code }}{% else %}New Transaction{% endif %} · HTC Core{% endblock %}
+{% block topbar_title %}{% if object %}Edit Transaction{% else %}Create Transaction{% endif %}{% endblock %}
+
 {% block content %}
-<div class="page-header mb-4">
-    <h2>Create Transaction</h2>
-    <p>New contract cluster with purchase order and logistics record.</p>
-</div>
-<div class="form-panel" style="max-width:760px;">
-<form method="post" class="form-stack">{% csrf_token %}
-    <div class="form-grid">
-        {% for field in form %}
-        <div class="form-field">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
-            {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
-        </div>
-        {% endfor %}
+<div class="page-header mb-4 flex-between">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1" style="font-size: 0.8rem;">
+                <li class="breadcrumb-item"><a href="{% url 'operations:cluster_list' %}">Transactions</a></li>
+                <li class="breadcrumb-item active">{% if object %}{{ object.reference_code }}{% else %}New Contract{% endif %}</li>
+            </ol>
+        </nav>
+        <h2>{% if object %}Edit {{ object.reference_code }}{% else %}Create New Transaction{% endif %}</h2>
+        <p class="text-muted" style="margin: 0.2rem 0 0 0; font-size: 0.85rem;">
+            {% if object %}Update contract parameters, commercial terms, and purchase order quantities.{% else %}Initialize a new transaction cluster with purchase order and logistics tracking.{% endif %}
+        </p>
     </div>
-    <div class="flex gap-2 mt-3">
-        <button type="submit" class="btn-htc">Create Transaction</button>
-        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline">Cancel</a>
+    <div>
+        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline btn-sm"><i class="bi bi-arrow-left"></i> Back to Transactions</a>
+    </div>
+</div>
+
+<form method="post" style="max-width: 860px; margin: 0 auto;">
+    {% csrf_token %}
+
+    <!-- Card 1: Contract Basics -->
+    <div class="form-section-card">
+        <div class="form-section-header">
+            <i class="bi bi-file-earmark-text-fill"></i>
+            <div>
+                <h3>1. Contract Basics</h3>
+                <p>Identify the contract reference code, customer, supplier, and initial status.</p>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="{{ form.reference_code.id_for_label }}" class="form-label font-semibold text-sm">Reference Code <span class="text-danger">*</span></label>
+                {{ form.reference_code }}
+                {% if form.reference_code.errors %}<div class="text-danger text-xs mt-1">{{ form.reference_code.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label for="{{ form.status.id_for_label }}" class="form-label font-semibold text-sm">Contract Status</label>
+                {{ form.status }}
+                {% if form.status.errors %}<div class="text-danger text-xs mt-1">{{ form.status.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label for="{{ form.client.id_for_label }}" class="form-label font-semibold text-sm">Customer (Client) <span class="text-danger">*</span></label>
+                {{ form.client }}
+                {% if form.client.errors %}<div class="text-danger text-xs mt-1">{{ form.client.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <label for="{{ form.sugar_mill.id_for_label }}" class="form-label font-semibold text-sm">Supplier (Sugar Mill) <span class="text-danger">*</span></label>
+                {{ form.sugar_mill }}
+                {% if form.sugar_mill.errors %}<div class="text-danger text-xs mt-1">{{ form.sugar_mill.errors|striptags }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Purchase Order & Commercial Terms -->
+    <div class="form-section-card">
+        <div class="form-section-header">
+            <i class="bi bi-calculator-fill"></i>
+            <div>
+                <h3>2. Purchase Order & Pricing Details</h3>
+                <p>Define procurement quantities, unit pricing, and commercial terms.</p>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="{{ form.volume_mt.id_for_label }}" class="form-label font-semibold text-sm">Contract Volume <span class="text-danger">*</span></label>
+                <div class="input-addon-group">
+                    {{ form.volume_mt }}
+                    <span class="addon addon-suffix">MT</span>
+                </div>
+                <div class="form-text text-xs text-muted mt-1">Total contract quantity in MT.</div>
+                {% if form.volume_mt.errors %}<div class="text-danger text-xs mt-1">{{ form.volume_mt.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <label for="{{ form.unit_price.id_for_label }}" class="form-label font-semibold text-sm">Supplier Sourcing Price <span class="text-danger">*</span></label>
+                <div class="input-addon-group">
+                    <span class="addon addon-prefix">₱</span>
+                    {{ form.unit_price }}
+                </div>
+                <div class="form-text text-xs text-muted mt-1">Price paid to Sugar Mill (₱/MT).</div>
+                {% if form.unit_price.errors %}<div class="text-danger text-xs mt-1">{{ form.unit_price.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <label for="{{ form.selling_price.id_for_label }}" class="form-label font-semibold text-sm">Customer Selling Price</label>
+                <div class="input-addon-group">
+                    <span class="addon addon-prefix">₱</span>
+                    {{ form.selling_price }}
+                </div>
+                <div class="form-text text-xs text-muted mt-1">Price billed to Customer (₱/MT).</div>
+                {% if form.selling_price.errors %}<div class="text-danger text-xs mt-1">{{ form.selling_price.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <label for="{{ form.est_trucking_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Land Trucking Rate</label>
+                <div class="input-addon-group">
+                    <span class="addon addon-prefix">₱</span>
+                    {{ form.est_trucking_rate }}
+                </div>
+                <div class="form-text text-xs text-muted mt-1">Land transport cost per MT (₱/MT).</div>
+                {% if form.est_trucking_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_trucking_rate.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <label for="{{ form.est_barge_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Marine Barging Rate</label>
+                <div class="input-addon-group">
+                    <span class="addon addon-prefix">₱</span>
+                    {{ form.est_barge_rate }}
+                </div>
+                <div class="form-text text-xs text-muted mt-1">Marine barging cost per MT (₱/MT).</div>
+                {% if form.est_barge_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_barge_rate.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-12">
+                <label for="{{ form.terms.id_for_label }}" class="form-label font-semibold text-sm">Commercial &amp; Payment Terms</label>
+                {{ form.terms }}
+                <div class="form-text text-xs text-muted mt-1">Payment terms &amp; commercial conditions (e.g. "Net 30 days, LC at sight").</div>
+                {% if form.terms.errors %}<div class="text-danger text-xs mt-1">{{ form.terms.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <label for="{{ form.brix_level.id_for_label }}" class="form-label font-semibold text-sm">Brix Quality Level (%)</label>
+                <div class="input-addon-group">
+                    {{ form.brix_level }}
+                    <span class="addon addon-suffix">% Brix</span>
+                </div>
+                <div class="form-text text-xs text-muted mt-1">Verified sugar density specification level.</div>
+                {% if form.brix_level.errors %}<div class="text-danger text-xs mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <label for="{{ form.chai_specs.id_for_label }}" class="form-label font-semibold text-sm">CHAI / Quality Specifications</label>
+                {{ form.chai_specs }}
+                <div class="form-text text-xs text-muted mt-1">Chemical quality specifications or grading reference.</div>
+                {% if form.chai_specs.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_specs.errors|striptags }}</div>{% endif %}
+            </div>
+        </div>
+
+        <!-- Live Financial & Logistics Summary Calculator -->
+        <div class="live-calc-box" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1rem 1.25rem; margin-top: 1.25rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1.1fr 1.2fr; gap: 1rem; align-items: center;">
+                <div>
+                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted);">Supplier Outlay (Cost)</div>
+                    <div class="calc-formula" id="calcFormulaCost" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
+                    <div class="calc-value" id="calcTotalCost" style="font-size: 1.05rem; font-weight: 700; color: var(--htc-danger);">₱0.00</div>
+                </div>
+                <div>
+                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted);">Customer Sales (Revenue)</div>
+                    <div class="calc-formula" id="calcFormulaRev" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
+                    <div class="calc-value" id="calcTotalRev" style="font-size: 1.05rem; font-weight: 700; color: var(--htc-primary-light);">₱0.00</div>
+                </div>
+                <div>
+                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-gold);">Projected Freight Outlay</div>
+                    <div class="calc-formula" id="calcFormulaLog" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
+                    <div class="calc-value" id="calcTotalLogistics" style="font-size: 1.05rem; font-weight: 700; color: var(--htc-gold);">₱0.00</div>
+                </div>
+                <div style="border-left: 1px solid var(--htc-border); padding-left: 1rem;">
+                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-success);">Projected Net Trade Profit</div>
+                    <div class="calc-formula" id="calcFormulaMargin" style="font-size: 0.78rem; color: var(--htc-text-muted);">Revenue − Cost − Freight</div>
+                    <div class="calc-value" id="calcGrossMargin" style="font-size: 1.15rem; font-weight: 800; color: var(--htc-success);">₱0.00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 3: Additional Contract Notes -->
+    <div class="form-section-card">
+        <div class="form-section-header">
+            <i class="bi bi-card-text"></i>
+            <div>
+                <h3>3. Contract Notes</h3>
+                <p>Optional internal notes, special vessel requirements, or logistics instructions.</p>
+            </div>
+        </div>
+
+        <div>
+            {{ form.contract_notes }}
+            {% if form.contract_notes.errors %}<div class="text-danger text-xs mt-1">{{ form.contract_notes.errors|striptags }}</div>{% endif %}
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-5">
+        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline"><i class="bi bi-x-lg"></i> Cancel</a>
+        <button type="submit" class="btn-htc" style="padding: 0.75rem 2rem; font-size: 1rem;">
+            <i class="bi bi-check-circle-fill"></i> {% if object %}Save Changes{% else %}Create Transaction{% endif %}
+        </button>
     </div>
 </form>
-</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const volInput = document.getElementById('{{ form.volume_mt.id_for_label }}');
+    const costPriceInput = document.getElementById('{{ form.unit_price.id_for_label }}');
+    const sellPriceInput = document.getElementById('{{ form.selling_price.id_for_label }}');
+    const truckingRateInput = document.getElementById('{{ form.est_trucking_rate.id_for_label }}');
+    const bargeRateInput = document.getElementById('{{ form.est_barge_rate.id_for_label }}');
+
+    const calcFormulaCost = document.getElementById('calcFormulaCost');
+    const calcTotalCost = document.getElementById('calcTotalCost');
+    const calcFormulaRev = document.getElementById('calcFormulaRev');
+    const calcTotalRev = document.getElementById('calcTotalRev');
+    const calcFormulaLog = document.getElementById('calcFormulaLog');
+    const calcTotalLogistics = document.getElementById('calcTotalLogistics');
+    const calcGrossMargin = document.getElementById('calcGrossMargin');
+
+    function updateLiveCalculation() {
+        const vol = parseFloat(volInput ? volInput.value : 0) || 0;
+        const costPrice = parseFloat(costPriceInput ? costPriceInput.value : 0) || 0;
+        const sellPrice = parseFloat(sellPriceInput ? sellPriceInput.value : 0) || 0;
+        const truckingRate = parseFloat(truckingRateInput ? truckingRateInput.value : 0) || 0;
+        const bargeRate = parseFloat(bargeRateInput ? bargeRateInput.value : 0) || 0;
+
+        const totalCost = vol * costPrice;
+        const totalRev = vol * sellPrice;
+        const totalFreight = vol * (truckingRate + bargeRate);
+        const netProfit = totalRev - totalCost - totalFreight;
+
+        if (calcFormulaCost) calcFormulaCost.textContent = `${vol.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 3})} MT × ₱${costPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (calcTotalCost) calcTotalCost.textContent = `₱${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+        if (calcFormulaRev) calcFormulaRev.textContent = `${vol.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 3})} MT × ₱${sellPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (calcTotalRev) calcTotalRev.textContent = `₱${totalRev.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+        if (calcFormulaLog) calcFormulaLog.textContent = `${vol.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 3})} MT × ₱${(truckingRate + bargeRate).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (calcTotalLogistics) calcTotalLogistics.textContent = `₱${totalFreight.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+        if (calcGrossMargin) {
+            calcGrossMargin.textContent = `₱${netProfit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            if (netProfit < 0) {
+                calcGrossMargin.style.color = 'var(--htc-danger)';
+            } else {
+                calcGrossMargin.style.color = 'var(--htc-success)';
+            }
+        }
+    }
+
+    if (volInput) volInput.addEventListener('input', updateLiveCalculation);
+    if (costPriceInput) costPriceInput.addEventListener('input', updateLiveCalculation);
+    if (sellPriceInput) sellPriceInput.addEventListener('input', updateLiveCalculation);
+    if (truckingRateInput) truckingRateInput.addEventListener('input', updateLiveCalculation);
+    if (bargeRateInput) bargeRateInput.addEventListener('input', updateLiveCalculation);
+    updateLiveCalculation();
+});
+</script>
 {% endblock %}

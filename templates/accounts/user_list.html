@@ -1,0 +1,83 @@
+{% extends "app_base.html" %}
+{% load role_tags %}
+{% block title %}User Management · HTC Core{% endblock %}
+{% block topbar_title %}User Management{% endblock %}
+{% block topbar_subtitle %}System roles (Administrator, Operations Management, Finance, Invoicing), active status & credentials{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end align-items-center mb-3">
+    <a href="{% url 'accounts:signup' %}" class="btn-htc" target="_blank">
+        <i class="bi bi-person-plus-fill me-1"></i> Register New User
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 flex-between">
+        <h5 class="mb-0 font-weight-bold text-dark"><i class="bi bi-person-badge text-primary me-2"></i>Registered System Users</h5>
+        <span class="badge bg-light text-dark font-weight-normal fs-6">{{ users|length }} User Accounts</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+            <thead class="table-light">
+                <tr class="text-uppercase text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                    <th>Username</th>
+                    <th>Full Name</th>
+                    <th>Email Address</th>
+                    <th>Assigned Role</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Joined Date</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>
+                        <strong class="text-primary">{{ u.username }}</strong>
+                        {% if u.is_superuser %}
+                        <span class="badge bg-danger ms-1" style="font-size: 0.7rem;">Superuser</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.get_full_name|default:"—" }}</td>
+                    <td class="text-muted">{{ u.email|default:"—" }}</td>
+                    <td>
+                        {% if u.role == 'administrator' %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger font-weight-bold">
+                            <i class="bi bi-shield-lock-fill me-1"></i>Administrator
+                        </span>
+                        {% elif u.role == 'operations_management' %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary font-weight-bold">
+                            <i class="bi bi-briefcase-fill me-1"></i>Operations Management
+                        </span>
+                        {% elif u.role == 'finance' %}
+                        <span class="badge bg-success-subtle text-success border border-success font-weight-bold">
+                            <i class="bi bi-bank me-1"></i>Finance
+                        </span>
+                        {% elif u.role == 'invoicing' %}
+                        <span class="badge bg-info-subtle text-info border border-info font-weight-bold">
+                            <i class="bi bi-receipt me-1"></i>Invoicing
+                        </span>
+                        {% else %}
+                        <span class="badge bg-light text-dark border">{{ u.get_role_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if u.is_active %}
+                        <span class="badge bg-success" style="font-size: 0.78rem;"><i class="bi bi-check-circle-fill me-1"></i>Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary" style="font-size: 0.78rem;"><i class="bi bi-slash-circle me-1"></i>Disabled</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
+                    <td class="text-center">
+                        <a href="{% url 'accounts:user_edit' u.id %}" class="btn btn-sm btn-outline-primary py-1 px-2" title="Edit Role & Permissions">
+                            <i class="bi bi-pencil-fill me-1"></i>Edit Role
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
