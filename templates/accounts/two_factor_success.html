@@ -1,0 +1,43 @@
+{% extends "app_base.html" %}
+{% block title %}2FA Enabled Successfully · HTC Core{% endblock %}
+{% block topbar_title %}Two-Factor Authentication Enabled{% endblock %}
+{% block topbar_subtitle %}Save your backup recovery codes in a safe place{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-success text-white py-3">
+                <h5 class="mb-0 font-weight-bold"><i class="bi bi-shield-check me-2"></i>2FA Setup Complete</h5>
+            </div>
+            <div class="card-body p-4 text-center">
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 3.5rem;"></i>
+                <h4 class="mt-3 font-weight-bold">Two-Factor Authentication is Active</h4>
+                <p class="text-muted">Your account is now secured with TOTP 2FA. In case you lose access to your authenticator app, store these single-use backup recovery codes securely.</p>
+
+                <div class="p-3 bg-light rounded border my-4 text-start">
+                    <label class="form-label font-weight-bold text-uppercase fs-8 text-muted mb-2"><i class="bi bi-key-fill me-1"></i> Your Backup Recovery Codes:</label>
+                    <div class="row g-2 font-monospace fw-bold fs-6">
+                        {% for code in backup_codes %}
+                        <div class="col-6">
+                            <div class="p-2 bg-white rounded border text-center text-dark">{{ code }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="alert alert-warning text-start fs-7" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    <strong>Important:</strong> Keep these codes safe. Each code can be used once as a backup login token if your authenticator device is lost.
+                </div>
+
+                <div class="mt-4">
+                    <a href="{% url 'accounts:profile' %}" class="btn btn-primary px-4 py-2 font-weight-bold">
+                        <i class="bi bi-person-fill-check me-1"></i> Return to Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

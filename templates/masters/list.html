@@ -7,19 +7,19 @@
     <p>Clients, sugar mills, and logistics partners from imported 2026 data.</p>
 </div>
 <div class="grid-2">
-    <div class="content-card">
+    <div class="content-card" data-step="1" data-intro="Clients Master Registry: Complete directory of verified Molasses buyer companies and client accounts.">
         <div class="card-header-htc">Clients ({{ clients|length }})</div>
         {% for c in clients %}
         <div class="alert-list-item"><span>{{ c.name }}</span></div>
         {% empty %}<div class="alert-list-item text-muted">None</div>{% endfor %}
     </div>
-    <div class="content-card">
+    <div class="content-card" data-step="2" data-intro="Sugar Mills Master Registry: Sugar producer mill partners and sourcing origin locations.">
         <div class="card-header-htc">Sugar Mills ({{ mills|length }})</div>
         {% for m in mills %}
         <div class="alert-list-item"><span>{{ m.name }}</span></div>
         {% empty %}<div class="alert-list-item text-muted">None</div>{% endfor %}
     </div>
-    <div class="content-card" style="grid-column:1/-1;">
+    <div class="content-card" style="grid-column:1/-1;" data-step="3" data-intro="Logistics Partners Registry: Approved trucking haulers, barging vessel operators, and freight contractors.">
         <div class="card-header-htc">Logistics Partners ({{ partners|length }})</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);">
         {% for p in partners %}

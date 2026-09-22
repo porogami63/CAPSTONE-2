@@ -6,7 +6,7 @@
 
 {% block content %}
 <!-- Top Financial Match Overview Card -->
-<div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border-radius: 12px;">
+<div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border-radius: 12px;" data-step="1" data-intro="Financial Reconciliation Header: Monitors overall reconciliation status, contract details, and remaining balances to match.">
     <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
@@ -20,7 +20,7 @@
         </div>
 
         <!-- Matching Progress Bar -->
-        <div class="mb-2">
+        <div class="mb-2" data-step="2" data-intro="Matching Progress Deck: Visual progress bar tracking percentage matched across customer invoices, supplier sourcing costs, and freight expenses.">
             <div class="d-flex justify-content-between fs-7 font-weight-bold mb-1">
                 <span>Matching Progress</span>
                 <span class="text-{{ match_badge }}">{{ match_pct }}% Matched (₱{{ total_matched|floatformat:2|intcomma }} of ₱{{ total_target|floatformat:2|intcomma }})</span>
@@ -68,7 +68,7 @@
 
 <div class="row g-4">
     <!-- Step-by-Step Payment Matching Form -->
-    <div class="col-md-5">
+    <div class="col-md-5" data-step="3" data-intro="Payment Matching Controls: Match customer receipts or supplier disbursements to bank vouchers with automatic capital loan facility reconciliation.">
         {% if not cluster.loans.all %}
         <div class="alert alert-danger shadow-sm mb-3 p-3" style="border-radius: 10px; background: rgba(220,53,69,0.08); border: 1px solid rgba(220,53,69,0.3);">
             <div class="d-flex align-items-center gap-2">

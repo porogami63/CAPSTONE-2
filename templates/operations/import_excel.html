@@ -130,7 +130,7 @@
 
 {% if preview_mode %}
     <!-- Step 2: Staged Preview -->
-    <div class="metric-deck">
+    <div class="metric-deck" data-step="1" data-intro="Staged Validation Summary: Evaluates total rows found, validated records ready for import, duplicate skips, and total volume MT.">
         <div class="metric-card">
             <span class="metric-label">Total Rows Found</span>
             <span class="metric-val">{{ summary.total_rows }}</span>
@@ -153,50 +153,37 @@
         </div>
     </div>
 
-    <div class="table-container">
+    <div class="table-container" data-step="2" data-intro="Parsed Data Preview: Inspect mapped column values for accuracy prior to committing rows to the production database.">
         <table class="preview-table">
             <thead>
                 <tr>
                     <th>Reference Code</th>
+                    <th>Date</th>
                     <th>Customer</th>
-                    <th>Source Mill</th>
+                    <th>Sugar Mill</th>
                     <th>Volume (MT)</th>
-                    <th>Barge / Partner</th>
-                    <th>Status</th>
+                    <th>Unit Price</th>
+                    <th>Freight Total</th>
+                    <th>Validation Status</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in staged_rows %}
                 <tr>
-                    <td>
-                        <strong class="text-primary">{{ row.reference_code }}</strong>
-                        {% if row.extra_notes %}
-                            <small class="text-muted" style="display:block;">{{ row.extra_notes }}</small>
-                        {% endif %}
-                    </td>
-                    <td>{{ row.client_display }}</td>
-                    <td>{{ row.mill_display }}</td>
-                    <td>
-                        {% if row.delivered %}
-                            {{ row.delivered }}
-                        {% else %}
-                            {{ row.received }}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if row.barge %}
-                            {{ row.barge }}
-                        {% else %}
-                            <span class="text-muted">Trucking Only</span>
-                        {% endif %}
-                    </td>
+                    <td><strong>{{ row.reference_code }}</strong></td>
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.client }}</td>
+                    <td>{{ row.sugar_mill }}</td>
+                    <td>{{ row.volume_mt|floatformat:2 }} MT</td>
+                    <td>₱{{ row.unit_price|floatformat:2 }}</td>
+                    <td>₱{{ row.freight_total|floatformat:2 }}</td>
                     <td>
                         {% if row.is_duplicate %}
-                            <span class="status-pill duplicate">Duplicate (Skip)</span>
+                            <span class="status-pill duplicate">Duplicate</span>
                         {% elif row.warnings %}
-                            <span class="status-pill warning">Needs Review</span>
-                            {% for warn in row.warnings %}
-                                <span class="warning-text"><i class="bi bi-exclamation-triangle-fill"></i> {{ warn }}</span>
+                            <span class="status-pill warning">Warning</span>
+                            {% for w in row.warnings %}
+                                <span class="warning-text">{{ w }}</span>
                             {% endfor %}
                         {% else %}
                             <span class="status-pill valid">Ready</span>
@@ -208,7 +195,7 @@
         </table>
     </div>
 
-    <div class="actions-bar">
+    <div class="actions-bar" data-step="3" data-intro="Commit Action Bar: Click 'Confirm & Import' to permanently ingest the validated spreadsheet records into the live database.">
         <div>
             <span class="text-muted small">
                 {% if summary.duplicates > 0 %}
@@ -227,7 +214,7 @@
 
 {% else %}
     <!-- Step 1: Upload Form -->
-    <div class="form-panel" style="max-width:760px;">
+    <div class="form-panel" style="max-width:760px;" data-step="1" data-intro="Excel Import File Zone: Select the consolidated HTC Molasses trading spreadsheet (.xlsx or .csv) to begin automated data extraction.">
         <form method="post" enctype="multipart/form-data" class="form-stack">
             {% csrf_token %}
             <div class="form-grid">

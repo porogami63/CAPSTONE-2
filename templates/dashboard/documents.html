@@ -44,84 +44,86 @@
                 <span class="badge bg-secondary rounded-pill">{{ cat.items|length }}</span>
             </div>
             <div class="card-body p-0">
-                <div class="list-group list-group-flush">
-                    {% for doc in cat.items|slice:":8" %}
-                    <div class="list-group-item d-flex align-items-center justify-content-between py-2 px-3">
-                        <div class="d-flex align-items-center gap-3" style="min-width: 0;">
-                            <div class="flex-shrink-0">
-                                {% if doc.has_scan %}
-                                    <i class="bi bi-file-earmark-check-fill text-success fs-4" title="Scanned Soft Copy Available"></i>
-                                {% elif doc.pdf_url %}
-                                    <i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>
-                                {% else %}
-                                    <i class="bi bi-file-earmark-pdf text-danger fs-4"></i>
-                                {% endif %}
-                            </div>
-                            <div style="min-width: 0;">
-                                <div class="fw-bold text-truncate text-dark" style="max-width: 260px;" title="{{ doc.name }}">{{ doc.name }}</div>
-                                <div class="text-muted small">
-                                    {{ doc.date|date:"M d, Y" }} · {{ doc.size }}
-                                    {% if key == "release_orders" %}
-                                        {% if doc.has_scan %}
-                                            · <span class="badge bg-success-subtle text-success border border-success-subtle">Soft Copy Scanned</span>
-                                        {% else %}
-                                            · <span class="badge bg-warning-subtle text-warning border border-warning-subtle">No Soft Copy</span>
-                                        {% endif %}
+                <div class="doc-category-scroll" style="max-height: 380px; overflow-y: auto; scrollbar-width: thin;">
+                    <div class="list-group list-group-flush">
+                        {% for doc in cat.items %}
+                        <div class="list-group-item d-flex align-items-center justify-content-between py-2 px-3">
+                            <div class="d-flex align-items-center gap-3" style="min-width: 0;">
+                                <div class="flex-shrink-0">
+                                    {% if doc.has_scan %}
+                                        <i class="bi bi-file-earmark-check-fill text-success fs-4" title="Scanned Soft Copy Available"></i>
+                                    {% elif doc.pdf_url %}
+                                        <i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-earmark-pdf text-danger fs-4"></i>
                                     {% endif %}
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                            {% if doc.has_scan %}
-                                <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" title="Preview Scanned MRO" onclick="previewSoftCopy('{{ doc.scan_url }}', '{{ doc.name }}', {{ doc.is_pdf|yesno:'true,false' }})">
-                                    <i class="bi bi-eye-fill"></i> Preview MRO
-                                </button>
-                            {% elif doc.pdf_url %}
-                                <a href="{{ doc.pdf_url }}" class="btn btn-sm btn-outline-danger py-1 px-2" title="Download PDF" download>
-                                    <i class="bi bi-file-earmark-pdf"></i> Invoice PDF
-                                </a>
-                            {% endif %}
-
-                            {% if key == "release_orders" %}
-                                <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" title="Upload Scanned MRO" data-bs-toggle="modal" data-bs-target="#uploadMroModal{{ forloop.counter }}">
-                                    <i class="bi bi-upload"></i> Upload
-                                </button>
-                                <!-- Modal for uploading MRO scanned copy -->
-                                <div class="modal fade" id="uploadMroModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered">
-                                        <div class="modal-content">
-                                            <form method="post" action="{{ doc.upload_url }}" enctype="multipart/form-data">
-                                                {% csrf_token %}
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title"><i class="bi bi-upload text-primary"></i> Upload Scanned MRO Soft Copy</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body text-start">
-                                                    <p class="mb-2">Upload the scanned soft copy (PDF or image) of Molasses Release Order for transaction <strong>{{ doc.ref }}</strong>.</p>
-                                                    <div class="mb-3">
-                                                        <label class="form-label font-weight-bold">Select MRO Soft Copy File (PDF/Image)</label>
-                                                        <input type="file" name="mro_file" class="form-control" accept="application/pdf,image/*" required>
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                                                    <button type="submit" class="btn-htc"><i class="bi bi-check-circle"></i> Upload Soft Copy</button>
-                                                </div>
-                                            </form>
-                                        </div>
+                                <div style="min-width: 0;">
+                                    <div class="fw-bold text-truncate text-dark" style="max-width: 260px;" title="{{ doc.name }}">{{ doc.name }}</div>
+                                    <div class="text-muted small">
+                                        {{ doc.date|date:"M d, Y" }} · {{ doc.size }}
+                                        {% if key == "release_orders" %}
+                                            {% if doc.has_scan %}
+                                                · <span class="badge bg-success-subtle text-success border border-success-subtle">Soft Copy Scanned</span>
+                                            {% else %}
+                                                · <span class="badge bg-warning-subtle text-warning border border-warning-subtle">No Soft Copy</span>
+                                            {% endif %}
+                                        {% endif %}
                                     </div>
                                 </div>
-                            {% endif %}
+                            </div>
 
-                            <a href="{{ doc.url }}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="View Transaction Detail">
-                                <i class="bi bi-box-arrow-up-right"></i>
-                            </a>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                {% if doc.has_scan %}
+                                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" title="Preview Scanned MRO" onclick="previewSoftCopy('{{ doc.scan_url }}', '{{ doc.name }}', {{ doc.is_pdf|yesno:'true,false' }})">
+                                        <i class="bi bi-eye-fill"></i> Preview MRO
+                                    </button>
+                                {% elif doc.pdf_url %}
+                                    <a href="{{ doc.pdf_url }}" class="btn btn-sm btn-outline-danger py-1 px-2" title="Download PDF" download>
+                                        <i class="bi bi-file-earmark-pdf"></i> Invoice PDF
+                                    </a>
+                                {% endif %}
+
+                                {% if key == "release_orders" %}
+                                    <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" title="Upload Scanned MRO" data-bs-toggle="modal" data-bs-target="#uploadMroModal{{ forloop.counter }}">
+                                        <i class="bi bi-upload"></i> Upload
+                                    </button>
+                                    <!-- Modal for uploading MRO scanned copy -->
+                                    <div class="modal fade" id="uploadMroModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <form method="post" action="{{ doc.upload_url }}" enctype="multipart/form-data">
+                                                    {% csrf_token %}
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title"><i class="bi bi-upload text-primary"></i> Upload Scanned MRO Soft Copy</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body text-start">
+                                                        <p class="mb-2">Upload the scanned soft copy (PDF or image) of Molasses Release Order for transaction <strong>{{ doc.ref }}</strong>.</p>
+                                                        <div class="mb-3">
+                                                            <label class="form-label font-weight-bold">Select MRO Soft Copy File (PDF/Image)</label>
+                                                            <input type="file" name="mro_file" class="form-control" accept="application/pdf,image/*" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn-htc"><i class="bi bi-check-circle"></i> Upload Soft Copy</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                <a href="{{ doc.url }}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="View Transaction Detail">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                            </div>
                         </div>
+                        {% empty %}
+                        <div class="list-group-item text-muted text-center py-3">No documents available in this category.</div>
+                        {% endfor %}
                     </div>
-                    {% empty %}
-                    <div class="list-group-item text-muted text-center py-3">No documents available in this category.</div>
-                    {% endfor %}
                 </div>
             </div>
         </div>

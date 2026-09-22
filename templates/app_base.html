@@ -17,6 +17,10 @@
         (function() {
             var theme = localStorage.getItem('htc-theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
+            var legibility = localStorage.getItem('htc-legibility') || 'normal';
+            if (legibility === 'high') {
+                document.documentElement.setAttribute('data-legibility', 'high');
+            }
         })();
     </script>
     <div class="app-shell">
@@ -78,6 +82,11 @@
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.85rem;" data-intro="System Header Toolbar: Access real-time alerts, team chat, tour guide, theme toggle, and active user role badge." data-step="2">
+                    <!-- HTC Copilot Drawer Button -->
+                    <button type="button" class="btn btn-sm btn-outline-primary fw-bold d-flex align-items-center gap-1 py-1 px-2" id="btnCopilotDrawer" title="Open HTC Copilot Assistant">
+                        <i class="bi bi-robot text-primary"></i> <span>HTC Copilot</span>
+                    </button>
+
                     <!-- Notification Bell Dropdown -->
                     <div class="dropdown">
                         <button class="btn-theme-toggle text-decoration-none position-relative" type="button" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" title="System Alerts & Notifications" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
@@ -108,8 +117,12 @@
                     <button type="button" class="btn-theme-toggle" id="themeToggleBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle Light / Dark Mode" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
                         <i class="bi bi-moon-stars-fill"></i>
                     </button>
+                    <button type="button" class="btn-theme-toggle fw-bold" id="legibilityToggleBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle High Legibility Mode (Elderly Usability)" style="background: none; border: 1px solid var(--htc-border); color: var(--htc-text-muted); font-size: 0.85rem; cursor: pointer; padding: 0.15rem 0.45rem; border-radius: 6px;">
+                        A+
+                    </button>
                     <span class="role-badge role-badge-{{ user_role_code }}">{{ user_role }}</span>
                 </div>
+
             </header>
             <main class="app-main">
                 {% if messages %}
@@ -291,6 +304,140 @@
                 setInterval(fetchNotifications, 10000);
             });
         })();
+
+        // Legibility Mode Toggle Handler
+        document.addEventListener("DOMContentLoaded", function() {
+            const legibilityBtn = document.getElementById("legibilityToggleBtn");
+            if (legibilityBtn) {
+                legibilityBtn.addEventListener("click", function() {
+                    const current = document.documentElement.getAttribute("data-legibility");
+                    if (current === "high") {
+                        document.documentElement.removeAttribute("data-legibility");
+                        localStorage.setItem("htc-legibility", "normal");
+                    } else {
+                        document.documentElement.setAttribute("data-legibility", "high");
+                        localStorage.setItem("htc-legibility", "high");
+                    }
+                });
+            }
+
+            // Copilot Slide Drawer Controls
+            const btnCopilot = document.getElementById("btnCopilotDrawer");
+            const drawer = document.getElementById("copilotSlideDrawer");
+            const backdrop = document.getElementById("copilotDrawerBackdrop");
+            const closeBtn = document.getElementById("closeCopilotDrawer");
+            const copilotForm = document.getElementById("copilotForm");
+            const copilotInput = document.getElementById("copilotInput");
+            const chatMessages = document.getElementById("copilotChatMessages");
+
+            function toggleCopilot(open) {
+                if (drawer && backdrop) {
+                    if (open) {
+                        drawer.classList.add("open");
+                        backdrop.classList.remove("d-none");
+                    } else {
+                        drawer.classList.remove("open");
+                        backdrop.classList.add("d-none");
+                    }
+                }
+            }
+
+            if (btnCopilot) btnCopilot.addEventListener("click", () => toggleCopilot(true));
+            if (closeBtn) closeBtn.addEventListener("click", () => toggleCopilot(false));
+            if (backdrop) backdrop.addEventListener("click", () => toggleCopilot(false));
+
+            function sendCopilotQuery(queryText) {
+                if (!queryText || !chatMessages) return;
+
+                // User Bubble
+                const userMsg = document.createElement("div");
+                userMsg.className = "copilot-msg user-msg";
+                userMsg.innerHTML = `<div class="copilot-bubble">${queryText}</div>`;
+                chatMessages.appendChild(userMsg);
+
+                // Typing indicator
+                const botMsg = document.createElement("div");
+                botMsg.className = "copilot-msg bot-msg";
+                botMsg.innerHTML = `<div class="copilot-bubble"><i class="bi bi-three-dots text-muted"></i> Evaluating...</div>`;
+                chatMessages.appendChild(botMsg);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                fetch("{% url 'operations:copilot_query_api' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: JSON.stringify({ query: queryText })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    botMsg.innerHTML = `<div class="copilot-bubble">${data.answer_html || '<p>No response generated.</p>'}</div>`;
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                })
+                .catch(err => {
+                    botMsg.innerHTML = `<div class="copilot-bubble text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> Error processing query.</div>`;
+                });
+            }
+
+            if (copilotForm) {
+                copilotForm.addEventListener("submit", function(e) {
+                    e.preventDefault();
+                    const text = copilotInput.value.trim();
+                    if (text) {
+                        sendCopilotQuery(text);
+                        copilotInput.value = "";
+                    }
+                });
+            }
+
+            // Quick Prompt Pills Handler
+            document.addEventListener("click", function(e) {
+                const pill = e.target.closest(".copilot-pill");
+                if (pill) {
+                    const prompt = pill.getAttribute("data-prompt");
+                    if (prompt) sendCopilotQuery(prompt);
+                }
+            });
+        });
     </script>
+
+    <!-- HTC Copilot Slide Drawer HTML -->
+    <div id="copilotDrawerBackdrop" class="copilot-backdrop d-none"></div>
+    <aside id="copilotSlideDrawer" class="copilot-drawer">
+        <div class="copilot-header">
+            <div class="d-flex align-items-center gap-2">
+                <div class="copilot-avatar"><i class="bi bi-robot"></i></div>
+                <div>
+                    <h6 class="mb-0 fw-bold">HTC Copilot</h6>
+                    <div class="fs-8 text-muted"><span class="badge bg-success-subtle text-success py-0 px-1 fs-8">Local ORM AI</span> · Role: {{ user_role }}</div>
+                </div>
+            </div>
+            <button type="button" class="btn-close text-reset" id="closeCopilotDrawer" aria-label="Close"></button>
+        </div>
+        
+        <div class="copilot-body" id="copilotChatMessages">
+            <div class="copilot-msg bot-msg">
+                <div class="copilot-bubble">
+                    <p class="mb-1"><strong>Hello {{ user.get_short_name|default:user.username }}!</strong> 👋</p>
+                    <p class="mb-2 fs-7">I am your HTC Copilot. Ask me about operational metrics, high variance alerts, loan balances, or MRO permits!</p>
+                    <div class="prompt-pills">
+                        <button class="copilot-pill" data-prompt="Show high variance clusters"><i class="bi bi-exclamation-triangle text-danger me-1"></i> High Variances</button>
+                        <button class="copilot-pill" data-prompt="Unassigned MRO permits"><i class="bi bi-file-earmark-spreadsheet text-primary me-1"></i> MRO Balances</button>
+                        <button class="copilot-pill" data-prompt="Check overdue loans"><i class="bi bi-bank text-success me-1"></i> Active Loans</button>
+                        <button class="copilot-pill" data-prompt="System overview summary"><i class="bi bi-speedometer2 text-warning me-1"></i> Summary</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="copilot-footer">
+            <form id="copilotForm" class="d-flex gap-2">
+                <input type="text" id="copilotInput" class="form-control form-control-sm" placeholder="Ask Copilot a question..." autocomplete="off">
+                <button type="submit" class="btn btn-sm btn-primary px-3" id="copilotSendBtn"><i class="bi bi-send-fill"></i></button>
+            </form>
+        </div>
+    </aside>
 </body>
 </html>
+

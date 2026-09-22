@@ -8,7 +8,7 @@
 
 <div class="row g-3" style="min-height: 580px;">
     <!-- Left Sidebar Channels & Employees -->
-    <div class="col-lg-4 col-md-5">
+    <div class="col-lg-4 col-md-5" data-step="1" data-intro="Channels & Direct Messages: Switch between #general-team-chat, transaction contract threads, or direct 1-on-1 team member chats.">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white py-3">
                 <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-people-fill text-primary me-2"></i>Channels & Direct Messages</h6>
@@ -85,7 +85,7 @@
             </div>
 
             <!-- Messages Stream -->
-            <div class="card-body p-3 overflow-auto flex-grow-1 bg-light-subtle" id="chatStream" style="max-height: 420px; min-height: 380px;">
+            <div class="card-body p-3 overflow-auto flex-grow-1 bg-light-subtle" id="chatStream" style="max-height: 420px; min-height: 380px;" data-step="2" data-intro="Live Discussion Stream: Real-time messaging feed displaying internal team messages, system alerts, and transaction updates.">
                 {% for msg in chat_messages %}
                 {% if msg.is_system %}
                 <div class="d-flex justify-content-center mb-3">
@@ -128,7 +128,7 @@
             </div>
 
             <!-- Chat Input Footer -->
-            <div class="card-footer bg-white p-3 border-top">
+            <div class="card-footer bg-white p-3 border-top" data-step="3" data-intro="Message Composer: Type and send instant messages to active channel members in real time.">
                 <form id="chatForm" class="d-flex gap-2">{% csrf_token %}
                     {% if active_recipient %}
                     <input type="hidden" name="recipient_id" id="activeUserVal" value="{{ active_recipient.id }}">

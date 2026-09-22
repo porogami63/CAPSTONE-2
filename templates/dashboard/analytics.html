@@ -22,7 +22,7 @@
     </div>
 </div>
 
-<form method="get" class="param-card">
+<form method="get" class="param-card" data-step="1" data-intro="Order Simulation Parameters: Input your target Molasses order volume (MT) and target customer selling price (₱/MT) to dynamically simulate net profitability.">
     <div>
         <h3 style="margin:0 0 0.75rem;font-size:0.95rem;">Order Parameters</h3>
         <div class="param-grid">
@@ -47,7 +47,7 @@
 </form>
 
 {% if engine.best %}
-<div class="analytics-kpi-row">
+<div class="analytics-kpi-row" data-step="2" data-intro="Predictive Margin KPIs: Highlights the optimal supplier mill, projected total net profit, expected shrinkage loss, and final deliverable volume.">
     <div class="analytics-kpi">
         <i class="bi bi-building text-success"></i>
         <div class="kpi-text">
@@ -79,7 +79,7 @@
 </div>
 {% endif %}
 
-<div class="analytics-split">
+<div class="analytics-split" data-step="3" data-intro="Supplier Margin Rankings: Ranks all active sugar mill suppliers from highest to lowest net margin profitability based on historical data.">
     <div>
         <h3 style="font-size:0.95rem;margin:0 0 0.75rem;">Supplier Rankings</h3>
         {% for s in engine.rankings %}

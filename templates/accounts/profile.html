@@ -7,7 +7,7 @@
 {% block content %}
 
 <div class="row justify-content-center g-4">
-    <div class="col-lg-4 col-md-5">
+    <div class="col-lg-4 col-md-5" data-step="1" data-intro="User Profile Card: Displays your full name, username, active system RBAC role badge, and email address.">
         <div class="card border-0 shadow-sm text-center p-4 h-100">
             <div class="card-body d-flex flex-column align-items-center justify-content-center">
                 <div class="position-relative mb-3">
@@ -49,7 +49,7 @@
     </div>
 
     <div class="col-lg-8 col-md-7">
-        <div class="card border-0 shadow-sm h-100">
+        <div class="card border-0 shadow-sm h-100" data-step="2" data-intro="Update Personal Info: Change your full name, contact email address, and upload a custom avatar photo.">
             <div class="card-header bg-white py-3">
                 <h5 class="mb-0 font-weight-bold"><i class="bi bi-sliders text-primary me-2"></i>Update Personal Details</h5>
             </div>
@@ -78,6 +78,39 @@
                         <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i> Save Changes</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mt-4" data-step="3" data-intro="Two-Factor Authentication (2FA): Manage extra login protection using authenticator apps like Google Authenticator or Authy.">
+            <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+                <h5 class="mb-0 font-weight-bold"><i class="bi bi-shield-lock text-primary me-2"></i>Two-Factor Authentication (2FA)</h5>
+                {% if user.is_2fa_enabled %}
+                <span class="badge bg-success-subtle text-success border border-success font-weight-bold px-3 py-1">Enabled</span>
+                {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border font-weight-bold px-3 py-1">Disabled</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-4">
+                {% if user.is_2fa_enabled %}
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="fw-semibold">Two-Factor Authentication is currently ACTIVE</div>
+                        <div class="text-muted small">Your account is protected using an authenticator app (Google Authenticator, Authy, etc.).</div>
+                    </div>
+                    <form method="post" action="{% url 'accounts:two_factor_disable' %}" onsubmit="return confirm('Are you sure you want to disable 2FA for your account?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm px-3"><i class="bi bi-shield-slash me-1"></i> Disable 2FA</button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="fw-semibold">Enhance your account security with 2FA</div>
+                        <div class="text-muted small">Require a time-based 6-digit code from your authenticator app when signing in.</div>
+                    </div>
+                    <a href="{% url 'accounts:two_factor_setup' %}" class="btn btn-primary btn-sm px-3"><i class="bi bi-shield-plus me-1"></i> Setup 2FA</a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

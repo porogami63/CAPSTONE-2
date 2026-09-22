@@ -1,5 +1,5 @@
 {% extends "app_base.html" %}
-{% load role_tags %}
+{% load role_tags audit_tags %}
 {% block title %}System Audit Logs · HTC Core{% endblock %}
 {% block topbar_title %}System Audit Trail Logs{% endblock %}
 {% block topbar_subtitle %}Append-only, immutable audit trail of all data changes, security events, and user activities{% endblock %}
@@ -10,7 +10,7 @@
 </div>
 
 <!-- Filters Bar -->
-<div class="card border-0 shadow-sm mb-4">
+<div class="card border-0 shadow-sm mb-4" data-step="1" data-intro="Filter immutable system audit logs by text query, action type (CREATE, UPDATE, DELETE), or performing user.">
     <div class="card-body p-3">
         <form method="get" class="row g-2 align-items-center">
             <div class="col-md-3">
@@ -45,7 +45,7 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm">
+<div class="card border-0 shadow-sm" data-step="2" data-intro="Audit Trail Table: Displays append-only historical log entries detailing who performed an action, the exact timestamp, target database entity, and record ID.">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
             <thead class="table-light">
@@ -55,7 +55,7 @@
                     <th class="text-center">Action</th>
                     <th>Target Table / Entity</th>
                     <th>Record ID</th>
-                    <th class="text-center">Details</th>
+                    <th class="text-center" data-step="3" data-intro="Inspect Payload: Click to open a formatted comparison view showing exact field-by-field changes, old vs. new values, and raw JSON.">Details</th>
                 </tr>
             </thead>
             <tbody>
@@ -102,28 +102,114 @@
                     <td class="text-center">
                         {% if e.old_values or e.new_values %}
                         <button type="button" class="btn btn-sm btn-outline-info py-0 px-2 fs-7" data-bs-toggle="modal" data-bs-target="#auditModal{{ e.id }}">
-                            <i class="bi bi-code-square me-1"></i>Inspect Payload
+                            <i class="bi bi-eye me-1"></i>Inspect Payload
                         </button>
 
                         <!-- Payload Modal -->
                         <div class="modal fade text-start" id="auditModal{{ e.id }}" tabindex="-1" aria-hidden="true">
-                            <div class="modal-dialog modal-lg">
-                                <div class="modal-content">
-                                    <div class="modal-header bg-dark text-white">
-                                        <h5 class="modal-header-title text-white mb-0"><i class="bi bi-shield-lock-fill me-2"></i>Audit Log Entry #{{ e.id }} Payload</h5>
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content border-0 shadow-lg">
+                                    <div class="modal-header bg-dark text-white py-2 px-3">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <h6 class="modal-title text-white mb-0 font-weight-bold"><i class="bi bi-shield-lock-fill me-2 text-info"></i>Audit Log Entry #{{ e.id }}</h6>
+                                            <span class="badge bg-secondary text-uppercase fs-8">{{ e.action }}</span>
+                                            <code class="text-info fs-8">{{ e.table_name }}#{{ e.record_id }}</code>
+                                        </div>
                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                                     </div>
-                                    <div class="modal-body bg-light">
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <h6 class="font-weight-bold text-danger"><i class="bi bi-dash-circle me-1"></i>Previous Values (Before)</h6>
-                                                <pre class="bg-white p-3 rounded border fs-7" style="max-height: 300px; overflow: auto;">{{ e.old_values|pprint }}</pre>
+                                    <div class="modal-body p-3 bg-light">
+                                        <!-- Business Summary -->
+                                        <div class="alert alert-primary py-2 px-3 mb-3 d-flex align-items-center justify-content-between fs-7 border-0 shadow-sm" style="background: rgba(37, 99, 235, 0.08); color: var(--htc-text);">
+                                            <div>
+                                                <i class="bi bi-info-circle-fill text-primary me-2 fs-6"></i>
+                                                User <strong>{% if e.user %}{{ e.user.get_full_name|default:e.user.username }}{% else %}System Automated{% endif %}</strong> performed a 
+                                                <strong class="text-uppercase text-primary">{{ e.action }}</strong> operation on 
+                                                <strong>{{ e.table_name }}</strong> (Record ID: <code>#{{ e.record_id }}</code>).
                                             </div>
-                                            <div class="col-md-6">
-                                                <h6 class="font-weight-bold text-success"><i class="bi bi-plus-circle me-1"></i>New Values (After)</h6>
-                                                <pre class="bg-white p-3 rounded border fs-7" style="max-height: 300px; overflow: auto;">{{ e.new_values|pprint }}</pre>
+                                            <span class="text-muted text-nowrap ms-2"><i class="bi bi-clock me-1"></i>{{ e.timestamp|date:"M d, Y · h:i A" }}</span>
+                                        </div>
+
+                                        <!-- View Mode Switcher Nav Tabs -->
+                                        <ul class="nav nav-pills nav-fill mb-3 bg-white p-1 rounded border shadow-sm" id="auditTab{{ e.id }}" role="tablist">
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link active py-1 font-weight-bold fs-7" id="formatted-tab-{{ e.id }}" data-bs-toggle="pill" data-bs-target="#formatted-pane-{{ e.id }}" type="button" role="tab"><i class="bi bi-file-earmark-text me-1"></i>Formatted View</button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link py-1 font-weight-bold fs-7 text-muted" id="json-tab-{{ e.id }}" data-bs-toggle="pill" data-bs-target="#json-pane-{{ e.id }}" type="button" role="tab"><i class="bi bi-code-slash me-1"></i>Raw JSON</button>
+                                            </li>
+                                        </ul>
+
+                                        <div class="tab-content" id="auditTabContent{{ e.id }}">
+                                            <!-- Formatted View Pane -->
+                                            <div class="tab-pane fade show active" id="formatted-pane-{{ e.id }}" role="tabpanel">
+                                                {% with diffs=e|parse_audit_diff %}
+                                                <div class="table-responsive bg-white rounded border shadow-sm" style="max-height: 360px; overflow-y: auto;">
+                                                    <table class="table table-hover align-middle mb-0 audit-diff-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style="width: 32%;">Attribute / Field</th>
+                                                                <th style="width: 31%;">Previous Value (Before)</th>
+                                                                <th style="width: 31%;">New Value (After)</th>
+                                                                <th style="width: 6%;" class="text-center">State</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for diff in diffs %}
+                                                            <tr {% if diff.is_changed %}class="table-warning-subtle"{% endif %}>
+                                                                <td>
+                                                                    <div class="fw-bold text-dark">{{ diff.label }}</div>
+                                                                    <small class="text-muted font-monospace fs-8">{{ diff.key }}</small>
+                                                                </td>
+                                                                <td>
+                                                                    {% if diff.has_old %}
+                                                                        <span class="audit-val-old">{{ diff.old_val }}</span>
+                                                                    {% else %}
+                                                                        <span class="text-muted small">—</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if diff.has_new %}
+                                                                        <span class="audit-val-new">{{ diff.new_val }}</span>
+                                                                    {% else %}
+                                                                        <span class="text-muted small">—</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    {% if diff.is_changed %}
+                                                                        <span class="badge bg-warning text-dark font-weight-bold" style="font-size: 0.68rem;" title="Field Modified">MODIFIED</span>
+                                                                    {% else %}
+                                                                        <span class="badge bg-light text-muted border" style="font-size: 0.68rem;">SET</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                            </tr>
+                                                            {% empty %}
+                                                            <tr>
+                                                                <td colspan="4" class="text-center text-muted py-3">No change payload recorded.</td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                {% endwith %}
+                                            </div>
+
+                                            <!-- Raw JSON Developer Pane -->
+                                            <div class="tab-pane fade" id="json-pane-{{ e.id }}" role="tabpanel">
+                                                <div class="row g-2">
+                                                    <div class="col-md-6">
+                                                        <h6 class="font-weight-bold text-danger fs-7"><i class="bi bi-dash-circle me-1"></i>Previous Values JSON</h6>
+                                                        <pre class="bg-white p-3 rounded border font-monospace fs-7 text-dark" style="max-height: 320px; overflow: auto;">{{ e.old_values|to_json_pretty }}</pre>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <h6 class="font-weight-bold text-success fs-7"><i class="bi bi-plus-circle me-1"></i>New Values JSON</h6>
+                                                        <pre class="bg-white p-3 rounded border font-monospace fs-7 text-dark" style="max-height: 320px; overflow: auto;">{{ e.new_values|to_json_pretty }}</pre>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
+                                    </div>
+                                    <div class="modal-footer py-2 px-3 bg-white">
+                                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close Payload View</button>
                                     </div>
                                 </div>
                             </div>

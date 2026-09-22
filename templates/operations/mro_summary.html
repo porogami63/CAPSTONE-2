@@ -5,7 +5,7 @@
 {% block topbar_subtitle %}Company & supplier allocations, planter releases, and crop year subtotals{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+<div class="d-flex justify-content-end align-items-center gap-2 mb-3" data-step="1" data-intro="MRO Vault Controls: Export CSV summary reports, import Excel/CSV allocations, or create a new Molasses Release Order entry.">
     <a href="{% url 'operations:mro_export_csv' %}?crop_year={{ current_crop_year }}&mill={{ current_mill }}&planter={{ current_planter }}&q={{ q }}" class="btn-htc-outline" title="Export current summary to CSV">
         <i class="bi bi-download"></i> Export CSV
     </a>
@@ -20,7 +20,7 @@
 </div>
 
 <!-- Key Performance Metric Cards -->
-<div class="metric-grid mb-3">
+<div class="metric-grid mb-3" data-step="2" data-intro="MRO Key Metrics: Real-time summary of total released tonnage (MT), distinct sugar mill suppliers, MRO document count, and planter allocations.">
     <div class="metric-box">
         <div class="label">Total Released Tonnage</div>
         <div class="value text-primary">{{ total_tons|floatformat:4 }} <span class="fs-6 text-muted">MT</span></div>
@@ -44,7 +44,7 @@
 </div>
 
 <!-- Supplier / Sugar Mill Pill Tabs (Matching Excel Sheets: BUSCO, HAWAIIAN, BISCOM, CASA, LOPEZ) -->
-<div class="card mb-3 border-0 shadow-sm">
+<div class="card mb-3 border-0 shadow-sm" data-step="3" data-intro="Supplier Filter Tabs: Quickly filter MRO subtotals by sugar mill origin (e.g. BUSCO, HAWAIIAN, BISCOM, CASA, LOPEZ).">
     <div class="card-body p-2">
         <div class="d-flex align-items-center gap-2 overflow-auto">
             <span class="fw-bold text-muted px-2 small text-uppercase" style="letter-spacing: 0.5px;"><i class="bi bi-building me-1"></i>Suppliers:</span>

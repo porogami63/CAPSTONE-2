@@ -1,10 +1,14 @@
 import csv
+import json
 from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_protect
 from django.db import transaction
 from django.db.models import Q, Sum
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -12,7 +16,6 @@ from accounts.decorators import role_required
 from accounts.models import User
 from finance.forms import CapitalLoanForm, CashVoucherForm, InvoiceForm
 from finance.models import CapitalLoan, CashVoucher, FinancialReconciliation, Invoice
-from django.http import HttpResponse
 from masters.models import LogisticsPartner, Planter
 
 from .forms import ExcelImportForm, LogisticsUpdateForm, TransactionClusterForm, MolassesReleaseOrderForm, MROExcelImportForm
@@ -24,9 +27,8 @@ from .services.excel_import import (
     commit_staged_data,
 )
 from .services.pricing import cluster_financials
+from .services.copilot_services import evaluate_copilot_query
 
-
-from django.db.models import Q
 
 @role_required(
     User.Role.MANAGEMENT,
@@ -530,13 +532,21 @@ def cluster_detail(request, pk):
             "logistics",
             "logistics__partner",
             "reconciliation",
-        ).prefetch_related("invoices", "cash_vouchers", "loans", "reconciliation__matches"),
+        ).prefetch_related("invoices", "cash_vouchers", "loans", "reconciliation__matches", "mro_releases"),
         pk=pk,
     )
     logistics_form = LogisticsUpdateForm(instance=getattr(cluster, "logistics", None))
     invoice_form = InvoiceForm()
     voucher_form = CashVoucherForm()
     loan_form = CapitalLoanForm(user=request.user)
+
+    linked_mros = list(cluster.mro_releases.select_related("planter", "sugar_mill").all())
+    available_mros = list(
+        MolassesReleaseOrder.objects.filter(cluster__isnull=True)
+        .select_related("planter", "sugar_mill")
+        .order_by("-release_date", "mro_number")[:50]
+    )
+    total_mro_tons = sum(m.tons for m in linked_mros)
 
     # Collect Audit Trail
     audit_events = []
@@ -574,8 +584,57 @@ def cluster_detail(request, pk):
             "loan_form": loan_form,
             "audit_events": audit_events,
             "debrief": debrief,
+            "linked_mros": linked_mros,
+            "available_mros": available_mros,
+            "total_mro_tons": total_mro_tons,
         },
     )
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGER)
+def link_mro_to_cluster(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST":
+        mro_id = request.POST.get("mro_id")
+        if mro_id:
+            mro = get_object_or_404(MolassesReleaseOrder, pk=mro_id)
+            mro.cluster = cluster
+            mro.save()
+            messages.success(request, f"Successfully linked MRO permit #{mro.mro_number} ({mro.tons} MT) to {cluster.reference_code}.")
+        else:
+            messages.error(request, "Please select an MRO permit to link.")
+    return redirect("operations:cluster_detail", pk=cluster.pk)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGER)
+def unlink_mro_from_cluster(request, pk, mro_pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    mro = get_object_or_404(MolassesReleaseOrder, pk=mro_pk, cluster=cluster)
+    if request.method == "POST":
+        mro_num = mro.mro_number
+        mro.cluster = None
+        mro.save()
+        messages.success(request, f"Unlinked MRO permit #{mro_num} from {cluster.reference_code}.")
+    return redirect("operations:cluster_detail", pk=cluster.pk)
+
+
+@csrf_protect
+@login_required
+def copilot_query_api(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST method required"}, status=405)
+    try:
+        data = json.loads(request.body.decode("utf-8")) if request.body else request.POST
+        query = data.get("query", "").strip()
+    except Exception:
+        query = request.POST.get("query", "").strip()
+
+    if not query:
+        return JsonResponse({"answer_html": "<p class='text-muted fs-7'>Please type a query or select a prompt.</p>", "status": "empty"})
+
+    res = evaluate_copilot_query(request.user, query)
+    return JsonResponse(res)
+
 
 
 @role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)

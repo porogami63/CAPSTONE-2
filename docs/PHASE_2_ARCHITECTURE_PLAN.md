@@ -1,67 +1,80 @@
-# HTC Core Phase 2 Architecture Plan
+# HTC Core Phase 2 Architecture & Amazon EC2 Deployment Plan
 
-This document maps the remaining parts of the proposed system architecture to concrete implementation work. It separates the current MVP pilot from the future cloud-native target so the capstone paper and the codebase stay aligned.
+This document outlines the current production architecture and deployment roadmap for HTC Core, aligning the containerized Django application with production hosting on **Amazon EC2 (AWS)**.
 
-## Current status
+---
 
-The repository currently implements the MVP pilot:
+## 1. Current System Status Baseline
 
-- Nginx reverse proxy
-- Gunicorn + Django web app
-- PostgreSQL relational database
-- Management UI for transactions, finance, master data, audit, and dashboard
-- Excel import for legacy workbook ingestion
+The repository currently implements a complete, containerized multi-service stack defined in [`docker-compose.yml`](../docker-compose.yml):
 
-The following diagram items are still conceptual and belong in Phase 2:
+- **Nginx Reverse Proxy:** Serves as the public edge (Port 80/443) and static file server.
+- **Gunicorn + Django Application:** Handles Web WSGI requests, database queries, and role-based management logic.
+- **PostgreSQL 16 Database:** Primary relational store for transaction clusters, finance, masters, and append-only audit trails.
+- **Redis Message Broker:** In-memory broker handling asynchronous task queues and Celery beat schedules.
+- **Celery Worker & Scheduler:** Asynchronous task runner for background jobs (e.g. nightly loan status refresh).
+- **Authentication & Approval Gating:** Multi-role RBAC (`ADMINISTRATOR`, `FINANCE`, `OPERATIONS_MANAGEMENT`, `INVOICING`) with secure employee sign-up gating and Admin Approval workflows.
 
-- ALB / managed load balancing
-- ECS or Fargate hosting
-- Redis broker and Celery worker separation
-- S3 archive tier for cold and historical data
-- RDS-managed PostgreSQL
-- Predictive engine service
-- Automated data tiering / archival orchestration
+---
 
-## Phase 2 target architecture
+## 2. Phase 2 Target Architecture (Amazon EC2 Production Deployment)
 
 ```mermaid
-flowchart LR
-    Browser[Client Web Dashboard] --> ALB[Managed Load Balancer / ALB]
-    ALB --> Nginx[Nginx container]
-    Nginx --> Gunicorn[Gunicorn WSGI server]
-    Gunicorn --> Django[Django web logic]
-    Django --> RDS[(Amazon RDS PostgreSQL)]
-    Django --> Redis[(Managed Redis)]
-    Redis --> Celery[Celery workers]
-    Celery --> Predictive[Predictive engine service]
-    Celery --> S3[(Amazon S3 archive)]
-    Predictive --> Django
-    DataTier[Data tiering job] --> S3
-    DataTier --> RDS
+flowchart TD
+    subgraph Internet [Public Internet]
+        Users[Client Browsers / HTC Staff]
+    end
+
+    subgraph AWS [AWS Cloud Infrastructure]
+        EIP[Elastic IP / Domain DNS: heindrich.net]
+        
+        subgraph EC2 [Amazon EC2 Instance: Ubuntu 24.04 LTS]
+            subgraph DockerStack [Docker Compose Stack]
+                Nginx[Nginx Reverse Proxy: Port 80 / 443 TLS]
+                Gunicorn[Gunicorn + Django WSGI: Port 8000]
+                CeleryWorker[Celery Worker Service]
+                Redis[Redis Message Broker: Port 6379]
+                Postgres[(PostgreSQL 16 DB: Port 5432)]
+            end
+            EBS[(Persistent EBS Storage Volume)]
+        end
+
+        S3[(Amazon S3 Bucket: Backups & Media Storage)]
+    end
+
+    Users -->|HTTPS / Port 443| EIP
+    EIP --> Nginx
+    Nginx -->|proxy_pass| Gunicorn
+    Nginx -->|Serve Static| StaticVolume[/app/staticfiles/]
+    Gunicorn --> Postgres
+    Gunicorn --> Redis
+    CeleryWorker --> Redis
+    CeleryWorker --> Postgres
+    Postgres -->|Automated pg_dump Cron| S3
+    Postgres --> EBS
 ```
 
-## File-by-file Phase 2 plan
+---
 
-| File | Phase 2 role | What to add |
-|------|--------------|-------------|
-| [config/settings.py](../config/settings.py) | Runtime configuration | Split environment settings for ECS/Fargate, Redis broker, S3 storage, and RDS connection strings. Keep eager Celery as the local default only. |
-| [docker-compose.phase2.yml](../docker-compose.phase2.yml) | Local cloud-emulation stack | Extend to include the Celery worker, Redis, and optional archive/test services that mirror production dependencies. |
-| [operations/tasks.py](../operations/tasks.py) | Operational async jobs | Move variance recalculation and import follow-up work into tasks so the web request stays thin. |
-| [finance/tasks.py](../finance/tasks.py) | Finance async jobs | Schedule interest accrual, aging refresh, and payment matching jobs through Celery instead of request-time execution. |
-| [audit/signals.py](../audit/signals.py) | Audit persistence boundary | Add archival hooks so selected historical audit rows can be exported to S3 without breaking the append-only trail. |
-| [operations/services/excel_import.py](../operations/services/excel_import.py) | Ingestion pipeline | Add preview, validation, duplicate detection, and staged import results before commit. |
-| [dashboard/views.py](../dashboard/views.py) | Management visibility | Add Phase 2 system-health indicators for queue depth, import status, and archive counts. |
-| [README.md](../README.md) | User-facing documentation | Link the new roadmap and separate “MVP live” from “Phase 2 planned.” |
+## 3. EC2 Production Deployment Roadmap
 
-## Implementation sequence
+| Deployment Phase | Action Item | Description & Target Files |
+| :--- | :--- | :--- |
+| **Phase 2.1: Host Provisioning** | **Amazon EC2 Setup** | Launch Ubuntu 24.04 LTS instance (`t3.small` or `t3.medium`). Attach Elastic IP (EIP) and configure Security Group rules (`22` SSH, `80` HTTP, `443` HTTPS). |
+| **Phase 2.2: Secrets Management** | **Production Env Config** | Configure production environment file [`.env.production`](../.env.production.example) with strong database passwords, unique `SECRET_KEY`, `DEBUG=False`, and custom `ALLOWED_HOSTS`. |
+| **Phase 2.3: Domain & TLS/SSL** | **Nginx & Certbot** | Map domain DNS records to EC2 Elastic IP and install Let's Encrypt / Certbot SSL certificates for HTTPS encryption in [`nginx/nginx.conf`](../nginx/nginx.conf). |
+| **Phase 2.4: Deployment Automation** | **EC2 Deploy Script** | Execute [`scripts/deploy_ec2.sh`](../scripts/deploy_ec2.sh) on host to pull updates, build containers, run `python manage.py migrate`, bundle `collectstatic`, and restart services cleanly. |
+| **Phase 2.5: Persistence & Backups** | **EBS & S3 Storage** | Bind Docker data volumes (`postgres_data`, `media_volume`) to persistent EBS storage and run automated `pg_dump` backup cron scripts uploading database dumps to Amazon S3. |
 
-1. Keep the current MVP stack stable and document it as the pilot baseline.
-2. Introduce Redis and Celery in the Phase 2 compose overlay.
-3. Move long-running recalculations and interest accrual into scheduled tasks.
-4. Add S3 archival for audit/history data with a retention policy.
-5. Swap the local Postgres pilot for managed RDS in the production deployment guide.
-6. Add the predictive service only after the core async jobs are working and observable.
+---
 
-## Scope note
+## 4. File Reference
 
-The predictive engine in the diagram is not yet a required build item. It should be treated as a separate service only if the capstone deliverable needs forecasting or supplier recommendation features. Otherwise, it stays a documented extension rather than a hard dependency.
+| File | Purpose |
+| :--- | :--- |
+| [`docker-compose.yml`](../docker-compose.yml) | Multi-container stack (db, redis, web, nginx, celery_worker) |
+| [`Dockerfile`](../Dockerfile) | Production Python 3.12 build image |
+| [`nginx/nginx.conf`](../nginx/nginx.conf) | Edge proxy routing and static asset serving |
+| [`config/settings.py`](../config/settings.py) | Production security hardening settings (`SECURE_SSL_REDIRECT`, `SESSION_COOKIE_HTTPONLY`, Celery config) |
+| [`scripts/deploy_ec2.sh`](../scripts/deploy_ec2.sh) | Amazon EC2 deployment script |
+| [`.env.production.example`](../.env.production.example) | Production environment variable template |

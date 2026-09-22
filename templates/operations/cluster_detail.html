@@ -147,7 +147,107 @@
             </div>
         </div>
 
+        <div class="panel mb-3">
+
+            <div class="panel-header d-flex justify-content-between align-items-center" style="padding: 0.85rem 1rem;">
+                <span style="font-weight: 700; color: var(--htc-primary-light);"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Linked Molasses Release Orders (MRO Permits)</span>
+                {% if user|has_perm:"edit_transaction" or user|has_perm:"edit_logistics" %}
+                <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" data-bs-toggle="modal" data-bs-target="#linkMroModal">
+                    <i class="bi bi-link-45deg me-1"></i> Link MRO Permit
+                </button>
+                {% endif %}
+            </div>
+            <div class="panel-body">
+                {% if linked_mros %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle fs-7 mb-2">
+                        <thead>
+                            <tr class="table-light">
+                                <th>MRO #</th>
+                                <th>Supplier / Mill</th>
+                                <th>Planter</th>
+                                <th>Release Date</th>
+                                <th class="text-end">Tons (MT)</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mro in linked_mros %}
+                            <tr>
+                                <td class="fw-bold"><a href="{% url 'operations:mro_summary' %}?q={{ mro.mro_number }}" class="text-decoration-none">#{mro.mro_number}</a></td>
+                                <td>{{ mro.display_sugar_mill }}</td>
+                                <td>{{ mro.planter.name }}</td>
+                                <td>{{ mro.release_date|date:"M d, Y"|default:"—" }}</td>
+                                <td class="text-end fw-bold text-primary">{{ mro.tons|floatformat:3|intcomma }} MT</td>
+                                <td class="text-end">
+                                    <form method="post" action="{% url 'operations:unlink_mro' cluster.pk mro.pk %}" class="d-inline" onsubmit="return confirm('Unlink this MRO permit from cluster?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1 fs-8" title="Unlink Permit"><i class="bi bi-x-circle"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-2 rounded bg-body-tertiary border d-flex justify-content-between align-items-center fs-7">
+                    <span class="text-muted">Total Linked MRO Volume:</span>
+                    <span class="fw-bold text-primary fs-6">{{ total_mro_tons|floatformat:3|intcomma }} MT</span>
+                </div>
+                {% else %}
+                <div class="p-3 text-center text-muted fs-7">
+                    <i class="bi bi-info-circle me-1"></i> No MRO Permits linked to this cluster yet.
+                    {% if user|has_perm:"edit_transaction" %}
+                    <br><a href="#" data-bs-toggle="modal" data-bs-target="#linkMroModal" class="text-primary fw-semibold text-decoration-none mt-1 d-inline-block">+ Link an MRO Permit</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- LINK MRO PERMIT MODAL -->
+        <div class="modal fade" id="linkMroModal" tabindex="-1" aria-labelledby="linkMroModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" style="max-width: 540px;">
+                <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px;">
+                    <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem;">
+                        <h5 class="modal-title" id="linkMroModalLabel" style="font-weight: 700; color: var(--htc-text);">Link Molasses Release Order (MRO)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="post" action="{% url 'operations:link_mro' cluster.pk %}">
+                        {% csrf_token %}
+                        <div class="modal-body" style="padding: 1.25rem;">
+                            <p class="fs-7 text-muted mb-3">Select an active, unassigned MRO release permit to bind to <strong>{{ cluster.reference_code }}</strong> ({{ cluster.client.name }}):</p>
+                            <div class="mb-3">
+                                <label class="form-label fs-7 fw-bold">Select Unassigned MRO Permit</label>
+                                {% if available_mros %}
+                                <select name="mro_id" class="form-select fs-7" required>
+                                    <option value="">-- Choose MRO Permit --</option>
+                                    {% for mro in available_mros %}
+                                    <option value="{{ mro.pk }}">
+                                        MRO #{{ mro.mro_number }} — {{ mro.display_sugar_mill }} | {{ mro.planter.name }} ({{ mro.tons|floatformat:2 }} MT)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% else %}
+                                <div class="alert alert-warning fs-7 py-2">No unassigned MRO permits available in system ledger. You can add or import MROs in <a href="{% url 'operations:mro_summary' %}" class="alert-link">MRO Summary</a>.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="border-top: 1px solid var(--htc-border); padding: 0.75rem 1.25rem;">
+                            <button type="button" class="btn-htc-outline" data-bs-dismiss="modal">Cancel</button>
+                            {% if available_mros %}
+                            <button type="submit" class="btn-htc" style="background: var(--htc-primary-light); border-color: var(--htc-primary-light);">
+                                <i class="bi bi-link-45deg"></i> Bind Permit to Cluster
+                            </button>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <div class="panel">
+
             <div class="panel-header">Logistics, Volume Variance & Supporting Documents</div>
             <div class="panel-body">
                 {% if user|has_perm:"edit_logistics" %}
