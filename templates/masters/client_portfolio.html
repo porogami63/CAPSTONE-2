@@ -5,7 +5,7 @@
 {% block topbar_subtitle %}{{ client.name }} — Buyer Account Profile & Transaction History{% endblock %}
 {% block content %}
 
-<div class="page-header flex-between compact mb-4">
+<div class="page-header flex-between compact mb-4" data-step="1" data-intro="Client Profile Header: Customer details, TIN registration, profile edit controls, and account photo management.">
     <div class="flex gap-3 align-items-center">
         <div class="position-relative" style="width: 64px; height: 64px;">
             {% if client.avatar %}
@@ -35,7 +35,7 @@
     </div>
 </div>
 
-<div class="metric-grid mb-4">
+<div class="metric-grid mb-4" data-step="2" data-intro="Client Financial KPIs: Summarizes total lifetime volume purchased (MT), invoiced sales revenue, paid collections, and payment promptness score.">
     <div class="metric-box">
         <div class="label">Lifetime Volume</div>
         <div class="value">{{ total_volume|floatformat:3|intcomma }} MT</div>

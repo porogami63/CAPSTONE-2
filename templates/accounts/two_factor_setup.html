@@ -1,0 +1,58 @@
+{% extends "app_base.html" %}
+{% block title %}Setup Two-Factor Authentication · HTC Core{% endblock %}
+{% block topbar_title %}Setup Two-Factor Authentication{% endblock %}
+{% block topbar_subtitle %}Scan the QR code with your authenticator app to enable 2FA protection{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 font-weight-bold"><i class="bi bi-qr-code-scan text-primary me-2"></i>Link Authenticator App</h5>
+            </div>
+            <div class="card-body p-4 text-center">
+                {% if error_message %}
+                <div class="alert alert-danger d-flex align-items-center mb-4 text-start" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                    <div>{{ error_message }}</div>
+                </div>
+                {% endif %}
+
+                <p class="text-muted mb-4">Scan the QR code below using Google Authenticator, Authy, or your preferred TOTP app.</p>
+
+                <div class="p-3 bg-light rounded d-inline-block border mb-4">
+                    <img src="data:image/png;base64,{{ qr_code_b64 }}" alt="2FA QR Code" class="img-fluid" style="max-width: 220px;">
+                </div>
+
+                <div class="mb-4 text-start">
+                    <label class="form-label text-muted small fw-bold text-uppercase">Unable to scan? Use Manual Setup Secret Key:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace text-center fw-bold" value="{{ secret }}" readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText('{{ secret }}'); alert('Secret key copied!');">
+                            <i class="bi bi-copy"></i> Copy
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <form method="post" class="text-start">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label class="form-label font-weight-bold">Enter 6-Digit Verification Code</label>
+                        <input type="text" name="otp_token" class="form-control-htc text-center fs-4 fw-bold" placeholder="000000" maxlength="10" autocomplete="off" autofocus required style="letter-spacing: 0.35em;">
+                        <div class="form-text text-muted">Enter the current 6-digit code displayed in your authenticator app to complete setup.</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'accounts:profile' %}" class="btn btn-outline-secondary px-4">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4 font-weight-bold">
+                            <i class="bi bi-shield-check me-1"></i> Verify & Enable 2FA
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

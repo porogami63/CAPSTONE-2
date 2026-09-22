@@ -15,6 +15,9 @@ class User(AbstractUser):
         default=Role.OPERATIONS_MANAGEMENT,
     )
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
+    otp_secret = models.CharField(max_length=32, blank=True, null=True)
+    is_2fa_enabled = models.BooleanField(default=False)
+    backup_codes = models.JSONField(default=list, blank=True)
 
     @property
     def avatar_url(self):

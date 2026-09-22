@@ -5,13 +5,58 @@
 {% block topbar_subtitle %}System roles (Administrator, Operations Management, Finance, Invoicing), active status & credentials{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-end align-items-center mb-3">
+<div class="d-flex justify-content-end align-items-center mb-3" data-step="1" data-intro="User Management Control Bar: Register new employee accounts with role-scoped system permissions.">
     <a href="{% url 'accounts:signup' %}" class="btn-htc" target="_blank">
         <i class="bi bi-person-plus-fill me-1"></i> Register New User
     </a>
 </div>
 
-<div class="card border-0 shadow-sm">
+{% if pending_users %}
+<div class="card border-warning shadow-sm mb-4">
+    <div class="card-header bg-warning-subtle text-dark py-3 flex-between">
+        <h5 class="mb-0 font-weight-bold"><i class="bi bi-clock-history me-2 text-warning"></i>Pending Account Approvals</h5>
+        <span class="badge bg-warning text-dark font-weight-bold fs-6">{{ pending_users|length }} Pending Action</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+            <thead class="table-light">
+                <tr class="text-uppercase text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                    <th>Username</th>
+                    <th>Full Name</th>
+                    <th>Email Address</th>
+                    <th>Registration Date</th>
+                    <th>Assign Role & Approve</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in pending_users %}
+                <tr>
+                    <td><strong class="text-dark">{{ u.username }}</strong></td>
+                    <td>{{ u.get_full_name|default:"—" }}</td>
+                    <td class="text-muted">{{ u.email|default:"—" }}</td>
+                    <td class="text-muted">{{ u.date_joined|date:"M d, Y H:i" }}</td>
+                    <td>
+                        <form method="post" action="{% url 'accounts:user_approve' u.id %}" class="d-flex align-items-center gap-2">
+                            {% csrf_token %}
+                            <select name="role" class="form-select form-select-sm" style="max-width: 200px;">
+                                {% for val, label in roles %}
+                                <option value="{{ val }}" {% if val == 'operations_management' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-success py-1 px-3">
+                                <i class="bi bi-check-circle-fill me-1"></i> Approve & Activate
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm" data-step="2" data-intro="Registered System Users: Displays active staff accounts, assigned RBAC system roles (Administrator, Operations, Finance, Invoicing), and credential reset controls.">
     <div class="card-header bg-white py-3 flex-between">
         <h5 class="mb-0 font-weight-bold text-dark"><i class="bi bi-person-badge text-primary me-2"></i>Registered System Users</h5>
         <span class="badge bg-light text-dark font-weight-normal fs-6">{{ users|length }} User Accounts</span>
@@ -65,14 +110,19 @@
                         {% if u.is_active %}
                         <span class="badge bg-success" style="font-size: 0.78rem;"><i class="bi bi-check-circle-fill me-1"></i>Active</span>
                         {% else %}
-                        <span class="badge bg-secondary" style="font-size: 0.78rem;"><i class="bi bi-slash-circle me-1"></i>Disabled</span>
+                        <span class="badge bg-warning text-dark" style="font-size: 0.78rem;"><i class="bi bi-clock me-1"></i>Pending Approval</span>
                         {% endif %}
                     </td>
                     <td class="text-center text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
                     <td class="text-center">
-                        <a href="{% url 'accounts:user_edit' u.id %}" class="btn btn-sm btn-outline-primary py-1 px-2" title="Edit Role & Permissions">
-                            <i class="bi bi-pencil-fill me-1"></i>Edit Role
-                        </a>
+                        <div class="d-inline-flex gap-1">
+                            <a href="{% url 'accounts:user_edit' u.id %}" class="btn btn-sm btn-outline-primary py-1 px-2" title="Edit Role & Permissions">
+                                <i class="bi bi-pencil-fill me-1"></i>Edit
+                            </a>
+                            <a href="{% url 'accounts:user_reset_password' u.id %}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="Reset User Password">
+                                <i class="bi bi-key-fill me-1"></i>Reset Password
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

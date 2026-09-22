@@ -8,7 +8,7 @@
     <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline"><i class="bi bi-arrow-left"></i> Back to Active Transactions</a>
 </div>
 
-<div class="metric-grid">
+<div class="metric-grid" data-step="1" data-intro="Archive Vault Counters: Summary of completed transaction contracts, customer invoices, and historical logistics records stored in secure vault storage.">
     <div class="metric-box">
         <div class="label">Archived Clusters</div>
         <div class="value">{{ archived_clusters|length }}</div>
@@ -23,7 +23,7 @@
     </div>
 </div>
 
-<form method="get" class="filters-bar" style="margin-bottom: 1.5rem;">
+<form method="get" class="filters-bar" style="margin-bottom: 1.5rem;" data-step="2" data-intro="Archive Search: Query archived records by transaction reference code, buyer client, or sugar mill supplier.">
     <div class="search-input-wrap" style="flex:1;">
         <i class="bi bi-search"></i>
         <input type="text" name="q" value="{{ q }}" placeholder="Search archived reference, client, sugar mill..." class="form-control">
@@ -31,7 +31,7 @@
     <button type="submit" class="btn-htc"><i class="bi bi-filter"></i> Search Archive</button>
 </form>
 
-<div class="content-card">
+<div class="content-card" data-step="3" data-intro="Archived Transactions Vault: Access view-only records or click 'Restore' to return contracts back to the active operational ledger.">
     <div class="card-header-htc">Archived Transaction Clusters</div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">

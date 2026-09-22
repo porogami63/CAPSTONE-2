@@ -2176,6 +2176,563 @@ ul.dropdown-menu li, .dropdown-menu li {
     flex-shrink: 0;
 }
 
+/* ==========================================================================
+   Elderly Usability & High Legibility Mode ([data-legibility="high"])
+   ========================================================================== */
+html[data-legibility="high"] {
+    font-size: 17px !important;
+}
 
+html[data-legibility="high"] body {
+    line-height: 1.65 !important;
+    letter-spacing: 0.2px !important;
+}
 
+html[data-legibility="high"] [data-theme="light"] {
+    --htc-text: #000000 !important;
+    --htc-text-muted: #334155 !important;
+    --htc-border: #94a3b8 !important;
+}
+
+html[data-legibility="high"] [data-theme="dark"] {
+    --htc-text: #ffffff !important;
+    --htc-text-muted: #cbd5e1 !important;
+    --htc-border: #64748b !important;
+}
+
+html[data-legibility="high"] button,
+html[data-legibility="high"] .btn,
+html[data-legibility="high"] input,
+html[data-legibility="high"] select,
+html[data-legibility="high"] textarea {
+    min-height: 48px !important;
+    font-size: 1.05rem !important;
+}
+
+html[data-legibility="high"] .table,
+html[data-legibility="high"] table {
+    font-size: 1rem !important;
+}
+
+html[data-legibility="high"] .badge {
+    font-size: 0.85rem !important;
+    padding: 0.35rem 0.65rem !important;
+}
+
+/* ==========================================================================
+   HTC Copilot Slide-Over Drawer
+   ========================================================================== */
+.copilot-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1040;
+    transition: opacity 0.3s ease;
+}
+
+.copilot-drawer {
+    position: fixed;
+    top: 0;
+    right: -420px;
+    width: 420px;
+    max-width: 100vw;
+    height: 100vh;
+    background: var(--htc-surface);
+    border-left: 1px solid var(--htc-border);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.copilot-drawer.open {
+    right: 0;
+}
+
+.copilot-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--htc-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--htc-surface);
+}
+
+.copilot-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.copilot-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.copilot-msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 90%;
+}
+
+.copilot-msg.user-msg {
+    align-self: flex-end;
+}
+
+.copilot-msg.user-msg .copilot-bubble {
+    background: var(--htc-primary-light);
+    color: #ffffff;
+    border-radius: 14px 14px 2px 14px;
+}
+
+.copilot-msg.bot-msg {
+    align-self: flex-start;
+}
+
+.copilot-msg.bot-msg .copilot-bubble {
+    background: var(--htc-sidebar-hover);
+    color: var(--htc-text);
+    border: 1px solid var(--htc-border);
+    border-radius: 14px 14px 14px 2px;
+}
+
+.copilot-bubble {
+    padding: 0.85rem 1rem;
+    font-size: 0.88rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.prompt-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
+
+.copilot-pill {
+    background: var(--htc-surface);
+    border: 1px solid var(--htc-border);
+    color: var(--htc-text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.3rem 0.6rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.copilot-pill:hover {
+    border-color: var(--htc-primary-light);
+    color: var(--htc-primary-light);
+    transform: translateY(-1px);
+}
+
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease !important;
+}
+[data-theme="light"] .btn-action-secondary {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+.btn-action-secondary:hover {
+    background-color: var(--htc-sidebar-hover) !important;
+    color: var(--htc-primary-light) !important;
+    border-color: var(--htc-primary-light) !important;
+    transform: translateY(-1px) !important;
+}
+[data-theme="light"] .btn-action-secondary:hover {
+    background-color: #f8fafc !important;
+    color: #2563eb !important;
+    border-color: #2563eb !important;
+}
+
+.action-icon {
+    font-size: 1.05rem;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Elderly Usability & High Legibility Mode ([data-legibility="high"])
+   ========================================================================== */
+html[data-legibility="high"] {
+    font-size: 17px !important;
+}
+
+html[data-legibility="high"] body {
+    line-height: 1.65 !important;
+    letter-spacing: 0.2px !important;
+}
+
+html[data-legibility="high"] [data-theme="light"] {
+    --htc-text: #000000 !important;
+    --htc-text-muted: #334155 !important;
+    --htc-border: #94a3b8 !important;
+}
+
+html[data-legibility="high"] [data-theme="dark"] {
+    --htc-text: #ffffff !important;
+    --htc-text-muted: #cbd5e1 !important;
+    --htc-border: #64748b !important;
+}
+
+html[data-legibility="high"] button,
+html[data-legibility="high"] .btn,
+html[data-legibility="high"] input,
+html[data-legibility="high"] select,
+html[data-legibility="high"] textarea {
+    min-height: 48px !important;
+    font-size: 1.05rem !important;
+}
+
+html[data-legibility="high"] .table,
+html[data-legibility="high"] table {
+    font-size: 1rem !important;
+}
+
+html[data-legibility="high"] .badge {
+    font-size: 0.85rem !important;
+    padding: 0.35rem 0.65rem !important;
+}
+
+/* ==========================================================================
+   HTC Copilot Slide-Over Drawer
+   ========================================================================== */
+.copilot-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1040;
+    transition: opacity 0.3s ease;
+}
+
+.copilot-drawer {
+    position: fixed;
+    top: 0;
+    right: -420px;
+    width: 420px;
+    max-width: 100vw;
+    height: 100vh;
+    background: var(--htc-surface);
+    border-left: 1px solid var(--htc-border);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.copilot-drawer.open {
+    right: 0;
+}
+
+.copilot-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--htc-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--htc-surface);
+}
+
+.copilot-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.copilot-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.copilot-msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 90%;
+}
+
+.copilot-msg.user-msg {
+    align-self: flex-end;
+}
+
+.copilot-msg.user-msg .copilot-bubble {
+    background: var(--htc-primary-light);
+    color: #ffffff;
+    border-radius: 14px 14px 2px 14px;
+}
+
+.copilot-msg.bot-msg {
+    align-self: flex-start;
+}
+
+.copilot-msg.bot-msg .copilot-bubble {
+    background: var(--htc-sidebar-hover);
+    color: var(--htc-text);
+    border: 1px solid var(--htc-border);
+    border-radius: 14px 14px 14px 2px;
+}
+
+.copilot-bubble {
+    padding: 0.85rem 1rem;
+    font-size: 0.88rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.prompt-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
+
+.copilot-pill {
+    background: var(--htc-surface);
+    border: 1px solid var(--htc-border);
+    color: var(--htc-text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.3rem 0.6rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.copilot-pill:hover {
+    border-color: var(--htc-primary-light);
+    color: var(--htc-primary-light);
+    transform: translateY(-1px);
+}
+
+.copilot-footer {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--htc-border);
+    background: var(--htc-surface);
+}
+
+.fs-8 {
+    font-size: 0.72rem !important;
+}
+
+/* Document Category Card Scrollbars */
+.doc-category-scroll {
+    max-height: 380px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--htc-border) transparent;
+}
+
+.doc-category-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.doc-category-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.doc-category-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--htc-border);
+    border-radius: 4px;
+}
+
+.doc-category-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: var(--htc-primary-light);
+}
+
+/* Audit Log Formatted Payload Diff Styling */
+.audit-diff-table {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.audit-diff-table th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--htc-text-muted);
+    background: rgba(0, 0, 0, 0.03);
+    padding: 0.6rem 0.85rem;
+}
+
+.audit-diff-table td {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.84rem;
+    vertical-align: middle;
+}
+
+.audit-val-old {
+    color: #dc2626;
+    background: rgba(220, 38, 38, 0.08);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    display: inline-block;
+    font-size: 0.82rem;
+    font-family: inherit;
+    word-break: break-word;
+}
+
+.audit-val-new {
+    color: #059669;
+    background: rgba(5, 150, 105, 0.08);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    display: inline-block;
+    font-size: 0.82rem;
+    font-family: inherit;
+    word-break: break-word;
+}
+
+.audit-val-unchanged {
+    color: var(--htc-text-muted);
+    font-size: 0.82rem;
+}
+
+/* ==========================================================================
+   Standalone Auth Pages Layout (Login, 2FA, Signup)
+   ========================================================================== */
+.login-page-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--htc-bg);
+    padding: 2rem 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.glass-login-card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--htc-surface);
+    border: 1px solid var(--htc-border);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    box-shadow: var(--htc-shadow), 0 20px 40px rgba(0, 0, 0, 0.25);
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.login-brand-badge {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: rgba(37, 99, 235, 0.1);
+    border: 2px solid rgba(96, 165, 250, 0.3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem auto;
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.15);
+}
+
+.login-company-name {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--htc-text);
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.3px;
+}
+
+.form-control-htc {
+    display: block;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+    color: var(--htc-text);
+    background-color: var(--htc-bg);
+    border: 1px solid var(--htc-border);
+    border-radius: 10px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.form-control-htc:focus {
+    border-color: var(--htc-primary-light);
+    background-color: var(--htc-surface);
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.18);
+    outline: none;
+}
+
+.otp-token-input {
+    font-size: 1.45rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.38em !important;
+    text-align: center !important;
+    padding: 0.85rem 0.5rem !important;
+    font-family: 'Plus Jakarta Sans', monospace, sans-serif !important;
+    background-color: var(--htc-bg) !important;
+    color: var(--htc-text) !important;
+    border: 2px solid var(--htc-border) !important;
+    border-radius: 12px !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    transition: all 0.2s ease !important;
+}
+
+.otp-token-input:focus {
+    border-color: var(--htc-primary-light) !important;
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2) !important;
+    outline: none !important;
+}
+
+.btn-htc-primary {
+    display: block;
+    width: 100%;
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none;
+}
+
+.btn-htc-primary:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4) !important;
+    color: #ffffff !important;
+}
+
+.btn-htc-primary:active {
+    transform: translateY(0);
+}
 

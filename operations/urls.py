@@ -30,5 +30,9 @@ urlpatterns = [
     path("mro-summary/<int:pk>/delete/", views.mro_delete_view, name="mro_delete"),
     path("mro-summary/import/", views.mro_import_excel_view, name="mro_import_excel"),
     path("mro-summary/export/", views.mro_export_csv_view, name="mro_export_csv"),
+    path("<uuid:pk>/link-mro/", views.link_mro_to_cluster, name="link_mro"),
+    path("<uuid:pk>/unlink-mro/<int:mro_pk>/", views.unlink_mro_from_cluster, name="unlink_mro"),
+    path("api/copilot/query/", views.copilot_query_api, name="copilot_query_api"),
 ]
+
 

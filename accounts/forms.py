@@ -32,7 +32,7 @@ class UserLoginForm(forms.Form):
 class UserSignupForm(UserCreationForm):
     email = forms.EmailField(
         required=True,
-        widget=forms.EmailInput(attrs={"class": "form-control-htc", "placeholder": "name@heindrich.ph"}),
+        widget=forms.EmailInput(attrs={"class": "form-control-htc", "placeholder": "name@heindrich.net"}),
     )
     first_name = forms.CharField(
         required=True,
@@ -42,16 +42,10 @@ class UserSignupForm(UserCreationForm):
         required=True,
         widget=forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Last Name"}),
     )
-    role = forms.ChoiceField(
-        choices=User.Role.choices,
-        required=True,
-        initial=User.Role.OPERATIONS_MANAGEMENT,
-        widget=forms.Select(attrs={"class": "form-select-htc"}),
-    )
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "email", "first_name", "last_name", "role")
+        fields = ("username", "email", "first_name", "last_name")
         widgets = {
             "username": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Choose username"}),
         }
@@ -60,6 +54,25 @@ class UserSignupForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         self.fields["password1"].widget.attrs.update({"class": "form-control-htc", "placeholder": "Create password"})
         self.fields["password2"].widget.attrs.update({"class": "form-control-htc", "placeholder": "Confirm password"})
+
+
+class AdminPasswordResetForm(forms.Form):
+    new_password = forms.CharField(
+        label="New Password",
+        widget=forms.PasswordInput(attrs={"class": "form-control-htc", "placeholder": "Enter new password"}),
+    )
+    confirm_password = forms.CharField(
+        label="Confirm New Password",
+        widget=forms.PasswordInput(attrs={"class": "form-control-htc", "placeholder": "Confirm new password"}),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get("new_password")
+        p2 = cleaned_data.get("confirm_password")
+        if p1 and p2 and p1 != p2:
+            raise forms.ValidationError("Passwords do not match.")
+        return cleaned_data
 
 
 class UserEditForm(forms.ModelForm):
@@ -86,4 +99,22 @@ class UserProfileForm(forms.ModelForm):
             "email": forms.EmailInput(attrs={"class": "form-control-htc"}),
             "avatar": forms.FileInput(attrs={"class": "form-control-htc", "accept": "image/*"}),
         }
+
+
+class TwoFactorVerifyForm(forms.Form):
+    otp_token = forms.CharField(
+        label="Authenticator Code / Backup Code",
+        max_length=10,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control otp-token-input",
+                "placeholder": "000000",
+                "autocomplete": "off",
+                "autofocus": True,
+                "inputmode": "numeric",
+                "maxlength": "10",
+                "id": "id_otp_token",
+            }
+        ),
+    )
 

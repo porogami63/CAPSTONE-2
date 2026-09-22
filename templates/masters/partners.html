@@ -4,7 +4,7 @@
 {% block topbar_title %}Suppliers & Customers{% endblock %}
 {% block topbar_subtitle %}Manage sugar mill suppliers and buyer client relationships{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+<div class="d-flex justify-content-end align-items-center gap-2 mb-3" data-step="1" data-intro="Partner Management Toolbar: Search active trading partners or register new Sugar Mill Suppliers and Buyer Client profiles.">
     <div class="search-input-wrap" style="width: 240px;">
         <i class="bi bi-search"></i>
         <input type="text" id="partnerSearch" placeholder="Search supplier or customer..." class="form-control form-control-sm" onkeyup="filterPartners()">
@@ -18,7 +18,7 @@
 </div>
 
 <div class="partners-split">
-    <div class="partner-column">
+    <div class="partner-column" data-step="2" data-intro="Sugar Mill Suppliers: Access detailed supplier portfolios, track volume sourced (MT), supplier reliability ratings, and transit shrinkage performance.">
         <div class="partner-column-header flex-between align-items-center">
             <div>
                 <h3>Suppliers ({{ suppliers|length }})</h3>
@@ -59,7 +59,7 @@
         {% endfor %}
     </div>
 
-    <div class="partner-column">
+    <div class="partner-column" data-step="3" data-intro="Buyer Clients: Access client portfolios, lifetime order volumes, total revenue, and payment promptness scores.">
         <div class="partner-column-header flex-between align-items-center">
             <div>
                 <h3>Customers ({{ clients|length }})</h3>

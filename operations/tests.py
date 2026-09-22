@@ -289,5 +289,67 @@ class MROSummaryTests(TestCase):
         self.assertContains(response, "ABSFI")
 
 
+class MROLinkingAndCopilotTests(TestCase):
+    def setUp(self):
+        from masters.models import Client, Planter, SugarMill
+        from operations.models import MolassesReleaseOrder, TransactionCluster
+
+        self.user = User.objects.create_user(
+            username="ops_copilot",
+            password="password123",
+            role=User.Role.OPERATIONS,
+            is_staff=True,
+        )
+        self.client_obj = Client.objects.create(name="San Miguel Corp")
+        self.mill = SugarMill.objects.create(name="BUSCO Sugar Mill")
+        self.planter = Planter.objects.create(name="Planter Alpha")
+        self.cluster = TransactionCluster.objects.create(
+            reference_code="GSMI-2026-TEST",
+            client=self.client_obj,
+            sugar_mill=self.mill,
+        )
+        self.mro = MolassesReleaseOrder.objects.create(
+            mro_number="MRO-9999",
+            planter=self.planter,
+            sugar_mill=self.mill,
+            tons=150.50,
+            trader="HEINDRICH",
+            crop_year="2024 - 25",
+        )
+
+    def test_link_and_unlink_mro_to_cluster(self):
+        self.client.login(username="ops_copilot", password="password123")
+
+        # 1. Link MRO
+        link_url = reverse("operations:link_mro", kwargs={"pk": self.cluster.pk})
+        response = self.client.post(link_url, {"mro_id": self.mro.pk}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.mro.refresh_from_db()
+        self.assertEqual(self.mro.cluster, self.cluster)
+
+        # 2. Unlink MRO
+        unlink_url = reverse("operations:unlink_mro", kwargs={"pk": self.cluster.pk, "mro_pk": self.mro.pk})
+        response = self.client.post(unlink_url, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.mro.refresh_from_db()
+        self.assertIsNone(self.mro.cluster)
+
+    def test_copilot_api_endpoint(self):
+        self.client.login(username="ops_copilot", password="password123")
+        url = reverse("operations:copilot_query_api")
+
+        # Query high variance
+        res = self.client.post(url, data='{"query": "high variance"}', content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        json_data = res.json()
+        self.assertIn("answer_html", json_data)
+
+        # Query MRO status
+        res = self.client.post(url, data='{"query": "unassigned mro"}', content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("Molasses Release Order", res.json()["answer_html"])
+
+
+
 
 
