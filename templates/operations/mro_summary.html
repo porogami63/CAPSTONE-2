@@ -1,5 +1,6 @@
 {% extends "app_base.html" %}
 {% load role_tags %}
+{% load humanize %}
 {% block title %}Molasses Release Orders (MRO) · HTC Core{% endblock %}
 {% block topbar_title %}Molasses Release Order Summary{% endblock %}
 {% block topbar_subtitle %}Company & supplier allocations, planter releases, and crop year subtotals{% endblock %}
@@ -23,7 +24,7 @@
 <div class="metric-grid mb-3" data-step="2" data-intro="MRO Key Metrics: Real-time summary of total released tonnage (MT), distinct sugar mill suppliers, MRO document count, and planter allocations.">
     <div class="metric-box">
         <div class="label">Total Released Tonnage</div>
-        <div class="value text-primary">{{ total_tons|floatformat:4 }} <span class="fs-6 text-muted">MT</span></div>
+        <div class="value text-primary">{{ total_tons|floatformat:2|intcomma }} <span class="fs-6 text-muted">MT</span></div>
         <div class="small text-muted mt-1">{% if current_mill %}{{ current_mill }}{% else %}All Suppliers{% endif %} · {% if current_crop_year %}CY {{ current_crop_year }}{% else %}All CYs{% endif %}</div>
     </div>
     <div class="metric-box">
@@ -154,7 +155,7 @@
                         {% endif %}
                     </td>
                     <td class="text-end font-monospace font-weight-bold text-dark">
-                        {{ item.tons|floatformat:5 }}
+                        {{ item.tons|floatformat:2|intcomma }}
                     </td>
                     <td class="text-center text-muted">
                         {% if item.release_date %}{{ item.release_date|date:"m/d/Y" }}{% else %}<span class="text-muted small">—</span>{% endif %}
@@ -171,7 +172,7 @@
                     <td class="text-end font-monospace">
                         {% if row.is_last_in_mro %}
                         <div class="px-2 py-1 bg-success-subtle text-success-emphasis rounded fw-bold" style="display: inline-block;">
-                            {{ row.mro_group_subtotal|floatformat:5 }} MT
+                            {{ row.mro_group_subtotal|floatformat:2|intcomma }} MT
                         </div>
                         {% else %}
                         <span class="text-muted small">—</span>

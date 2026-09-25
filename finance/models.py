@@ -14,15 +14,22 @@ class Invoice(models.Model):
         DRAFT = "draft", "Draft"
         ISSUED = "issued", "Issued"
         PAID = "paid", "Paid"
+        RETURNED = "returned", "Returned / Rejected"
 
     cluster = models.ForeignKey(TransactionCluster, on_delete=models.CASCADE, related_name="invoices")
     invoice_number = models.CharField(max_length=50, unique=True)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     issued_at = models.DateField(default=date.today)
+    due_date = models.DateField(null=True, blank=True, help_text="Payment due date for timeline tracking")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     tax_rate_vat = models.DecimalField("VAT Rate (%)", max_digits=5, decimal_places=2, default=Decimal("12.00"))
     tax_rate_ewt = models.DecimalField("EWT Rate (%)", max_digits=5, decimal_places=2, default=Decimal("1.00"))
     notes = models.TextField(blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_invoices")
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="rejected_invoices")
+    rejection_comments = models.TextField(blank=True, default="", help_text="Mandatory reason for returning / rejecting invoice")
     created_at = models.DateTimeField(auto_now_add=True)
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)

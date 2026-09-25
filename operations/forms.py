@@ -85,7 +85,7 @@ class TransactionClusterForm(forms.ModelForm):
         model = TransactionCluster
         fields = ["reference_code", "client", "sugar_mill", "contract_notes", "status"]
         widgets = {
-            "reference_code": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. PO-2026-001"}),
+            "reference_code": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated (e.g. PO-20260925-001)"}),
             "client": forms.Select(attrs={"class": "form-select-htc"}),
             "sugar_mill": forms.Select(attrs={"class": "form-select-htc"}),
             "status": forms.Select(attrs={"class": "form-select-htc"}),
@@ -94,10 +94,16 @@ class TransactionClusterForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from operations.services.reference_generators import generate_po_reference
+        self.fields["reference_code"].required = False
         self.fields["client"].queryset = Client.objects.filter(is_active=True)
         self.fields["sugar_mill"].queryset = SugarMill.objects.filter(is_active=True)
         self.fields["client"].empty_label = "Select Customer (Client)..."
         self.fields["sugar_mill"].empty_label = "Select Supplier (Sugar Mill)..."
+
+        if not self.instance or not self.instance.pk:
+            if not self.initial.get("reference_code"):
+                self.initial["reference_code"] = generate_po_reference()
 
         if self.instance and self.instance.pk:
             if hasattr(self.instance, "purchase_order") and self.instance.purchase_order:
@@ -116,6 +122,13 @@ class TransactionClusterForm(forms.ModelForm):
                         self.fields["est_trucking_rate"].initial = round(float(log.tracking_fees) / vol, 2)
                     if log.barge_fees:
                         self.fields["est_barge_rate"].initial = round(float(log.barge_fees) / vol, 2)
+
+    def clean_reference_code(self):
+        ref = self.cleaned_data.get("reference_code", "").strip()
+        if not ref:
+            from operations.services.reference_generators import generate_po_reference
+            ref = generate_po_reference()
+        return ref
 
     def clean(self):
         cleaned_data = super().clean()
@@ -331,4 +344,52 @@ class MROExcelImportForm(forms.Form):
         help_text="Will apply if crop year column is empty in spreadsheet (e.g. 2024 - 25)",
         widget=forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 2024 - 25"}),
     )
+
+
+class CHAIRecordForm(forms.ModelForm):
+    class Meta:
+        from operations.models import CHAIRecord
+        model = CHAIRecord
+        fields = [
+            "chai_number", "chai_value", "title", "sugar_mill", "cluster",
+            "brix_level", "purity_percent", "total_sugars_percent", "tested_at",
+            "inspector", "status", "remarks"
+        ]
+        widgets = {
+            "chai_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated (e.g. CHAI-20260925-001)"}),
+            "chai_value": forms.Select(attrs={"class": "form-select-htc"}),
+            "title": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Verified High Brix Distillation Quality"}),
+            "sugar_mill": forms.Select(attrs={"class": "form-select-htc"}),
+            "cluster": forms.Select(attrs={"class": "form-select-htc"}),
+            "brix_level": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "85.00"}),
+            "purity_percent": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 78.50"}),
+            "total_sugars_percent": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 55.00"}),
+            "tested_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
+            "inspector": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. QC Analyst / Lab Inspector Name"}),
+            "status": forms.Select(attrs={"class": "form-select-htc"}),
+            "remarks": forms.Textarea(attrs={"class": "form-control-htc", "rows": 3, "placeholder": "Detailed chemical quality analysis and laboratory remarks..."}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from masters.models import SugarMill
+        from operations.models import TransactionCluster
+        from operations.services.reference_generators import generate_chai_number
+
+        self.fields["chai_number"].required = False
+        self.fields["sugar_mill"].queryset = SugarMill.objects.filter(is_active=True)
+        self.fields["sugar_mill"].empty_label = "-- Select Sugar Mill / Supplier --"
+        self.fields["cluster"].queryset = TransactionCluster.objects.filter(is_archived=False).order_by("-created_at")
+        self.fields["cluster"].empty_label = "-- Optional Linked Deal --"
+
+        if not self.instance or not self.instance.pk:
+            if not self.initial.get("chai_number"):
+                self.initial["chai_number"] = generate_chai_number()
+
+    def clean_chai_number(self):
+        val = self.cleaned_data.get("chai_number", "").strip()
+        if not val:
+            from operations.services.reference_generators import generate_chai_number
+            val = generate_chai_number()
+        return val
 

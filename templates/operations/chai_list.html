@@ -1,0 +1,302 @@
+{% extends "app_base.html" %}
+{% load humanize %}
+{% load role_tags %}
+{% load static %}
+{% load stats_tags %}
+{% get_stats_summary as op_stats %}
+
+{% block title %}CHAI Quality Records · HTC Core{% endblock %}
+{% block topbar_title %}CHAI Quality Management{% endblock %}
+{% block topbar_subtitle %}Chemical analysis & numerical quality grading records for molasses supply{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4 flex-between flex-wrap gap-3">
+    <div>
+        <h2 class="fw-bold mb-1" style="color: var(--htc-text);">CHAI Quality Records</h2>
+        <p class="text-muted mb-0" style="font-size: 0.88rem;">
+            Central quality repository for numerical CHAI ratings, laboratory Brix specs, and sugar mill certifications.
+        </p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'operations:stats_monitoring' %}" class="btn-htc-outline btn-sm">
+            <i class="bi bi-graph-up"></i> Statistical Benchmarks
+        </a>
+        <a href="{% url 'operations:export_chai_csv' %}?q={{ current_q }}&grade={{ current_grade }}" class="btn-htc-outline btn-sm">
+            <i class="bi bi-download"></i> Export CSV
+        </a>
+        {% if user|has_perm:"manage_chai" %}
+        <button type="button" class="btn-htc btn-sm" data-bs-toggle="modal" data-bs-target="#createChaiModal">
+            <i class="bi bi-plus-lg"></i> Register CHAI Test
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Summary KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
+            <div class="text-xs text-muted fw-bold text-uppercase">Total CHAI Tests</div>
+            <div class="fs-3 fw-bold mt-1" style="color: var(--htc-primary-light);">{{ total_tests }}</div>
+            <div class="text-xs text-muted mt-1">Recorded lab certifications</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
+            <div class="text-xs text-muted fw-bold text-uppercase">CHAI Grade Summary</div>
+            <div class="fs-4 fw-bold mt-1 text-info">Mean: {{ op_stats.chai_grade.mean|floatformat:1 }}</div>
+            <div class="text-xs text-muted mt-1">Median: {{ op_stats.chai_grade.median|floatformat:1 }} | Mode: {{ op_stats.chai_grade.mode|floatformat:1 }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
+            <div class="text-xs text-muted fw-bold text-uppercase">Brix % Statistical Mean</div>
+            <div class="fs-4 fw-bold mt-1 text-success">{{ op_stats.chai_brix.mean|floatformat:2 }}%</div>
+            <div class="text-xs text-muted mt-1">Median: {{ op_stats.chai_brix.median|floatformat:2 }}% | Mode: {{ op_stats.chai_brix.mode|floatformat:2 }}%</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
+            <div class="text-xs text-muted fw-bold text-uppercase">Approved / Off-Spec</div>
+            <div class="fs-4 fw-bold mt-1 text-success">{{ approved_count }} <span class="fs-6 text-muted">/ {{ offspec_count }} off-spec</span></div>
+            <div class="text-xs text-muted mt-1">Verified quality batches</div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter Bar -->
+<div class="card p-3 mb-4 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col-md-4">
+            <input type="text" name="q" class="form-control-htc" placeholder="Search record #, title, mill, inspector..." value="{{ current_q }}">
+        </div>
+        <div class="col-md-3">
+            <select name="grade" class="form-select-htc" onchange="this.form.submit()">
+                <option value="">-- All CHAI Numerical Grades --</option>
+                {% for val, label in chai_choices %}
+                <option value="{{ val }}" {% if current_grade == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="mill" class="form-select-htc" onchange="this.form.submit()">
+                <option value="">-- All Supplier Mills --</option>
+                {% for m in mills_list %}
+                <option value="{{ m.id }}" {% if current_mill == m.id|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn-htc btn-sm w-100"><i class="bi bi-search"></i> Filter</button>
+            {% if current_q or current_grade or current_mill %}
+            <a href="{% url 'operations:chai_list' %}" class="btn-htc-outline btn-sm" title="Clear Filters"><i class="bi bi-x-circle"></i></a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- CHAI Records Table -->
+<div class="card border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--htc-border) !important;">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+            <thead style="background: rgba(15, 45, 92, 0.04); border-bottom: 2px solid var(--htc-border);">
+                <tr>
+                    <th class="ps-3 py-3">CHAI Record Code</th>
+                    <th class="py-3">Numerical Grade</th>
+                    <th class="py-3">Quality Title / Spec</th>
+                    <th class="py-3">Sugar Mill Supplier</th>
+                    <th class="py-3">Linked Deal</th>
+                    <th class="py-3">Brix %</th>
+                    <th class="py-3">Tested Date</th>
+                    <th class="py-3">Status</th>
+                    <th class="text-end pe-3 py-3">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in records %}
+                <tr style="border-bottom: 1px solid var(--htc-border);">
+                    <td class="ps-3 fw-bold">
+                        <a href="{% url 'operations:chai_detail' r.pk %}" class="text-decoration-none text-primary" style="font-family: monospace;">
+                            {{ r.chai_number }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if r.chai_value <= 1.5 %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fw-bold">
+                            <i class="bi bi-star-fill me-1"></i> CHAI {{ r.chai_value|floatformat:1 }} (Premium)
+                        </span>
+                        {% elif r.chai_value <= 3.0 %}
+                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fw-bold">
+                            CHAI {{ r.chai_value|floatformat:1 }} (Standard)
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fw-bold">
+                            CHAI {{ r.chai_value|floatformat:1 }} (Low / Off-Spec)
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-semibold">{{ r.title }}</td>
+                    <td>
+                        {% if r.sugar_mill %}
+                        <a href="{% url 'masters:supplier_portfolio' r.sugar_mill.pk %}" class="text-decoration-none text-dark fw-semibold">
+                            <i class="bi bi-building text-muted me-1"></i> {{ r.sugar_mill.name }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.cluster %}
+                        <a href="{% url 'operations:cluster_detail' r.cluster.pk %}" class="badge bg-secondary-subtle text-secondary text-decoration-none">
+                            {{ r.cluster.reference_code }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold">{{ r.brix_level|floatformat:2 }}%</td>
+                    <td class="text-muted">{{ r.tested_at|date:"M d, Y" }}</td>
+                    <td>
+                        {% if r.status == 'approved' %}
+                        <span class="badge bg-success text-white">Verified</span>
+                        {% elif r.status == 'pending' %}
+                        <span class="badge bg-warning text-dark">Pending</span>
+                        {% else %}
+                        <span class="badge bg-danger text-white">Rejected</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-3">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'operations:chai_detail' r.pk %}" class="btn btn-outline-secondary" title="View Detail"><i class="bi bi-eye"></i></a>
+                            {% if user|has_perm:"manage_chai" %}
+                            <a href="{% url 'operations:chai_edit' r.pk %}" class="btn btn-outline-primary" title="Edit Record"><i class="bi bi-pencil"></i></a>
+                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteChaiModal{{ r.pk }}" title="Delete Record"><i class="bi bi-trash"></i></button>
+                            {% endif %}
+                        </div>
+
+                        <!-- DELETE MODAL -->
+                        {% if user|has_perm:"manage_chai" %}
+                        <div class="modal fade text-start" id="deleteChaiModal{{ r.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered" style="max-width: 450px;">
+                                <div class="modal-content" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border);">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Delete CHAI Record</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p>Are you sure you want to delete CHAI record <strong>{{ r.chai_number }}</strong> (Grade {{ r.chai_value }})?</p>
+                                        <p class="text-xs text-muted mb-0">This action will be logged in the audit trail.</p>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <form method="post" action="{% url 'operations:chai_delete' r.pk %}">{% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-danger fw-bold">Confirm Delete</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center py-5 text-muted">
+                        <i class="bi bi-clipboard-x fs-1 d-block mb-2"></i>
+                        No CHAI quality records found matching your filters.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- CREATE CHAI MODAL -->
+{% if user|has_perm:"manage_chai" %}
+<div class="modal fade" id="createChaiModal" tabindex="-1" aria-labelledby="createChaiModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border);">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="createChaiModalLabel">
+                    <i class="bi bi-patch-check-fill text-primary me-2"></i> Register New CHAI Quality Record
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'operations:chai_create' %}" data-outlier-guard="true">{% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Numerical CHAI Grade <span class="text-danger">*</span></label>
+                            {{ form.chai_value }}
+                            <div class="form-text text-xs text-muted mt-1">Select numerical quality rating (1.0 = Premium Grade A).</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">CHAI Record Code</label>
+                            {{ form.chai_number }}
+                            <div class="form-text text-xs text-muted mt-1">Auto-generated date-based code (e.g. CHAI-20260925-001).</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label font-semibold text-sm">Quality Title / Summary <span class="text-danger">*</span></label>
+                            {{ form.title }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Supplier (Sugar Mill)</label>
+                            {{ form.sugar_mill }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Linked Transaction Deal</label>
+                            {{ form.cluster }}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label font-semibold text-sm">Brix Quality Level (%) <span class="text-danger">*</span></label>
+                            {{ form.brix_level }}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label font-semibold text-sm">Apparent Purity (%)</label>
+                            {{ form.purity_percent }}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label font-semibold text-sm">Total Sugars (%)</label>
+                            {{ form.total_sugars_percent }}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label font-semibold text-sm">Inspection Date</label>
+                            {{ form.tested_at }}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label font-semibold text-sm">Inspector / Analyst</label>
+                            {{ form.inspector }}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label font-semibold text-sm">Approval Status</label>
+                            {{ form.status }}
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label font-semibold text-sm">Inspection Notes &amp; Lab Analysis</label>
+                            {{ form.remarks }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-htc"><i class="bi bi-check-circle-fill"></i> Save CHAI Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+<script src="{% static 'js/stark_outlier_guard.js' %}"></script>
+{% endblock %}

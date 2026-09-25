@@ -6,8 +6,10 @@ Role = User.Role
 
 CORE_NAV_ITEMS = [
     ("dashboard:home", "Dashboard", "bi-grid-1x2-fill", ("dashboard:home",)),
+    ("operations:pending_tasks", "Pending Tasks", "bi-check2-square", ("operations:pending_tasks",)),
     ("operations:cluster_list", "Transactions", "bi-receipt", ("operations:cluster", "operations:import_excel", "operations:clear_database")),
     ("operations:mro_summary", "MRO Summary", "bi-file-earmark-ruled", ("operations:mro",)),
+    ("operations:chai_list", "CHAI Quality", "bi-patch-check", ("operations:chai",)),
     ("finance:invoice_list", "Invoicing", "bi-file-earmark-spreadsheet", ("finance:invoice", "finance:reconciliation")),
     ("operations:logistics_list", "Logistics", "bi-truck", ("operations:logistics",)),
     ("finance:loan_list", "Finance", "bi-bank", ("finance:loan",)),
@@ -23,8 +25,8 @@ CORE_NAV_ITEMS = [
 NAV_ITEMS = {
     Role.ADMINISTRATOR: CORE_NAV_ITEMS,
     Role.OPERATIONS_MANAGEMENT: [i for i in CORE_NAV_ITEMS if i[0] != "accounts:user_list"],
-    Role.FINANCE: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "finance:loan_list", "dashboard:analytics", "dashboard:documents", "chat:room")],
-    Role.INVOICING: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "dashboard:documents", "chat:room")],
+    Role.FINANCE: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "operations:chai_list", "finance:invoice_list", "finance:loan_list", "dashboard:analytics", "dashboard:documents", "chat:room")],
+    Role.INVOICING: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "operations:chai_list", "finance:invoice_list", "dashboard:documents", "chat:room")],
 }
 
 ALL_ROLES = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.FINANCE, Role.INVOICING}
@@ -41,6 +43,8 @@ PERMISSIONS = {
     "edit_logistics": EXEC_ROLES,
     "upload_mro": EXEC_ROLES,
     "view_mro": ALL_ROLES,
+    "view_chai": ALL_ROLES,
+    "manage_chai": MGMT_FINANCE,
     "add_invoice": MGMT_INVOICING,
     "add_voucher": MGMT_FINANCE,
     "add_loan": MGMT_FINANCE,

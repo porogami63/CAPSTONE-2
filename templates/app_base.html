@@ -10,7 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
-    <link href="{% static 'css/htc-theme.css' %}?v=7" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}?v=9" rel="stylesheet">
 </head>
 <body>
     <script>
@@ -21,51 +21,108 @@
             if (legibility === 'high') {
                 document.documentElement.setAttribute('data-legibility', 'high');
             }
+            if (localStorage.getItem('htc-sidebar-collapsed') === 'true') {
+                document.documentElement.classList.add('sidebar-collapsed');
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.body.classList.add('sidebar-collapsed');
+                    var icon = document.getElementById("sidebarCollapseIcon");
+                    if (icon) icon.className = "bi bi-chevron-right fs-6";
+                });
+            }
         })();
+
+        function toggleSidebarCollapse() {
+            var isCollapsed = document.body.classList.toggle("sidebar-collapsed");
+            document.documentElement.classList.toggle("sidebar-collapsed", isCollapsed);
+            localStorage.setItem("htc-sidebar-collapsed", isCollapsed ? "true" : "false");
+            var icon = document.getElementById("sidebarCollapseIcon");
+            if (icon) {
+                icon.className = isCollapsed ? "bi bi-chevron-right fs-6" : "bi bi-chevron-left fs-6";
+            }
+        }
     </script>
     <div class="app-shell">
         <aside class="app-sidebar" id="appSidebar">
-            <div class="brand-block" style="display: flex; align-items: center; gap: 0.65rem; padding: 1rem 1rem 0.85rem;">
-                <img src="{% static 'img/htc-logo.png' %}" alt="HTC Logo" style="width: 38px; height: 38px; object-fit: contain; flex-shrink: 0;">
-                <div>
-                    <div class="logo-text" style="font-size: 0.85rem; line-height: 1.2;">Heindrich Trading</div>
-                    <div class="logo-sub" style="font-size: 0.68rem; line-height: 1.2;">Corporation</div>
+            <div class="brand-block d-flex align-items-center justify-content-between p-3 border-bottom border-secondary-subtle position-relative">
+                <div class="d-flex align-items-center gap-2 overflow-hidden brand-logo-group" onclick="toggleSidebarCollapse()" title="Click to toggle sidebar width" style="cursor: pointer; min-width: 0; flex: 1;">
+                    <img src="{% static 'img/htc-logo.png' %}" alt="HTC Logo" style="width: 34px; height: 34px; object-fit: contain; flex-shrink: 0;">
+                    <div class="brand-text-group text-truncate">
+                        <div class="logo-text fw-bold text-truncate" style="font-size: 0.85rem; line-height: 1.2; color: var(--htc-text);">Heindrich Trading</div>
+                        <div class="logo-sub text-muted text-truncate" style="font-size: 0.68rem; line-height: 1.2;">Corporation</div>
+                    </div>
                 </div>
+                <button type="button" class="btn btn-sm text-muted p-1 sidebar-collapse-btn d-none d-lg-flex align-items-center justify-content-center flex-shrink-0" id="sidebarCollapseBtn" onclick="toggleSidebarCollapse()" title="Toggle Sidebar Width" style="cursor: pointer; z-index: 10; border: 1px solid var(--htc-border); border-radius: 6px; width: 26px; height: 26px; background: var(--htc-surface);">
+                    <i class="bi bi-chevron-left fs-7" id="sidebarCollapseIcon"></i>
+                </button>
             </div>
-            <nav data-intro="Sidebar Navigation: Access your role-scoped Dashboard, Sourcing Contracts, Logistics Ledger, Invoicing, Capital Loan Facilities, and Master Data." data-step="1">
+            <nav class="flex-grow-1 py-2" data-intro="Sidebar Navigation: Access your role-scoped Dashboard, Sourcing Contracts, Logistics Ledger, Invoicing, Capital Loan Facilities, and Master Data." data-step="1">
                 {% for url_name, label, icon, match_prefixes in nav_items %}
                 {% is_nav_active current_view_name url_name match_prefixes as active_status %}
-                <a class="nav-link {% if active_status %}active{% endif %}"
+                <a class="nav-link d-flex align-items-center gap-2.5 {% if active_status %}active{% endif %}"
                    href="{% url url_name %}"
                    data-bs-toggle="tooltip"
                    data-bs-placement="right"
                    title="{{ label }} Module">
-                    <i class="bi {{ icon }}"></i> {{ label }}
+                    <i class="bi {{ icon }} nav-icon"></i>
+                    <span class="nav-label">{{ label }}</span>
                 </a>
                 {% endfor %}
-                {% if user|has_perm:"view_audit" %}
-                <a class="nav-link nav-link-danger" href="{% url 'operations:clear_database' %}">
-                    <i class="bi bi-trash"></i> Clear Database
-                </a>
-                {% endif %}
             </nav>
-            <div class="user-block">
-                <div class="user-row">
-                    {% if user.avatar %}
-                    <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="rounded-circle me-2" style="width: 36px; height: 36px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2);">
-                    {% else %}
-                    <div class="user-avatar">{{ user.username|slice:":1"|upper }}</div>
-                    {% endif %}
-                    <div>
-                        <a href="{% url 'accounts:profile' %}" class="user-name text-decoration-none text-white hover-underline" title="User Profile & Personalization">{{ user.get_full_name|default:user.username }}</a>
-                        <div class="user-role role-badge-{{ user_role_code }}" style="font-size: 0.68rem; padding: 0.15rem 0.5rem; display: inline-block; margin-top: 0.25rem;">{{ user_role }}</div>
-                    </div>
-                </div>
-                <div class="d-flex gap-1 mt-2">
-                    <a href="{% url 'accounts:profile' %}" class="btn btn-sm btn-outline-light flex-grow-1 py-1 fs-7" title="My Profile"><i class="bi bi-person-gear"></i> Profile</a>
-                    <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
-                        <button class="btn-logout" type="submit">Logout</button>
-                    </form>
+
+            {% if user|has_perm:"view_audit" %}
+            <!-- Isolated Destructive Danger Zone -->
+            <div class="sidebar-danger-zone px-2 py-2 border-top border-secondary-subtle">
+                <a class="nav-link nav-link-danger d-flex align-items-center gap-2.5 text-danger rounded px-2 py-1.5"
+                   href="{% url 'operations:clear_database' %}"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="right"
+                   title="Destructive Action: Reset System Database">
+                    <i class="bi bi-exclamation-triangle-fill nav-icon text-danger"></i>
+                    <span class="nav-label text-danger fw-semibold" style="font-size: 0.8rem;">Clear Database</span>
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- User Profile Dropdown Card -->
+            <div class="user-block p-2 border-top border-secondary-subtle position-relative">
+                <div class="dropdown dropup w-100 position-relative">
+                    <button class="user-card-btn btn w-100 border border-secondary-subtle text-start p-2 rounded d-flex align-items-center justify-content-between" type="button" id="userCardDropdown" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="User Profile Menu" style="background: var(--htc-sidebar-hover); transition: background-color 0.2s ease;">
+                        <div class="d-flex align-items-center gap-2 overflow-hidden" style="min-width: 0; flex: 1;">
+                            {% if user.avatar %}
+                            <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="rounded-circle flex-shrink-0" style="width: 32px; height: 32px; object-fit: cover; border: 2px solid var(--htc-primary-light);">
+                            {% else %}
+                            <div class="user-avatar flex-shrink-0" style="width: 32px; height: 32px; font-size: 0.85rem; font-weight: 700; background: var(--htc-primary-light); color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ user.username|slice:":1"|upper }}</div>
+                            {% endif %}
+                            <div class="user-card-info" style="min-width: 0; flex: 1; overflow: hidden;">
+                                <div class="user-name fw-bold text-truncate" style="font-size: 0.82rem; color: var(--htc-text); line-height: 1.2;">{{ user.get_full_name|default:user.username }}</div>
+                                <div class="role-badge-wrapper" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.1rem;">
+                                    <span class="role-badge role-badge-{{ user_role_code }}" style="font-size: 0.58rem; padding: 0.1rem 0.35rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle;">{{ user_role }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <i class="bi bi-three-dots-vertical text-muted fs-7 ms-1 user-card-dots flex-shrink-0"></i>
+                    </button>
+                    <ul class="dropdown-menu shadow-lg border border-secondary-subtle p-2 w-100 mb-2" aria-labelledby="userCardDropdown" style="background: var(--htc-surface); color: var(--htc-text); z-index: 1060;">
+                        <li>
+                            <div class="px-2 py-1.5 mb-1 border-bottom border-secondary-subtle">
+                                <div class="fw-bold fs-7 text-truncate" style="color: var(--htc-text);">{{ user.get_full_name|default:user.username }}</div>
+                                <div class="fs-8 text-muted text-truncate">Role: {{ user_role }}</div>
+                            </div>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded fs-7 py-1.5 d-flex align-items-center gap-2" href="{% url 'accounts:profile' %}" style="color: var(--htc-text);">
+                                <i class="bi bi-person-gear text-primary"></i> Profile & Settings
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+                                <button class="dropdown-item rounded fs-7 py-1.5 d-flex align-items-center gap-2 text-danger w-100 text-start border-0 bg-transparent" type="submit">
+                                    <i class="bi bi-box-arrow-right"></i> Sign Out
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </aside>
@@ -321,7 +378,31 @@
                 });
             }
 
-            // Copilot Slide Drawer Controls
+            // Sidebar Collapse Toggle Logic (Compact Icon Mode)
+            const collapseBtn = document.getElementById("sidebarCollapseBtn");
+            const collapseIcon = document.getElementById("sidebarCollapseIcon");
+
+            function setSidebarCollapsed(collapsed) {
+                document.body.classList.toggle("sidebar-collapsed", collapsed);
+                localStorage.setItem("htc-sidebar-collapsed", collapsed ? "true" : "false");
+                if (collapseIcon) {
+                    collapseIcon.className = collapsed ? "bi bi-chevron-right fs-6" : "bi bi-chevron-left fs-6";
+                }
+            }
+
+            // Restore initial collapsed preference
+            if (localStorage.getItem("htc-sidebar-collapsed") === "true") {
+                setSidebarCollapsed(true);
+            }
+
+            if (collapseBtn) {
+                collapseBtn.addEventListener("click", function() {
+                    const isCollapsed = document.body.classList.contains("sidebar-collapsed");
+                    setSidebarCollapsed(!isCollapsed);
+                });
+            }
+
+            // Copilot Slide Drawer Controls (Pushes Content to Left)
             const btnCopilot = document.getElementById("btnCopilotDrawer");
             const drawer = document.getElementById("copilotSlideDrawer");
             const backdrop = document.getElementById("copilotDrawerBackdrop");
@@ -334,9 +415,13 @@
                 if (drawer && backdrop) {
                     if (open) {
                         drawer.classList.add("open");
-                        backdrop.classList.remove("d-none");
+                        document.body.classList.add("copilot-open");
+                        if (window.innerWidth <= 992) {
+                            backdrop.classList.remove("d-none");
+                        }
                     } else {
                         drawer.classList.remove("open");
+                        document.body.classList.remove("copilot-open");
                         backdrop.classList.add("d-none");
                     }
                 }

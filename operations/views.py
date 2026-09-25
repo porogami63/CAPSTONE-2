@@ -18,8 +18,8 @@ from finance.forms import CapitalLoanForm, CashVoucherForm, InvoiceForm
 from finance.models import CapitalLoan, CashVoucher, FinancialReconciliation, Invoice
 from masters.models import LogisticsPartner, Planter
 
-from .forms import ExcelImportForm, LogisticsUpdateForm, TransactionClusterForm, MolassesReleaseOrderForm, MROExcelImportForm
-from .models import LogisticsLedger, PurchaseOrder, TransactionCluster, MolassesReleaseOrder, normalize_crop_year
+from .forms import ExcelImportForm, LogisticsUpdateForm, TransactionClusterForm, MolassesReleaseOrderForm, MROExcelImportForm, CHAIRecordForm
+from .models import LogisticsLedger, PurchaseOrder, TransactionCluster, MolassesReleaseOrder, CHAIRecord, normalize_crop_year
 from .services.excel_import import (
     clear_operational_data,
     import_htc_summary,
@@ -28,6 +28,7 @@ from .services.excel_import import (
 )
 from .services.pricing import cluster_financials
 from .services.copilot_services import evaluate_copilot_query
+from .services.stats_services import get_operational_stats, check_input_outliers
 
 
 @role_required(
@@ -47,7 +48,7 @@ def cluster_list(request):
     clusters_qs = (
         TransactionCluster.objects.filter(is_archived=show_archived)
         .select_related("client", "sugar_mill", "logistics", "logistics__partner")
-        .prefetch_related("invoices", "purchase_order")
+        .prefetch_related("invoices", "purchase_order", "chai_records", "mro_releases")
     )
 
     if q:
@@ -95,6 +96,12 @@ def cluster_list(request):
         if c.logistics_record and c.logistics_record.variance_percent is not None:
             c.variance_text = f"{c.logistics_record.variance_percent:.2f}%"
         c.notes = c.contract_notes or "No contract notes recorded."
+
+        c.has_chai_mro = bool(
+            c.chai_records.exists() or c.mro_releases.exists() or (c.purchase_order and c.purchase_order.brix_level)
+        )
+        c.has_received = bool(c.logistics_record and c.logistics_record.received_volume_mt is not None)
+        c.has_invoice = bool(invs)
 
         fin = cluster_financials(c)
         c.vol_mt = fin["volume_mt"]
@@ -450,7 +457,7 @@ def cluster_create(request):
         if form.is_valid():
             with transaction.atomic():
                 cluster = form.save()
-                PurchaseOrder.objects.create(
+                po = PurchaseOrder.objects.create(
                     cluster=cluster,
                     volume_mt=form.cleaned_data["volume_mt"],
                     unit_price=form.cleaned_data["unit_price"],
@@ -475,6 +482,19 @@ def cluster_create(request):
                         barge_fees=barge_fee,
                     )
                 FinancialReconciliation.objects.create(cluster=cluster)
+
+                # Real-life company process notification trigger:
+                # When Operations Manager/Officer inputs a Purchase Order, notify Finance & Invoicing officers
+                from audit.services import notify_roles
+                notify_roles(
+                    [User.Role.FINANCE, User.Role.INVOICING, User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGEMENT],
+                    title=f"New Purchase Order Created — {cluster.reference_code}",
+                    message=f"Operations created Purchase Order {cluster.reference_code} for {cluster.client.name} ({po.volume_mt} MT @ ₱{po.unit_price}/MT). Action required: Invoicing Officer prepare billing; Finance Officer review terms.",
+                    level="info",
+                    link=f"/operations/{cluster.pk}/",
+                    exclude_user=request.user,
+                )
+
             messages.success(request, f"Transaction cluster {cluster.reference_code} created.")
             return redirect("operations:cluster_detail", pk=cluster.pk)
     else:
@@ -517,6 +537,92 @@ def cluster_edit(request, pk):
     return render(request, "operations/cluster_form.html", {"form": form, "object": cluster, "title": f"Edit {cluster.reference_code}"})
 
 
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGER)
+def submit_cluster_for_approval(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST":
+        cluster.status = TransactionCluster.Status.PENDING_APPROVAL
+        cluster.submitted_at = timezone.now()
+        cluster.save(update_fields=["status", "submitted_at", "updated_at"])
+
+        from audit.services import notify_roles
+        notify_roles(
+            [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT],
+            title=f"Transaction Submitted for Approval — {cluster.reference_code}",
+            message=f"PO {cluster.reference_code} submitted for executive review by {request.user.get_full_name() or request.user.username} on {cluster.submitted_at.strftime('%b %d, %Y at %H:%M')}.",
+            level="info",
+            link=f"/operations/{cluster.pk}/",
+            exclude_user=request.user,
+        )
+        messages.success(request, f"Transaction {cluster.reference_code} submitted for executive approval.")
+    return redirect("operations:cluster_detail", pk=pk)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGEMENT)
+def approve_cluster(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST":
+        now = timezone.now()
+        cluster.status = TransactionCluster.Status.APPROVED
+        cluster.approved_at = now
+        cluster.approved_by = request.user
+        cluster.save(update_fields=["status", "approved_at", "approved_by", "updated_at"])
+
+        po = getattr(cluster, "purchase_order", None)
+        if po:
+            po.approved_at = now
+            po.approved_by = request.user
+            po.save(update_fields=["approved_at", "approved_by"])
+
+        from audit.services import notify_roles
+        notify_roles(
+            [User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING],
+            title=f"Transaction Approved — {cluster.reference_code}",
+            message=f"PO {cluster.reference_code} has been APPROVED by {request.user.get_full_name() or request.user.username} on {now.strftime('%b %d, %Y at %H:%M')}.",
+            level="success",
+            link=f"/operations/{cluster.pk}/",
+            exclude_user=request.user,
+        )
+        messages.success(request, f"Transaction {cluster.reference_code} approved successfully.")
+    return redirect("operations:cluster_detail", pk=pk)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGEMENT)
+def reject_cluster(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST":
+        comments = request.POST.get("rejection_comments", "").strip()
+        if not comments:
+            messages.error(request, "Mandatory Error: Rejection comments are required to document returned transactions.")
+            return redirect("operations:cluster_detail", pk=pk)
+
+        now = timezone.now()
+        cluster.status = TransactionCluster.Status.RETURNED
+        cluster.rejected_at = now
+        cluster.rejected_by = request.user
+        cluster.rejection_comments = comments
+        cluster.save(update_fields=["status", "rejected_at", "rejected_by", "rejection_comments", "updated_at"])
+
+        po = getattr(cluster, "purchase_order", None)
+        if po:
+            po.rejected_at = now
+            po.rejected_by = request.user
+            po.rejection_comments = comments
+            po.save(update_fields=["rejected_at", "rejected_by", "rejection_comments"])
+
+        from audit.services import notify_roles
+        notify_roles(
+            [User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS, User.Role.ADMINISTRATOR],
+            title=f"Transaction Returned / Rejected — {cluster.reference_code}",
+            message=f"PO {cluster.reference_code} was RETURNED by {request.user.get_full_name() or request.user.username} on {now.strftime('%b %d, %Y at %H:%M')}. Reason: {comments}",
+            level="danger",
+            link=f"/operations/{cluster.pk}/",
+            exclude_user=request.user,
+        )
+        messages.warning(request, f"Transaction {cluster.reference_code} returned with rejection comments.")
+    return redirect("operations:cluster_detail", pk=pk)
+
+
 @role_required(
     User.Role.MANAGEMENT,
     User.Role.OPERATIONS,
@@ -536,8 +642,8 @@ def cluster_detail(request, pk):
         pk=pk,
     )
     logistics_form = LogisticsUpdateForm(instance=getattr(cluster, "logistics", None))
-    invoice_form = InvoiceForm()
-    voucher_form = CashVoucherForm()
+    invoice_form = InvoiceForm(cluster=cluster)
+    voucher_form = CashVoucherForm(cluster=cluster)
     loan_form = CapitalLoanForm(user=request.user)
 
     linked_mros = list(cluster.mro_releases.select_related("planter", "sugar_mill").all())
@@ -671,12 +777,25 @@ def update_logistics(request, pk):
 def add_invoice(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
-        form = InvoiceForm(request.POST)
+        form = InvoiceForm(request.POST, cluster=cluster)
         if form.is_valid():
             invoice = form.save(commit=False)
             invoice.cluster = cluster
             invoice._audit_user = request.user
             invoice.save()
+
+            # Real-life company process notification trigger:
+            # When Invoicing Officer issues a sales invoice, notify Finance Officer and Operations Manager
+            from audit.services import notify_roles
+            notify_roles(
+                [User.Role.FINANCE, User.Role.OPERATIONS_MANAGEMENT, User.Role.ADMINISTRATOR],
+                title=f"Invoice Issued — {invoice.invoice_number}",
+                message=f"Invoicing Officer issued Invoice {invoice.invoice_number} for ₱{invoice.amount:,.2f} on PO {cluster.reference_code}. Action required: Finance Officer track payment collection.",
+                level="success",
+                link=f"/operations/{cluster.pk}/",
+                exclude_user=request.user,
+            )
+
             messages.success(request, f"Invoice {invoice.invoice_number} recorded.")
     return redirect("operations:cluster_detail", pk=pk)
 
@@ -694,13 +813,24 @@ def add_voucher(request, pk):
             )
             return redirect("operations:cluster_detail", pk=pk)
 
-        form = CashVoucherForm(request.POST)
+        form = CashVoucherForm(request.POST, cluster=cluster)
         if form.is_valid():
             voucher = form.save(commit=False)
             voucher.cluster = cluster
             voucher.loan = active_loans.first()
             voucher._audit_user = request.user
             voucher.save()
+
+            from audit.services import notify_roles
+            notify_roles(
+                [User.Role.OPERATIONS_MANAGEMENT, User.Role.ADMINISTRATOR, User.Role.FINANCE],
+                title=f"Cash Voucher Recorded — {voucher.voucher_number}",
+                message=f"Finance Officer recorded Cash Voucher {voucher.voucher_number} for ₱{voucher.amount:,.2f} on deal {cluster.reference_code}.",
+                level="info",
+                link=f"/operations/{cluster.pk}/",
+                exclude_user=request.user,
+            )
+
             messages.success(request, f"Cash voucher {voucher.voucher_number} recorded and linked to facility.")
         else:
             messages.error(request, "Error issuing cash voucher. Please check your inputs.")
@@ -1149,6 +1279,380 @@ def mro_export_csv_view(request):
         ])
 
     return response
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def download_contract_pdf(request, pk):
+    cluster = get_object_or_404(
+        TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics", "logistics__partner"),
+        pk=pk,
+    )
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+
+    template_path = "operations/contract_pdf.html"
+    context = {"cluster": cluster}
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="Contract_{cluster.reference_code}.pdf"'
+
+    template = get_template(template_path)
+    html = template.render(context)
+    pisa_status = pisa.CreatePDF(html, dest=response)
+
+    if pisa_status.err:
+        return HttpResponse("Error rendering PDF <pre>" + html + "</pre>")
+    return response
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def download_po_pdf(request, pk):
+    cluster = get_object_or_404(
+        TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics", "logistics__partner"),
+        pk=pk,
+    )
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+
+    template_path = "operations/po_pdf.html"
+    context = {"cluster": cluster}
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="PurchaseOrder_{cluster.reference_code}.pdf"'
+
+    template = get_template(template_path)
+    html = template.render(context)
+    pisa_status = pisa.CreatePDF(html, dest=response)
+
+    if pisa_status.err:
+        return HttpResponse("Error rendering PDF <pre>" + html + "</pre>")
+    return response
+
+
+@login_required
+def generate_reference_api(request):
+    """API endpoint returning auto-generated PO, SI, and CV reference codes."""
+    from operations.services.reference_generators import (
+        generate_po_reference,
+        generate_si_reference,
+        generate_cv_reference,
+    )
+    cluster_ref = request.GET.get("cluster_ref", "").strip()
+    return JsonResponse({
+        "po_ref": generate_po_reference(),
+        "si_ref": generate_si_reference(cluster_ref),
+        "cv_ref": generate_cv_reference(cluster_ref),
+    })
+
+
+from django.db.models import Avg
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def chai_list(request):
+    q = request.GET.get("q", "").strip()
+    grade = request.GET.get("grade", "").strip()
+    mill_id = request.GET.get("mill", "").strip()
+    status_filter = request.GET.get("status", "").strip()
+
+    chai_qs = CHAIRecord.objects.select_related("sugar_mill", "cluster", "cluster__client").order_by("-tested_at", "-created_at")
+
+    if q:
+        chai_qs = chai_qs.filter(
+            Q(chai_number__icontains=q) |
+            Q(title__icontains=q) |
+            Q(inspector__icontains=q) |
+            Q(sugar_mill__name__icontains=q) |
+            Q(cluster__reference_code__icontains=q)
+        )
+    if grade:
+        chai_qs = chai_qs.filter(chai_value=Decimal(grade))
+    if mill_id:
+        chai_qs = chai_qs.filter(sugar_mill_id=mill_id)
+    if status_filter:
+        chai_qs = chai_qs.filter(status=status_filter)
+
+    records = list(chai_qs)
+
+    from masters.models import SugarMill
+    mills_list = list(SugarMill.objects.filter(is_active=True).order_by("name"))
+
+    total_tests = len(records)
+    avg_grade = round(float(chai_qs.aggregate(avg=Avg("chai_value"))["avg"] or 1.0), 1) if total_tests > 0 else 1.0
+    approved_count = sum(1 for r in records if r.status == "approved")
+    offspec_count = sum(1 for r in records if r.status == "rejected" or float(r.chai_value) >= 4.0)
+
+    form = CHAIRecordForm()
+
+    context = {
+        "records": records,
+        "total_tests": total_tests,
+        "avg_grade": avg_grade,
+        "approved_count": approved_count,
+        "offspec_count": offspec_count,
+        "mills_list": mills_list,
+        "chai_choices": CHAIRecord.CHAI_CHOICES,
+        "form": form,
+        "current_q": q,
+        "current_grade": grade,
+        "current_mill": mill_id,
+        "current_status": status_filter,
+    }
+    return render(request, "operations/chai_list.html", context)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.FINANCE)
+def chai_create(request):
+    if request.method == "POST":
+        form = CHAIRecordForm(request.POST)
+        if form.is_valid():
+            record = form.save(commit=False)
+            record._audit_user = request.user
+            record.save()
+
+            from audit.services import notify_roles
+            if float(record.chai_value) >= 4.0 or record.status == "rejected":
+                notify_roles(
+                    [User.Role.OPERATIONS_MANAGEMENT, User.Role.ADMINISTRATOR, User.Role.OPERATIONS],
+                    title=f"CHAI Quality Alert: Off-Spec — {record.chai_number}",
+                    message=f"CHAI Quality certificate {record.chai_number} registered with Grade {record.chai_value} (Low/Off-Spec). Action required: Operations Manager review quality concession or supplier claim.",
+                    level="danger",
+                    link=f"/operations/chai/{record.pk}/",
+                    exclude_user=request.user,
+                )
+            elif record.status == "approved":
+                notify_roles(
+                    [User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING],
+                    title=f"CHAI Quality Certificate Verified — {record.chai_number}",
+                    message=f"CHAI Quality record {record.chai_number} (Grade {record.chai_value}, {record.brix_level}% Brix) verified.",
+                    level="success",
+                    link=f"/operations/chai/{record.pk}/",
+                    exclude_user=request.user,
+                )
+
+            messages.success(request, f"CHAI Quality Record '{record.chai_number}' (Grade {record.chai_value}) registered successfully.")
+            return redirect("operations:chai_list")
+        else:
+            messages.error(request, "Error creating CHAI record. Please check your form fields.")
+    return redirect("operations:chai_list")
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def chai_detail(request, pk):
+    record = get_object_or_404(
+        CHAIRecord.objects.select_related("sugar_mill", "cluster", "cluster__client", "cluster__purchase_order"),
+        pk=pk,
+    )
+    return render(request, "operations/chai_detail.html", {"record": record})
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.FINANCE)
+def chai_edit(request, pk):
+    record = get_object_or_404(CHAIRecord, pk=pk)
+    if request.method == "POST":
+        form = CHAIRecordForm(request.POST, instance=record)
+        if form.is_valid():
+            updated = form.save(commit=False)
+            updated._audit_user = request.user
+            updated.save()
+            messages.success(request, f"Updated CHAI record '{updated.chai_number}'.")
+            return redirect("operations:chai_list")
+        else:
+            messages.error(request, "Error updating CHAI record. Please check form fields.")
+    else:
+        form = CHAIRecordForm(instance=record)
+    return render(request, "operations/chai_form.html", {"form": form, "record": record, "title": f"Edit {record.chai_number}"})
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.FINANCE)
+def chai_delete(request, pk):
+    record = get_object_or_404(CHAIRecord, pk=pk)
+    if request.method == "POST":
+        num = record.chai_number
+        record.delete()
+        messages.warning(request, f"CHAI Quality Record '{num}' deleted.")
+    return redirect("operations:chai_list")
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGEMENT)
+def approve_chai(request, pk):
+    record = get_object_or_404(CHAIRecord, pk=pk)
+    if request.method == "POST":
+        now = timezone.now()
+        record.status = "approved"
+        record.approved_at = now
+        record.approved_by = request.user
+        record.save(update_fields=["status", "approved_at", "approved_by", "updated_at"])
+
+        from audit.services import notify_roles
+        notify_roles(
+            [User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE],
+            title=f"CHAI Record Approved — {record.chai_number}",
+            message=f"CHAI Certificate {record.chai_number} approved by {request.user.get_full_name() or request.user.username} on {now.strftime('%b %d, %Y at %H:%M')}.",
+            level="success",
+            link=f"/operations/chai/{record.pk}/",
+            exclude_user=request.user,
+        )
+        messages.success(request, f"CHAI Record {record.chai_number} approved.")
+    return redirect("operations:chai_detail", pk=pk)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGEMENT)
+def reject_chai(request, pk):
+    record = get_object_or_404(CHAIRecord, pk=pk)
+    if request.method == "POST":
+        comments = request.POST.get("rejection_comments", "").strip()
+        if not comments:
+            messages.error(request, "Mandatory Error: Rejection comments are required to document returned / rejected CHAI records.")
+            return redirect("operations:chai_detail", pk=pk)
+
+        now = timezone.now()
+        record.status = "rejected"
+        record.rejected_at = now
+        record.rejected_by = request.user
+        record.rejection_comments = comments
+        record.save(update_fields=["status", "rejected_at", "rejected_by", "rejection_comments", "updated_at"])
+
+        from audit.services import notify_roles
+        notify_roles(
+            [User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS, User.Role.ADMINISTRATOR],
+            title=f"CHAI Record Rejected — {record.chai_number}",
+            message=f"CHAI Certificate {record.chai_number} rejected by {request.user.get_full_name() or request.user.username} on {now.strftime('%b %d, %Y at %H:%M')}. Reason: {comments}",
+            level="danger",
+            link=f"/operations/chai/{record.pk}/",
+            exclude_user=request.user,
+        )
+        messages.warning(request, f"CHAI Record {record.chai_number} rejected with comments.")
+    return redirect("operations:chai_detail", pk=pk)
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def export_chai_csv(request):
+    q = request.GET.get("q", "").strip()
+    grade = request.GET.get("grade", "").strip()
+
+    chai_qs = CHAIRecord.objects.select_related("sugar_mill", "cluster").order_by("-tested_at")
+    if q:
+        chai_qs = chai_qs.filter(
+            Q(chai_number__icontains=q) |
+            Q(title__icontains=q) |
+            Q(sugar_mill__name__icontains=q)
+        )
+    if grade:
+        chai_qs = chai_qs.filter(chai_value=Decimal(grade))
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="HTC_CHAI_Quality_Records.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "CHAI Record #", "Grade Value", "Quality Title", "Sugar Mill Supplier",
+        "Linked Contract PO", "Brix (%)", "Purity (%)", "Total Sugars (%)",
+        "Inspection Date", "Inspector", "Status", "Remarks"
+    ])
+
+    for r in chai_qs:
+        writer.writerow([
+            r.chai_number,
+            f"CHAI {r.chai_value:.1f}",
+            r.title,
+            r.sugar_mill.name if r.sugar_mill else "—",
+            r.cluster.reference_code if r.cluster else "—",
+            f"{r.brix_level:.2f}%",
+            f"{r.purity_percent:.2f}%" if r.purity_percent else "—",
+            f"{r.total_sugars_percent:.2f}%" if r.total_sugars_percent else "—",
+            r.tested_at.strftime("%Y-%m-%d") if r.tested_at else "",
+            r.inspector or "—",
+            r.get_status_display(),
+            r.remarks or "",
+        ])
+
+    return response
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def stats_monitoring_view(request):
+    stats = get_operational_stats()
+    return render(request, "operations/stats_monitoring.html", {"stats": stats})
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def stats_check_api(request):
+    data = request.POST if request.method == "POST" else request.GET
+    res = check_input_outliers(data)
+    return JsonResponse(res)
+
+
+@login_required
+def pending_tasks_view(request):
+    """
+    Renders actionable pending tasks and operational follow-ups mapped to real-life role responsibilities.
+    """
+    from finance.models import Invoice, CapitalLoan
+
+    unlinked_mros = MolassesReleaseOrder.objects.filter(cluster__isnull=True).select_related("planter", "sugar_mill").order_by("-release_date")[:50]
+    disputed_logistics = LogisticsLedger.objects.filter(dispute_status=LogisticsLedger.DisputeStatus.DISPUTED).select_related("cluster", "cluster__client", "partner").order_by("-updated_at")
+    offspec_chai = CHAIRecord.objects.filter(Q(status="rejected") | Q(chai_value__gte=Decimal("4.0"))).select_related("sugar_mill", "cluster").order_by("-tested_at")
+    unbilled_clusters = TransactionCluster.objects.filter(invoices__isnull=True, is_archived=False).select_related("client", "sugar_mill", "purchase_order").order_by("-created_at")
+    unpaid_invoices = Invoice.objects.filter(status=Invoice.Status.ISSUED, is_archived=False).select_related("cluster", "cluster__client").order_by("-issued_at")
+    open_loans = CapitalLoan.objects.filter(status=CapitalLoan.Status.ACTIVE).select_related("cluster", "cluster__client").order_by("-created_at")
+
+    total_pending_action = (
+        unlinked_mros.count() +
+        disputed_logistics.count() +
+        offspec_chai.count() +
+        unbilled_clusters.count() +
+        unpaid_invoices.count() +
+        open_loans.count()
+    )
+
+    context = {
+        "unlinked_mros": unlinked_mros,
+        "disputed_logistics": disputed_logistics,
+        "offspec_chai": offspec_chai,
+        "unbilled_clusters": unbilled_clusters,
+        "unpaid_invoices": unpaid_invoices,
+        "open_loans": open_loans,
+        "total_pending_action": total_pending_action,
+    }
+    return render(request, "operations/pending_tasks.html", context)
+
+
 
 
 

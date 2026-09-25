@@ -129,6 +129,9 @@
                         data-variance="{{ c.variance_text }}"
                         data-status="{{ c.status }}"
                         data-progress="{{ c.timeline_progress }}"
+                        data-chai="{{ c.has_chai_mro|yesno:'true,false' }}"
+                        data-received="{{ c.has_received|yesno:'true,false' }}"
+                        data-invoiced="{{ c.has_invoice|yesno:'true,false' }}"
                         data-url="{% url 'operations:cluster_detail' c.pk %}"
                         onclick="selectCluster(this)">
                         <td><strong>{{ c.reference_code }}</strong></td>
@@ -192,12 +195,38 @@
         </div>
 
         <div class="detail-section">
-            <div class="detail-section-title">Status Timeline</div>
-            <div class="timeline-list">
-                <div class="timeline-item" id="timeOffer"><i class="bi bi-check-circle-fill"></i> Offer</div>
-                <div class="timeline-item" id="timePo"><i class="bi bi-check-circle-fill"></i> PO Created</div>
-                <div class="timeline-item" id="timeDelivery"><i class="bi bi-check-circle-fill"></i> In Delivery</div>
-                <div class="timeline-item" id="timePayment"><i class="bi bi-check-circle-fill"></i> Payment Received</div>
+            <div class="detail-section-title">Company Process Live Flowchart</div>
+            <div class="flowchart-container" style="gap: 4px; margin-top: 0.5rem; margin-bottom: 0.5rem; padding-bottom: 0;">
+                <div class="flowchart-step" id="flowStep1">
+                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">01</div>
+                    <div class="flowchart-label" style="font-size: 0.72rem;">PO Input</div>
+                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub1">Registered</div>
+                </div>
+                <div class="flowchart-step" id="flowStep2">
+                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">02</div>
+                    <div class="flowchart-label" style="font-size: 0.72rem;">Approval</div>
+                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub2">Pending</div>
+                </div>
+                <div class="flowchart-step" id="flowStep3">
+                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">03</div>
+                    <div class="flowchart-label" style="font-size: 0.72rem;">Specs</div>
+                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub3">CHAI/MRO</div>
+                </div>
+                <div class="flowchart-step" id="flowStep4">
+                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">04</div>
+                    <div class="flowchart-label" style="font-size: 0.72rem;">Logistics</div>
+                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub4">Dispatch</div>
+                </div>
+                <div class="flowchart-step" id="flowStep5">
+                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">05</div>
+                    <div class="flowchart-label" style="font-size: 0.72rem;">Invoicing</div>
+                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub5">Billing</div>
+                </div>
+                <div class="flowchart-step" id="flowStep6">
+                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">06</div>
+                    <div class="flowchart-label" style="font-size: 0.72rem;">Settlement</div>
+                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub6">Closure</div>
+                </div>
             </div>
         </div>
 
@@ -206,6 +235,14 @@
 </div>
 
 <script>
+    function setFlowStep(stepId, stateClass, subtext) {
+        const el = document.getElementById(stepId);
+        if (!el) return;
+        el.className = 'flowchart-step ' + (stateClass || '');
+        const sub = el.querySelector('.flowchart-subtext');
+        if (sub) sub.textContent = subtext;
+    }
+
     function selectCluster(row) {
         document.querySelectorAll('.interactive-row').forEach(r => r.classList.remove('selected'));
         row.classList.add('selected');
@@ -237,17 +274,52 @@
         document.getElementById('panelProgressBar').style.width = progress + '%';
         document.getElementById('panelProgressLabel').textContent = progress + '%';
 
-        document.querySelectorAll('.timeline-item').forEach(item => item.classList.remove('active'));
-        document.getElementById('timeOffer').classList.add('active');
-        if (d.status === 'active') {
-            document.getElementById('timePo').classList.add('active');
-        } else if (d.status === 'delivered') {
-            document.getElementById('timePo').classList.add('active');
-            document.getElementById('timeDelivery').classList.add('active');
-        } else if (d.status === 'closed') {
-            document.getElementById('timePo').classList.add('active');
-            document.getElementById('timeDelivery').classList.add('active');
-            document.getElementById('timePayment').classList.add('active');
+        // Step 1: PO Creation
+        setFlowStep('flowStep1', 'is-completed', d.created || 'Registered');
+
+        // Step 2: Executive Approval
+        if (d.status === 'returned') {
+            setFlowStep('flowStep2', 'is-returned', 'Returned');
+        } else if (d.status === 'pending_approval') {
+            setFlowStep('flowStep2', 'is-active', 'Pending Review');
+        } else {
+            setFlowStep('flowStep2', 'is-completed', 'Approved');
+        }
+
+        // Step 3: Quality Specs (CHAI/MRO)
+        if (d.chai === 'true') {
+            setFlowStep('flowStep3', 'is-completed', 'Verified');
+        } else if (d.status === 'approved' || d.status === 'active') {
+            setFlowStep('flowStep3', 'is-active', 'Pending CHAI');
+        } else {
+            setFlowStep('flowStep3', '', 'Awaiting Cert');
+        }
+
+        // Step 4: Logistics & Receiving
+        if (d.received === 'true' || d.status === 'delivered' || d.status === 'closed') {
+            setFlowStep('flowStep4', 'is-completed', 'Received');
+        } else if (d.status === 'active') {
+            setFlowStep('flowStep4', 'is-active', 'In Transit');
+        } else {
+            setFlowStep('flowStep4', '', 'Pending');
+        }
+
+        // Step 5: Invoicing
+        if (d.invoiced === 'true' || d.status === 'closed') {
+            setFlowStep('flowStep5', 'is-completed', 'Issued');
+        } else if (d.received === 'true' || d.status === 'delivered') {
+            setFlowStep('flowStep5', 'is-active', 'Ready to Bill');
+        } else {
+            setFlowStep('flowStep5', '', 'Pending');
+        }
+
+        // Step 6: Settlement
+        if (d.status === 'closed') {
+            setFlowStep('flowStep6', 'is-completed', 'Closed');
+        } else if (d.invoiced === 'true') {
+            setFlowStep('flowStep6', 'is-active', 'Collection');
+        } else {
+            setFlowStep('flowStep6', '', 'Pending');
         }
 
         const pane = document.getElementById('detailPane');

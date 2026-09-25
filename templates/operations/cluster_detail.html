@@ -6,7 +6,21 @@
 {% block content %}
 
 <div class="d-flex justify-content-end align-items-center gap-2 mb-3" data-step="2" data-intro="Action panel for editing contract parameters, uploading scanned MRO release orders, or opening payment matching reconciliation.">
+    {% if cluster.status == 'draft' or cluster.status == 'returned' %}
+    <form method="post" action="{% url 'operations:submit_cluster' cluster.pk %}" style="display:inline;">{% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-info text-white fw-bold"><i class="bi bi-send-check me-1"></i> Submit for Approval</button>
+    </form>
+    {% endif %}
+
     {% if user|has_perm:"edit_transaction" %}
+    {% if cluster.status != 'approved' %}
+    <form method="post" action="{% url 'operations:approve_cluster' cluster.pk %}" style="display:inline;">{% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-success fw-bold"><i class="bi bi-check-circle me-1"></i> Approve PO</button>
+    </form>
+    <button type="button" class="btn btn-sm btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#rejectClusterModal">
+        <i class="bi bi-x-circle me-1"></i> Return / Reject PO
+    </button>
+    {% endif %}
     <a href="{% url 'operations:cluster_edit' cluster.pk %}" class="btn-htc-outline" title="Edit Contract Parameters"><i class="bi bi-pencil"></i> Edit Contract</a>
     {% endif %}
     {% if user|has_perm:"archive_transaction" %}
@@ -35,7 +49,62 @@
     <a href="{% url 'finance:reconciliation' cluster.pk %}" class="btn-htc-outline"><i class="bi bi-link-45deg"></i> Payment Matching</a>
     {% endif %}
     <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#debriefModal" style="color: var(--htc-primary-light); border-color: var(--htc-primary-light);" title="View complete step-by-step transaction debrief and formula breakdown"><i class="bi bi-calculator"></i> Audit Debrief</button>
-    <a href="{% url 'dashboard:download_report' period='all' %}" class="btn-htc" target="_blank" data-step="8" data-intro="Generate and download official PDF transaction report with full financial & shipment breakdown."><i class="bi bi-file-earmark-pdf"></i> Export PDF Report</a>
+    <a href="{% url 'operations:download_contract_pdf' cluster.pk %}" class="btn-htc-outline" target="_blank" title="Download Official Supply Contract PDF"><i class="bi bi-file-earmark-text"></i> Contract PDF</a>
+    <a href="{% url 'operations:download_po_pdf' cluster.pk %}" class="btn-htc-outline" target="_blank" title="Download Official Purchase Order PDF"><i class="bi bi-file-earmark-check"></i> PO PDF</a>
+</div>
+
+<!-- Company Process Horizontal Flowchart Tracker -->
+{% include "operations/includes/process_flowchart.html" %}
+
+<!-- Workflow Status & Rejection Comment Banner -->
+{% if cluster.status == 'returned' %}
+<div class="card p-3 mb-3 border-danger shadow-sm" style="background: rgba(220, 38, 38, 0.08); border-radius: 10px; border: 1px solid #dc2626 !important;">
+    <div class="d-flex align-items-start gap-3">
+        <div class="badge bg-danger p-2 fs-5"><i class="bi bi-exclamation-octagon-fill"></i></div>
+        <div class="flex-grow-1">
+            <h5 class="fw-bold text-danger mb-1">Transaction Returned / Rejected for Revision</h5>
+            <p class="text-sm mb-1"><strong>Returned By:</strong> {{ cluster.rejected_by.get_full_name|default:cluster.rejected_by.username|default:"Executive Manager" }} on {{ cluster.rejected_at|date:"F d, Y at H:i" }}</p>
+            <div class="p-2.5 bg-body rounded border border-danger-subtle text-dark font-monospace text-xs" style="background: var(--htc-surface) !important; color: var(--htc-text) !important;">
+                <strong>Mandatory Rejection Comment:</strong> {{ cluster.rejection_comments|default:"No specific comment recorded." }}
+            </div>
+        </div>
+    </div>
+</div>
+{% elif cluster.status == 'approved' %}
+<div class="card p-3 mb-3 border-success shadow-sm" style="background: rgba(16, 185, 129, 0.08); border-radius: 10px; border: 1px solid #10b981 !important;">
+    <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-patch-check-fill text-success fs-4"></i>
+            <div>
+                <strong class="text-success fs-6">Executive Workflow Status: APPROVED</strong>
+                <div class="text-xs text-muted">Approved by {{ cluster.approved_by.get_full_name|default:cluster.approved_by.username|default:"Authorized Manager" }} on {{ cluster.approved_at|date:"F d, Y at H:i" }}</div>
+            </div>
+        </div>
+        <span class="badge bg-success text-white px-3 py-1 fw-bold">Verified &amp; Approved</span>
+    </div>
+</div>
+{% endif %}
+
+<!-- REJECT PO MODAL -->
+<div class="modal fade" id="rejectClusterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border);">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Return / Reject Transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'operations:reject_cluster' cluster.pk %}">{% csrf_token %}
+                <div class="modal-body p-4">
+                    <p class="text-sm font-semibold">Please provide mandatory rejection comments detailing why this transaction is being returned:</p>
+                    <textarea name="rejection_comments" class="form-control-htc" rows="4" placeholder="Enter detailed rejection reason and required corrections..." required></textarea>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-danger fw-bold">Confirm Rejection &amp; Return PO</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 {% if cluster.logistics.variance_exceeds_tolerance %}
@@ -487,7 +556,12 @@
                         <tbody>
                             {% for v in cluster.cash_vouchers.all %}
                             <tr style="border-bottom: 1px solid var(--htc-border);">
-                                <td style="padding: 0.65rem 0.8rem; font-weight: 700;">{{ v.voucher_number }}</td>
+                                <td style="padding: 0.65rem 0.8rem; font-weight: 700;">
+                                    {{ v.voucher_number }}
+                                    <a href="{% url 'finance:download_voucher_pdf' v.pk %}" class="btn-htc-outline ms-2" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" title="Download Official Voucher PDF">
+                                        <i class="bi bi-file-earmark-pdf-fill text-danger"></i> PDF
+                                    </a>
+                                </td>
                                 <td style="padding: 0.65rem 0.8rem; color: var(--htc-text-muted);">{{ v.issued_at|date:"M d, Y" }}</td>
                                 <td style="padding: 0.65rem 0.8rem;">{{ v.purpose }}</td>
                                 <td style="padding: 0.65rem 0.8rem; font-weight: 600; text-align: right;">₱{{ v.amount|floatformat:2|intcomma }}</td>

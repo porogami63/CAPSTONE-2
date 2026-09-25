@@ -1,0 +1,109 @@
+{% extends "app_base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} · HTC Core{% endblock %}
+{% block topbar_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4 flex-between">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1" style="font-size: 0.8rem;">
+                <li class="breadcrumb-item"><a href="{% url 'operations:chai_list' %}">CHAI Quality</a></li>
+                <li class="breadcrumb-item active">Edit {{ record.chai_number }}</li>
+            </ol>
+        </nav>
+        <h2 class="fw-bold">Edit CHAI Record {{ record.chai_number }}</h2>
+    </div>
+    <div>
+        <a href="{% url 'operations:chai_list' %}" class="btn-htc-outline btn-sm"><i class="bi bi-arrow-left"></i> Back to List</a>
+    </div>
+</div>
+
+<form method="post" data-outlier-guard="true" style="max-width: 800px; margin: 0 auto;">
+    {% csrf_token %}
+    <div class="card p-4 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label font-semibold text-sm">Numerical CHAI Grade <span class="text-danger">*</span></label>
+                {{ form.chai_value }}
+                <div class="form-text text-xs text-muted mt-1">Select numerical quality rating (1.0 = Premium Grade A).</div>
+                {% if form.chai_value.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_value.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label font-semibold text-sm">CHAI Record Code</label>
+                {{ form.chai_number }}
+                {% if form.chai_number.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_number.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-12">
+                <label class="form-label font-semibold text-sm">Quality Title / Summary <span class="text-danger">*</span></label>
+                {{ form.title }}
+                {% if form.title.errors %}<div class="text-danger text-xs mt-1">{{ form.title.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label font-semibold text-sm">Supplier (Sugar Mill)</label>
+                {{ form.sugar_mill }}
+                {% if form.sugar_mill.errors %}<div class="text-danger text-xs mt-1">{{ form.sugar_mill.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label font-semibold text-sm">Linked Transaction Deal</label>
+                {{ form.cluster }}
+                {% if form.cluster.errors %}<div class="text-danger text-xs mt-1">{{ form.cluster.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label font-semibold text-sm">Brix Quality Level (%) <span class="text-danger">*</span></label>
+                {{ form.brix_level }}
+                {% if form.brix_level.errors %}<div class="text-danger text-xs mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label font-semibold text-sm">Apparent Purity (%)</label>
+                {{ form.purity_percent }}
+                {% if form.purity_percent.errors %}<div class="text-danger text-xs mt-1">{{ form.purity_percent.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label font-semibold text-sm">Total Sugars (%)</label>
+                {{ form.total_sugars_percent }}
+                {% if form.total_sugars_percent.errors %}<div class="text-danger text-xs mt-1">{{ form.total_sugars_percent.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label font-semibold text-sm">Inspection Date</label>
+                {{ form.tested_at }}
+                {% if form.tested_at.errors %}<div class="text-danger text-xs mt-1">{{ form.tested_at.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label font-semibold text-sm">Inspector / Analyst</label>
+                {{ form.inspector }}
+                {% if form.inspector.errors %}<div class="text-danger text-xs mt-1">{{ form.inspector.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label font-semibold text-sm">Approval Status</label>
+                {{ form.status }}
+                {% if form.status.errors %}<div class="text-danger text-xs mt-1">{{ form.status.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="col-12">
+                <label class="form-label font-semibold text-sm">Inspection Notes &amp; Lab Analysis</label>
+                {{ form.remarks }}
+                {% if form.remarks.errors %}<div class="text-danger text-xs mt-1">{{ form.remarks.errors|striptags }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+            <a href="{% url 'operations:chai_list' %}" class="btn-htc-outline">Cancel</a>
+            <button type="submit" class="btn-htc"><i class="bi bi-check-circle-fill me-1"></i> Save Changes</button>
+        </div>
+    </div>
+</form>
+
+<script src="{% static 'js/stark_outlier_guard.js' %}"></script>
+{% endblock %}

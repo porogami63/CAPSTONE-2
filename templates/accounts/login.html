@@ -63,9 +63,9 @@
                 <img src="{% static 'img/htc-logo.png' %}" alt="HTC Logo">
             </div>
             <h1 class="login-company-name">Heindrich Trading Corporation</h1>
-            <div class="mb-3">
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill text-uppercase fw-bold" style="font-size: 0.68rem; letter-spacing: 0.5px;">Core Management System</span>
-            </div>
+            <p class="login-subtitle text-muted text-uppercase fw-semibold mb-4" style="letter-spacing: 1.5px; font-size: 0.75rem;">
+                Integrated Procurement & Financial Portal
+            </p>
 
             <!-- Error Popup / Banner -->
             {% if login_error %}
@@ -116,7 +116,7 @@
 
                 <div class="mb-4 text-start">
                     <label class="form-label-htc fw-semibold text-start d-block" for="id_password">Password</label>
-                    <div class="input-password-wrapper">
+                    <div class="input-password-wrapper position-relative">
                         {{ form.password }}
                         <button type="button" class="password-toggle-btn" id="togglePasswordBtn" title="Toggle password visibility">
                             <i class="bi bi-eye-slash-fill" id="toggleIcon"></i>
@@ -129,20 +129,46 @@
                     {% endif %}
                 </div>
 
-                <button type="submit" class="btn-htc-primary w-100 py-2 fs-6 fw-bold shadow-sm mb-3" id="loginBtn">
-                    Sign In
+                <button type="submit" class="btn-htc-primary w-100 py-2.5 fs-6 fw-bold shadow-sm mb-3" id="loginBtn">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
                 </button>
             </form>
             
-            <div class="pt-4 mt-4 border-top border-secondary-subtle text-center" style="font-size: 0.88rem;">
-                <span class="text-muted">Don't have an account?</span>
-                <a href="{% url 'accounts:signup' %}" class="text-primary text-decoration-none fw-bold ms-1">Sign Up</a>
+            <div class="pt-3 mt-3 border-top border-secondary-subtle text-center" style="font-size: 0.85rem;">
+                <a href="#" class="text-muted text-decoration-none hover-underline" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal">
+                    <i class="bi bi-key me-1"></i>Forgot Password?
+                </a>
+                <div class="mt-3 text-muted" style="font-size: 0.78rem;">
+                    <i class="bi bi-shield-lock text-primary me-1"></i>Restricted Enterprise Portal · Contact IT Administrator for Access
+                </div>
             </div>
 
-            <div style="margin-top: 1rem;">
+            <div style="margin-top: 1.25rem;">
                 <button type="button" class="btn-theme-toggle" id="themeToggleBtn" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;" title="Toggle Theme">
                     <i class="bi bi-moon-stars-fill"></i>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-labelledby="forgotPasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-start border-0 shadow-lg">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fs-6 fw-bold" id="forgotPasswordModalLabel"><i class="bi bi-shield-lock me-1"></i> Account Recovery</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-dark">
+                    <p class="mb-3">HTC Core is a restricted enterprise management system. Self-service password resets are disabled for security compliance.</p>
+                    <div class="p-3 bg-light border rounded mb-3">
+                        <div class="fw-bold text-primary mb-1"><i class="bi bi-headset me-1"></i> Contact IT Administrator</div>
+                        <div class="small text-muted">Please contact your System Administrator (<code>admin</code>) or HTC IT Helpdesk to reset your password or activate account access.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
         </div>
     </div>

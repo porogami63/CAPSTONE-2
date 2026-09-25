@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Contract {{ cluster.reference_code }}</title>
+    <style>
+        @page { size: a4 portrait; margin: 2cm; }
+        body { font-family: Helvetica, sans-serif; font-size: 11px; color: #1e293b; line-height: 1.5; }
+        h1 { color: #0f2d5c; font-size: 20px; margin-bottom: 5px; }
+        .header { border-bottom: 2px solid #0f2d5c; padding-bottom: 12px; margin-bottom: 20px; }
+        .company-info { text-align: right; margin-top: -45px; font-size: 10px; color: #64748b; }
+        .title-block { text-align: center; margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; }
+        .title-block h2 { color: #0f2d5c; font-size: 16px; margin: 0 0 5px 0; letter-spacing: 0.5px; }
+        .title-block p { margin: 0; font-size: 11px; color: #475569; font-weight: bold; }
+        
+        .section-header { font-size: 12px; font-weight: bold; color: #0f2d5c; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-top: 15px; margin-bottom: 10px; text-transform: uppercase; }
+        
+        table.grid-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        table.grid-table td { padding: 6px 8px; vertical-align: top; border: 1px solid #e2e8f0; }
+        table.grid-table td.label { font-weight: bold; background-color: #f1f5f9; width: 140px; color: #334155; }
+        
+        .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
+        .items-table th { background-color: #0f2d5c; color: #ffffff; border: 1px solid #0f2d5c; text-align: left; padding: 8px; font-size: 10px; text-transform: uppercase; }
+        .items-table td { border: 1px solid #e2e8f0; padding: 8px; }
+        .total-row { font-weight: bold; font-size: 12px; background-color: #f1f5f9; }
+
+        .terms-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; font-size: 10px; margin-top: 15px; }
+        
+        .signatures { margin-top: 40px; width: 100%; }
+        .signatures table { width: 100%; border-collapse: collapse; }
+        .signatures td { width: 50%; vertical-align: top; padding: 10px; }
+        .sig-line { border-top: 1px solid #334155; margin-top: 40px; text-align: center; font-weight: bold; padding-top: 4px; }
+        
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>HEINDRICH TRADING CORPORATION</h1>
+        <div class="company-info">
+            <p><strong>HTC Core Operations Management</strong><br>
+            123 Commerce Avenue, Commercial District<br>
+            Email: operations@heindrich.corp | Tel: (02) 8888-4820</p>
+        </div>
+    </div>
+
+    <div class="title-block">
+        <h2>MOLASSES SUPPLY & SALES CONTRACT</h2>
+        <p>CONTRACT REF NO: {{ cluster.reference_code }}</p>
+    </div>
+
+    <div class="section-header">1. Contract Information & Parties</div>
+    <table class="grid-table">
+        <tr>
+            <td class="label">Contract Date:</td>
+            <td>{{ cluster.created_at|date:"F d, Y" }}</td>
+            <td class="label">Status:</td>
+            <td><strong>{{ cluster.get_status_display }}</strong></td>
+        </tr>
+        <tr>
+            <td class="label">Supplier (Sugar Mill):</td>
+            <td>{{ cluster.sugar_mill.name }} ({{ cluster.sugar_mill.location|default:"Negros, Philippines" }})</td>
+            <td class="label">Buyer / Client:</td>
+            <td><strong>{{ cluster.client.name }}</strong></td>
+        </tr>
+    </table>
+
+    <div class="section-header">2. Commodity & Pricing Specifications</div>
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Commodity / Description</th>
+                <th>Brix Level (%)</th>
+                <th>Contract Volume</th>
+                <th>Unit Price (PHP/MT)</th>
+                <th>Total Value (PHP)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <strong>Raw Cane Molasses</strong><br>
+                    <small>CHAI Specs: {{ cluster.purchase_order.chai_specs|default:"Standard Grade A Commercial Quality" }}</small>
+                </td>
+                <td>{{ cluster.purchase_order.brix_level|default:"85.00" }}%</td>
+                <td>{{ cluster.purchase_order.volume_mt }} MT</td>
+                <td>PHP {{ cluster.purchase_order.selling_price|default:cluster.purchase_order.unit_price }}</td>
+                <td>PHP {{ cluster.purchase_order.total_selling_value|default:cluster.purchase_order.total_value }}</td>
+            </tr>
+            <tr class="total-row">
+                <td colspan="4" style="text-align: right;">CONTRACT TOTAL GROSS VALUE:</td>
+                <td>PHP {{ cluster.purchase_order.total_selling_value|default:cluster.purchase_order.total_value }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="section-header">3. Operational & Commercial Terms</div>
+    <div class="terms-box">
+        <p><strong>Payment & Delivery Terms:</strong> {{ cluster.purchase_order.terms|default:"Net 30 Days from delivery receipt." }}</p>
+        <p><strong>Logistics Carrier:</strong> {{ cluster.logistics.partner.name|default:"Heindrich Designated Logistics Partner" }}</p>
+        <p><strong>Tolerance & Loss Standard:</strong> Operational shrinkage tolerance is set at 1.00% max. Deliveries incurring transit shrinkage over 1.00% are subject to automatic dispute logging and reconciliation review.</p>
+        <p><strong>Notes / Special Stipulations:</strong> {{ cluster.contract_notes|default:"Standard HTC supply agreement terms apply. All quantities subject to verified weighbridge release receipts." }}</p>
+    </div>
+
+    <div class="signatures">
+        <table>
+            <tr>
+                <td>
+                    <p style="margin-bottom: 0;"><strong>FOR HEINDRICH TRADING CORP:</strong></p>
+                    <div class="sig-line">
+                        Authorized Operations Officer<br>
+                        <small>Heindrich Trading Corporation</small>
+                    </div>
+                </td>
+                <td>
+                    <p style="margin-bottom: 0;"><strong>CONFORME / CLIENT REPRESENTATIVE:</strong></p>
+                    <div class="sig-line">
+                        Authorized Representative<br>
+                        <small>{{ cluster.client.name }}</small>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="footer">
+        Official Document automatically generated by HTC Core Enterprise System (Contract UUID: {{ cluster.id }}) on {% now "Y-m-d H:i:s" %}
+    </div>
+</body>
+</html>

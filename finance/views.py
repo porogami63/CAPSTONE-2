@@ -104,12 +104,8 @@ def add_match(request, pk):
                 active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_CREATION])
                 linked_loan = active_loans.first() if active_loans.exists() else None
 
-                # Generate unique voucher number using match PK & cleaned reference
-                clean_ref = "".join(c for c in match.payment_reference if c.isalnum() or c in "-_")[:20]
-                if not clean_ref:
-                    clean_ref = "REF"
-                voucher_num = f"CV-M{match.pk}-{clean_ref}"[:50]
-                
+                from operations.services.reference_generators import generate_cv_reference
+                voucher_num = generate_cv_reference(cluster.reference_code)
                 purpose_text = f"Auto-Voucher ({match.get_expense_type_display()}): {match.notes or match.payment_reference}"[:190]
 
                 # Avoid duplicate voucher creation if user edits match
@@ -551,6 +547,28 @@ def download_invoice_pdf(request, pk):
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="Invoice_{invoice.invoice_number}.pdf"'
+
+    template = get_template(template_path)
+    html = template.render(context)
+
+    pisa_status = pisa.CreatePDF(html, dest=response)
+
+    if pisa_status.err:
+        return HttpResponse("We had some errors <pre>" + html + "</pre>")
+    return response
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.FINANCE)
+def download_voucher_pdf(request, pk):
+    voucher = get_object_or_404(
+        CashVoucher.objects.select_related("cluster", "cluster__client", "loan"),
+        pk=pk,
+    )
+    template_path = "finance/voucher_pdf.html"
+    context = {"voucher": voucher}
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="Voucher_{voucher.voucher_number}.pdf"'
 
     template = get_template(template_path)
     html = template.render(context)

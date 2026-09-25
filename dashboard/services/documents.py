@@ -18,33 +18,69 @@ def _fmt_size(amount) -> str:
 def build_document_registry(query: str = "") -> dict:
     query = query.strip().lower()
     categories = {
+        "contracts": {"title": "Supply Contracts", "icon": "bi-file-earmark-text-fill", "items": []},
+        "purchase_orders": {"title": "Purchase Orders", "icon": "bi-file-earmark-check-fill", "items": []},
         "release_orders": {"title": "Molasses Release Orders", "icon": "bi-file-earmark-ruled", "items": []},
         "sales_invoices": {"title": "Sales Invoices", "icon": "bi-receipt", "items": []},
         "delivery_receipts": {"title": "Delivery Receipts", "icon": "bi-truck", "items": []},
         "cash_vouchers": {"title": "Cash Vouchers", "icon": "bi-cash-stack", "items": []},
     }
 
-    clusters = TransactionCluster.objects.select_related("client", "sugar_mill").order_by("-created_at")
+    clusters = TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order").order_by("-created_at")
     for cluster in clusters:
+        # Contract document item
+        c_label = f"Contract-{cluster.reference_code}.pdf"
+        if not query or query in c_label.lower() or query in cluster.reference_code.lower():
+            categories["contracts"]["items"].append(
+                {
+                    "id": str(cluster.pk),
+                    "name": c_label,
+                    "date": cluster.created_at,
+                    "size": _fmt_size(getattr(cluster, "purchase_order", None) and cluster.purchase_order.total_selling_value or 100000),
+                    "ref": cluster.reference_code,
+                    "client_name": cluster.client.name,
+                    "mill_name": cluster.sugar_mill.name,
+                    "url": reverse("operations:cluster_detail", args=[cluster.pk]),
+                    "pdf_url": reverse("operations:download_contract_pdf", args=[cluster.pk]),
+                }
+            )
+
+        # PO document item
+        po_label = f"PO-{cluster.reference_code}.pdf"
+        if not query or query in po_label.lower() or query in cluster.reference_code.lower():
+            categories["purchase_orders"]["items"].append(
+                {
+                    "id": str(cluster.pk),
+                    "name": po_label,
+                    "date": cluster.created_at,
+                    "size": _fmt_size(getattr(cluster, "purchase_order", None) and cluster.purchase_order.total_value or 50000),
+                    "ref": cluster.reference_code,
+                    "client_name": cluster.client.name,
+                    "mill_name": cluster.sugar_mill.name,
+                    "url": reverse("operations:cluster_detail", args=[cluster.pk]),
+                    "pdf_url": reverse("operations:download_po_pdf", args=[cluster.pk]),
+                }
+            )
+
+        # MRO document item
         label = f"MRO-{cluster.reference_code}-{cluster.client.name[:12]}.pdf"
-        if query and query not in label.lower() and query not in cluster.reference_code.lower():
-            continue
-        categories["release_orders"]["items"].append(
-            {
-                "id": str(cluster.pk),
-                "name": label,
-                "date": cluster.created_at,
-                "size": _fmt_size(getattr(cluster, "purchase_order", None) and cluster.purchase_order.total_value or 50000),
-                "ref": cluster.reference_code,
-                "client_name": cluster.client.name,
-                "mill_name": cluster.sugar_mill.name,
-                "url": reverse("operations:cluster_detail", args=[cluster.pk]),
-                "upload_url": reverse("operations:upload_mro", args=[cluster.pk]),
-                "has_scan": bool(cluster.mro_file),
-                "scan_url": cluster.mro_file.url if cluster.mro_file else "",
-                "is_pdf": cluster.mro_file.name.lower().endswith(".pdf") if cluster.mro_file else True,
-            }
-        )
+        if not query or query in label.lower() or query in cluster.reference_code.lower():
+            categories["release_orders"]["items"].append(
+                {
+                    "id": str(cluster.pk),
+                    "name": label,
+                    "date": cluster.created_at,
+                    "size": _fmt_size(getattr(cluster, "purchase_order", None) and cluster.purchase_order.total_value or 50000),
+                    "ref": cluster.reference_code,
+                    "client_name": cluster.client.name,
+                    "mill_name": cluster.sugar_mill.name,
+                    "url": reverse("operations:cluster_detail", args=[cluster.pk]),
+                    "upload_url": reverse("operations:upload_mro", args=[cluster.pk]),
+                    "has_scan": bool(cluster.mro_file),
+                    "scan_url": cluster.mro_file.url if cluster.mro_file else "",
+                    "is_pdf": cluster.mro_file.name.lower().endswith(".pdf") if cluster.mro_file else True,
+                }
+            )
 
     invoices = Invoice.objects.select_related("cluster", "cluster__client").order_by("-issued_at")
     for invoice in invoices:
@@ -89,6 +125,7 @@ def build_document_registry(query: str = "") -> dict:
                 "size": _fmt_size(voucher.amount),
                 "ref": voucher.voucher_number,
                 "url": reverse("operations:cluster_detail", args=[voucher.cluster.pk]),
+                "pdf_url": reverse("finance:download_voucher_pdf", args=[voucher.pk]),
             }
         )
 

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Purchase Order {{ cluster.reference_code }}</title>
+    <style>
+        @page { size: a4 portrait; margin: 2cm; }
+        body { font-family: Helvetica, sans-serif; font-size: 11px; color: #1e293b; line-height: 1.5; }
+        h1 { color: #0f2d5c; font-size: 20px; margin-bottom: 5px; }
+        .header { border-bottom: 2px solid #0f2d5c; padding-bottom: 12px; margin-bottom: 20px; }
+        .company-info { text-align: right; margin-top: -45px; font-size: 10px; color: #64748b; }
+        
+        .po-title { background-color: #0f2d5c; color: #ffffff; padding: 8px 12px; font-size: 14px; font-weight: bold; margin-bottom: 15px; }
+        
+        table.meta-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.meta-table td { padding: 6px 8px; vertical-align: top; border: 1px solid #e2e8f0; }
+        table.meta-table td.label { font-weight: bold; background-color: #f1f5f9; width: 130px; color: #334155; }
+
+        .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
+        .items-table th { background-color: #f1f5f9; color: #0f2d5c; border: 1px solid #cbd5e1; text-align: left; padding: 8px; font-size: 10px; text-transform: uppercase; font-weight: bold; }
+        .items-table td { border: 1px solid #e2e8f0; padding: 8px; }
+        .total-row { font-weight: bold; font-size: 12px; background-color: #f8fafc; }
+
+        .terms-section { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; font-size: 10px; margin-top: 15px; }
+        
+        .signatures { margin-top: 40px; width: 100%; }
+        .signatures table { width: 100%; border-collapse: collapse; }
+        .signatures td { width: 50%; vertical-align: top; padding: 10px; }
+        .sig-line { border-top: 1px solid #334155; margin-top: 40px; text-align: center; font-weight: bold; padding-top: 4px; }
+        
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>HEINDRICH TRADING CORPORATION</h1>
+        <div class="company-info">
+            <p><strong>Purchasing & Supply Procurement</strong><br>
+            123 Commerce Avenue, Business District<br>
+            Email: procurement@heindrich.corp</p>
+        </div>
+    </div>
+
+    <div class="po-title">
+        PURCHASE ORDER: {{ cluster.reference_code }}
+    </div>
+
+    <table class="meta-table">
+        <tr>
+            <td class="label">PO Date:</td>
+            <td>{{ cluster.created_at|date:"F d, Y" }}</td>
+            <td class="label">Status:</td>
+            <td><strong>{{ cluster.get_status_display }}</strong></td>
+        </tr>
+        <tr>
+            <td class="label">Vendor / Supplier:</td>
+            <td><strong>{{ cluster.sugar_mill.name }}</strong><br><small>{{ cluster.sugar_mill.location|default:"Sugar Mill Operations" }}</small></td>
+            <td class="label">Deliver To Client:</td>
+            <td><strong>{{ cluster.client.name }}</strong><br><small>Via {{ cluster.logistics.partner.name|default:"HTC Logistics" }}</small></td>
+        </tr>
+    </table>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Item Description</th>
+                <th>Brix Spec</th>
+                <th>Volume (MT)</th>
+                <th>Supplier Sourcing Price</th>
+                <th>Total Line Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <strong>Commercial Molasses Supply</strong><br>
+                    <small>CHAI Specs: {{ cluster.purchase_order.chai_specs|default:"Standard Quality" }}</small>
+                </td>
+                <td>{{ cluster.purchase_order.brix_level|default:"85.00" }}%</td>
+                <td>{{ cluster.purchase_order.volume_mt }} MT</td>
+                <td>PHP {{ cluster.purchase_order.unit_price }} / MT</td>
+                <td>PHP {{ cluster.purchase_order.total_value }}</td>
+            </tr>
+            <tr class="total-row">
+                <td colspan="4" style="text-align: right;">TOTAL PURCHASE ORDER COST:</td>
+                <td>PHP {{ cluster.purchase_order.total_value }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="terms-section">
+        <p><strong>Payment & Commercial Terms:</strong> {{ cluster.purchase_order.terms|default:"Net 30 Days upon bill of lading receipt." }}</p>
+        <p><strong>Special Instructions:</strong> Deliveries must strictly conform to MRO allocation permits. Weight measurements will be verified at receiving pier weighbridge.</p>
+    </div>
+
+    <div class="signatures">
+        <table>
+            <tr>
+                <td>
+                    <p style="margin-bottom: 0;"><strong>PREPARED BY:</strong></p>
+                    <div class="sig-line">
+                        Purchasing Specialist<br>
+                        <small>HTC Procurement Dept.</small>
+                    </div>
+                </td>
+                <td>
+                    <p style="margin-bottom: 0;"><strong>APPROVED BY:</strong></p>
+                    <div class="sig-line">
+                        Finance & Purchasing Manager<br>
+                        <small>Heindrich Trading Corporation</small>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="footer">
+        Auto-generated Purchase Order by HTC Core System | Ref: {{ cluster.reference_code }} | Date: {% now "Y-m-d H:i:s" %}
+    </div>
+</body>
+</html>

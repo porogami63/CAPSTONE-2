@@ -1,4 +1,5 @@
 {% extends "app_base.html" %}
+{% load static %}
 {% block title %}{% if object %}Edit {{ object.reference_code }}{% else %}New Transaction{% endif %} · HTC Core{% endblock %}
 {% block topbar_title %}{% if object %}Edit Transaction{% else %}Create Transaction{% endif %}{% endblock %}
 
@@ -21,7 +22,7 @@
     </div>
 </div>
 
-<form method="post" style="max-width: 860px; margin: 0 auto;">
+<form method="post" data-outlier-guard="true" style="max-width: 860px; margin: 0 auto;">
     {% csrf_token %}
 
     <!-- Card 1: Contract Basics -->
@@ -36,8 +37,14 @@
 
         <div class="row g-3">
             <div class="col-md-6">
-                <label for="{{ form.reference_code.id_for_label }}" class="form-label font-semibold text-sm">Reference Code <span class="text-danger">*</span></label>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label for="{{ form.reference_code.id_for_label }}" class="form-label font-semibold text-sm mb-0">Reference Code</label>
+                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-2" style="font-size: 0.72rem;" onclick="fetchAutoRef()">
+                        <i class="bi bi-magic me-1"></i> Auto-Generate PO #
+                    </button>
+                </div>
                 {{ form.reference_code }}
+                <div class="form-text text-xs text-muted mt-1">Leave blank or click Auto-Generate for date-based code (e.g. PO-YYYYMMDD-001).</div>
                 {% if form.reference_code.errors %}<div class="text-danger text-xs mt-1">{{ form.reference_code.errors|striptags }}</div>{% endif %}
             </div>
             <div class="col-md-6">
@@ -250,5 +257,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (bargeRateInput) bargeRateInput.addEventListener('input', updateLiveCalculation);
     updateLiveCalculation();
 });
+
+function fetchAutoRef() {
+    fetch("{% url 'operations:generate_reference_api' %}")
+        .then(res => res.json())
+        .then(data => {
+            const refInput = document.getElementById('{{ form.reference_code.id_for_label }}');
+            if (refInput && data.po_ref) {
+                refInput.value = data.po_ref;
+            }
+        });
+}
 </script>
+<script src="{% static 'js/stark_outlier_guard.js' %}"></script>
 {% endblock %}

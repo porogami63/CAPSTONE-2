@@ -24,7 +24,7 @@ class StandaloneInvoiceForm(forms.ModelForm):
         model = Invoice
         fields = ["cluster", "invoice_number", "amount", "issued_at", "status", "notes"]
         widgets = {
-            "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. INV-2026-001"}),
+            "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated based on PO (e.g. SI-20260925-001)"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 1500000.00", "step": "0.01"}),
             "issued_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
             "status": forms.Select(attrs={"class": "form-select-htc"}),
@@ -33,11 +33,21 @@ class StandaloneInvoiceForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["invoice_number"].required = False
         self.fields["cluster"].queryset = (
             TransactionCluster.objects.filter(is_archived=False)
             .select_related("client", "sugar_mill", "purchase_order")
             .order_by("-created_at")
         )
+
+    def clean_invoice_number(self):
+        num = self.cleaned_data.get("invoice_number", "").strip()
+        if not num:
+            from operations.services.reference_generators import generate_si_reference
+            cluster = self.cleaned_data.get("cluster")
+            cluster_ref = cluster.reference_code if cluster else None
+            num = generate_si_reference(cluster_ref)
+        return num
 
 
 class InvoiceForm(forms.ModelForm):
@@ -45,12 +55,28 @@ class InvoiceForm(forms.ModelForm):
         model = Invoice
         fields = ["invoice_number", "amount", "issued_at", "status", "notes"]
         widgets = {
-            "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. INV-2026-001"}),
+            "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated based on PO (e.g. SI-20260925-001)"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 1500000.00", "step": "0.01"}),
             "issued_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
             "status": forms.Select(attrs={"class": "form-select-htc"}),
             "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional invoice notes..."}),
         }
+
+    def __init__(self, *args, cluster=None, **kwargs):
+        self.cluster = cluster
+        super().__init__(*args, **kwargs)
+        self.fields["invoice_number"].required = False
+        if self.cluster and not self.initial.get("invoice_number"):
+            from operations.services.reference_generators import generate_si_reference
+            self.initial["invoice_number"] = generate_si_reference(self.cluster.reference_code)
+
+    def clean_invoice_number(self):
+        num = self.cleaned_data.get("invoice_number", "").strip()
+        if not num:
+            from operations.services.reference_generators import generate_si_reference
+            cluster_ref = self.cluster.reference_code if self.cluster else None
+            num = generate_si_reference(cluster_ref)
+        return num
 
 
 class CashVoucherForm(forms.ModelForm):
@@ -58,13 +84,29 @@ class CashVoucherForm(forms.ModelForm):
         model = CashVoucher
         fields = ["voucher_number", "amount", "purpose", "cheque_number", "cheque_date", "issued_at"]
         widgets = {
-            "voucher_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. CV-2026-001"}),
+            "voucher_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated based on PO (e.g. CV-20260925-001)"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 25000.00", "step": "0.01"}),
             "purpose": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Barging & Pier Fees"}),
             "cheque_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. CHQ-8849201"}),
             "cheque_date": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
             "issued_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
         }
+
+    def __init__(self, *args, cluster=None, **kwargs):
+        self.cluster = cluster
+        super().__init__(*args, **kwargs)
+        self.fields["voucher_number"].required = False
+        if self.cluster and not self.initial.get("voucher_number"):
+            from operations.services.reference_generators import generate_cv_reference
+            self.initial["voucher_number"] = generate_cv_reference(self.cluster.reference_code)
+
+    def clean_voucher_number(self):
+        num = self.cleaned_data.get("voucher_number", "").strip()
+        if not num:
+            from operations.services.reference_generators import generate_cv_reference
+            cluster_ref = self.cluster.reference_code if self.cluster else None
+            num = generate_cv_reference(cluster_ref)
+        return num
 
 
 class CapitalLoanForm(forms.ModelForm):

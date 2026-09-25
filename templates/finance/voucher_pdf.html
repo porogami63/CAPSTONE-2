@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Check Voucher {{ voucher.voucher_number }}</title>
+    <style>
+        @page { size: a4 portrait; margin: 2cm; }
+        body { font-family: Helvetica, sans-serif; font-size: 11px; color: #1e293b; line-height: 1.5; }
+        h1 { color: #0f2d5c; font-size: 20px; margin-bottom: 5px; }
+        .header { border-bottom: 2px solid #0f2d5c; padding-bottom: 12px; margin-bottom: 20px; }
+        .company-info { text-align: right; margin-top: -45px; font-size: 10px; color: #64748b; }
+        
+        .voucher-title { background-color: #0f2d5c; color: #ffffff; padding: 8px 12px; font-size: 14px; font-weight: bold; margin-bottom: 15px; }
+        
+        table.meta-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.meta-table td { padding: 6px 8px; vertical-align: top; border: 1px solid #e2e8f0; }
+        table.meta-table td.label { font-weight: bold; background-color: #f1f5f9; width: 130px; color: #334155; }
+
+        .amount-box { background-color: #f1f5f9; border: 2px solid #0f2d5c; padding: 12px; text-align: center; margin-bottom: 20px; }
+        .amount-box h2 { margin: 0; color: #0f2d5c; font-size: 22px; }
+
+        .signatures { margin-top: 40px; width: 100%; }
+        .signatures table { width: 100%; border-collapse: collapse; }
+        .signatures td { width: 33%; vertical-align: top; padding: 10px; }
+        .sig-line { border-top: 1px solid #334155; margin-top: 40px; text-align: center; font-weight: bold; padding-top: 4px; font-size: 10px; }
+        
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>HEINDRICH TRADING CORPORATION</h1>
+        <div class="company-info">
+            <p><strong>Treasury & Finance Department</strong><br>
+            123 Commerce Avenue, Business District<br>
+            Email: finance@heindrich.corp</p>
+        </div>
+    </div>
+
+    <div class="voucher-title">
+        CHECK / CASH VOUCHER: {{ voucher.voucher_number }}
+    </div>
+
+    <div class="amount-box">
+        <small style="text-transform: uppercase; font-weight: bold; color: #475569;">TOTAL DISBURSED AMOUNT</small>
+        <h2>PHP {{ voucher.amount|floatformat:2 }}</h2>
+    </div>
+
+    <table class="meta-table">
+        <tr>
+            <td class="label">Voucher Number:</td>
+            <td><strong>{{ voucher.voucher_number }}</strong></td>
+            <td class="label">Issue Date:</td>
+            <td>{{ voucher.issued_at|date:"F d, Y" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Transaction Deal:</td>
+            <td><strong>{{ voucher.cluster.reference_code }}</strong> ({{ voucher.cluster.client.name }})</td>
+            <td class="label">Capital Facility:</td>
+            <td>{{ voucher.loan.bank_name|default:"Operating Outlay" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Cheque Ref Number:</td>
+            <td>{{ voucher.cheque_number|default:"N/A — Cash/Wire" }}</td>
+            <td class="label">Cheque Date:</td>
+            <td>{{ voucher.cheque_date|date:"F d, Y"|default:"N/A" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Payment Purpose:</td>
+            <td colspan="3">{{ voucher.purpose }}</td>
+        </tr>
+    </table>
+
+    <div class="signatures">
+        <table>
+            <tr>
+                <td>
+                    <p style="margin-bottom: 0;"><strong>PREPARED BY:</strong></p>
+                    <div class="sig-line">
+                        Finance Staff<br>
+                        <small>HTC Accounting</small>
+                    </div>
+                </td>
+                <td>
+                    <p style="margin-bottom: 0;"><strong>CHECKED / APPROVED BY:</strong></p>
+                    <div class="sig-line">
+                        Finance Manager<br>
+                        <small>Heindrich Trading Corp</small>
+                    </div>
+                </td>
+                <td>
+                    <p style="margin-bottom: 0;"><strong>RECEIVED BY:</strong></p>
+                    <div class="sig-line">
+                        Payee / Representative<br>
+                        <small>Signature & Date</small>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="footer">
+        Auto-generated Check Voucher by HTC Core Finance System | Voucher ID: {{ voucher.id }} | Generated: {% now "Y-m-d H:i:s" %}
+    </div>
+</body>
+</html>
