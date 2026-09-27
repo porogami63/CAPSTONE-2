@@ -109,6 +109,90 @@ class CashVoucherForm(forms.ModelForm):
         return num
 
 
+class StandaloneLoanForm(forms.ModelForm):
+    cluster = ClusterChoiceField(
+        queryset=TransactionCluster.objects.none(),
+        empty_label="-- Select Target Transaction Cluster --",
+        widget=forms.Select(attrs={"class": "form-select-htc", "id": "id_standalone_loan_cluster"}),
+        label="Linked Transaction Cluster",
+    )
+
+    class Meta:
+        model = CapitalLoan
+        fields = [
+            "cluster",
+            "bank_name",
+            "principal",
+            "interest_rate_annual",
+            "start_date",
+            "due_date",
+            "cheque_number",
+            "cheque_date",
+            "bank_account_number",
+            "logistics_deposit_percentage",
+            "status",
+        ]
+        widgets = {
+            "bank_name": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. BDO Unibank / Metropolitan Bank"}),
+            "principal": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 5000000.00", "step": "0.01"}),
+            "interest_rate_annual": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 12.0000", "step": "0.0001"}),
+            "start_date": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
+            "due_date": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
+            "cheque_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. CHQ-990142"}),
+            "cheque_date": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
+            "bank_account_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 0048-2910-44"}),
+            "logistics_deposit_percentage": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "50.00", "step": "0.01"}),
+            "status": forms.Select(attrs={"class": "form-select-htc"}),
+        }
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["cluster"].queryset = (
+            TransactionCluster.objects.filter(is_archived=False)
+            .select_related("client", "sugar_mill", "purchase_order")
+            .order_by("-created_at")
+        )
+        self.fields["cheque_number"].required = False
+        self.fields["cheque_date"].required = False
+        self.fields["bank_account_number"].required = False
+        self.fields["logistics_deposit_percentage"].required = False
+
+        from accounts.permissions import user_has_perm
+        can_verify = user and user_has_perm(user, "verify_loan")
+
+        if can_verify:
+            self.fields["status"].choices = [
+                (CapitalLoan.Status.PENDING_CREATION, "Pending Creation Approval (Default)"),
+                (CapitalLoan.Status.ACTIVE, "Active Facility (Pre-Approved / Approved Immediately)"),
+            ]
+            self.fields["status"].initial = CapitalLoan.Status.PENDING_CREATION
+        else:
+            self.fields["status"].choices = [
+                (CapitalLoan.Status.PENDING_CREATION, "Pending Creation Approval"),
+            ]
+            self.fields["status"].initial = CapitalLoan.Status.PENDING_CREATION
+            self.fields["status"].disabled = True
+            self.fields["status"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        principal = cleaned_data.get("principal")
+        interest_rate = cleaned_data.get("interest_rate_annual")
+        start_date = cleaned_data.get("start_date")
+        due_date = cleaned_data.get("due_date")
+
+        if principal is not None and principal <= 0:
+            self.add_error("principal", "Loan principal amount must be a positive number greater than ₱0.00.")
+
+        if interest_rate is not None and interest_rate < 0:
+            self.add_error("interest_rate_annual", "Annual interest rate cannot be negative.")
+
+        if start_date and due_date and due_date <= start_date:
+            self.add_error("due_date", "Facility due date must be later than the loan start date.")
+
+        return cleaned_data
+
+
 class CapitalLoanForm(forms.ModelForm):
     class Meta:
         model = CapitalLoan

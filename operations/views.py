@@ -457,6 +457,9 @@ def cluster_create(request):
         if form.is_valid():
             with transaction.atomic():
                 cluster = form.save()
+                chai_val = form.cleaned_data.get("chai_specs", "").strip()
+                chai_formatted = f"CHAI {chai_val}" if (chai_val and not chai_val.startswith("CHAI")) else chai_val
+
                 po = PurchaseOrder.objects.create(
                     cluster=cluster,
                     volume_mt=form.cleaned_data["volume_mt"],
@@ -464,9 +467,28 @@ def cluster_create(request):
                     selling_price=form.cleaned_data.get("selling_price"),
                     terms=form.cleaned_data.get("terms", ""),
                     brix_level=form.cleaned_data.get("brix_level"),
-                    chai_specs=form.cleaned_data.get("chai_specs", ""),
+                    chai_specs=chai_formatted,
                     approved_at=timezone.now(),
                 )
+
+                if chai_val:
+                    try:
+                        from operations.models import CHAIRecord
+                        clean_num = chai_val.replace("CHAI", "").strip()
+                        numeric_val = Decimal(clean_num)
+                        CHAIRecord.objects.update_or_create(
+                            cluster=cluster,
+                            defaults={
+                                "chai_number": f"CHAI-{cluster.reference_code}",
+                                "chai_value": numeric_val,
+                                "title": f"Verified Quality Grade {chai_formatted}",
+                                "sugar_mill": cluster.sugar_mill,
+                                "brix_level": po.brix_level or Decimal("85.00"),
+                                "status": "approved" if numeric_val <= Decimal("3.0") else "pending",
+                            },
+                        )
+                    except Exception:
+                        pass
                 default_partner = LogisticsPartner.objects.filter(is_active=True).first()
                 vol = form.cleaned_data["volume_mt"]
                 est_trucking_rate = form.cleaned_data.get("est_trucking_rate") or Decimal("0")
@@ -512,13 +534,34 @@ def cluster_edit(request, pk):
                 cluster = form.save()
                 po = getattr(cluster, "purchase_order", None)
                 if po:
+                    chai_val = form.cleaned_data.get("chai_specs", "").strip()
+                    chai_formatted = f"CHAI {chai_val}" if (chai_val and not chai_val.startswith("CHAI")) else chai_val
                     po.volume_mt = form.cleaned_data["volume_mt"]
                     po.unit_price = form.cleaned_data["unit_price"]
                     po.selling_price = form.cleaned_data.get("selling_price")
                     po.terms = form.cleaned_data.get("terms", "")
                     po.brix_level = form.cleaned_data.get("brix_level")
-                    po.chai_specs = form.cleaned_data.get("chai_specs", "")
+                    po.chai_specs = chai_formatted
                     po.save()
+
+                    if chai_val:
+                        try:
+                            from operations.models import CHAIRecord
+                            clean_num = chai_val.replace("CHAI", "").strip()
+                            numeric_val = Decimal(clean_num)
+                            CHAIRecord.objects.update_or_create(
+                                cluster=cluster,
+                                defaults={
+                                    "chai_number": f"CHAI-{cluster.reference_code}",
+                                    "chai_value": numeric_val,
+                                    "title": f"Verified Quality Grade {chai_formatted}",
+                                    "sugar_mill": cluster.sugar_mill,
+                                    "brix_level": po.brix_level or Decimal("85.00"),
+                                    "status": "approved" if numeric_val <= Decimal("3.0") else "pending",
+                                },
+                            )
+                        except Exception:
+                            pass
                 log = getattr(cluster, "logistics", None)
                 if log:
                     vol = form.cleaned_data["volume_mt"]
@@ -1619,18 +1662,140 @@ def stats_check_api(request):
 
 
 @login_required
+def predict_trade_terms_api(request):
+    """
+    Suggestive logic based on historical transaction trends to minimize human input and error.
+    Calculates expected unit prices, selling prices, logistics rates, terms, and quality specs.
+    """
+    client_id = (
+        request.GET.get("client_id")
+        or request.GET.get("client")
+        or request.POST.get("client_id")
+        or request.POST.get("client")
+    )
+    mill_id = (
+        request.GET.get("sugar_mill_id")
+        or request.GET.get("mill_id")
+        or request.GET.get("mill")
+        or request.POST.get("sugar_mill_id")
+        or request.POST.get("mill_id")
+        or request.POST.get("mill")
+    )
+
+    pos = PurchaseOrder.objects.filter(cluster__is_archived=False).select_related("cluster", "cluster__client", "cluster__sugar_mill").order_by("-approved_at", "-id")
+
+    matched_pos = pos.none()
+    match_type = None
+
+    if client_id and mill_id:
+        matched_pos = pos.filter(cluster__client_id=client_id, cluster__sugar_mill_id=mill_id)
+        match_type = "exact"
+
+    if not matched_pos.exists() and client_id:
+        matched_pos = pos.filter(cluster__client_id=client_id)
+        match_type = "client"
+
+    if not matched_pos.exists() and mill_id:
+        matched_pos = pos.filter(cluster__sugar_mill_id=mill_id)
+        match_type = "mill"
+
+    if not matched_pos.exists():
+        return JsonResponse({"status": "no_match", "found": False, "has_match": False, "message": "No historical transactions found yet."})
+
+    latest_po = matched_pos.first()
+    cluster_ids = matched_pos.values_list("cluster_id", flat=True)
+
+    # Calculate average logistics rates from past transactions
+    past_logistics = LogisticsLedger.objects.filter(cluster_id__in=cluster_ids, loaded_volume_mt__gt=0)
+    avg_trucking = Decimal("0")
+    avg_barge = Decimal("0")
+
+    if past_logistics.exists():
+        trucking_rates = [l.tracking_fees / l.loaded_volume_mt for l in past_logistics if l.tracking_fees and l.loaded_volume_mt]
+        barge_rates = [l.barge_fees / l.loaded_volume_mt for l in past_logistics if l.barge_fees and l.loaded_volume_mt]
+        if trucking_rates:
+            avg_trucking = round(sum(trucking_rates) / len(trucking_rates), 2)
+        if barge_rates:
+            avg_barge = round(sum(barge_rates) / len(barge_rates), 2)
+
+    confidence = f"Auto-filled based on {matched_pos.count()} past trades"
+    if match_type == "exact":
+        confidence += f" ({latest_po.cluster.client.name} × {latest_po.cluster.sugar_mill.name})"
+
+    # Normalize chai_specs string if needed
+    chai_val = (latest_po.chai_specs or "").strip()
+    import re
+    match = re.search(r"(\d+\.\d+|\d+)", chai_val)
+    chai_clean = match.group(1) if match else chai_val
+
+    unit_price_val = float(latest_po.unit_price) if latest_po.unit_price else None
+    selling_price_val = float(latest_po.selling_price) if latest_po.selling_price else None
+    trucking_val = float(avg_trucking) if avg_trucking else None
+    barge_val = float(avg_barge) if avg_barge else None
+    terms_val = latest_po.terms or "Net 30 days"
+    brix_val = float(latest_po.brix_level) if latest_po.brix_level else 85.00
+    chai_clean_val = chai_clean
+
+    return JsonResponse({
+        "status": "success",
+        "has_match": True,
+        "found": True,
+        "sample_size": matched_pos.count(),
+        "confidence_text": confidence,
+        "avg_unit_price": unit_price_val,
+        "avg_selling_price": selling_price_val,
+        "avg_trucking_rate": trucking_val,
+        "avg_barge_rate": barge_val,
+        "common_terms": terms_val,
+        "avg_brix": brix_val,
+        "common_chai": chai_clean_val,
+        "data": {
+            "unit_price": unit_price_val,
+            "selling_price": selling_price_val,
+            "est_trucking_rate": trucking_val,
+            "est_barge_rate": barge_val,
+            "terms": terms_val,
+            "brix_level": brix_val,
+            "chai_specs": chai_clean_val,
+        }
+    })
+
+
+@login_required
 def pending_tasks_view(request):
     """
-    Renders actionable pending tasks and operational follow-ups mapped to real-life role responsibilities.
+    Renders actionable pending tasks mapped strictly to appropriate user roles,
+    unless the user is an Administrator or Operations Manager, who see all pending tasks.
     """
     from finance.models import Invoice, CapitalLoan
 
+    user = request.user
+    role = getattr(user, "role", User.Role.OPERATIONS)
+    is_admin_or_mgr = user.is_superuser or role in (User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+
+    # Base Querysets
     unlinked_mros = MolassesReleaseOrder.objects.filter(cluster__isnull=True).select_related("planter", "sugar_mill").order_by("-release_date")[:50]
     disputed_logistics = LogisticsLedger.objects.filter(dispute_status=LogisticsLedger.DisputeStatus.DISPUTED).select_related("cluster", "cluster__client", "partner").order_by("-updated_at")
     offspec_chai = CHAIRecord.objects.filter(Q(status="rejected") | Q(chai_value__gte=Decimal("4.0"))).select_related("sugar_mill", "cluster").order_by("-tested_at")
     unbilled_clusters = TransactionCluster.objects.filter(invoices__isnull=True, is_archived=False).select_related("client", "sugar_mill", "purchase_order").order_by("-created_at")
-    unpaid_invoices = Invoice.objects.filter(status=Invoice.Status.ISSUED, is_archived=False).select_related("cluster", "cluster__client").order_by("-issued_at")
-    open_loans = CapitalLoan.objects.filter(status=CapitalLoan.Status.ACTIVE).select_related("cluster", "cluster__client").order_by("-created_at")
+    unpaid_invoices = Invoice.objects.filter(status__in=[Invoice.Status.ISSUED, Invoice.Status.DRAFT], is_archived=False).select_related("cluster", "cluster__client").order_by("-issued_at")
+    open_loans = CapitalLoan.objects.filter(status__in=[CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.PENDING_SETTLEMENT, CapitalLoan.Status.ACTIVE, CapitalLoan.Status.OVERDUE]).select_related("cluster", "cluster__client").order_by("-created_at")
+
+    # Scope querysets per role if not Admin / Operations Manager
+    if not is_admin_or_mgr:
+        if role == User.Role.FINANCE:
+            unlinked_mros = MolassesReleaseOrder.objects.none()
+            disputed_logistics = LogisticsLedger.objects.none()
+            offspec_chai = CHAIRecord.objects.none()
+        elif role == User.Role.INVOICING:
+            unlinked_mros = MolassesReleaseOrder.objects.none()
+            disputed_logistics = LogisticsLedger.objects.none()
+            offspec_chai = CHAIRecord.objects.none()
+            open_loans = CapitalLoan.objects.none()
+        elif role == User.Role.OPERATIONS:
+            unbilled_clusters = TransactionCluster.objects.none()
+            unpaid_invoices = Invoice.objects.none()
+            open_loans = CapitalLoan.objects.none()
 
     total_pending_action = (
         unlinked_mros.count() +
@@ -1649,6 +1814,7 @@ def pending_tasks_view(request):
         "unpaid_invoices": unpaid_invoices,
         "open_loans": open_loans,
         "total_pending_action": total_pending_action,
+        "is_admin_or_mgr": is_admin_or_mgr,
     }
     return render(request, "operations/pending_tasks.html", context)
 

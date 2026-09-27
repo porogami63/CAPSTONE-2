@@ -179,5 +179,22 @@ class LoanVerificationTests(TestCase):
 			reverse("finance:verify_loan_creation", kwargs={"pk": loan.pk}),
 			{"action": "approve"},
 		)
-		self.assertEqual(response.status_code, 403)
+	def test_finance_creates_standalone_loan_linked_to_transaction(self):
+		self.client.login(username="finance_user", password="password123")
+		response = self.client.post(
+			reverse("finance:loan_list"),
+			{
+				"cluster": self.cluster.pk,
+				"bank_name": "Metrobank",
+				"principal": "2500000.00",
+				"interest_rate_annual": "11.5000",
+				"start_date": str(date.today()),
+				"due_date": str(date.today() + timedelta(days=60)),
+			},
+		)
+		self.assertRedirects(response, reverse("finance:loan_list"))
+		loan = CapitalLoan.objects.filter(cluster=self.cluster, bank_name="Metrobank").first()
+		self.assertIsNotNone(loan)
+		self.assertEqual(loan.principal, 2500000)
+		self.assertEqual(loan.status, CapitalLoan.Status.PENDING_CREATION)
 

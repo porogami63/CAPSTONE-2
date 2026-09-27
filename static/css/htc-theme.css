@@ -3060,5 +3060,53 @@ body.sidebar-collapsed .sidebar-collapse-btn {
     color: var(--htc-text-muted);
 }
 
+/* ==========================================================================
+   Consolidated Uniform Theme & Notifications
+   ========================================================================== */
+.notif-item {
+    background: var(--htc-surface) !important;
+    color: var(--htc-text) !important;
+    border-color: var(--htc-border) !important;
+    transition: background-color 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+.notif-item:hover {
+    background: var(--htc-sidebar-hover) !important;
+    color: var(--htc-text) !important;
+}
+html[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.notif-filter-btn {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.18rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--htc-border);
+    background: var(--htc-surface);
+    color: var(--htc-text-muted);
+    transition: all 0.15s ease-in-out;
+    white-space: nowrap;
+}
+.notif-filter-btn.active, .notif-filter-btn:hover {
+    background: var(--htc-sidebar-hover);
+    color: var(--htc-primary-light);
+    border-color: var(--htc-primary-light);
+}
+
+#notifList::-webkit-scrollbar {
+    width: 6px;
+}
+#notifList::-webkit-scrollbar-track {
+    background: var(--htc-surface);
+}
+#notifList::-webkit-scrollbar-thumb {
+    background: var(--htc-border);
+    border-radius: 4px;
+}
+#notifList::-webkit-scrollbar-thumb:hover {
+    background: var(--htc-primary-mid);
+}
+
 
 

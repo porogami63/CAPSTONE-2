@@ -36,6 +36,7 @@ urlpatterns = [
     path("<uuid:pk>/po/pdf/", views.download_po_pdf, name="download_po_pdf"),
     path("api/copilot/query/", views.copilot_query_api, name="copilot_query_api"),
     path("api/generate-references/", views.generate_reference_api, name="generate_reference_api"),
+    path("api/predict-trade-terms/", views.predict_trade_terms_api, name="predict_trade_terms_api"),
     path("chai/", views.chai_list, name="chai_list"),
     path("chai/create/", views.chai_create, name="chai_create"),
     path("chai/<uuid:pk>/", views.chai_detail, name="chai_detail"),

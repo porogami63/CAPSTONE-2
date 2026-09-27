@@ -150,12 +150,23 @@
                             <i class="bi bi-bell-fill"></i>
                             <span id="unreadNotifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;">0</span>
                         </button>
-                        <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg border-0" aria-labelledby="notifDropdownBtn" style="width: 340px; max-height: 420px; overflow-y: auto;">
-                            <div class="p-3 bg-primary text-white d-flex justify-content-between align-items-center rounded-top">
-                                <span class="fw-bold fs-7"><i class="bi bi-bell me-1"></i> System Notifications</span>
-                                <button type="button" class="btn btn-sm btn-link text-white text-decoration-none p-0 fs-7" id="markNotifsReadBtn">Mark all read</button>
+                        <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg" aria-labelledby="notifDropdownBtn" style="width: 380px; background: var(--htc-surface); color: var(--htc-text); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden;">
+                            <div class="p-3 d-flex justify-content-between align-items-center" style="background: var(--htc-sidebar-hover); border-bottom: 1px solid var(--htc-border);">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold fs-7" style="color: var(--htc-text);"><i class="bi bi-bell me-1 text-primary"></i> Notifications</span>
+                                    <span id="notifTotalBadge" class="badge bg-primary-subtle text-primary fs-8 px-2 py-0.5 rounded-pill">0</span>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-link text-primary text-decoration-none p-0 fs-7 fw-semibold" id="markNotifsReadBtn">Mark all read</button>
                             </div>
-                            <div id="notifList" class="list-group list-group-flush fs-7">
+                            <!-- Category Filter Tabs -->
+                            <div class="px-2 py-1.5 d-flex gap-1 overflow-x-auto border-bottom border-secondary-subtle" id="notifFilterBar" style="background: var(--htc-surface);">
+                                <button type="button" class="btn btn-xs notif-filter-btn active" data-cat="all">All (<span id="catCountAll">0</span>)</button>
+                                <button type="button" class="btn btn-xs notif-filter-btn" data-cat="approval">Approvals (<span id="catCountApproval">0</span>)</button>
+                                <button type="button" class="btn btn-xs notif-filter-btn" data-cat="variance">Variances (<span id="catCountVariance">0</span>)</button>
+                                <button type="button" class="btn btn-xs notif-filter-btn" data-cat="logistics">Logistics (<span id="catCountLogistics">0</span>)</button>
+                                <button type="button" class="btn btn-xs notif-filter-btn" data-cat="loan">Loans (<span id="catCountLoan">0</span>)</button>
+                            </div>
+                            <div id="notifList" class="list-group list-group-flush fs-7" style="max-height: 380px; overflow-y: auto;">
                                 <div class="p-4 text-center text-muted">No unread notifications</div>
                             </div>
                         </div>
@@ -183,9 +194,19 @@
             </header>
             <main class="app-main">
                 {% if messages %}
-                    {% for message in messages %}
-                    <div class="flash-msg">{{ message }}</div>
-                    {% endfor %}
+                    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+                        {% for message in messages %}
+                        <div class="toast align-items-center show shadow-lg border-0 mb-2 htc-toast" role="alert" aria-live="assertive" aria-atomic="true" style="background: var(--htc-surface); color: var(--htc-text); border: 1px solid var(--htc-border) !important; min-width: 320px; border-radius: 10px;">
+                            <div class="d-flex align-items-center justify-content-between p-3">
+                                <div class="d-flex align-items-center gap-2" style="font-size: 0.85rem; font-weight: 500;">
+                                    <i class="bi bi-info-circle-fill text-primary fs-6"></i>
+                                    <span>{{ message }}</span>
+                                </div>
+                                <button type="button" class="btn-close text-reset ms-2" data-bs-dismiss="toast" aria-label="Close" style="font-size: 0.75rem;"></button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                 {% endif %}
                 {% block content %}{% endblock %}
             </main>
@@ -297,14 +318,40 @@
                     setInterval(updateUnreadBadge, 10000);
                 }
 
-                // Poll real-time system notifications
+                // Poll real-time system notifications with classification
+                let activeNotifCategory = "all";
+
+                window.handleNotifClick = function(event, notifId, link) {
+                    if (event) event.preventDefault();
+                    fetch(`/audit/api/notifications/${notifId}/read/`, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        }
+                    })
+                    .then(() => {
+                        if (link && link !== "#" && link !== "None") {
+                            window.location.href = link;
+                        } else {
+                            fetchNotifications();
+                        }
+                    })
+                    .catch(() => {
+                        if (link && link !== "#" && link !== "None") {
+                            window.location.href = link;
+                        }
+                    });
+                };
+
                 function fetchNotifications() {
-                    fetch("{% url 'audit:api_notifications' %}")
+                    fetch("{% url 'audit:api_notifications' %}?category=" + encodeURIComponent(activeNotifCategory))
                         .then(res => res.json())
                         .then(data => {
                             if (data.status === "success") {
                                 const notifBadge = document.getElementById("unreadNotifBadge");
+                                const notifTotalBadge = document.getElementById("notifTotalBadge");
                                 const notifList = document.getElementById("notifList");
+
                                 if (notifBadge) {
                                     if (data.unread_count > 0) {
                                         notifBadge.textContent = data.unread_count;
@@ -313,9 +360,22 @@
                                         notifBadge.classList.add("d-none");
                                     }
                                 }
-                                if (notifList && data.notifications) {
-                                    if (data.notifications.length === 0) {
-                                        notifList.innerHTML = `<div class="p-4 text-center text-muted">No unread notifications</div>`;
+                                if (notifTotalBadge) {
+                                    notifTotalBadge.textContent = data.unread_count;
+                                }
+
+                                if (data.category_counts) {
+                                    const c = data.category_counts;
+                                    if (document.getElementById("catCountAll")) document.getElementById("catCountAll").textContent = c.all || 0;
+                                    if (document.getElementById("catCountApproval")) document.getElementById("catCountApproval").textContent = c.approval || 0;
+                                    if (document.getElementById("catCountVariance")) document.getElementById("catCountVariance").textContent = c.variance || 0;
+                                    if (document.getElementById("catCountLogistics")) document.getElementById("catCountLogistics").textContent = c.logistics || 0;
+                                    if (document.getElementById("catCountLoan")) document.getElementById("catCountLoan").textContent = c.loan || 0;
+                                }
+
+                                if (notifList) {
+                                    if (!data.notifications || data.notifications.length === 0) {
+                                        notifList.innerHTML = `<div class="p-4 text-center text-muted fs-7"><i class="bi bi-check2-circle d-block fs-4 text-success mb-1"></i>No unread notifications</div>`;
                                     } else {
                                         let html = "";
                                         data.notifications.forEach(n => {
@@ -324,15 +384,27 @@
                                             if (n.level === "danger") badgeClass = "bg-danger-subtle text-danger";
                                             if (n.level === "success") badgeClass = "bg-success-subtle text-success";
 
+                                            let catIcon = "bi-bell-fill";
+                                            let catClass = "bg-secondary-subtle text-secondary";
+                                            if (n.category === "approval") { catIcon = "bi-file-earmark-check"; catClass = "bg-primary-subtle text-primary"; }
+                                            if (n.category === "variance") { catIcon = "bi-exclamation-triangle-fill"; catClass = "bg-danger-subtle text-danger"; }
+                                            if (n.category === "logistics") { catIcon = "bi-truck"; catClass = "bg-warning-subtle text-warning-emphasis"; }
+                                            if (n.category === "loan") { catIcon = "bi-bank"; catClass = "bg-success-subtle text-success"; }
+
+                                            const safeLink = (n.link || '#').replace(/'/g, "\\'");
+
                                             html += `
-                                                <a href="${n.link}" class="list-group-item list-group-item-action p-2 text-start">
+                                                <div class="list-group-item list-group-item-action p-2.5 text-start notif-item position-relative" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); color: var(--htc-text); cursor: pointer;" onclick="handleNotifClick(event, ${n.id}, '${safeLink}')">
                                                     <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                                                        <span class="badge ${badgeClass} px-2 py-0 fs-8">${n.level.toUpperCase()}</span>
-                                                        <small class="text-muted" style="font-size: 0.7rem;">${n.created_at}</small>
+                                                        <div class="d-flex align-items-center gap-1.5">
+                                                            <span class="badge ${catClass} px-1.5 py-0.5 fs-8 fw-bold" style="text-transform: uppercase;"><i class="bi ${catIcon} me-1"></i>${n.category}</span>
+                                                            <span class="badge ${badgeClass} px-1.5 py-0.5 fs-8 fw-bold">${n.level.toUpperCase()}</span>
+                                                        </div>
+                                                        <small style="font-size: 0.68rem; color: var(--htc-text-muted);">${n.created_at}</small>
                                                     </div>
-                                                    <div class="fw-bold text-dark mb-1" style="font-size: 0.82rem;">${n.title}</div>
-                                                    <div class="text-muted" style="font-size: 0.78rem; line-height: 1.3;">${n.message}</div>
-                                                </a>`;
+                                                    <div class="fw-bold mb-1" style="font-size: 0.82rem; color: var(--htc-text);">${n.title}</div>
+                                                    <div style="font-size: 0.78rem; line-height: 1.35; color: var(--htc-text-muted);">${n.message}</div>
+                                                </div>`;
                                         });
                                         notifList.innerHTML = html;
                                     }
@@ -341,6 +413,18 @@
                         })
                         .catch(err => console.error("Notif error:", err));
                 }
+
+                // Attach category filter buttons
+                const filterBtns = document.querySelectorAll(".notif-filter-btn");
+                filterBtns.forEach(btn => {
+                    btn.addEventListener("click", function(e) {
+                        e.stopPropagation();
+                        filterBtns.forEach(b => b.classList.remove("active"));
+                        this.classList.add("active");
+                        activeNotifCategory = this.getAttribute("data-cat") || "all";
+                        fetchNotifications();
+                    });
+                });
 
                 const markBtn = document.getElementById("markNotifsReadBtn");
                 if (markBtn) {
@@ -359,6 +443,14 @@
 
                 fetchNotifications();
                 setInterval(fetchNotifications, 10000);
+
+                // Auto-dismiss toast messages after 5 seconds
+                document.querySelectorAll('.htc-toast').forEach(function(toastEl) {
+                    setTimeout(function() {
+                        var bsToast = bootstrap.Toast.getInstance(toastEl) || new bootstrap.Toast(toastEl);
+                        if (bsToast) bsToast.hide();
+                    }, 5000);
+                });
             });
         })();
 

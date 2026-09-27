@@ -1,14 +1,18 @@
-import io
 import base64
-import secrets
+import hashlib
+import io
 import pyotp
 import qrcode
+import secrets
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.contrib.auth.decorators import login_required
+from django.utils import timezone
 
 from accounts.decorators import role_required
 from accounts.forms import (
@@ -20,6 +24,42 @@ from accounts.forms import (
     UserSignupForm,
 )
 from accounts.models import User
+
+
+def get_client_device_hash(request):
+    ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() or request.META.get("REMOTE_ADDR", "127.0.0.1")
+    ua = request.META.get("HTTP_USER_AGENT", "unknown")
+    raw = f"{ip}:{ua}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def is_2fa_remembered_today(request, user):
+    cookie_val = request.COOKIES.get(f"htc_2fa_remember_{user.id}")
+    if not cookie_val:
+        return False
+    signer = TimestampSigner()
+    try:
+        unsigned_val = signer.unsign(cookie_val, max_age=86400)
+        parts = unsigned_val.split(":")
+        if len(parts) == 3:
+            uid, dev_hash, date_str = parts
+            current_dev_hash = get_client_device_hash(request)
+            today_str = timezone.localdate().isoformat()
+            if uid == str(user.id) and dev_hash == current_dev_hash and date_str == today_str:
+                return True
+    except (BadSignature, SignatureExpired):
+        pass
+    return False
+
+
+def set_2fa_remember_cookie(response, request, user):
+    signer = TimestampSigner()
+    today_str = timezone.localdate().isoformat()
+    dev_hash = get_client_device_hash(request)
+    cookie_data = f"{user.id}:{dev_hash}:{today_str}"
+    signed_val = signer.sign(cookie_data)
+    response.set_cookie(f"htc_2fa_remember_{user.id}", signed_val, max_age=86400, httponly=True, samesite="Lax")
+    return response
 
 
 def permission_denied(request, exception=None):
@@ -43,6 +83,7 @@ def login_view(request):
                 Q(username__iexact=login_input) | Q(email__iexact=login_input)
             ).first()
 
+
             username_to_auth = user_obj.username if user_obj else login_input
             user = authenticate(request, username=username_to_auth, password=password)
 
@@ -50,10 +91,15 @@ def login_view(request):
                 if not user.is_active:
                     error_message = "Your user account is pending Administrator approval. Please contact system management."
                 elif user.is_2fa_enabled:
-                    # Stash pre-2FA state in session
-                    request.session["pre_2fa_user_id"] = user.id
-                    request.session["pre_2fa_next"] = next_url
-                    return redirect("accounts:two_factor_verify")
+                    if is_2fa_remembered_today(request, user):
+                        login(request, user)
+                        messages.success(request, f"Welcome back, {user.get_full_name() or user.username}! (2FA active for this device today)")
+                        return redirect(next_url)
+                    else:
+                        # Stash pre-2FA state in session
+                        request.session["pre_2fa_user_id"] = user.id
+                        request.session["pre_2fa_next"] = next_url
+                        return redirect("accounts:two_factor_verify")
                 else:
                     login(request, user)
                     messages.success(request, f"Welcome back, {user.get_full_name() or user.username}!")
@@ -107,8 +153,9 @@ def two_factor_verify_view(request):
                     del request.session["pre_2fa_next"]
 
                 login(request, user)
-                messages.success(request, f"Welcome back, {user.get_full_name() or user.username}! 2FA verified.")
-                return redirect(next_url)
+                messages.success(request, f"Welcome back, {user.get_full_name() or user.username}! 2FA verified for today.")
+                response = redirect(next_url)
+                return set_2fa_remember_cookie(response, request, user)
             else:
                 error_message = "Invalid 2FA code or backup code. Please try again."
     else:

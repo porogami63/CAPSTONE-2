@@ -4,18 +4,63 @@
 {% block topbar_title %}Transactions{% endblock %}
 {% block topbar_subtitle %}Purchase order management with immutable audit trail{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-end align-items-center gap-2 mb-3">
-    <form method="post" action="{% url 'operations:bulk_archive_completed' %}" style="display:inline;" onsubmit="return confirm('Archive all closed and paid transactions?');">
-        {% csrf_token %}
-        <button type="submit" class="btn-htc-outline" title="Clear completed transactions to Archive"><i class="bi bi-archive"></i> Archive Completed</button>
-    </form>
-    <a href="{% url 'operations:archive_list' %}" class="btn-htc-outline" data-step="4" data-intro="Access historical completed contracts stored in the secure Archive Vault."><i class="bi bi-box-seam"></i> Archive Vault</a>
-    {% if user|has_perm:"create_transaction" %}
-    <a href="{% url 'operations:cluster_create' %}" class="btn-htc" data-step="3" data-intro="Create new standalone molasses trade contracts directly in the system."><i class="bi bi-plus-lg"></i> New Transaction</a>
-    {% endif %}
+<style>
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.65rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--htc-text-muted);
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    .status-chip:hover, .status-chip.active {
+        background: var(--htc-primary);
+        color: #ffffff;
+        border-color: var(--htc-primary);
+    }
+    .view-mode-btn {
+        padding: 0.25rem 0.6rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 6px;
+        border: 1px solid var(--htc-border);
+        background: var(--htc-surface);
+        color: var(--htc-text-muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    .view-mode-btn.active {
+        background: var(--htc-primary);
+        color: #ffffff;
+        border-color: var(--htc-primary);
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <button type="button" class="btn-htc-outline btn-sm" id="toggleKpiBtn" onclick="toggleKpis()">
+        <i class="bi bi-bar-chart me-1"></i> Hide KPI Summary
+    </button>
+
+    <div class="d-flex align-items-center gap-2">
+        <form method="post" action="{% url 'operations:bulk_archive_completed' %}" style="display:inline;" onsubmit="return confirm('Archive all closed and paid transactions?');">
+            {% csrf_token %}
+            <button type="submit" class="btn-htc-outline btn-sm" title="Clear completed transactions to Archive"><i class="bi bi-archive"></i> Archive Completed</button>
+        </form>
+        <a href="{% url 'operations:archive_list' %}" class="btn-htc-outline btn-sm" data-step="4" data-intro="Access historical completed contracts stored in the secure Archive Vault."><i class="bi bi-box-seam"></i> Archive Vault</a>
+        {% if user|has_perm:"create_transaction" %}
+        <a href="{% url 'operations:cluster_create' %}" class="btn-htc btn-sm" data-step="3" data-intro="Create new standalone molasses trade contracts directly in the system."><i class="bi bi-plus-lg"></i> New Transaction</a>
+        {% endif %}
+    </div>
 </div>
 
-<div class="metric-grid" data-step="1" data-intro="Overview metrics showing total molasses volume (MT), combined profit, average margin %, and active transaction count.">
+<div class="metric-grid" id="metricGrid" data-step="1" data-intro="Overview metrics showing total molasses volume (MT), combined profit, average margin %, and active transaction count.">
     <div class="metric-box">
         <div class="label">Total Volume</div>
         <div class="value">{{ total_volume|floatformat:3|intcomma }} MT</div>
@@ -34,7 +79,7 @@
     </div>
 </div>
 
-<form method="get" class="filters-bar" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;" data-step="2" data-intro="Filter transactions by status, customer client, sugar mill supplier, sort order, or text search.">
+<form method="get" class="filters-bar mb-2" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;" data-step="2" data-intro="Filter transactions by status, customer client, sugar mill supplier, sort order, or text search.">
     <div class="search-input-wrap" style="flex: 1; min-width: 220px;">
         <i class="bi bi-search"></i>
         <input type="text" name="q" value="{{ q }}" placeholder="Search by PO code, Customer, or Sugar Mill...">
@@ -83,9 +128,30 @@
     {% endif %}
 </form>
 
-<div class="tabs-row">
-    <button class="tab-btn active" type="button"><i class="bi bi-receipt"></i> Transactions</button>
-    <a href="{% url 'audit:list' %}" class="tab-btn"><i class="bi bi-shield-check"></i> Audit Trail</a>
+<!-- QUICK STATUS CHIPS -->
+<div class="d-flex align-items-center gap-1 mb-3 flex-wrap">
+    <span class="text-xs text-muted font-semibold me-2"><i class="bi bi-funnel-fill text-primary me-1"></i>Quick Status:</span>
+    <a href="{% url 'operations:cluster_list' %}" class="status-chip {% if not current_status %}active{% endif %}">All ({{ total_transactions }})</a>
+    {% for code, label in status_choices %}
+    <a href="?status={{ code }}" class="status-chip {% if current_status == code %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+</div>
+
+<div class="tabs-row d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-2">
+        <button class="tab-btn active" type="button"><i class="bi bi-receipt"></i> Transactions</button>
+        <a href="{% url 'audit:list' %}" class="tab-btn"><i class="bi bi-shield-check"></i> Audit Trail</a>
+    </div>
+
+    <div class="d-flex align-items-center gap-1">
+        <span class="text-xs text-muted me-1 font-semibold">View Density:</span>
+        <button type="button" class="view-mode-btn active" id="btnSplitView" onclick="setTxViewMode('split')" title="Split panel layout (Table + Contract Detail Pane)">
+            <i class="bi bi-layout-split"></i> Split View
+        </button>
+        <button type="button" class="view-mode-btn" id="btnFullView" onclick="setTxViewMode('full')" title="Full width table mode for uncluttered scanning of many transactions">
+            <i class="bi bi-table"></i> Full Table Mode
+        </button>
+    </div>
 </div>
 
 <div class="split-layout">
@@ -197,36 +263,48 @@
         <div class="detail-section">
             <div class="detail-section-title">Company Process Live Flowchart</div>
             <div class="flowchart-container" style="gap: 4px; margin-top: 0.5rem; margin-bottom: 0.5rem; padding-bottom: 0;">
-                <div class="flowchart-step" id="flowStep1">
-                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">01</div>
-                    <div class="flowchart-label" style="font-size: 0.72rem;">PO Input</div>
-                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub1">Registered</div>
-                </div>
-                <div class="flowchart-step" id="flowStep2">
-                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">02</div>
-                    <div class="flowchart-label" style="font-size: 0.72rem;">Approval</div>
-                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub2">Pending</div>
-                </div>
-                <div class="flowchart-step" id="flowStep3">
-                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">03</div>
-                    <div class="flowchart-label" style="font-size: 0.72rem;">Specs</div>
-                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub3">CHAI/MRO</div>
-                </div>
-                <div class="flowchart-step" id="flowStep4">
-                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">04</div>
-                    <div class="flowchart-label" style="font-size: 0.72rem;">Logistics</div>
-                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub4">Dispatch</div>
-                </div>
-                <div class="flowchart-step" id="flowStep5">
-                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">05</div>
-                    <div class="flowchart-label" style="font-size: 0.72rem;">Invoicing</div>
-                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub5">Billing</div>
-                </div>
-                <div class="flowchart-step" id="flowStep6">
-                    <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">06</div>
-                    <div class="flowchart-label" style="font-size: 0.72rem;">Settlement</div>
-                    <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub6">Closure</div>
-                </div>
+                <a href="#" id="flowLink1" class="flowchart-step-link" title="Step 01: View PO Input Details">
+                    <div class="flowchart-step w-100" id="flowStep1">
+                        <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">01</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">PO Input</div>
+                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub1">Registered</div>
+                    </div>
+                </a>
+                <a href="{% url 'operations:pending_tasks' %}" class="flowchart-step-link" title="Step 02: View Pending Task Approvals">
+                    <div class="flowchart-step w-100" id="flowStep2">
+                        <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">02</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Approval</div>
+                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub2">Pending</div>
+                    </div>
+                </a>
+                <a href="{% url 'operations:mro_summary' %}" class="flowchart-step-link" title="Step 03: View MRO Summary & Quality Specs">
+                    <div class="flowchart-step w-100" id="flowStep3">
+                        <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">03</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Specs</div>
+                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub3">CHAI/MRO</div>
+                    </div>
+                </a>
+                <a href="{% url 'operations:logistics_list' %}" class="flowchart-step-link" title="Step 04: View Logistics Ledger">
+                    <div class="flowchart-step w-100" id="flowStep4">
+                        <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">04</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Logistics</div>
+                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub4">Dispatch</div>
+                    </div>
+                </a>
+                <a href="{% url 'finance:invoice_list' %}" class="flowchart-step-link" title="Step 05: View Invoicing Module">
+                    <div class="flowchart-step w-100" id="flowStep5">
+                        <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">05</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Invoicing</div>
+                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub5">Billing</div>
+                    </div>
+                </a>
+                <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link" title="Step 06: View Capital Loans & Finance Settlement">
+                    <div class="flowchart-step w-100" id="flowStep6">
+                        <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">06</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Settlement</div>
+                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub6">Closure</div>
+                    </div>
+                </a>
             </div>
         </div>
 
@@ -267,6 +345,8 @@
         document.getElementById('panelNotes').textContent = d.notes;
         document.getElementById('panelInvoice').textContent = d.invoice;
         document.getElementById('panelFullUrl').href = d.url;
+        const flowLink1 = document.getElementById('flowLink1');
+        if (flowLink1) flowLink1.href = d.url;
         document.getElementById('panelStatusChip').textContent = row.querySelector('.badge-status').textContent.trim();
         document.getElementById('panelStatusChip').className = 'badge-status ' + d.status;
 
@@ -323,12 +403,65 @@
         }
 
         const pane = document.getElementById('detailPane');
-        pane.hidden = false;
+        const mode = localStorage.getItem('htc_tx_view_mode') || 'split';
+        if (mode !== 'full') {
+            pane.hidden = false;
+        }
+    }
+
+    function toggleKpis() {
+        const grid = document.getElementById('metricGrid');
+        const btn = document.getElementById('toggleKpiBtn');
+        if (!grid || !btn) return;
+        if (grid.style.display === 'none') {
+            grid.style.display = 'grid';
+            btn.innerHTML = '<i class="bi bi-bar-chart me-1"></i> Hide KPI Summary';
+            localStorage.setItem('htc_tx_hide_kpis', 'false');
+        } else {
+            grid.style.display = 'none';
+            btn.innerHTML = '<i class="bi bi-bar-chart-line me-1"></i> Show KPI Summary';
+            localStorage.setItem('htc_tx_hide_kpis', 'true');
+        }
+    }
+
+    function setTxViewMode(mode) {
+        const layout = document.querySelector('.split-layout');
+        const pane = document.getElementById('detailPane');
+        const btnSplit = document.getElementById('btnSplitView');
+        const btnFull = document.getElementById('btnFullView');
+        if (!layout || !pane) return;
+
+        if (mode === 'full') {
+            layout.style.gridTemplateColumns = '1fr';
+            pane.hidden = true;
+            if (btnFull) btnFull.classList.add('active');
+            if (btnSplit) btnSplit.classList.remove('active');
+            localStorage.setItem('htc_tx_view_mode', 'full');
+        } else {
+            layout.style.gridTemplateColumns = '';
+            pane.hidden = false;
+            if (btnSplit) btnSplit.classList.add('active');
+            if (btnFull) btnFull.classList.remove('active');
+            localStorage.setItem('htc_tx_view_mode', 'split');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const firstRow = document.querySelector('.interactive-row');
-        if (firstRow) selectCluster(firstRow);
+        const hideKpis = localStorage.getItem('htc_tx_hide_kpis');
+        if (hideKpis === 'true') {
+            const grid = document.getElementById('metricGrid');
+            const btn = document.getElementById('toggleKpiBtn');
+            if (grid) grid.style.display = 'none';
+            if (btn) btn.innerHTML = '<i class="bi bi-bar-chart-line me-1"></i> Show KPI Summary';
+        }
+
+        const mode = localStorage.getItem('htc_tx_view_mode') || 'split';
+        if (mode === 'full') {
+            setTxViewMode('full');
+        } else {
+            const firstRow = document.querySelector('.interactive-row');
+            if (firstRow) selectCluster(firstRow);
+        }
     });
 </script>
 {% endblock %}

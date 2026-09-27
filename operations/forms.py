@@ -74,11 +74,24 @@ class TransactionClusterForm(forms.ModelForm):
         label="Brix Quality Level (%)",
         widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 85.50", "step": "0.01"}),
     )
-    chai_specs = forms.CharField(
-        max_length=120,
+    CHAI_CHOICES = [
+        ("", "-- Select CHAI Quality Rating --"),
+        ("1.0", "1.0 — Premium Grade A (Brix 85°+)"),
+        ("1.5", "1.5 — Superior Grade A- (Brix 83.0° – 84.9°)"),
+        ("2.0", "2.0 — Standard Commercial Grade B (Brix 80.0° – 82.9°)"),
+        ("2.5", "2.5 — Medium Commercial Grade B- (Brix 78.0° – 79.9°)"),
+        ("3.0", "3.0 — Industrial Distillation Grade C (Brix 75.0° – 77.9°)"),
+        ("3.5", "3.5 — Utility Grade C- (Brix 72.0° – 74.9°)"),
+        ("4.0", "4.0 — Low Grade D (Brix 70.0° – 71.9°)"),
+        ("5.0", "5.0 — Substandard / Off-Spec (< 70.0° Brix)"),
+    ]
+
+    chai_specs = forms.ChoiceField(
+        choices=CHAI_CHOICES,
         required=False,
-        label="CHAI Specs",
-        widget=forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Standard Grade A Quality"}),
+        label="CHAI Quality Rating",
+        help_text="Select standard CHAI quality numerical rating grade",
+        widget=forms.Select(attrs={"class": "form-select-htc"}),
     )
 
     class Meta:
@@ -113,7 +126,15 @@ class TransactionClusterForm(forms.ModelForm):
                 self.fields["selling_price"].initial = po.selling_price
                 self.fields["terms"].initial = po.terms
                 self.fields["brix_level"].initial = po.brix_level
-                self.fields["chai_specs"].initial = po.chai_specs
+                
+                # Normalize chai_specs string to numeric key if needed
+                specs_val = (po.chai_specs or "").strip()
+                import re
+                match = re.search(r"(\d+\.\d+|\d+)", specs_val)
+                if match and match.group(1) in dict(self.CHAI_CHOICES):
+                    self.fields["chai_specs"].initial = match.group(1)
+                else:
+                    self.fields["chai_specs"].initial = specs_val
             if hasattr(self.instance, "logistics") and self.instance.logistics:
                 log = self.instance.logistics
                 vol = float(log.loaded_volume_mt or 0)

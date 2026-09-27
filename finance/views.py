@@ -12,7 +12,7 @@ from accounts.decorators import role_required
 from accounts.models import User
 from operations.models import TransactionCluster
 
-from .forms import PaymentExpenseMatchForm
+from .forms import PaymentExpenseMatchForm, StandaloneInvoiceForm, StandaloneLoanForm
 from .models import CapitalLoan, CashVoucher, FinancialReconciliation, Invoice, PaymentExpenseMatch
 
 
@@ -170,6 +170,53 @@ def delete_match(request, cluster_pk, match_pk):
 
 @role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE)
 def loan_list(request):
+    if request.method == "POST":
+        from accounts.permissions import user_has_perm
+        if user_has_perm(request.user, "add_loan"):
+            form = StandaloneLoanForm(request.POST, user=request.user)
+            if form.is_valid():
+                loan = form.save(commit=False)
+                if loan.status == CapitalLoan.Status.ACTIVE:
+                    loan.verified_by = request.user
+                    loan.verified_at = timezone.now()
+                loan._audit_user = request.user
+                loan.save()
+
+                from chat.views import send_system_notification
+                from audit.services import notify_roles
+
+                if loan.status == CapitalLoan.Status.ACTIVE:
+                    send_system_notification(
+                        loan.cluster,
+                        f"Capital Loan facility ₱{loan.principal:,.2f} ({loan.bank_name}) created & ACTIVE by {request.user.get_full_name() or request.user.username}.",
+                        sender_user=request.user,
+                    )
+                    messages.success(
+                        request,
+                        f"Capital Loan facility of ₱{loan.principal:,.2f} ({loan.bank_name}) created and linked to transaction {loan.cluster.reference_code}.",
+                    )
+                else:
+                    send_system_notification(
+                        loan.cluster,
+                        f"New Capital Loan proposal ₱{loan.principal:,.2f} ({loan.bank_name}) submitted by {request.user.get_full_name() or request.user.username}. Pending Ops/Admin verification.",
+                        sender_user=request.user,
+                    )
+                    notify_roles(
+                        [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT],
+                        title=f"New Loan Proposal Pending Approval — {loan.cluster.reference_code}",
+                        message=f"Finance submitted a loan facility proposal of ₱{loan.principal:,.2f} from {loan.bank_name}. Action required: Review & Approve.",
+                        level="warning",
+                        link="/finance/loans/",
+                        exclude_user=request.user,
+                    )
+                    messages.success(
+                        request,
+                        f"Capital Loan facility of ₱{loan.principal:,.2f} submitted for creation approval and linked to transaction {loan.cluster.reference_code}.",
+                    )
+                return redirect("finance:loan_list")
+            else:
+                messages.error(request, "Error creating loan facility. Please check your form entries.")
+
     loans = list(CapitalLoan.objects.select_related("cluster", "cluster__client", "verified_by").order_by("-created_at"))
 
     active_exposure = Decimal("0")
@@ -249,6 +296,8 @@ def loan_list(request):
             "status": "Issued",
         })
 
+    loan_form = StandaloneLoanForm(user=request.user)
+
     return render(
         request,
         "finance/loan_list.html",
@@ -262,6 +311,7 @@ def loan_list(request):
             "accrued_interest": accrued_interest,
             "logistics_deposits_m": logistics_deposits_m,
             "overdue_facilities": overdue_facilities,
+            "loan_form": loan_form,
         },
     )
 

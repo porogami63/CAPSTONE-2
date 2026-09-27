@@ -75,6 +75,14 @@
             </div>
         </div>
 
+        <div id="suggestedTermsBanner" class="alert alert-info py-2 px-3 mb-3 d-none align-items-center justify-content-between" style="background: rgba(96, 165, 250, 0.12); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: var(--htc-primary-light); font-size: 0.85rem;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-lightbulb-fill text-warning fs-6"></i>
+                <span><strong id="suggestedTitle">Smart Suggestion Applied:</strong> Commercial pricing & terms auto-filled based on <span id="suggestedSampleSize">0</span> past trades.</span>
+            </div>
+            <button type="button" class="btn-close text-reset ms-2" onclick="document.getElementById('suggestedTermsBanner').classList.remove('d-flex'); document.getElementById('suggestedTermsBanner').classList.add('d-none');" aria-label="Close" style="font-size: 0.75rem;"></button>
+        </div>
+
         <div class="row g-3">
             <div class="col-md-4">
                 <label for="{{ form.volume_mt.id_for_label }}" class="form-label font-semibold text-sm">Contract Volume <span class="text-danger">*</span></label>
@@ -144,9 +152,9 @@
             </div>
 
             <div class="col-md-6">
-                <label for="{{ form.chai_specs.id_for_label }}" class="form-label font-semibold text-sm">CHAI / Quality Specifications</label>
+                <label for="{{ form.chai_specs.id_for_label }}" class="form-label font-semibold text-sm">CHAI Quality Rating Grade</label>
                 {{ form.chai_specs }}
-                <div class="form-text text-xs text-muted mt-1">Chemical quality specifications or grading reference.</div>
+                <div class="form-text text-xs text-muted mt-1">Numerical quality grade scale (1.0 Premium to 5.0 Substandard / Off-Spec).</div>
                 {% if form.chai_specs.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_specs.errors|striptags }}</div>{% endif %}
             </div>
         </div>
@@ -256,6 +264,96 @@ document.addEventListener('DOMContentLoaded', function() {
     if (truckingRateInput) truckingRateInput.addEventListener('input', updateLiveCalculation);
     if (bargeRateInput) bargeRateInput.addEventListener('input', updateLiveCalculation);
     updateLiveCalculation();
+
+    // Predictive Trade Terms Auto-Fill Logic
+    const clientSelect = document.getElementById('{{ form.client.id_for_label }}');
+    const millSelect = document.getElementById('{{ form.sugar_mill.id_for_label }}');
+    const termsInput = document.getElementById('{{ form.terms.id_for_label }}');
+    const brixInput = document.getElementById('{{ form.brix_level.id_for_label }}');
+    const chaiSelect = document.getElementById('{{ form.chai_specs.id_for_label }}');
+    const suggestedBanner = document.getElementById('suggestedTermsBanner');
+    const suggestedSampleSize = document.getElementById('suggestedSampleSize');
+
+    const userEditedFields = new Set();
+    [costPriceInput, sellPriceInput, truckingRateInput, bargeRateInput, termsInput, brixInput, chaiSelect].forEach(el => {
+        if (el) {
+            el.addEventListener('change', () => userEditedFields.add(el.id));
+            el.addEventListener('input', () => userEditedFields.add(el.id));
+        }
+    });
+
+    function checkPredictiveTerms() {
+        const clientId = clientSelect ? clientSelect.value : '';
+        const millId = millSelect ? millSelect.value : '';
+        if (!clientId && !millId) return;
+
+        fetch(`{% url 'operations:predict_trade_terms_api' %}?client_id=${encodeURIComponent(clientId)}&sugar_mill_id=${encodeURIComponent(millId)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.found || data.has_match || data.status === 'success') {
+                    const payload = data.data || data;
+                    let filledAny = false;
+
+                    const unitPrice = data.avg_unit_price !== undefined ? data.avg_unit_price : payload.unit_price;
+                    const sellingPrice = data.avg_selling_price !== undefined ? data.avg_selling_price : payload.selling_price;
+                    const truckingRate = data.avg_trucking_rate !== undefined ? data.avg_trucking_rate : payload.est_trucking_rate;
+                    const bargeRate = data.avg_barge_rate !== undefined ? data.avg_barge_rate : payload.est_barge_rate;
+                    const terms = data.common_terms !== undefined ? data.common_terms : payload.terms;
+                    const brix = data.avg_brix !== undefined ? data.avg_brix : payload.brix_level;
+                    const chai = data.common_chai !== undefined ? data.common_chai : payload.chai_specs;
+
+                    if (costPriceInput && unitPrice !== null && unitPrice !== undefined && !userEditedFields.has(costPriceInput.id)) {
+                        costPriceInput.value = parseFloat(unitPrice).toFixed(2);
+                        filledAny = true;
+                    }
+                    if (sellPriceInput && sellingPrice !== null && sellingPrice !== undefined && !userEditedFields.has(sellPriceInput.id)) {
+                        sellPriceInput.value = parseFloat(sellingPrice).toFixed(2);
+                        filledAny = true;
+                    }
+                    if (truckingRateInput && truckingRate !== null && truckingRate !== undefined && !userEditedFields.has(truckingRateInput.id)) {
+                        truckingRateInput.value = parseFloat(truckingRate).toFixed(2);
+                        filledAny = true;
+                    }
+                    if (bargeRateInput && bargeRate !== null && bargeRate !== undefined && !userEditedFields.has(bargeRateInput.id)) {
+                        bargeRateInput.value = parseFloat(bargeRate).toFixed(2);
+                        filledAny = true;
+                    }
+                    if (termsInput && terms && (!termsInput.value || !userEditedFields.has(termsInput.id))) {
+                        termsInput.value = terms;
+                        filledAny = true;
+                    }
+                    if (brixInput && brix !== null && brix !== undefined && !userEditedFields.has(brixInput.id)) {
+                        brixInput.value = parseFloat(brix).toFixed(1);
+                        filledAny = true;
+                    }
+                    if (chaiSelect && chai && !userEditedFields.has(chaiSelect.id)) {
+                        chaiSelect.value = chai;
+                        filledAny = true;
+                    }
+
+                    if (filledAny) {
+                        updateLiveCalculation();
+                        if (suggestedBanner) {
+                            if (suggestedSampleSize) {
+                                suggestedSampleSize.textContent = data.sample_size || 1;
+                            }
+                            suggestedBanner.classList.remove('d-none');
+                            suggestedBanner.classList.add('d-flex');
+                        }
+                    }
+                }
+            })
+            .catch(err => console.error("Predict API error:", err));
+    }
+
+    if (clientSelect) clientSelect.addEventListener('change', checkPredictiveTerms);
+    if (millSelect) millSelect.addEventListener('change', checkPredictiveTerms);
+
+    {% if not object %}
+    if (clientSelect && millSelect && (clientSelect.value || millSelect.value)) {
+        checkPredictiveTerms();
+    }
+    {% endif %}
 });
 
 function fetchAutoRef() {
