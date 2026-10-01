@@ -1,14 +1,19 @@
-import io
 import base64
-import secrets
+import hashlib
+import io
 import pyotp
 import qrcode
+import secrets
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.core.cache import cache
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.contrib.auth.decorators import login_required
+from django.utils import timezone
 
 from accounts.decorators import role_required
 from accounts.forms import (
@@ -22,9 +27,51 @@ from accounts.forms import (
 from accounts.models import User
 
 
+def get_client_device_hash(request):
+    ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() or request.META.get("REMOTE_ADDR", "127.0.0.1")
+    ua = request.META.get("HTTP_USER_AGENT", "unknown")
+    raw = f"{ip}:{ua}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def is_2fa_remembered_today(request, user):
+    cookie_val = request.COOKIES.get(f"htc_2fa_remember_{user.id}")
+    if not cookie_val:
+        return False
+    signer = TimestampSigner()
+    try:
+        unsigned_val = signer.unsign(cookie_val, max_age=86400)
+        parts = unsigned_val.split(":")
+        if len(parts) == 3:
+            uid, dev_hash, date_str = parts
+            current_dev_hash = get_client_device_hash(request)
+            today_str = timezone.localdate().isoformat()
+            if uid == str(user.id) and dev_hash == current_dev_hash and date_str == today_str:
+                return True
+    except (BadSignature, SignatureExpired):
+        pass
+    return False
+
+
+def set_2fa_remember_cookie(response, request, user):
+    signer = TimestampSigner()
+    today_str = timezone.localdate().isoformat()
+    dev_hash = get_client_device_hash(request)
+    cookie_data = f"{user.id}:{dev_hash}:{today_str}"
+    signed_val = signer.sign(cookie_data)
+    response.set_cookie(f"htc_2fa_remember_{user.id}", signed_val, max_age=86400, httponly=True, samesite="Lax")
+    return response
+
+
 def permission_denied(request, exception=None):
     return render(request, "403.html", status=403)
 
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
 
 def login_view(request):
     if request.user.is_authenticated:
@@ -32,6 +79,18 @@ def login_view(request):
 
     next_url = request.GET.get("next") or request.POST.get("next") or "dashboard:home"
     error_message = None
+
+    ip = get_client_ip(request)
+    cache_key = f"login_attempts_{ip}"
+    attempts = cache.get(cache_key, 0)
+
+    if attempts >= 5:
+        error_message = "Too many failed login attempts. Please try again in 5 minutes."
+        return render(request, "accounts/login.html", {
+            "form": UserLoginForm(),
+            "next": next_url,
+            "login_error": error_message,
+        })
 
     if request.method == "POST":
         form = UserLoginForm(request.POST)
@@ -43,22 +102,30 @@ def login_view(request):
                 Q(username__iexact=login_input) | Q(email__iexact=login_input)
             ).first()
 
+
             username_to_auth = user_obj.username if user_obj else login_input
             user = authenticate(request, username=username_to_auth, password=password)
 
             if user is not None:
+                cache.delete(cache_key)
                 if not user.is_active:
                     error_message = "Your user account is pending Administrator approval. Please contact system management."
                 elif user.is_2fa_enabled:
-                    # Stash pre-2FA state in session
-                    request.session["pre_2fa_user_id"] = user.id
-                    request.session["pre_2fa_next"] = next_url
-                    return redirect("accounts:two_factor_verify")
+                    if is_2fa_remembered_today(request, user):
+                        login(request, user)
+                        messages.success(request, f"Welcome back, {user.get_full_name() or user.username}! (2FA active for this device today)")
+                        return redirect(next_url)
+                    else:
+                        # Stash pre-2FA state in session
+                        request.session["pre_2fa_user_id"] = user.id
+                        request.session["pre_2fa_next"] = next_url
+                        return redirect("accounts:two_factor_verify")
                 else:
                     login(request, user)
                     messages.success(request, f"Welcome back, {user.get_full_name() or user.username}!")
                     return redirect(next_url)
             else:
+                cache.set(cache_key, attempts + 1, 300)
                 if user_obj and not user_obj.is_active:
                     error_message = "Your user account is pending Administrator approval. Please contact system management."
                 else:
@@ -107,8 +174,9 @@ def two_factor_verify_view(request):
                     del request.session["pre_2fa_next"]
 
                 login(request, user)
-                messages.success(request, f"Welcome back, {user.get_full_name() or user.username}! 2FA verified.")
-                return redirect(next_url)
+                messages.success(request, f"Welcome back, {user.get_full_name() or user.username}! 2FA verified for today.")
+                response = redirect(next_url)
+                return set_2fa_remember_cookie(response, request, user)
             else:
                 error_message = "Invalid 2FA code or backup code. Please try again."
     else:
@@ -139,7 +207,7 @@ def two_factor_setup_view(request):
     # Generate QR Code SVG / PNG in base64
     qr_img = qrcode.make(qr_uri)
     buffer = io.BytesIO()
-    qr_img.save(buffer, format="PNG")
+    qr_img.save(buffer)
     qr_code_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     error_message = None

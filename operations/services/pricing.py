@@ -140,3 +140,53 @@ def cluster_financials(cluster) -> dict:
         "net_sales_formula": net_sales_formula,
         "profit_formula": profit_formula,
     }
+
+
+def get_invoice_suggestion_data(cluster) -> dict:
+    """Computes suggestive pricing insights for sales invoice issuance based on initial PO selling price and partial invoice history."""
+    po = getattr(cluster, "purchase_order", None)
+    logistics = getattr(cluster, "logistics", None)
+    invoices = list(cluster.invoices.all()) if hasattr(cluster, "invoices") else []
+
+    selling_price = float(po.selling_price) if po and po.selling_price else 0.0
+    if selling_price <= 0 and po and po.terms:
+        parsed = _parse_selling_from_terms(po.terms)
+        if parsed:
+            selling_price = float(parsed)
+
+    contract_vol = float(po.volume_mt) if po and po.volume_mt else 0.0
+    contract_total = round(selling_price * contract_vol, 2)
+
+    already_invoiced = round(sum(float(inv.amount) for inv in invoices), 2)
+    invoices_count = len(invoices)
+    remaining_balance = max(0.0, round(contract_total - already_invoiced, 2))
+
+    received_vol = float(logistics.received_volume_mt) if logistics and logistics.received_volume_mt is not None else 0.0
+    received_total = round(selling_price * received_vol, 2) if received_vol > 0 else 0.0
+    remaining_received_balance = max(0.0, round(received_total - already_invoiced, 2)) if received_vol > 0 else 0.0
+
+    suggested_full = remaining_balance if (already_invoiced > 0 or remaining_balance > 0) else contract_total
+
+    has_existing_invoice = invoices_count > 0
+
+    return {
+        "cluster_id": str(cluster.id) if hasattr(cluster, "id") else None,
+        "ref": cluster.reference_code,
+        "client_name": cluster.client.name if hasattr(cluster, "client") and cluster.client else "Customer",
+        "selling_price": selling_price,
+        "contract_volume": contract_vol,
+        "contract_total": contract_total,
+        "already_invoiced": already_invoiced,
+        "invoices_count": invoices_count,
+        "has_existing_invoice": has_existing_invoice,
+        "incremental_required": has_existing_invoice,
+        "remaining_balance": remaining_balance,
+        "received_volume": received_vol,
+        "received_total": received_total,
+        "remaining_received_balance": remaining_received_balance,
+        "suggested_full": suggested_full,
+        "suggested_received": remaining_received_balance if remaining_received_balance > 0 else received_total,
+        "suggested_50_pct": round(suggested_full * 0.5, 2),
+        "suggested_25_pct": round(suggested_full * 0.25, 2),
+    }
+

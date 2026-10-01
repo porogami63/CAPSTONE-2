@@ -1,4 +1,5 @@
 {% extends "app_base.html" %}
+{% load static %}
 {% block title %}{% if object %}Edit {{ object.reference_code }}{% else %}New Transaction{% endif %} · HTC Core{% endblock %}
 {% block topbar_title %}{% if object %}Edit Transaction{% else %}Create Transaction{% endif %}{% endblock %}
 
@@ -21,7 +22,7 @@
     </div>
 </div>
 
-<form method="post" style="max-width: 860px; margin: 0 auto;">
+<form method="post" data-outlier-guard="true" style="max-width: 860px; margin: 0 auto;">
     {% csrf_token %}
 
     <!-- Card 1: Contract Basics -->
@@ -36,8 +37,14 @@
 
         <div class="row g-3">
             <div class="col-md-6">
-                <label for="{{ form.reference_code.id_for_label }}" class="form-label font-semibold text-sm">Reference Code <span class="text-danger">*</span></label>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label for="{{ form.reference_code.id_for_label }}" class="form-label font-semibold text-sm mb-0">Reference Code</label>
+                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-2" style="font-size: 0.72rem;" onclick="fetchAutoRef()">
+                        <i class="bi bi-magic me-1"></i> Auto-Generate PO #
+                    </button>
+                </div>
                 {{ form.reference_code }}
+                <div class="form-text text-xs text-muted mt-1">Leave blank or click Auto-Generate for date-based code (e.g. PO-YYYYMMDD-001).</div>
                 {% if form.reference_code.errors %}<div class="text-danger text-xs mt-1">{{ form.reference_code.errors|striptags }}</div>{% endif %}
             </div>
             <div class="col-md-6">
@@ -66,6 +73,14 @@
                 <h3>2. Purchase Order & Pricing Details</h3>
                 <p>Define procurement quantities, unit pricing, and commercial terms.</p>
             </div>
+        </div>
+
+        <div id="suggestedTermsBanner" class="alert alert-info py-2 px-3 mb-3 d-none align-items-center justify-content-between" style="background: rgba(96, 165, 250, 0.12); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: var(--htc-primary-light); font-size: 0.85rem;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-lightbulb-fill text-warning fs-6"></i>
+                <span><strong id="suggestedTitle">Smart Suggestion Applied:</strong> Commercial pricing & terms auto-filled based on <span id="suggestedSampleSize">0</span> past trades.</span>
+            </div>
+            <button type="button" class="btn-close text-reset ms-2" onclick="document.getElementById('suggestedTermsBanner').classList.remove('d-flex'); document.getElementById('suggestedTermsBanner').classList.add('d-none');" aria-label="Close" style="font-size: 0.75rem;"></button>
         </div>
 
         <div class="row g-3">
@@ -98,74 +113,106 @@
                 <div class="form-text text-xs text-muted mt-1">Price billed to Customer (₱/MT).</div>
                 {% if form.selling_price.errors %}<div class="text-danger text-xs mt-1">{{ form.selling_price.errors|striptags }}</div>{% endif %}
             </div>
-
-            <div class="col-md-6">
-                <label for="{{ form.est_trucking_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Land Trucking Rate</label>
-                <div class="input-addon-group">
-                    <span class="addon addon-prefix">₱</span>
-                    {{ form.est_trucking_rate }}
-                </div>
-                <div class="form-text text-xs text-muted mt-1">Land transport cost per MT (₱/MT).</div>
-                {% if form.est_trucking_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_trucking_rate.errors|striptags }}</div>{% endif %}
-            </div>
-
-            <div class="col-md-6">
-                <label for="{{ form.est_barge_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Marine Barging Rate</label>
-                <div class="input-addon-group">
-                    <span class="addon addon-prefix">₱</span>
-                    {{ form.est_barge_rate }}
-                </div>
-                <div class="form-text text-xs text-muted mt-1">Marine barging cost per MT (₱/MT).</div>
-                {% if form.est_barge_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_barge_rate.errors|striptags }}</div>{% endif %}
-            </div>
-
-            <div class="col-12">
-                <label for="{{ form.terms.id_for_label }}" class="form-label font-semibold text-sm">Commercial &amp; Payment Terms</label>
-                {{ form.terms }}
-                <div class="form-text text-xs text-muted mt-1">Payment terms &amp; commercial conditions (e.g. "Net 30 days, LC at sight").</div>
-                {% if form.terms.errors %}<div class="text-danger text-xs mt-1">{{ form.terms.errors|striptags }}</div>{% endif %}
-            </div>
-
-            <div class="col-md-6">
-                <label for="{{ form.brix_level.id_for_label }}" class="form-label font-semibold text-sm">Brix Quality Level (%)</label>
-                <div class="input-addon-group">
-                    {{ form.brix_level }}
-                    <span class="addon addon-suffix">% Brix</span>
-                </div>
-                <div class="form-text text-xs text-muted mt-1">Verified sugar density specification level.</div>
-                {% if form.brix_level.errors %}<div class="text-danger text-xs mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
-            </div>
-
-            <div class="col-md-6">
-                <label for="{{ form.chai_specs.id_for_label }}" class="form-label font-semibold text-sm">CHAI / Quality Specifications</label>
-                {{ form.chai_specs }}
-                <div class="form-text text-xs text-muted mt-1">Chemical quality specifications or grading reference.</div>
-                {% if form.chai_specs.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_specs.errors|striptags }}</div>{% endif %}
-            </div>
         </div>
 
-        <!-- Live Financial & Logistics Summary Calculator -->
-        <div class="live-calc-box" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1rem 1.25rem; margin-top: 1.25rem;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1.1fr 1.2fr; gap: 1rem; align-items: center;">
-                <div>
-                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted);">Supplier Outlay (Cost)</div>
-                    <div class="calc-formula" id="calcFormulaCost" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
-                    <div class="calc-value" id="calcTotalCost" style="font-size: 1.05rem; font-weight: 700; color: var(--htc-danger);">₱0.00</div>
+        <!-- Live Profit Summary (compact, always visible) -->
+        <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 0.75rem 1.25rem; margin-top: 1.25rem; cursor: pointer;" onclick="document.getElementById('calcExpandedDetails').classList.toggle('d-none'); this.querySelector('.calc-chevron').classList.toggle('bi-chevron-down'); this.querySelector('.calc-chevron').classList.toggle('bi-chevron-up');">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <div>
+                        <span class="text-xs text-muted fw-bold text-uppercase">Projected Profit</span>
+                        <div class="calc-value" id="calcGrossMargin" style="font-size: 1.15rem; font-weight: 800; color: var(--htc-success);">₱0.00</div>
+                    </div>
+                    <span class="text-muted" style="font-size: 0.78rem;">|</span>
+                    <div>
+                        <span class="text-xs text-muted fw-bold text-uppercase">Cost</span>
+                        <div id="calcTotalCost" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text-muted);">₱0.00</div>
+                    </div>
+                    <span class="text-muted" style="font-size: 0.78rem;">|</span>
+                    <div>
+                        <span class="text-xs text-muted fw-bold text-uppercase">Revenue</span>
+                        <div id="calcTotalRev" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text-muted);">₱0.00</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted);">Customer Sales (Revenue)</div>
-                    <div class="calc-formula" id="calcFormulaRev" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
-                    <div class="calc-value" id="calcTotalRev" style="font-size: 1.05rem; font-weight: 700; color: var(--htc-primary-light);">₱0.00</div>
+                <i class="bi bi-chevron-down calc-chevron text-muted"></i>
+            </div>
+            <div id="calcExpandedDetails" class="d-none" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--htc-border);">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <div class="text-xs text-muted fw-bold text-uppercase">Supplier Outlay Formula</div>
+                        <div id="calcFormulaCost" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted fw-bold text-uppercase">Customer Sales Formula</div>
+                        <div id="calcFormulaRev" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted fw-bold text-uppercase">Freight Outlay</div>
+                        <div id="calcFormulaLog" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
+                        <div id="calcTotalLogistics" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text-muted);">₱0.00</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-gold);">Projected Freight Outlay</div>
-                    <div class="calc-formula" id="calcFormulaLog" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
-                    <div class="calc-value" id="calcTotalLogistics" style="font-size: 1.05rem; font-weight: 700; color: var(--htc-gold);">₱0.00</div>
-                </div>
-                <div style="border-left: 1px solid var(--htc-border); padding-left: 1rem;">
-                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-success);">Projected Net Trade Profit</div>
-                    <div class="calc-formula" id="calcFormulaMargin" style="font-size: 0.78rem; color: var(--htc-text-muted);">Revenue − Cost − Freight</div>
-                    <div class="calc-value" id="calcGrossMargin" style="font-size: 1.15rem; font-weight: 800; color: var(--htc-success);">₱0.00</div>
+            </div>
+        </div>
+        <div id="calcFormulaMargin" class="d-none"></div>
+
+        <!-- Collapsible: Additional Details (freight, terms, quality) -->
+        <div style="margin-top: 1.25rem;">
+            <button type="button" class="btn btn-sm w-100 d-flex align-items-center justify-content-between py-2 px-3"
+                    style="background: var(--htc-bg); border: 1px dashed var(--htc-border); border-radius: 8px; color: var(--htc-text-muted); font-size: 0.82rem; font-weight: 600;"
+                    onclick="document.getElementById('advancedFields').classList.toggle('d-none'); this.querySelector('.adv-chevron').classList.toggle('bi-chevron-down'); this.querySelector('.adv-chevron').classList.toggle('bi-chevron-up'); this.querySelector('.adv-label').textContent = document.getElementById('advancedFields').classList.contains('d-none') ? 'Show Additional Details' : 'Hide Additional Details';">
+                <span class="d-flex align-items-center gap-2">
+                    <i class="bi bi-sliders2"></i>
+                    <span class="adv-label">Show Additional Details</span>
+                    <span class="badge bg-secondary bg-opacity-25 text-muted" style="font-size: 0.68rem;">Freight, Terms, Quality Specs</span>
+                </span>
+                <i class="bi bi-chevron-down adv-chevron"></i>
+            </button>
+            <div id="advancedFields" class="{% if not object %}d-none{% endif %}" style="margin-top: 0.75rem;">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.est_trucking_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Land Trucking Rate</label>
+                        <div class="input-addon-group">
+                            <span class="addon addon-prefix">₱</span>
+                            {{ form.est_trucking_rate }}
+                        </div>
+                        <div class="form-text text-xs text-muted mt-1">Land transport cost per MT (₱/MT).</div>
+                        {% if form.est_trucking_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_trucking_rate.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="{{ form.est_barge_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Marine Barging Rate</label>
+                        <div class="input-addon-group">
+                            <span class="addon addon-prefix">₱</span>
+                            {{ form.est_barge_rate }}
+                        </div>
+                        <div class="form-text text-xs text-muted mt-1">Marine barging cost per MT (₱/MT).</div>
+                        {% if form.est_barge_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_barge_rate.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-12">
+                        <label for="{{ form.terms.id_for_label }}" class="form-label font-semibold text-sm">Commercial &amp; Payment Terms</label>
+                        {{ form.terms }}
+                        <div class="form-text text-xs text-muted mt-1">Payment terms &amp; commercial conditions (e.g. "Net 30 days, LC at sight").</div>
+                        {% if form.terms.errors %}<div class="text-danger text-xs mt-1">{{ form.terms.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="{{ form.brix_level.id_for_label }}" class="form-label font-semibold text-sm">Brix Quality Level (%)</label>
+                        <div class="input-addon-group">
+                            {{ form.brix_level }}
+                            <span class="addon addon-suffix">% Brix</span>
+                        </div>
+                        <div class="form-text text-xs text-muted mt-1">Verified sugar density specification level.</div>
+                        {% if form.brix_level.errors %}<div class="text-danger text-xs mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="{{ form.chai_specs.id_for_label }}" class="form-label font-semibold text-sm">CHAI Quality Rating Grade</label>
+                        {{ form.chai_specs }}
+                        <div class="form-text text-xs text-muted mt-1">Numerical quality grade scale (1.0 Premium to 5.0 Substandard / Off-Spec).</div>
+                        {% if form.chai_specs.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_specs.errors|striptags }}</div>{% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -249,6 +296,108 @@ document.addEventListener('DOMContentLoaded', function() {
     if (truckingRateInput) truckingRateInput.addEventListener('input', updateLiveCalculation);
     if (bargeRateInput) bargeRateInput.addEventListener('input', updateLiveCalculation);
     updateLiveCalculation();
+
+    // Predictive Trade Terms Auto-Fill Logic
+    const clientSelect = document.getElementById('{{ form.client.id_for_label }}');
+    const millSelect = document.getElementById('{{ form.sugar_mill.id_for_label }}');
+    const termsInput = document.getElementById('{{ form.terms.id_for_label }}');
+    const brixInput = document.getElementById('{{ form.brix_level.id_for_label }}');
+    const chaiSelect = document.getElementById('{{ form.chai_specs.id_for_label }}');
+    const suggestedBanner = document.getElementById('suggestedTermsBanner');
+    const suggestedSampleSize = document.getElementById('suggestedSampleSize');
+
+    const userEditedFields = new Set();
+    [costPriceInput, sellPriceInput, truckingRateInput, bargeRateInput, termsInput, brixInput, chaiSelect].forEach(el => {
+        if (el) {
+            el.addEventListener('change', () => userEditedFields.add(el.id));
+            el.addEventListener('input', () => userEditedFields.add(el.id));
+        }
+    });
+
+    function checkPredictiveTerms() {
+        const clientId = clientSelect ? clientSelect.value : '';
+        const millId = millSelect ? millSelect.value : '';
+        if (!clientId && !millId) return;
+
+        fetch(`{% url 'operations:predict_trade_terms_api' %}?client_id=${encodeURIComponent(clientId)}&sugar_mill_id=${encodeURIComponent(millId)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.found || data.has_match || data.status === 'success') {
+                    const payload = data.data || data;
+                    let filledAny = false;
+
+                    const unitPrice = data.avg_unit_price !== undefined ? data.avg_unit_price : payload.unit_price;
+                    const sellingPrice = data.avg_selling_price !== undefined ? data.avg_selling_price : payload.selling_price;
+                    const truckingRate = data.avg_trucking_rate !== undefined ? data.avg_trucking_rate : payload.est_trucking_rate;
+                    const bargeRate = data.avg_barge_rate !== undefined ? data.avg_barge_rate : payload.est_barge_rate;
+                    const terms = data.common_terms !== undefined ? data.common_terms : payload.terms;
+                    const brix = data.avg_brix !== undefined ? data.avg_brix : payload.brix_level;
+                    const chai = data.common_chai !== undefined ? data.common_chai : payload.chai_specs;
+
+                    if (costPriceInput && unitPrice !== null && unitPrice !== undefined && !userEditedFields.has(costPriceInput.id)) {
+                        costPriceInput.value = parseFloat(unitPrice).toFixed(2);
+                        filledAny = true;
+                    }
+                    if (sellPriceInput && sellingPrice !== null && sellingPrice !== undefined && !userEditedFields.has(sellPriceInput.id)) {
+                        sellPriceInput.value = parseFloat(sellingPrice).toFixed(2);
+                        filledAny = true;
+                    }
+                    if (truckingRateInput && truckingRate !== null && truckingRate !== undefined && !userEditedFields.has(truckingRateInput.id)) {
+                        truckingRateInput.value = parseFloat(truckingRate).toFixed(2);
+                        filledAny = true;
+                    }
+                    if (bargeRateInput && bargeRate !== null && bargeRate !== undefined && !userEditedFields.has(bargeRateInput.id)) {
+                        bargeRateInput.value = parseFloat(bargeRate).toFixed(2);
+                        filledAny = true;
+                    }
+                    if (termsInput && terms && (!termsInput.value || !userEditedFields.has(termsInput.id))) {
+                        termsInput.value = terms;
+                        filledAny = true;
+                    }
+                    if (brixInput && brix !== null && brix !== undefined && !userEditedFields.has(brixInput.id)) {
+                        brixInput.value = parseFloat(brix).toFixed(1);
+                        filledAny = true;
+                    }
+                    if (chaiSelect && chai && !userEditedFields.has(chaiSelect.id)) {
+                        chaiSelect.value = chai;
+                        filledAny = true;
+                    }
+
+                    if (filledAny) {
+                        updateLiveCalculation();
+                        if (suggestedBanner) {
+                            if (suggestedSampleSize) {
+                                suggestedSampleSize.textContent = data.sample_size || 1;
+                            }
+                            suggestedBanner.classList.remove('d-none');
+                            suggestedBanner.classList.add('d-flex');
+                        }
+                    }
+                }
+            })
+            .catch(err => console.error("Predict API error:", err));
+    }
+
+    if (clientSelect) clientSelect.addEventListener('change', checkPredictiveTerms);
+    if (millSelect) millSelect.addEventListener('change', checkPredictiveTerms);
+
+    {% if not object %}
+    if (clientSelect && millSelect && (clientSelect.value || millSelect.value)) {
+        checkPredictiveTerms();
+    }
+    {% endif %}
 });
+
+function fetchAutoRef() {
+    fetch("{% url 'operations:generate_reference_api' %}")
+        .then(res => res.json())
+        .then(data => {
+            const refInput = document.getElementById('{{ form.reference_code.id_for_label }}');
+            if (refInput && data.po_ref) {
+                refInput.value = data.po_ref;
+            }
+        });
+}
 </script>
+<script src="{% static 'js/stark_outlier_guard.js' %}"></script>
 {% endblock %}

@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 
 from django.contrib import messages
@@ -12,7 +13,7 @@ from accounts.decorators import role_required
 from accounts.models import User
 from operations.models import TransactionCluster
 
-from .forms import PaymentExpenseMatchForm
+from .forms import PaymentExpenseMatchForm, StandaloneInvoiceForm, StandaloneLoanForm
 from .models import CapitalLoan, CashVoucher, FinancialReconciliation, Invoice, PaymentExpenseMatch
 
 
@@ -104,12 +105,8 @@ def add_match(request, pk):
                 active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_CREATION])
                 linked_loan = active_loans.first() if active_loans.exists() else None
 
-                # Generate unique voucher number using match PK & cleaned reference
-                clean_ref = "".join(c for c in match.payment_reference if c.isalnum() or c in "-_")[:20]
-                if not clean_ref:
-                    clean_ref = "REF"
-                voucher_num = f"CV-M{match.pk}-{clean_ref}"[:50]
-                
+                from operations.services.reference_generators import generate_cv_reference
+                voucher_num = generate_cv_reference(cluster.reference_code)
                 purpose_text = f"Auto-Voucher ({match.get_expense_type_display()}): {match.notes or match.payment_reference}"[:190]
 
                 # Avoid duplicate voucher creation if user edits match
@@ -174,6 +171,53 @@ def delete_match(request, cluster_pk, match_pk):
 
 @role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE)
 def loan_list(request):
+    if request.method == "POST":
+        from accounts.permissions import user_has_perm
+        if user_has_perm(request.user, "add_loan"):
+            form = StandaloneLoanForm(request.POST, user=request.user)
+            if form.is_valid():
+                loan = form.save(commit=False)
+                if loan.status == CapitalLoan.Status.ACTIVE:
+                    loan.verified_by = request.user
+                    loan.verified_at = timezone.now()
+                loan._audit_user = request.user
+                loan.save()
+
+                from chat.views import send_system_notification
+                from audit.services import notify_roles
+
+                if loan.status == CapitalLoan.Status.ACTIVE:
+                    send_system_notification(
+                        loan.cluster,
+                        f"Capital Loan facility ₱{loan.principal:,.2f} ({loan.bank_name}) created & ACTIVE by {request.user.get_full_name() or request.user.username}.",
+                        sender_user=request.user,
+                    )
+                    messages.success(
+                        request,
+                        f"Capital Loan facility of ₱{loan.principal:,.2f} ({loan.bank_name}) created and linked to transaction {loan.cluster.reference_code}.",
+                    )
+                else:
+                    send_system_notification(
+                        loan.cluster,
+                        f"New Capital Loan proposal ₱{loan.principal:,.2f} ({loan.bank_name}) submitted by {request.user.get_full_name() or request.user.username}. Pending Ops/Admin verification.",
+                        sender_user=request.user,
+                    )
+                    notify_roles(
+                        [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT],
+                        title=f"New Loan Proposal Pending Approval — {loan.cluster.reference_code}",
+                        message=f"Finance submitted a loan facility proposal of ₱{loan.principal:,.2f} from {loan.bank_name}. Action required: Review & Approve.",
+                        level="warning",
+                        link="/finance/loans/",
+                        exclude_user=request.user,
+                    )
+                    messages.success(
+                        request,
+                        f"Capital Loan facility of ₱{loan.principal:,.2f} submitted for creation approval and linked to transaction {loan.cluster.reference_code}.",
+                    )
+                return redirect("finance:loan_list")
+            else:
+                messages.error(request, "Error creating loan facility. Please check your form entries.")
+
     loans = list(CapitalLoan.objects.select_related("cluster", "cluster__client", "verified_by").order_by("-created_at"))
 
     active_exposure = Decimal("0")
@@ -253,6 +297,8 @@ def loan_list(request):
             "status": "Issued",
         })
 
+    loan_form = StandaloneLoanForm(user=request.user)
+
     return render(
         request,
         "finance/loan_list.html",
@@ -266,6 +312,7 @@ def loan_list(request):
             "accrued_interest": accrued_interest,
             "logistics_deposits_m": logistics_deposits_m,
             "overdue_facilities": overdue_facilities,
+            "loan_form": loan_form,
         },
     )
 
@@ -510,6 +557,12 @@ def invoice_list(request):
                 "status_badge": badge,
             })
 
+    from operations.services.pricing import get_invoice_suggestion_data
+    cluster_suggestions_map = {}
+    for c in TransactionCluster.objects.filter(is_archived=False).select_related("purchase_order", "logistics", "client").prefetch_related("invoices"):
+        cluster_suggestions_map[str(c.id)] = get_invoice_suggestion_data(c)
+    cluster_suggestions_json = json.dumps(cluster_suggestions_map)
+
     return render(
         request,
         "finance/invoice_list.html",
@@ -518,6 +571,7 @@ def invoice_list(request):
             "invoices": invoice_rows,
             "sales_invoices": sales_invoices,
             "supplier_invoices": supplier_invoices,
+            "cluster_suggestions_json": cluster_suggestions_json,
             "total_invoiced": total_invoiced,
             "total_invoiced_m": total_invoiced_m,
             "paid_amount_m": paid_amount_m,
@@ -551,6 +605,28 @@ def download_invoice_pdf(request, pk):
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="Invoice_{invoice.invoice_number}.pdf"'
+
+    template = get_template(template_path)
+    html = template.render(context)
+
+    pisa_status = pisa.CreatePDF(html, dest=response)
+
+    if pisa_status.err:
+        return HttpResponse("We had some errors <pre>" + html + "</pre>")
+    return response
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.FINANCE)
+def download_voucher_pdf(request, pk):
+    voucher = get_object_or_404(
+        CashVoucher.objects.select_related("cluster", "cluster__client", "loan"),
+        pk=pk,
+    )
+    template_path = "finance/voucher_pdf.html"
+    context = {"voucher": voucher}
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="Voucher_{voucher.voucher_number}.pdf"'
 
     template = get_template(template_path)
     html = template.render(context)

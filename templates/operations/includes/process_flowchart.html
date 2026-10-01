@@ -1,0 +1,164 @@
+<style>
+    .flowchart-step-link {
+        text-decoration: none !important;
+        color: inherit !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+        cursor: pointer;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .flowchart-step-link:hover {
+        transform: translateY(-3px);
+        opacity: 0.95;
+    }
+    .flowchart-step-link:hover .flowchart-node {
+        box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
+        border-color: var(--htc-primary-light);
+    }
+</style>
+
+<div class="htc-flowchart-card">
+    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+        <div>
+            <div class="text-xs text-muted fw-bold text-uppercase">Company Process Tracker · {{ cluster.reference_code }}</div>
+            <h5 class="fw-bold mb-0" style="color: var(--htc-text);">Live Operational Workflow Stage</h5>
+        </div>
+        <div>
+            {% if cluster.status == 'returned' %}
+            <span class="badge bg-danger px-3 py-1.5 fw-bold">Returned / Revision Required</span>
+            {% elif cluster.status == 'approved' %}
+            <span class="badge bg-success text-white px-3 py-1.5 fw-bold">Approved &amp; Active</span>
+            {% elif cluster.status == 'pending_approval' %}
+            <span class="badge bg-warning text-dark px-3 py-1.5 fw-bold">Pending Executive Approval</span>
+            {% elif cluster.status == 'closed' %}
+            <span class="badge bg-secondary text-white px-3 py-1.5 fw-bold">Transaction Closed</span>
+            {% else %}
+            <span class="badge bg-info text-dark px-3 py-1.5 fw-bold">{{ cluster.get_status_display }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="flowchart-container">
+        <!-- STEP 1: PO Creation -->
+        <a href="{% url 'operations:cluster_detail' cluster.pk %}" class="flowchart-step-link" title="Step 01: View PO Input & Contract Summary">
+            <div class="flowchart-step is-completed w-100">
+                <div class="flowchart-connector is-completed"></div>
+                <div class="flowchart-node">01</div>
+                <div class="flowchart-label">PO Input</div>
+                <div class="flowchart-subtext">{{ cluster.created_at|date:"M d, Y" }}</div>
+            </div>
+        </a>
+
+        <!-- STEP 2: Executive Approval -->
+        <a href="{% url 'operations:pending_tasks' %}" class="flowchart-step-link" title="Step 02: View Pending Task Approvals">
+            {% if cluster.status == 'returned' %}
+            <div class="flowchart-step is-returned w-100">
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-node">02</div>
+                <div class="flowchart-label">Approval</div>
+                <div class="flowchart-subtext text-danger fw-bold">Returned</div>
+            </div>
+            {% elif cluster.approved_at or cluster.status == 'approved' or cluster.status == 'active' or cluster.status == 'delivered' or cluster.status == 'closed' %}
+            <div class="flowchart-step is-completed w-100">
+                <div class="flowchart-connector is-completed"></div>
+                <div class="flowchart-node">02</div>
+                <div class="flowchart-label">Approved</div>
+                <div class="flowchart-subtext">{{ cluster.approved_at|date:"M d, Y"|default:"Verified" }}</div>
+            </div>
+            {% elif cluster.status == 'pending_approval' %}
+            <div class="flowchart-step is-active w-100">
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-node">02</div>
+                <div class="flowchart-label">Approval</div>
+                <div class="flowchart-subtext text-primary fw-bold">Pending Review</div>
+            </div>
+            {% else %}
+            <div class="flowchart-step w-100">
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-node">02</div>
+                <div class="flowchart-label">Approval</div>
+                <div class="flowchart-subtext">Draft PO</div>
+            </div>
+            {% endif %}
+        </a>
+
+
+        <!-- STEP 3: Logistics & Receiving -->
+        <a href="{% url 'operations:logistics_list' %}" class="flowchart-step-link" title="Step 03: View Logistics & Receiving Operations">
+            {% if cluster.logistics.received_volume_mt %}
+            <div class="flowchart-step is-completed w-100">
+                <div class="flowchart-connector is-completed"></div>
+                <div class="flowchart-node">03</div>
+                <div class="flowchart-label">Logistics</div>
+                <div class="flowchart-subtext">{{ cluster.logistics.received_volume_mt|floatformat:1 }} MT Received</div>
+            </div>
+            {% elif cluster.logistics.loaded_volume_mt %}
+            <div class="flowchart-step is-active w-100">
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-node">03</div>
+                <div class="flowchart-label">Logistics</div>
+                <div class="flowchart-subtext text-primary fw-bold">In Transit</div>
+            </div>
+            {% else %}
+            <div class="flowchart-step w-100">
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-node">03</div>
+                <div class="flowchart-label">Logistics</div>
+                <div class="flowchart-subtext">Pending Dispatch</div>
+            </div>
+            {% endif %}
+        </a>
+
+        <!-- STEP 4: Sales Invoicing -->
+        <a href="{% url 'finance:invoice_list' %}" class="flowchart-step-link" title="Step 04: View Sales Invoicing">
+            {% if cluster.invoices.exists %}
+            <div class="flowchart-step is-completed w-100">
+                <div class="flowchart-connector is-completed"></div>
+                <div class="flowchart-node">04</div>
+                <div class="flowchart-label">Invoicing</div>
+                <div class="flowchart-subtext">Invoice Issued</div>
+            </div>
+            {% elif cluster.logistics.received_volume_mt %}
+            <div class="flowchart-step is-active w-100">
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-node">04</div>
+                <div class="flowchart-label">Invoicing</div>
+                <div class="flowchart-subtext text-primary fw-bold">Ready to Bill</div>
+            </div>
+            {% else %}
+            <div class="flowchart-step w-100">
+                <div class="flowchart-connector"></div>
+                <div class="flowchart-node">04</div>
+                <div class="flowchart-label">Invoicing</div>
+                <div class="flowchart-subtext">Pending Billing</div>
+            </div>
+            {% endif %}
+        </a>
+
+        <!-- STEP 5: Finance Settlement -->
+        <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link" title="Step 05: View Capital Loans & Finance Settlement">
+            {% if cluster.status == 'closed' %}
+            <div class="flowchart-step is-completed w-100">
+                <div class="flowchart-node">05</div>
+                <div class="flowchart-label">Settlement</div>
+                <div class="flowchart-subtext">Deal Closed</div>
+            </div>
+            {% elif cluster.invoices.exists %}
+            <div class="flowchart-step is-active w-100">
+                <div class="flowchart-node">05</div>
+                <div class="flowchart-label">Settlement</div>
+                <div class="flowchart-subtext text-primary fw-bold">Payment Collection</div>
+            </div>
+            {% else %}
+            <div class="flowchart-step w-100">
+                <div class="flowchart-node">05</div>
+                <div class="flowchart-label">Settlement</div>
+                <div class="flowchart-subtext">Pending Final Payment</div>
+            </div>
+            {% endif %}
+        </a>
+    </div>
+</div>

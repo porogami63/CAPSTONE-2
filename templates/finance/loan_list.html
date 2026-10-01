@@ -209,7 +209,14 @@
     }
 </style>
 
-<div class="d-flex justify-content-end align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        {% if user|has_perm:"add_loan" %}
+        <button type="button" class="btn btn-primary btn-sm rounded-pill font-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+            <i class="bi bi-plus-circle me-1"></i> Create Capital Loan Facility
+        </button>
+        {% endif %}
+    </div>
     <span class="clocks-badge"><i class="bi bi-clock-history"></i> Daily Aging Clocks Active</span>
 </div>
 
@@ -612,8 +619,13 @@
         </div>
     </div>
     {% empty %}
-    <div style="padding: 3rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius);">
-        No active or recorded loan facilities in registry.
+    <div style="padding: 4rem 2rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius);">
+        <i class="bi bi-bank" style="font-size: 2.5rem; color: var(--htc-border); margin-bottom: 1rem; display: inline-block;"></i>
+        <h5 class="fw-bold text-dark mb-2">No Active Loans</h5>
+        <p class="mb-3">There are no active or recorded loan facilities in the registry.</p>
+        <button type="button" class="btn btn-primary fw-bold px-4 rounded-pill" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+            <i class="bi bi-plus-lg me-1"></i> Record New Loan Facility
+        </button>
     </div>
     {% endfor %}
 </div>
@@ -686,5 +698,79 @@ function switchFinanceTab(tabKey, btn) {
     }
 }
 </script>
+
+{% if user|has_perm:"add_loan" %}
+<!-- CREATE NEW LOAN MODAL -->
+<div class="modal fade" id="newLoanModal" tabindex="-1" aria-labelledby="newLoanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold" id="newLoanModalLabel"><i class="bi bi-bank me-2"></i>Create New Capital Loan Facility</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'finance:loan_list' %}">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 text-xs mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i> Record a new capital loan facility and link it directly to an existing transaction deal upon approval.
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label font-semibold text-sm">Target Transaction Cluster <span class="text-danger">*</span></label>
+                            {{ loan_form.cluster }}
+                            <div class="form-text text-xs text-muted">Select the trade contract transaction linked to this loan facility.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Financing Bank Name <span class="text-danger">*</span></label>
+                            {{ loan_form.bank_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Loan Principal Amount (₱) <span class="text-danger">*</span></label>
+                            {{ loan_form.principal }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Annual Interest Rate (%) <span class="text-danger">*</span></label>
+                            {{ loan_form.interest_rate_annual }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Facility Start Date <span class="text-danger">*</span></label>
+                            {{ loan_form.start_date }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Maturity / Due Date <span class="text-danger">*</span></label>
+                            {{ loan_form.due_date }}
+                        </div>
+                        <details class="col-12 mt-3 mb-2" style="border: 1px solid var(--htc-border); padding: 1rem; border-radius: 8px; background: var(--htc-surface);">
+                            <summary style="cursor: pointer; font-weight: 600; color: var(--htc-primary-light);">Show Additional & Optional Fields</summary>
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-6">
+                                    <label class="form-label font-semibold text-sm">50% Deposit Funding (%)</label>
+                                    {{ loan_form.logistics_deposit_percentage }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-semibold text-sm">Cheque Reference # (Optional)</label>
+                                    {{ loan_form.cheque_number }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-semibold text-sm">Bank Account # (Optional)</label>
+                                    {{ loan_form.bank_account_number }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-semibold text-sm">Approval Status Workflow</label>
+                                    {{ loan_form.status }}
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light px-4">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Submit Loan Facility</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% endblock %}

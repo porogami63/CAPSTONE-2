@@ -57,10 +57,18 @@ class Notification(models.Model):
         SUCCESS = "success", "Success"
         DANGER = "danger", "Alert"
 
+    class Category(models.TextChoices):
+        APPROVAL = "approval", "Approval"
+        VARIANCE = "variance", "Variance Alert"
+        LOGISTICS = "logistics", "Logistics"
+        LOAN = "loan", "Loan Facility"
+        SYSTEM = "system", "System"
+
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     title = models.CharField(max_length=255)
     message = models.TextField()
     level = models.CharField(max_length=20, choices=Level.choices, default=Level.INFO)
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.SYSTEM)
     link = models.CharField(max_length=255, blank=True, null=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -69,6 +77,20 @@ class Notification(models.Model):
         ordering = ["-created_at"]
         verbose_name = "User Notification"
         verbose_name_plural = "User Notifications"
+
+    def get_classified_category(self):
+        if self.category and self.category != self.Category.SYSTEM:
+            return self.category
+        text = f"{(self.title or '').lower()} {(self.message or '').lower()} {(self.link or '').lower()}"
+        if "variance" in text or self.level == self.Level.DANGER:
+            return self.Category.VARIANCE
+        if "approval" in text or "pending" in text or "submitted" in text or "return" in text:
+            return self.Category.APPROVAL
+        if "loan" in text or "repayment" in text or "facility" in text or "interest" in text:
+            return self.Category.LOAN
+        if "logistics" in text or "dispute" in text or "truck" in text or "barge" in text:
+            return self.Category.LOGISTICS
+        return self.Category.SYSTEM
 
     def __str__(self):
         return f"[{self.level.upper()}] {self.recipient.username}: {self.title}"

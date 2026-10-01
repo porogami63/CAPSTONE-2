@@ -1,5 +1,6 @@
 {% extends "app_base.html" %}
 {% load static %}
+{% load humanize %}
 {% block title %}Dashboard · HTC Core{% endblock %}
 {% block topbar_title %}Dashboard{% endblock %}
 {% block topbar_subtitle %}Executive Control & Operations Overview{% endblock %}
@@ -435,10 +436,10 @@
 
                 <!-- PDF Report Action Button -->
                 <div class="dropdown d-inline-block">
-                    <button class="btn btn-action-secondary dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-action-secondary dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" data-bs-display="dynamic" aria-expanded="false">
                         <i class="bi bi-file-earmark-pdf-fill action-icon text-danger"></i> PDF Report
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="reportDropdown">
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="reportDropdown" style="z-index: 1050; background: var(--htc-surface); color: var(--htc-text); min-width: 200px;">
                         <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}"><i class="bi bi-clock-history me-2 text-primary"></i> Last 24 Hours</a></li>
                         <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}"><i class="bi bi-calendar-week me-2 text-info"></i> Last 7 Days</a></li>
                         <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}"><i class="bi bi-calendar-month me-2 text-success"></i> Last 30 Days</a></li>
@@ -457,10 +458,10 @@
     <!-- Card 1: Total Revenue (Executive Only) -->
     <a href="{% url 'finance:invoice_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive: View Total Invoiced Sales Revenue">
         <div class="status-card-header">
-            <i class="bi bi-graph-up-arrow text-muted"></i>
+            <i class="bi bi-graph-up-arrow text-primary"></i>
         </div>
         <div>
-            <div class="status-card-val">{{ revenue_display }}</div>
+            <div class="status-card-val text-primary">{{ revenue_display }}</div>
             <div class="status-card-label">Total Revenue</div>
         </div>
         <div class="status-card-footer">
@@ -471,10 +472,10 @@
     <!-- Card 2: Total Expenses (Executive Only) -->
     <a href="{% url 'operations:cluster_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive: View Procurement & Logistics Expenses">
         <div class="status-card-header">
-            <i class="bi bi-graph-down-arrow text-muted"></i>
+            <i class="bi bi-graph-down-arrow text-danger"></i>
         </div>
         <div>
-            <div class="status-card-val">{{ expenses_display }}</div>
+            <div class="status-card-val text-danger">{{ expenses_display }}</div>
             <div class="status-card-label">Total Expenses</div>
         </div>
         <div class="status-card-footer">
@@ -485,10 +486,10 @@
     <!-- Card 3: Net Profit (Executive Only) -->
     <a href="{% url 'dashboard:analytics' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive: View Profitability Analytics">
         <div class="status-card-header">
-            <i class="bi bi-bar-chart text-muted"></i>
+            <i class="bi bi-bar-chart text-success"></i>
         </div>
         <div>
-            <div class="status-card-val">{{ profit_display }}</div>
+            <div class="status-card-val text-success">{{ profit_display }}</div>
             <div class="status-card-label">Net Profit</div>
         </div>
         <div class="status-card-footer">
@@ -601,14 +602,14 @@
             <div class="col-md-2 col-6">
                 <div class="p-2 border rounded text-center bg-light">
                     <small class="text-muted font-weight-bold d-block text-truncate" style="font-size: 0.75rem;">{{ mro_mill.name }}</small>
-                    <span class="fs-6 font-weight-bold text-primary">{{ mro_mill.tons|floatformat:2 }} <small class="text-muted">MT</small></span>
+                    <span class="fs-6 font-weight-bold text-primary">{{ mro_mill.tons|floatformat:2|intcomma }} <small class="text-muted">MT</small></span>
                 </div>
             </div>
             {% endfor %}
             <div class="col-md-2 col-12">
                 <div class="p-2 border rounded text-center bg-primary-subtle text-primary">
                     <small class="text-primary font-weight-bold d-block text-truncate" style="font-size: 0.75rem;">Total Mill Releases</small>
-                    <span class="fs-6 font-weight-bold">{{ total_volume_mt|floatformat:2 }} <small>MT</small></span>
+                    <span class="fs-6 font-weight-bold">{{ total_volume_mt|floatformat:2|intcomma }} <small>MT</small></span>
                 </div>
             </div>
         </div>
@@ -864,12 +865,18 @@
                 },
                 scales: {
                     x: {
-                        grid: { display: false }
+                        grid: { display: false },
+                        ticks: {
+                            color: '#475569',
+                            font: { family: 'Inter', size: 11, weight: 600 }
+                        }
                     },
                     y: {
                         min: Math.min(0, ...profitData),
                         max: yMax,
                         ticks: {
+                            color: '#475569',
+                            font: { family: 'Inter', size: 11, weight: 700 },
                             callback: function(value) {
                                 return '₱' + value.toFixed(1) + 'M';
                             },

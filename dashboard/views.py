@@ -33,6 +33,13 @@ def _format_currency(value):
     User.Role.INVOICING,
 )
 def home(request):
+    # Process automated pre- and post-timeline activity reminders
+    try:
+        from operations.services.reminder_services import process_timeline_reminders
+        process_timeline_reminders()
+    except Exception:
+        pass
+
     # ── Core cluster metrics ─────────────────────────────────────────────
     open_clusters = TransactionCluster.objects.exclude(status=TransactionCluster.Status.CLOSED).count()
     total_transactions = TransactionCluster.objects.count()

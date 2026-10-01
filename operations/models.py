@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from simple_history.models import HistoricalRecords
 
 from masters.models import Client, LogisticsPartner, Planter, SugarMill
@@ -12,6 +13,9 @@ from masters.models import Client, LogisticsPartner, Planter, SugarMill
 class TransactionCluster(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
+        PENDING_APPROVAL = "pending_approval", "Pending Approval"
+        APPROVED = "approved", "Approved"
+        RETURNED = "returned", "Returned / Rejected"
         ACTIVE = "active", "Active"
         DELIVERED = "delivered", "Delivered"
         CLOSED = "closed", "Closed"
@@ -24,6 +28,12 @@ class TransactionCluster(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_clusters")
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="rejected_clusters")
+    rejection_comments = models.TextField(blank=True, default="", help_text="Mandatory reason for returning / rejecting the transaction")
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
     mro_file = models.FileField(upload_to="mro_scans/", null=True, blank=True, help_text="Scanned soft copy of Molasses Release Order (PDF/Image)")
@@ -34,6 +44,44 @@ class TransactionCluster(models.Model):
 
     def __str__(self):
         return self.reference_code
+
+    def get_archival_blockers(self):
+        """Returns a list of human-readable reasons why this transaction cluster cannot be archived yet."""
+        blockers = []
+
+        # 1. Cluster Status Check
+        if self.status not in [self.Status.CLOSED, self.Status.DELIVERED]:
+            blockers.append(f"Status is '{self.get_status_display()}' (Must be Delivered or Closed)")
+
+        # 2. Invoicing & Collection Check
+        invoices = self.invoices.all()
+        if not invoices.exists():
+            blockers.append("No sales invoice has been generated for this transaction")
+        else:
+            unpaid_invoices = [inv.invoice_number for inv in invoices if inv.status != "paid"]
+            if unpaid_invoices:
+                blockers.append(f"Unpaid invoice(s): {', '.join(unpaid_invoices)}")
+
+        # 3. Logistics & Dispute Settlement Check
+        if hasattr(self, "logistics") and self.logistics:
+            if self.logistics.dispute_status == "DISPUTED":
+                blockers.append("Logistics variance dispute is still active/unresolved")
+            if self.logistics.received_at is None:
+                blockers.append("Logistics delivery receipt is incomplete")
+
+        # 4. Financing & Capital Loan Closure Check
+        active_loans = self.loans.exclude(status="closed")
+        if active_loans.exists():
+            loan_banks = [f"{loan.bank_name} ({loan.get_status_display()})" for loan in active_loans]
+            blockers.append(f"Unsettled capital loan(s): {', '.join(loan_banks)}")
+
+        return blockers
+
+    @property
+    def is_archivable(self):
+        """Returns True if the cluster satisfies all prerequisites for archiving."""
+        return len(self.get_archival_blockers()) == 0
+
 
 
 class PurchaseOrder(models.Model):
@@ -49,6 +97,10 @@ class PurchaseOrder(models.Model):
     brix_level = models.DecimalField("Brix Level (%)", max_digits=5, decimal_places=2, null=True, blank=True, help_text="Target / Verified Brix % quality level")
     chai_specs = models.CharField("CHAI Specs", max_length=120, blank=True, help_text="Chemical / CHAI specifications")
     approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_pos")
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="rejected_pos")
+    rejection_comments = models.TextField(blank=True, default="", help_text="Mandatory comments detailing rejection/return reason")
     history = HistoricalRecords()
 
     @property
@@ -231,6 +283,75 @@ def normalize_crop_year(raw):
             y2 += 2000
         return f"{y1} - {y2}"
     return s
+
+
+class CHAIRecord(models.Model):
+    CHAI_CHOICES = [
+        (Decimal("1.0"), "CHAI 1.0 — Premium Grade A (Brix 85°+ / High Fermentable Sugar)"),
+        (Decimal("1.5"), "CHAI 1.5 — Superior Grade A- (Brix 83.0° - 84.9°)"),
+        (Decimal("2.0"), "CHAI 2.0 — Standard Commercial Grade B (Brix 80.0° - 82.9°)"),
+        (Decimal("2.5"), "CHAI 2.5 — Medium Commercial Grade B- (Brix 78.0° - 79.9°)"),
+        (Decimal("3.0"), "CHAI 3.0 — Industrial Distillation Grade C (Brix 75.0° - 77.9°)"),
+        (Decimal("3.5"), "CHAI 3.5 — Utility Grade C- (Brix 72.0° - 74.9°)"),
+        (Decimal("4.0"), "CHAI 4.0 — Low Grade D (Brix 70.0° - 71.9°)"),
+        (Decimal("5.0"), "CHAI 5.0 — Substandard / Off-Spec (< 70.0° Brix)"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    chai_number = models.CharField("CHAI Record Code", max_length=50, unique=True, db_index=True)
+    chai_value = models.DecimalField(
+        "Numerical CHAI Grade",
+        max_digits=4,
+        decimal_places=1,
+        choices=CHAI_CHOICES,
+        default=Decimal("1.0"),
+        help_text="Standard numerical quality grade (1.0 to 5.0)",
+    )
+    title = models.CharField("Quality Title / Summary", max_length=200, help_text="e.g. Verified High Brix Distillation Quality")
+    cluster = models.ForeignKey(
+        TransactionCluster,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="chai_records",
+        help_text="Optional linked contract transaction deal",
+    )
+    sugar_mill = models.ForeignKey(
+        SugarMill,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="chai_records",
+        help_text="Tested Sugar Mill / Supplier",
+    )
+    brix_level = models.DecimalField("Brix Level (%)", max_digits=5, decimal_places=2, default=Decimal("85.00"))
+    purity_percent = models.DecimalField("Apparent Purity (%)", max_digits=5, decimal_places=2, null=True, blank=True)
+    total_sugars_percent = models.DecimalField("Total Sugars (%)", max_digits=5, decimal_places=2, null=True, blank=True)
+    tested_at = models.DateField("Inspection Date", default=timezone.localdate)
+    inspector = models.CharField("Inspector / Analyst", max_length=120, blank=True)
+    status = models.CharField(
+        "Status",
+        max_length=20,
+        choices=[("approved", "Approved / Verified"), ("pending", "Pending Verification"), ("rejected", "Rejected / Off-Spec")],
+        default="approved",
+    )
+    remarks = models.TextField("Inspection Notes", blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_chai_records")
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="rejected_chai_records")
+    rejection_comments = models.TextField("Rejection Comments", blank=True, default="", help_text="Mandatory reason for returning / rejecting CHAI certificate")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        ordering = ["-tested_at", "-created_at"]
+        verbose_name = "CHAI Record"
+        verbose_name_plural = "CHAI Records"
+
+    def __str__(self):
+        return f"{self.chai_number} — CHAI {self.chai_value:.1f}"
 
 
 

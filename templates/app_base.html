@@ -10,7 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
-    <link href="{% static 'css/htc-theme.css' %}?v=7" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}?v=9" rel="stylesheet">
 </head>
 <body>
     <script>
@@ -21,51 +21,100 @@
             if (legibility === 'high') {
                 document.documentElement.setAttribute('data-legibility', 'high');
             }
+            if (localStorage.getItem('htc-sidebar-collapsed') === 'true') {
+                document.documentElement.classList.add('sidebar-collapsed');
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.body.classList.add('sidebar-collapsed');
+                    var icon = document.getElementById("sidebarCollapseIcon");
+                    if (icon) icon.className = "bi bi-chevron-right fs-6";
+                });
+            }
         })();
+
+        function toggleSidebarCollapse(forceState) {
+            var currentBody = document.body.classList.contains("sidebar-collapsed");
+            var currentHtml = document.documentElement.classList.contains("sidebar-collapsed");
+            var isCollapsed = (typeof forceState === "boolean") ? forceState : !(currentBody && currentHtml);
+            
+            document.body.classList.toggle("sidebar-collapsed", isCollapsed);
+            document.documentElement.classList.toggle("sidebar-collapsed", isCollapsed);
+            localStorage.setItem("htc-sidebar-collapsed", isCollapsed ? "true" : "false");
+            
+            var icon = document.getElementById("sidebarCollapseIcon");
+            if (icon) {
+                icon.className = isCollapsed ? "bi bi-chevron-right fs-6" : "bi bi-chevron-left fs-6";
+            }
+        }
     </script>
     <div class="app-shell">
         <aside class="app-sidebar" id="appSidebar">
-            <div class="brand-block" style="display: flex; align-items: center; gap: 0.65rem; padding: 1rem 1rem 0.85rem;">
-                <img src="{% static 'img/htc-logo.png' %}" alt="HTC Logo" style="width: 38px; height: 38px; object-fit: contain; flex-shrink: 0;">
-                <div>
-                    <div class="logo-text" style="font-size: 0.85rem; line-height: 1.2;">Heindrich Trading</div>
-                    <div class="logo-sub" style="font-size: 0.68rem; line-height: 1.2;">Corporation</div>
+            <div class="brand-block d-flex align-items-center justify-content-between p-3 border-bottom border-secondary-subtle position-relative">
+                <div class="d-flex align-items-center gap-2 overflow-hidden brand-logo-group" onclick="toggleSidebarCollapse()" title="Click to toggle sidebar width" style="cursor: pointer; min-width: 0; flex: 1;">
+                    <img src="{% static 'img/htc-logo.png' %}" alt="HTC Logo" style="width: 34px; height: 34px; object-fit: contain; flex-shrink: 0;">
+                    <div class="brand-text-group text-truncate">
+                        <div class="logo-text fw-bold text-truncate" style="font-size: 0.85rem; line-height: 1.2; color: var(--htc-text);">Heindrich Trading</div>
+                        <div class="logo-sub text-muted text-truncate" style="font-size: 0.68rem; line-height: 1.2;">Corporation</div>
+                    </div>
                 </div>
+                <button type="button" class="btn btn-sm text-muted p-1 sidebar-collapse-btn d-none d-lg-flex align-items-center justify-content-center flex-shrink-0" id="sidebarCollapseBtn" onclick="toggleSidebarCollapse()" title="Toggle Sidebar Width" style="cursor: pointer; z-index: 10; border: 1px solid var(--htc-border); border-radius: 6px; width: 26px; height: 26px; background: var(--htc-surface);">
+                    <i class="bi bi-chevron-left fs-7" id="sidebarCollapseIcon"></i>
+                </button>
             </div>
-            <nav data-intro="Sidebar Navigation: Access your role-scoped Dashboard, Sourcing Contracts, Logistics Ledger, Invoicing, Capital Loan Facilities, and Master Data." data-step="1">
+            <nav class="flex-grow-1 py-2" data-intro="Sidebar Navigation: Access your role-scoped Dashboard, Sourcing Contracts, Logistics Ledger, Invoicing, Capital Loan Facilities, and Master Data." data-step="1">
                 {% for url_name, label, icon, match_prefixes in nav_items %}
                 {% is_nav_active current_view_name url_name match_prefixes as active_status %}
-                <a class="nav-link {% if active_status %}active{% endif %}"
+                <a class="nav-link d-flex align-items-center gap-2.5 {% if active_status %}active{% endif %}"
                    href="{% url url_name %}"
                    data-bs-toggle="tooltip"
                    data-bs-placement="right"
                    title="{{ label }} Module">
-                    <i class="bi {{ icon }}"></i> {{ label }}
+                    <i class="bi {{ icon }} nav-icon"></i>
+                    <span class="nav-label">{{ label }}</span>
                 </a>
                 {% endfor %}
-                {% if user|has_perm:"view_audit" %}
-                <a class="nav-link nav-link-danger" href="{% url 'operations:clear_database' %}">
-                    <i class="bi bi-trash"></i> Clear Database
-                </a>
-                {% endif %}
             </nav>
-            <div class="user-block">
-                <div class="user-row">
-                    {% if user.avatar %}
-                    <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="rounded-circle me-2" style="width: 36px; height: 36px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2);">
-                    {% else %}
-                    <div class="user-avatar">{{ user.username|slice:":1"|upper }}</div>
-                    {% endif %}
-                    <div>
-                        <a href="{% url 'accounts:profile' %}" class="user-name text-decoration-none text-white hover-underline" title="User Profile & Personalization">{{ user.get_full_name|default:user.username }}</a>
-                        <div class="user-role role-badge-{{ user_role_code }}" style="font-size: 0.68rem; padding: 0.15rem 0.5rem; display: inline-block; margin-top: 0.25rem;">{{ user_role }}</div>
-                    </div>
-                </div>
-                <div class="d-flex gap-1 mt-2">
-                    <a href="{% url 'accounts:profile' %}" class="btn btn-sm btn-outline-light flex-grow-1 py-1 fs-7" title="My Profile"><i class="bi bi-person-gear"></i> Profile</a>
-                    <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
-                        <button class="btn-logout" type="submit">Logout</button>
-                    </form>
+
+
+            <!-- User Profile Dropdown Card -->
+            <div class="user-block p-2 border-top border-secondary-subtle position-relative">
+                <div class="dropdown dropup w-100 position-relative">
+                    <button class="user-card-btn btn w-100 border border-secondary-subtle text-start p-2 rounded d-flex align-items-center justify-content-between" type="button" id="userCardDropdown" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="User Profile Menu" style="background: var(--htc-sidebar-hover); transition: background-color 0.2s ease;">
+                        <div class="d-flex align-items-center gap-2 overflow-hidden" style="min-width: 0; flex: 1;">
+                            {% if user.avatar %}
+                            <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="rounded-circle flex-shrink-0" style="width: 32px; height: 32px; object-fit: cover; border: 2px solid var(--htc-primary-light);">
+                            {% else %}
+                            <div class="user-avatar flex-shrink-0" style="width: 32px; height: 32px; font-size: 0.85rem; font-weight: 700; background: var(--htc-primary-light); color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ user.username|slice:":1"|upper }}</div>
+                            {% endif %}
+                            <div class="user-card-info" style="min-width: 0; flex: 1; overflow: hidden;">
+                                <div class="user-name fw-bold text-truncate" style="font-size: 0.82rem; color: var(--htc-text); line-height: 1.2;">{{ user.get_full_name|default:user.username }}</div>
+                                <div class="role-badge-wrapper" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.1rem;">
+                                    <span class="role-badge role-badge-{{ user_role_code }}" style="font-size: 0.58rem; padding: 0.1rem 0.35rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle;">{{ user_role }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <i class="bi bi-three-dots-vertical text-muted fs-7 ms-1 user-card-dots flex-shrink-0"></i>
+                    </button>
+                    <ul class="dropdown-menu shadow-lg border border-secondary-subtle p-2 w-100 mb-2" aria-labelledby="userCardDropdown" style="background: var(--htc-surface); color: var(--htc-text); z-index: 1060;">
+                        <li>
+                            <div class="px-2 py-1.5 mb-1 border-bottom border-secondary-subtle">
+                                <div class="fw-bold fs-7 text-truncate" style="color: var(--htc-text);">{{ user.get_full_name|default:user.username }}</div>
+                                <div class="fs-8 text-muted text-truncate">Role: {{ user_role }}</div>
+                            </div>
+                        </li>
+                        <li>
+                            <a class="dropdown-item rounded fs-7 py-1.5 d-flex align-items-center gap-2" href="{% url 'accounts:profile' %}" style="color: var(--htc-text);">
+                                <i class="bi bi-person-gear text-primary"></i> Profile & Settings
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+                                <button class="dropdown-item rounded fs-7 py-1.5 d-flex align-items-center gap-2 text-danger w-100 text-start border-0 bg-transparent" type="submit">
+                                    <i class="bi bi-box-arrow-right"></i> Sign Out
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </aside>
@@ -93,12 +142,23 @@
                             <i class="bi bi-bell-fill"></i>
                             <span id="unreadNotifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;">0</span>
                         </button>
-                        <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg border-0" aria-labelledby="notifDropdownBtn" style="width: 340px; max-height: 420px; overflow-y: auto;">
-                            <div class="p-3 bg-primary text-white d-flex justify-content-between align-items-center rounded-top">
-                                <span class="fw-bold fs-7"><i class="bi bi-bell me-1"></i> System Notifications</span>
-                                <button type="button" class="btn btn-sm btn-link text-white text-decoration-none p-0 fs-7" id="markNotifsReadBtn">Mark all read</button>
+                        <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg" aria-labelledby="notifDropdownBtn" style="width: 380px; background: var(--htc-surface); color: var(--htc-text); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden;">
+                            <div class="p-3 d-flex justify-content-between align-items-center" style="background: var(--htc-sidebar-hover); border-bottom: 1px solid var(--htc-border);">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold fs-7" style="color: var(--htc-text);"><i class="bi bi-bell me-1 text-primary"></i> Notifications</span>
+                                    <span id="notifTotalBadge" class="badge bg-primary-subtle text-primary fs-8 px-2 py-0.5 rounded-pill">0</span>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-link text-primary text-decoration-none p-0 fs-7 fw-semibold" id="markNotifsReadBtn">Mark all read</button>
                             </div>
-                            <div id="notifList" class="list-group list-group-flush fs-7">
+                            <!-- Category Filter Tabs -->
+                            <div class="px-2 py-1.5 d-flex gap-1 overflow-x-auto border-bottom border-secondary-subtle" id="notifFilterBar" style="background: var(--htc-surface);">
+                                <button type="button" class="btn btn-xs notif-filter-btn active" data-cat="all">All (<span id="catCountAll">0</span>)</button>
+                                <button type="button" class="btn btn-xs notif-filter-btn" data-cat="approval">Approvals (<span id="catCountApproval">0</span>)</button>
+                                <button type="button" class="btn btn-xs notif-filter-btn" data-cat="variance">Variances (<span id="catCountVariance">0</span>)</button>
+                                <button type="button" class="btn btn-xs notif-filter-btn" data-cat="logistics">Logistics (<span id="catCountLogistics">0</span>)</button>
+                                <button type="button" class="btn btn-xs notif-filter-btn" data-cat="loan">Loans (<span id="catCountLoan">0</span>)</button>
+                            </div>
+                            <div id="notifList" class="list-group list-group-flush fs-7" style="max-height: 380px; overflow-y: auto;">
                                 <div class="p-4 text-center text-muted">No unread notifications</div>
                             </div>
                         </div>
@@ -126,9 +186,19 @@
             </header>
             <main class="app-main">
                 {% if messages %}
-                    {% for message in messages %}
-                    <div class="flash-msg">{{ message }}</div>
-                    {% endfor %}
+                    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+                        {% for message in messages %}
+                        <div class="toast align-items-center show shadow-lg border-0 mb-2 htc-toast" role="alert" aria-live="assertive" aria-atomic="true" style="background: var(--htc-surface); color: var(--htc-text); border: 1px solid var(--htc-border) !important; min-width: 320px; border-radius: 10px;">
+                            <div class="d-flex align-items-center justify-content-between p-3">
+                                <div class="d-flex align-items-center gap-2" style="font-size: 0.85rem; font-weight: 500;">
+                                    <i class="bi bi-info-circle-fill text-primary fs-6"></i>
+                                    <span>{{ message }}</span>
+                                </div>
+                                <button type="button" class="btn-close text-reset ms-2" data-bs-dismiss="toast" aria-label="Close" style="font-size: 0.75rem;"></button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                 {% endif %}
                 {% block content %}{% endblock %}
             </main>
@@ -240,14 +310,40 @@
                     setInterval(updateUnreadBadge, 10000);
                 }
 
-                // Poll real-time system notifications
+                // Poll real-time system notifications with classification
+                let activeNotifCategory = "all";
+
+                window.handleNotifClick = function(event, notifId, link) {
+                    if (event) event.preventDefault();
+                    fetch(`/audit/api/notifications/${notifId}/read/`, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        }
+                    })
+                    .then(() => {
+                        if (link && link !== "#" && link !== "None") {
+                            window.location.href = link;
+                        } else {
+                            fetchNotifications();
+                        }
+                    })
+                    .catch(() => {
+                        if (link && link !== "#" && link !== "None") {
+                            window.location.href = link;
+                        }
+                    });
+                };
+
                 function fetchNotifications() {
-                    fetch("{% url 'audit:api_notifications' %}")
+                    fetch("{% url 'audit:api_notifications' %}?category=" + encodeURIComponent(activeNotifCategory))
                         .then(res => res.json())
                         .then(data => {
                             if (data.status === "success") {
                                 const notifBadge = document.getElementById("unreadNotifBadge");
+                                const notifTotalBadge = document.getElementById("notifTotalBadge");
                                 const notifList = document.getElementById("notifList");
+
                                 if (notifBadge) {
                                     if (data.unread_count > 0) {
                                         notifBadge.textContent = data.unread_count;
@@ -256,9 +352,22 @@
                                         notifBadge.classList.add("d-none");
                                     }
                                 }
-                                if (notifList && data.notifications) {
-                                    if (data.notifications.length === 0) {
-                                        notifList.innerHTML = `<div class="p-4 text-center text-muted">No unread notifications</div>`;
+                                if (notifTotalBadge) {
+                                    notifTotalBadge.textContent = data.unread_count;
+                                }
+
+                                if (data.category_counts) {
+                                    const c = data.category_counts;
+                                    if (document.getElementById("catCountAll")) document.getElementById("catCountAll").textContent = c.all || 0;
+                                    if (document.getElementById("catCountApproval")) document.getElementById("catCountApproval").textContent = c.approval || 0;
+                                    if (document.getElementById("catCountVariance")) document.getElementById("catCountVariance").textContent = c.variance || 0;
+                                    if (document.getElementById("catCountLogistics")) document.getElementById("catCountLogistics").textContent = c.logistics || 0;
+                                    if (document.getElementById("catCountLoan")) document.getElementById("catCountLoan").textContent = c.loan || 0;
+                                }
+
+                                if (notifList) {
+                                    if (!data.notifications || data.notifications.length === 0) {
+                                        notifList.innerHTML = `<div class="p-4 text-center text-muted fs-7"><i class="bi bi-check2-circle d-block fs-4 text-success mb-1"></i>No unread notifications</div>`;
                                     } else {
                                         let html = "";
                                         data.notifications.forEach(n => {
@@ -267,15 +376,27 @@
                                             if (n.level === "danger") badgeClass = "bg-danger-subtle text-danger";
                                             if (n.level === "success") badgeClass = "bg-success-subtle text-success";
 
+                                            let catIcon = "bi-bell-fill";
+                                            let catClass = "bg-secondary-subtle text-secondary";
+                                            if (n.category === "approval") { catIcon = "bi-file-earmark-check"; catClass = "bg-primary-subtle text-primary"; }
+                                            if (n.category === "variance") { catIcon = "bi-exclamation-triangle-fill"; catClass = "bg-danger-subtle text-danger"; }
+                                            if (n.category === "logistics") { catIcon = "bi-truck"; catClass = "bg-warning-subtle text-warning-emphasis"; }
+                                            if (n.category === "loan") { catIcon = "bi-bank"; catClass = "bg-success-subtle text-success"; }
+
+                                            const safeLink = (n.link || '#').replace(/'/g, "\\'");
+
                                             html += `
-                                                <a href="${n.link}" class="list-group-item list-group-item-action p-2 text-start">
+                                                <div class="list-group-item list-group-item-action p-2.5 text-start notif-item position-relative" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); color: var(--htc-text); cursor: pointer;" onclick="handleNotifClick(event, ${n.id}, '${safeLink}')">
                                                     <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                                                        <span class="badge ${badgeClass} px-2 py-0 fs-8">${n.level.toUpperCase()}</span>
-                                                        <small class="text-muted" style="font-size: 0.7rem;">${n.created_at}</small>
+                                                        <div class="d-flex align-items-center gap-1.5">
+                                                            <span class="badge ${catClass} px-1.5 py-0.5 fs-8 fw-bold" style="text-transform: uppercase;"><i class="bi ${catIcon} me-1"></i>${n.category}</span>
+                                                            <span class="badge ${badgeClass} px-1.5 py-0.5 fs-8 fw-bold">${n.level.toUpperCase()}</span>
+                                                        </div>
+                                                        <small style="font-size: 0.68rem; color: var(--htc-text-muted);">${n.created_at}</small>
                                                     </div>
-                                                    <div class="fw-bold text-dark mb-1" style="font-size: 0.82rem;">${n.title}</div>
-                                                    <div class="text-muted" style="font-size: 0.78rem; line-height: 1.3;">${n.message}</div>
-                                                </a>`;
+                                                    <div class="fw-bold mb-1" style="font-size: 0.82rem; color: var(--htc-text);">${n.title}</div>
+                                                    <div style="font-size: 0.78rem; line-height: 1.35; color: var(--htc-text-muted);">${n.message}</div>
+                                                </div>`;
                                         });
                                         notifList.innerHTML = html;
                                     }
@@ -284,6 +405,18 @@
                         })
                         .catch(err => console.error("Notif error:", err));
                 }
+
+                // Attach category filter buttons
+                const filterBtns = document.querySelectorAll(".notif-filter-btn");
+                filterBtns.forEach(btn => {
+                    btn.addEventListener("click", function(e) {
+                        e.stopPropagation();
+                        filterBtns.forEach(b => b.classList.remove("active"));
+                        this.classList.add("active");
+                        activeNotifCategory = this.getAttribute("data-cat") || "all";
+                        fetchNotifications();
+                    });
+                });
 
                 const markBtn = document.getElementById("markNotifsReadBtn");
                 if (markBtn) {
@@ -302,6 +435,14 @@
 
                 fetchNotifications();
                 setInterval(fetchNotifications, 10000);
+
+                // Auto-dismiss toast messages after 5 seconds
+                document.querySelectorAll('.htc-toast').forEach(function(toastEl) {
+                    setTimeout(function() {
+                        var bsToast = bootstrap.Toast.getInstance(toastEl) || new bootstrap.Toast(toastEl);
+                        if (bsToast) bsToast.hide();
+                    }, 5000);
+                });
             });
         })();
 
@@ -321,7 +462,9 @@
                 });
             }
 
-            // Copilot Slide Drawer Controls
+
+
+            // Copilot Slide Drawer Controls (Pushes Content to Left)
             const btnCopilot = document.getElementById("btnCopilotDrawer");
             const drawer = document.getElementById("copilotSlideDrawer");
             const backdrop = document.getElementById("copilotDrawerBackdrop");
@@ -334,9 +477,13 @@
                 if (drawer && backdrop) {
                     if (open) {
                         drawer.classList.add("open");
-                        backdrop.classList.remove("d-none");
+                        document.body.classList.add("copilot-open");
+                        if (window.innerWidth <= 992) {
+                            backdrop.classList.remove("d-none");
+                        }
                     } else {
                         drawer.classList.remove("open");
+                        document.body.classList.remove("copilot-open");
                         backdrop.classList.add("d-none");
                     }
                 }

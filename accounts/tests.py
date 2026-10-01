@@ -185,4 +185,33 @@ class AccountsViewTests(TestCase):
         user_2fa.refresh_from_db()
         self.assertNotIn("BACKUP999", user_2fa.backup_codes)
 
+    def test_2fa_remembered_for_day_skips_otp_prompt(self):
+        import pyotp
+        secret = pyotp.random_base32()
+        user_2fa = User.objects.create_user(
+            username="remember2fa",
+            password="password123",
+            otp_secret=secret,
+            is_2fa_enabled=True,
+        )
+
+        # First login requires 2FA
+        self.client.post("/accounts/login/", {"username": "remember2fa", "password": "password123"})
+        totp = pyotp.TOTP(secret)
+        res_verify = self.client.post("/accounts/two-factor-verify/", {"otp_token": totp.now()})
+        self.assertEqual(res_verify.status_code, 302)
+
+        # Logout user session (test client clears cookiejar on logout)
+        remember_cookie = self.client.cookies.get(f"htc_2fa_remember_{user_2fa.id}")
+        self.client.logout()
+        if remember_cookie:
+            self.client.cookies[f"htc_2fa_remember_{user_2fa.id}"] = remember_cookie.value
+
+        # Second login from same device skips 2FA prompt and logs in directly
+        res_second = self.client.post("/accounts/login/", {"username": "remember2fa", "password": "password123"})
+        self.assertEqual(res_second.status_code, 302)
+        self.assertNotIn("/accounts/two-factor-verify/", res_second.url)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), user_2fa.id)
+
+
 

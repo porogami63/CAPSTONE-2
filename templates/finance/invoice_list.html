@@ -173,7 +173,7 @@
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="post" action="{% url 'finance:invoice_list' %}" class="form-stack">
+            <form method="post" action="{% url 'finance:invoice_list' %}" class="form-stack" id="createInvoiceForm">
                 {% csrf_token %}
                 <div class="modal-body" style="padding: 1.5rem;">
                     <div class="mb-3">
@@ -181,6 +181,46 @@
                         {{ invoice_form.cluster }}
                         <div class="form-text text-xs text-muted mt-1">Select the existing trade transaction cluster to link this invoice to.</div>
                         {% if invoice_form.cluster.errors %}<div class="text-danger text-xs mt-1">{{ invoice_form.cluster.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <!-- SMART SUGGESTIVE PRICING INSIGHT BANNER -->
+                    <div id="invoiceSuggestiveBanner" class="p-3 mb-3 border rounded-3" style="background: rgba(37, 99, 235, 0.05); border-color: rgba(37, 99, 235, 0.25) !important; display: none;">
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="rounded-circle p-1 text-primary bg-primary-subtle d-flex align-items-center justify-content-center" style="width: 26px; height: 26px; flex-shrink: 0; margin-top: 2px;">
+                                <i class="bi bi-lightbulb-fill fs-7"></i>
+                            </div>
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold text-primary" style="font-size: 0.82rem;">
+                                        <i class="bi bi-stars text-warning me-1"></i> Smart Suggestive Pricing Insight
+                                    </span>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.68rem;" id="suggestedPriceRateBadge">₱0.00 / MT</span>
+                                </div>
+                                
+                                <p class="mb-1 text-secondary" style="font-size: 0.8rem; line-height: 1.35;" id="suggestiveDescText">
+                                    Select a transaction cluster above to view initial PO selling price and portion suggestions.
+                                </p>
+
+                                <div id="suggestivePortionDetails" class="p-2 my-2 rounded bg-body border" style="font-size: 0.78rem; display: none;">
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-1 align-items-center mt-2">
+                                    <span class="text-muted me-1" style="font-size: 0.72rem; font-weight: 600;">Quick Fill Options:</span>
+                                    <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2" id="btnApplySuggestedFull" style="font-size: 0.73rem;">
+                                        <i class="bi bi-check2-circle me-1"></i> Contract Balance (<span id="lblSuggestedFull">₱0.00</span>)
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-success py-1 px-2" id="btnApplySuggestedReceived" style="font-size: 0.73rem; display: none;">
+                                        <i class="bi bi-truck me-1"></i> Received MT (<span id="lblSuggestedReceived">₱0.00</span>)
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2" id="btnApplySuggestedHalf" style="font-size: 0.73rem;">
+                                        <i class="bi bi-pie-chart me-1"></i> 50% Portion (<span id="lblSuggestedHalf">₱0.00</span>)
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-info py-1 px-2" id="btnApplySuggestedQuarter" style="font-size: 0.73rem;">
+                                        <i class="bi bi-pie-chart-fill me-1"></i> 25% Portion (<span id="lblSuggestedQuarter">₱0.00</span>)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row g-3 mb-3">
@@ -193,6 +233,7 @@
                         <div class="col-md-6">
                             <label for="{{ invoice_form.amount.id_for_label }}" class="form-label font-semibold text-sm">Invoice Amount (₱) <span class="text-danger">*</span></label>
                             {{ invoice_form.amount }}
+                            <div id="amountLiveFeedback" class="form-text text-xs mt-1 text-primary fw-medium" style="display: none;"></div>
                             {% if invoice_form.amount.errors %}<div class="text-danger text-xs mt-1">{{ invoice_form.amount.errors|striptags }}</div>{% endif %}
                         </div>
                     </div>
@@ -209,6 +250,28 @@
                             {{ invoice_form.status }}
                             {% if invoice_form.status.errors %}<div class="text-danger text-xs mt-1">{{ invoice_form.status.errors|striptags }}</div>{% endif %}
                         </div>
+                    </div>
+
+                    <!-- Incremental Invoice Designator -->
+                    <div class="p-2.5 rounded border mb-3" style="background: rgba(37, 99, 235, 0.04); border-color: rgba(37, 99, 235, 0.2) !important;">
+                        <div class="form-check d-flex align-items-center gap-2 mb-1">
+                            {{ invoice_form.is_incremental }}
+                            <label class="form-check-label font-semibold text-xs text-primary mb-0" for="id_standalone_is_incremental" style="cursor: pointer;">
+                                <i class="bi bi-diagram-3-fill me-1"></i> Incremental / Progress Billing Invoice
+                            </label>
+                        </div>
+                        <div class="row g-2 mt-1 align-items-center">
+                            <div class="col-auto">
+                                <label style="font-size: 0.72rem; font-weight: 600; color: var(--htc-text-muted);">Specified Portion (%):</label>
+                            </div>
+                            <div class="col-md-4">
+                                {{ invoice_form.incremental_percentage }}
+                            </div>
+                            <div class="col">
+                                <span class="text-muted" style="font-size: 0.72rem;">Required if cluster already has an existing invoice.</span>
+                            </div>
+                        </div>
+                        {% if invoice_form.is_incremental.errors %}<div class="text-danger text-xs mt-1">{{ invoice_form.is_incremental.errors|striptags }}</div>{% endif %}
                     </div>
 
                     <div>
@@ -385,4 +448,164 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const clusterSuggestionsMap = {{ cluster_suggestions_json|safe }};
+    const clusterSelect = document.getElementById('id_standalone_cluster') || document.querySelector('#createInvoiceForm select[name="cluster"]');
+    
+    function getAmountInput() {
+        return document.querySelector('#createInvoiceForm input[name="amount"]') ||
+               document.getElementById('id_amount') ||
+               document.querySelector('input[name="amount"]');
+    }
+    
+    const banner = document.getElementById('invoiceSuggestiveBanner');
+    const badgeRate = document.getElementById('suggestedPriceRateBadge');
+    const descText = document.getElementById('suggestiveDescText');
+    const portionDetails = document.getElementById('suggestivePortionDetails');
+    
+    const btnFull = document.getElementById('btnApplySuggestedFull');
+    const btnReceived = document.getElementById('btnApplySuggestedReceived');
+    const btnHalf = document.getElementById('btnApplySuggestedHalf');
+    
+    const lblFull = document.getElementById('lblSuggestedFull');
+    const lblReceived = document.getElementById('lblSuggestedReceived');
+    const lblHalf = document.getElementById('lblSuggestedHalf');
+    const btnQuarter = document.getElementById('btnApplySuggestedQuarter');
+    const lblQuarter = document.getElementById('lblSuggestedQuarter');
+    const chkStandaloneInc = document.getElementById('id_standalone_is_incremental');
+    const txtStandaloneIncPct = document.getElementById('id_standalone_incremental_pct');
+    const liveFeedback = document.getElementById('amountLiveFeedback');
+
+    let currentSuggestion = null;
+
+    function formatPHP(val) {
+        return '₱' + Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function updateSuggestionUI() {
+        if (!clusterSelect || !banner) return;
+        const selectedId = clusterSelect.value;
+        currentSuggestion = clusterSuggestionsMap[selectedId];
+
+        if (!currentSuggestion || currentSuggestion.selling_price <= 0) {
+            banner.style.display = 'none';
+            if (liveFeedback) liveFeedback.style.display = 'none';
+            return;
+        }
+
+        banner.style.display = 'block';
+        badgeRate.textContent = formatPHP(currentSuggestion.selling_price) + ' / MT';
+        
+        let desc = 'Initial PO selling price set by user: <strong>' + formatPHP(currentSuggestion.selling_price) + '/MT</strong>. ';
+        desc += 'Total PO Contract Target: <strong>' + formatPHP(currentSuggestion.contract_total) + '</strong> (' + currentSuggestion.contract_volume.toFixed(3) + ' MT).';
+        descText.innerHTML = desc;
+
+        if (currentSuggestion.invoices_count > 0) {
+            portionDetails.style.display = 'block';
+            portionDetails.innerHTML = '<div class="text-primary fw-bold mb-0.5"><i class="bi bi-clock-history me-1"></i> Partial Invoice History (' + currentSuggestion.invoices_count + ' previous invoice' + (currentSuggestion.invoices_count > 1 ? 's' : '') + ')</div>' +
+                '<div>Total Previously Billed: <strong>' + formatPHP(currentSuggestion.already_invoiced) + '</strong></div>' +
+                '<div>Remaining PO Balance: <strong class="text-success">' + formatPHP(currentSuggestion.remaining_balance) + '</strong></div>';
+            if (chkStandaloneInc) chkStandaloneInc.checked = true;
+        } else {
+            portionDetails.style.display = 'block';
+            portionDetails.innerHTML = '<div class="text-muted"><i class="bi bi-info-circle me-1"></i> No previous invoices issued for this transaction yet.</div>';
+        }
+
+        lblFull.textContent = formatPHP(currentSuggestion.suggested_full);
+        lblHalf.textContent = formatPHP(currentSuggestion.suggested_50_pct);
+        if (lblQuarter) lblQuarter.textContent = formatPHP(currentSuggestion.suggested_25_pct);
+
+        if (currentSuggestion.received_volume > 0 && currentSuggestion.suggested_received > 0) {
+            btnReceived.style.display = 'inline-block';
+            lblReceived.textContent = formatPHP(currentSuggestion.suggested_received);
+        } else {
+            btnReceived.style.display = 'none';
+        }
+
+        evaluateAmountFeedback();
+    }
+
+    function applySuggestedValue(val, pct) {
+        const input = getAmountInput();
+        if (input && currentSuggestion) {
+            input.value = Number(val || 0).toFixed(2);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            if (chkStandaloneInc) chkStandaloneInc.checked = true;
+            if (txtStandaloneIncPct && pct) txtStandaloneIncPct.value = pct;
+            evaluateAmountFeedback();
+        }
+    }
+
+    if (btnFull) {
+        btnFull.addEventListener('click', function(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            if (currentSuggestion) applySuggestedValue(currentSuggestion.suggested_full, 100);
+        });
+    }
+
+    if (btnReceived) {
+        btnReceived.addEventListener('click', function(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            if (currentSuggestion) applySuggestedValue(currentSuggestion.suggested_received, null);
+        });
+    }
+
+    if (btnHalf) {
+        btnHalf.addEventListener('click', function(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            if (currentSuggestion) applySuggestedValue(currentSuggestion.suggested_50_pct, 50);
+        });
+    }
+
+    if (btnQuarter) {
+        btnQuarter.addEventListener('click', function(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            if (currentSuggestion) applySuggestedValue(currentSuggestion.suggested_25_pct, 25);
+        });
+    }
+
+    function evaluateAmountFeedback() {
+        const amountInput = getAmountInput();
+        if (!amountInput || !liveFeedback) return;
+        const enteredVal = parseFloat(amountInput.value) || 0;
+        if (!currentSuggestion || enteredVal <= 0) {
+            liveFeedback.style.display = 'none';
+            return;
+        }
+
+        liveFeedback.style.display = 'block';
+        const pctOfContract = (enteredVal / currentSuggestion.contract_total * 100).toFixed(1);
+        const equivalentMT = (enteredVal / currentSuggestion.selling_price).toFixed(3);
+
+        if (txtStandaloneIncPct && pctOfContract > 0) {
+            txtStandaloneIncPct.value = pctOfContract;
+        }
+
+        if (Math.abs(enteredVal - currentSuggestion.contract_total) < 0.01) {
+            liveFeedback.className = 'form-text text-xs mt-1 text-success fw-bold';
+            liveFeedback.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Full Contract Invoice Amount: 100% of PO target value (' + formatPHP(currentSuggestion.contract_total) + ').';
+        } else if (currentSuggestion.remaining_balance > 0 && Math.abs(enteredVal - currentSuggestion.remaining_balance) < 0.01) {
+            liveFeedback.className = 'form-text text-xs mt-1 text-success fw-bold';
+            liveFeedback.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Remaining Balance Invoice Amount: Completes remaining PO contract balance (' + formatPHP(currentSuggestion.remaining_balance) + ').';
+        } else {
+            liveFeedback.className = 'form-text text-xs mt-1 text-primary fw-medium';
+            liveFeedback.innerHTML = '<i class="bi bi-pencil-square me-1"></i> Custom Incremental Portion: <strong>' + pctOfContract + '%</strong> of total PO contract (~' + equivalentMT + ' MT @ ' + formatPHP(currentSuggestion.selling_price) + '/MT).';
+        }
+    }
+
+    if (clusterSelect) {
+        clusterSelect.addEventListener('change', updateSuggestionUI);
+        updateSuggestionUI();
+    }
+
+    document.addEventListener('input', function(e) {
+        if (e.target && (e.target.id === 'id_amount' || e.target.name === 'amount')) {
+            evaluateAmountFeedback();
+        }
+    });
+});
+</script>
 {% endblock %}

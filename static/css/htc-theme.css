@@ -9,12 +9,12 @@
     --htc-primary-light: #60a5fa;
     --htc-text: #f8fafc;
     --htc-text-muted: #94a3b8;
-    --htc-accent: #ef4444;
-    --htc-accent-soft: #7f1d1d;
-    --htc-gold: #fbbf24;
-    --htc-success: #10b981;
-    --htc-success-bg: #064e3b;
-    --htc-warning: #f59e0b;
+    --htc-accent: #d97777;
+    --htc-accent-soft: #7f3d3d;
+    --htc-gold: #d9bd77;
+    --htc-success: #55b98f;
+    --htc-success-bg: #264e3f;
+    --htc-warning: #d9a45b;
     --htc-warning-bg: #78350f;
     --htc-danger-bg: #7f1d1d;
     --htc-bg: #0f172a;
@@ -43,12 +43,12 @@
     --htc-primary-light: #2563eb;
     --htc-text: #0f172a;
     --htc-text-muted: #64748b;
-    --htc-accent: #dc2626;
-    --htc-accent-soft: #fef2f2;
-    --htc-gold: #d97706;
-    --htc-success: #059669;
-    --htc-success-bg: #d1fae5;
-    --htc-warning: #d97706;
+    --htc-accent: #b24d4d;
+    --htc-accent-soft: #f5eaea;
+    --htc-gold: #b2884d;
+    --htc-success: #3c7d62;
+    --htc-success-bg: #d7e8e0;
+    --htc-warning: #b2884d;
     --htc-warning-bg: #fef3c7;
     --htc-danger-bg: #fee2e2;
     --htc-bg: #f1f5f9;
@@ -2039,7 +2039,7 @@ ul.dropdown-menu li, .dropdown-menu li {
     margin-bottom: 1.75rem;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 [data-theme="light"] .dashboard-hero-card {
@@ -2214,6 +2214,24 @@ html[data-legibility="high"] table {
     font-size: 1rem !important;
 }
 
+html[data-legibility="high"] td,
+html[data-legibility="high"] th {
+    padding: 1rem 0.75rem !important;
+}
+
+html[data-legibility="high"] .card,
+html[data-legibility="high"] .panel-body,
+html[data-legibility="high"] .detail-card,
+html[data-legibility="high"] .cluster-card,
+html[data-legibility="high"] .summary-card {
+    padding: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+}
+
+html[data-legibility="high"] .detail-row {
+    padding: 0.75rem 0 !important;
+}
+
 html[data-legibility="high"] .badge {
     font-size: 0.85rem !important;
     padding: 0.35rem 0.65rem !important;
@@ -2342,6 +2360,7 @@ html[data-legibility="high"] .badge {
     transform: translateY(-1px);
 }
 
+.btn-action-secondary {
     display: inline-flex !important;
     align-items: center !important;
     gap: 0.4rem !important;
@@ -2735,4 +2754,387 @@ html[data-legibility="high"] .badge {
 .btn-htc-primary:active {
     transform: translateY(0);
 }
+
+/* ==========================================================================
+   UX/UI Refinements & Layout Overhaul
+   ========================================================================== */
+
+/* 1. Collapsible Sidebar (Compact Icon Mode) */
+.app-sidebar {
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.app-main-wrap {
+    transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+html.sidebar-collapsed .app-sidebar,
+body.sidebar-collapsed .app-sidebar {
+    width: 68px !important;
+    min-width: 68px !important;
+}
+html.sidebar-collapsed .app-main-wrap,
+body.sidebar-collapsed .app-main-wrap {
+    margin-left: 68px !important;
+}
+html.sidebar-collapsed .brand-text-group,
+body.sidebar-collapsed .brand-text-group,
+html.sidebar-collapsed .nav-label,
+body.sidebar-collapsed .nav-label,
+html.sidebar-collapsed .user-card-info,
+body.sidebar-collapsed .user-card-info,
+html.sidebar-collapsed .user-card-dots,
+body.sidebar-collapsed .user-card-dots {
+    display: none !important;
+}
+html.sidebar-collapsed .brand-block,
+body.sidebar-collapsed .brand-block {
+    justify-content: center !important;
+    padding: 0.75rem 0.25rem !important;
+}
+html.sidebar-collapsed .app-sidebar .nav-link,
+body.sidebar-collapsed .app-sidebar .nav-link {
+    justify-content: center !important;
+    padding: 0.75rem 0.5rem !important;
+}
+html.sidebar-collapsed .sidebar-danger-zone .nav-link,
+body.sidebar-collapsed .sidebar-danger-zone .nav-link {
+    justify-content: center !important;
+}
+html.sidebar-collapsed .sidebar-collapse-btn,
+body.sidebar-collapsed .sidebar-collapse-btn {
+    position: static !important;
+    display: flex !important;
+    margin: 0 auto !important;
+    z-index: 25 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+html.sidebar-collapsed .brand-block,
+body.sidebar-collapsed .brand-block {
+    flex-direction: column !important;
+    gap: 0.35rem !important;
+    cursor: pointer !important;
+}
+html.sidebar-collapsed .brand-logo-group,
+body.sidebar-collapsed .brand-logo-group {
+    justify-content: center !important;
+}
+
+.user-block .dropdown-menu {
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18) !important;
+}
+.user-block .dropdown-item:hover {
+    background: var(--htc-sidebar-hover) !important;
+}
+
+/* 2. Copilot Slide Drawer Push Content Mode */
+@media (min-width: 993px) {
+    body.copilot-open .app-main-wrap {
+        margin-right: 380px !important;
+        transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body.copilot-open .copilot-drawer {
+        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
+    }
+}
+
+/* 3. Sidebar Navigation & Centered Icons */
+.app-sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.88rem;
+    border-radius: var(--htc-radius-sm);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.app-sidebar .nav-link .nav-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+    width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 4. Login Page Overhaul & Visual Softening */
+.login-page-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #0f172a !important;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) !important;
+    background-size: 32px 32px !important;
+    position: relative;
+    padding: 2rem 1rem;
+}
+[data-theme="light"] .login-page-wrapper {
+    background-color: #f1f5f9 !important;
+    background-image: linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px) !important;
+}
+.glass-login-card {
+    background: #1e293b !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+    border-radius: 16px !important;
+    padding: 2.5rem 2rem !important;
+    width: 100%;
+    max-width: 440px !important;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+[data-theme="light"] .glass-login-card {
+    background: #ffffff !important;
+    border: 1px solid var(--htc-border) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+}
+.login-brand-badge {
+    width: 64px !important;
+    height: 64px !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 auto 1rem auto !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.login-brand-badge img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.login-company-name {
+    font-size: 1.4rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+    color: var(--htc-text) !important;
+    margin-bottom: 0.25rem !important;
+}
+.login-page-wrapper .form-control,
+.login-page-wrapper input[type="text"],
+.login-page-wrapper input[type="password"] {
+    padding: 0.65rem 0.9rem !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--htc-border) !important;
+    background-color: var(--htc-surface) !important;
+    color: var(--htc-text) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* ==========================================================================
+   Stark Outlier / Statistical Warning Confirmation Modal & Button
+   ========================================================================== */
+.btn-stark-red {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    border: 1px solid #991b1b !important;
+    font-weight: 700 !important;
+    padding: 0.6rem 1.4rem !important;
+    border-radius: 6px !important;
+    letter-spacing: 0.02em !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease !important;
+    cursor: pointer;
+}
+.btn-stark-red:hover, .btn-stark-red:focus {
+    background-color: #b91c1c !important;
+    border-color: #7f1d1d !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3) !important;
+}
+
+.stark-outlier-card {
+    background-color: var(--htc-surface) !important;
+    border: 2px solid #dc2626 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 12px 36px rgba(220, 38, 38, 0.25) !important;
+}
+.stark-outlier-header {
+    border-bottom: 2px solid #dc2626 !important;
+    padding: 1.25rem 1.5rem !important;
+}
+.stark-outlier-title {
+    font-size: 1.5rem !important;
+    font-weight: 800 !important;
+    color: #dc2626 !important;
+    margin: 0 !important;
+    letter-spacing: -0.02em !important;
+    text-transform: uppercase;
+}
+.stark-stats-table {
+    width: 100%;
+    margin-top: 1rem;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+.stark-stats-table th, .stark-stats-table td {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--htc-border);
+}
+.stark-stats-table th {
+    background-color: rgba(220, 38, 38, 0.08);
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   Horizontal Process Flowchart Component (Company Process Handoffs)
+   ========================================================================== */
+.htc-flowchart-card {
+    background-color: var(--htc-surface) !important;
+    border: 1px solid var(--htc-border) !important;
+    border-radius: 12px !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.flowchart-container {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative;
+    width: 100%;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.flowchart-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    flex: 1;
+    min-width: 130px;
+    z-index: 2;
+}
+
+.flowchart-connector {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    width: 100%;
+    height: 3px;
+    background-color: var(--htc-border);
+    z-index: 1;
+}
+
+.flowchart-connector.is-completed {
+    background-color: #10b981 !important;
+}
+
+.flowchart-node {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background-color: var(--htc-surface);
+    border: 3px solid var(--htc-border);
+    color: var(--htc-text-muted);
+    font-weight: 800;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.65rem;
+    position: relative;
+    z-index: 2;
+    transition: all 0.25s ease;
+}
+
+/* Completed Step Node */
+.flowchart-step.is-completed .flowchart-node {
+    background-color: #10b981 !important;
+    border-color: #059669 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3) !important;
+}
+
+/* Current / Active Step Node */
+.flowchart-step.is-active .flowchart-node {
+    background-color: #2563eb !important;
+    border-color: #60a5fa !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 14px rgba(37, 99, 235, 0.5) !important;
+    transform: scale(1.12);
+}
+
+/* Returned / Rejected Step Node */
+.flowchart-step.is-returned .flowchart-node {
+    background-color: #dc2626 !important;
+    border-color: #991b1b !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 14px rgba(220, 38, 38, 0.5) !important;
+}
+
+.flowchart-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--htc-text);
+    line-height: 1.25;
+    margin-bottom: 0.2rem;
+}
+
+.flowchart-subtext {
+    font-size: 0.72rem;
+    color: var(--htc-text-muted);
+}
+
+/* ==========================================================================
+   Consolidated Uniform Theme & Notifications
+   ========================================================================== */
+.notif-item {
+    background: var(--htc-surface) !important;
+    color: var(--htc-text) !important;
+    border-color: var(--htc-border) !important;
+    transition: background-color 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+.notif-item:hover {
+    background: var(--htc-sidebar-hover) !important;
+    color: var(--htc-text) !important;
+}
+html[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.notif-filter-btn {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.18rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--htc-border);
+    background: var(--htc-surface);
+    color: var(--htc-text-muted);
+    transition: all 0.15s ease-in-out;
+    white-space: nowrap;
+}
+.notif-filter-btn.active, .notif-filter-btn:hover {
+    background: var(--htc-sidebar-hover);
+    color: var(--htc-primary-light);
+    border-color: var(--htc-primary-light);
+}
+
+#notifList::-webkit-scrollbar {
+    width: 6px;
+}
+#notifList::-webkit-scrollbar-track {
+    background: var(--htc-surface);
+}
+#notifList::-webkit-scrollbar-thumb {
+    background: var(--htc-border);
+    border-radius: 4px;
+}
+#notifList::-webkit-scrollbar-thumb:hover {
+    background: var(--htc-primary-mid);
+}
+
+
 
