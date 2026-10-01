@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 
 from django.contrib import messages
@@ -556,6 +557,12 @@ def invoice_list(request):
                 "status_badge": badge,
             })
 
+    from operations.services.pricing import get_invoice_suggestion_data
+    cluster_suggestions_map = {}
+    for c in TransactionCluster.objects.filter(is_archived=False).select_related("purchase_order", "logistics", "client").prefetch_related("invoices"):
+        cluster_suggestions_map[str(c.id)] = get_invoice_suggestion_data(c)
+    cluster_suggestions_json = json.dumps(cluster_suggestions_map)
+
     return render(
         request,
         "finance/invoice_list.html",
@@ -564,6 +571,7 @@ def invoice_list(request):
             "invoices": invoice_rows,
             "sales_invoices": sales_invoices,
             "supplier_invoices": supplier_invoices,
+            "cluster_suggestions_json": cluster_suggestions_json,
             "total_invoiced": total_invoiced,
             "total_invoiced_m": total_invoiced_m,
             "paid_amount_m": paid_amount_m,

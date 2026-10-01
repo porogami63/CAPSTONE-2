@@ -97,9 +97,6 @@ def cluster_list(request):
             c.variance_text = f"{c.logistics_record.variance_percent:.2f}%"
         c.notes = c.contract_notes or "No contract notes recorded."
 
-        c.has_chai_mro = bool(
-            c.chai_records.exists() or c.mro_releases.exists() or (c.purchase_order and c.purchase_order.brix_level)
-        )
         c.has_received = bool(c.logistics_record and c.logistics_record.received_volume_mt is not None)
         c.has_invoice = bool(invs)
 
@@ -721,6 +718,9 @@ def cluster_detail(request, pk):
 
     audit_events.sort(key=lambda x: x["date"], reverse=True)
     debrief = cluster_financials(cluster)
+    from operations.services.pricing import get_invoice_suggestion_data
+    invoice_suggestion_data = get_invoice_suggestion_data(cluster)
+    cluster_suggestions_json = json.dumps({str(cluster.id): invoice_suggestion_data})
 
     return render(
         request,
@@ -733,6 +733,8 @@ def cluster_detail(request, pk):
             "loan_form": loan_form,
             "audit_events": audit_events,
             "debrief": debrief,
+            "invoice_suggestion_data": invoice_suggestion_data,
+            "cluster_suggestions_json": cluster_suggestions_json,
             "linked_mros": linked_mros,
             "available_mros": available_mros,
             "total_mro_tons": total_mro_tons,
@@ -1004,6 +1006,14 @@ def resolve_dispute(request, pk):
 def archive_cluster(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
+        blockers = cluster.get_archival_blockers()
+        if blockers:
+            messages.error(
+                request,
+                f"Cannot archive transaction {cluster.reference_code}: {'; '.join(blockers)}."
+            )
+            return redirect("operations:cluster_detail", pk=pk)
+
         now = timezone.now()
         cluster.is_archived = True
         cluster.archived_at = now
@@ -1012,12 +1022,12 @@ def archive_cluster(request, pk):
 
         # Also archive associated invoices and logistics
         cluster.invoices.update(is_archived=True, archived_at=now)
-        if hasattr(cluster, "logistics"):
+        if hasattr(cluster, "logistics") and cluster.logistics:
             cluster.logistics.is_archived = True
             cluster.logistics.archived_at = now
             cluster.logistics.save(update_fields=["is_archived", "archived_at"])
 
-        messages.success(request, f"Transaction cluster {cluster.reference_code} has been archived.")
+        messages.success(request, f"Transaction cluster {cluster.reference_code} has been successfully archived.")
     return redirect("operations:cluster_list")
 
 
@@ -1031,7 +1041,7 @@ def unarchive_cluster(request, pk):
         cluster.save(update_fields=["is_archived", "archived_at"])
 
         cluster.invoices.update(is_archived=False, archived_at=None)
-        if hasattr(cluster, "logistics"):
+        if hasattr(cluster, "logistics") and cluster.logistics:
             cluster.logistics.is_archived = False
             cluster.logistics.archived_at = None
             cluster.logistics.save(update_fields=["is_archived", "archived_at"])
@@ -1044,27 +1054,34 @@ def unarchive_cluster(request, pk):
 def bulk_archive_completed(request):
     if request.method == "POST":
         now = timezone.now()
-        completed_clusters = TransactionCluster.objects.filter(
-            is_archived=False,
-            status__in=[TransactionCluster.Status.CLOSED, TransactionCluster.Status.DELIVERED],
-        )
-        count = 0
-        for cluster in completed_clusters:
-            # Check if invoices are paid
-            invoices = cluster.invoices.all()
-            all_paid = all(inv.status == Invoice.Status.PAID for inv in invoices) if invoices else True
-            if cluster.status == TransactionCluster.Status.CLOSED or all_paid:
+        unarchived_clusters = TransactionCluster.objects.filter(is_archived=False)
+        archived_count = 0
+        skipped_count = 0
+
+        for cluster in unarchived_clusters:
+            if cluster.is_archivable:
                 cluster.is_archived = True
                 cluster.archived_at = now
+                cluster._audit_user = request.user
                 cluster.save(update_fields=["is_archived", "archived_at"])
                 cluster.invoices.update(is_archived=True, archived_at=now)
-                if hasattr(cluster, "logistics"):
+                if hasattr(cluster, "logistics") and cluster.logistics:
                     cluster.logistics.is_archived = True
                     cluster.logistics.archived_at = now
                     cluster.logistics.save(update_fields=["is_archived", "archived_at"])
-                count += 1
+                archived_count += 1
+            else:
+                if cluster.status in [TransactionCluster.Status.CLOSED, TransactionCluster.Status.DELIVERED]:
+                    skipped_count += 1
 
-        messages.success(request, f"Archived {count} completed transactions, invoices, and logistics records.")
+        if archived_count > 0:
+            messages.success(request, f"Archived {archived_count} eligible transaction cluster(s) to the Archive Vault.")
+        else:
+            messages.info(request, "No transactions met all archival prerequisites (closed/delivered status, paid invoices, resolved disputes & settled loans).")
+
+        if skipped_count > 0:
+            messages.warning(request, f"Skipped {skipped_count} delivered/closed transaction(s) due to pending invoices, active loans, or unresolved disputes.")
+
     return redirect("operations:cluster_list")
 
 

@@ -113,74 +113,106 @@
                 <div class="form-text text-xs text-muted mt-1">Price billed to Customer (₱/MT).</div>
                 {% if form.selling_price.errors %}<div class="text-danger text-xs mt-1">{{ form.selling_price.errors|striptags }}</div>{% endif %}
             </div>
-
-            <div class="col-md-6">
-                <label for="{{ form.est_trucking_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Land Trucking Rate</label>
-                <div class="input-addon-group">
-                    <span class="addon addon-prefix">₱</span>
-                    {{ form.est_trucking_rate }}
-                </div>
-                <div class="form-text text-xs text-muted mt-1">Land transport cost per MT (₱/MT).</div>
-                {% if form.est_trucking_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_trucking_rate.errors|striptags }}</div>{% endif %}
-            </div>
-
-            <div class="col-md-6">
-                <label for="{{ form.est_barge_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Marine Barging Rate</label>
-                <div class="input-addon-group">
-                    <span class="addon addon-prefix">₱</span>
-                    {{ form.est_barge_rate }}
-                </div>
-                <div class="form-text text-xs text-muted mt-1">Marine barging cost per MT (₱/MT).</div>
-                {% if form.est_barge_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_barge_rate.errors|striptags }}</div>{% endif %}
-            </div>
-
-            <div class="col-12">
-                <label for="{{ form.terms.id_for_label }}" class="form-label font-semibold text-sm">Commercial &amp; Payment Terms</label>
-                {{ form.terms }}
-                <div class="form-text text-xs text-muted mt-1">Payment terms &amp; commercial conditions (e.g. "Net 30 days, LC at sight").</div>
-                {% if form.terms.errors %}<div class="text-danger text-xs mt-1">{{ form.terms.errors|striptags }}</div>{% endif %}
-            </div>
-
-            <div class="col-md-6">
-                <label for="{{ form.brix_level.id_for_label }}" class="form-label font-semibold text-sm">Brix Quality Level (%)</label>
-                <div class="input-addon-group">
-                    {{ form.brix_level }}
-                    <span class="addon addon-suffix">% Brix</span>
-                </div>
-                <div class="form-text text-xs text-muted mt-1">Verified sugar density specification level.</div>
-                {% if form.brix_level.errors %}<div class="text-danger text-xs mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
-            </div>
-
-            <div class="col-md-6">
-                <label for="{{ form.chai_specs.id_for_label }}" class="form-label font-semibold text-sm">CHAI Quality Rating Grade</label>
-                {{ form.chai_specs }}
-                <div class="form-text text-xs text-muted mt-1">Numerical quality grade scale (1.0 Premium to 5.0 Substandard / Off-Spec).</div>
-                {% if form.chai_specs.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_specs.errors|striptags }}</div>{% endif %}
-            </div>
         </div>
 
-        <!-- Live Financial & Logistics Summary Calculator -->
-        <div class="live-calc-box" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1rem 1.25rem; margin-top: 1.25rem;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1.1fr 1.2fr; gap: 1rem; align-items: center;">
-                <div>
-                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted);">Supplier Outlay (Cost)</div>
-                    <div class="calc-formula" id="calcFormulaCost" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
-                    <div class="calc-value" id="calcTotalCost" style="font-size: 1.05rem; font-weight: 700; color: var(--htc-danger);">₱0.00</div>
+        <!-- Live Profit Summary (compact, always visible) -->
+        <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 0.75rem 1.25rem; margin-top: 1.25rem; cursor: pointer;" onclick="document.getElementById('calcExpandedDetails').classList.toggle('d-none'); this.querySelector('.calc-chevron').classList.toggle('bi-chevron-down'); this.querySelector('.calc-chevron').classList.toggle('bi-chevron-up');">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <div>
+                        <span class="text-xs text-muted fw-bold text-uppercase">Projected Profit</span>
+                        <div class="calc-value" id="calcGrossMargin" style="font-size: 1.15rem; font-weight: 800; color: var(--htc-success);">₱0.00</div>
+                    </div>
+                    <span class="text-muted" style="font-size: 0.78rem;">|</span>
+                    <div>
+                        <span class="text-xs text-muted fw-bold text-uppercase">Cost</span>
+                        <div id="calcTotalCost" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text-muted);">₱0.00</div>
+                    </div>
+                    <span class="text-muted" style="font-size: 0.78rem;">|</span>
+                    <div>
+                        <span class="text-xs text-muted fw-bold text-uppercase">Revenue</span>
+                        <div id="calcTotalRev" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text-muted);">₱0.00</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted);">Customer Sales (Revenue)</div>
-                    <div class="calc-formula" id="calcFormulaRev" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
-                    <div class="calc-value" id="calcTotalRev" style="font-size: 1.05rem; font-weight: 700; color: var(--htc-primary-light);">₱0.00</div>
+                <i class="bi bi-chevron-down calc-chevron text-muted"></i>
+            </div>
+            <div id="calcExpandedDetails" class="d-none" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--htc-border);">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <div class="text-xs text-muted fw-bold text-uppercase">Supplier Outlay Formula</div>
+                        <div id="calcFormulaCost" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted fw-bold text-uppercase">Customer Sales Formula</div>
+                        <div id="calcFormulaRev" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted fw-bold text-uppercase">Freight Outlay</div>
+                        <div id="calcFormulaLog" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
+                        <div id="calcTotalLogistics" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text-muted);">₱0.00</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-gold);">Projected Freight Outlay</div>
-                    <div class="calc-formula" id="calcFormulaLog" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
-                    <div class="calc-value" id="calcTotalLogistics" style="font-size: 1.05rem; font-weight: 700; color: var(--htc-gold);">₱0.00</div>
-                </div>
-                <div style="border-left: 1px solid var(--htc-border); padding-left: 1rem;">
-                    <div class="calc-label" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-success);">Projected Net Trade Profit</div>
-                    <div class="calc-formula" id="calcFormulaMargin" style="font-size: 0.78rem; color: var(--htc-text-muted);">Revenue − Cost − Freight</div>
-                    <div class="calc-value" id="calcGrossMargin" style="font-size: 1.15rem; font-weight: 800; color: var(--htc-success);">₱0.00</div>
+            </div>
+        </div>
+        <div id="calcFormulaMargin" class="d-none"></div>
+
+        <!-- Collapsible: Additional Details (freight, terms, quality) -->
+        <div style="margin-top: 1.25rem;">
+            <button type="button" class="btn btn-sm w-100 d-flex align-items-center justify-content-between py-2 px-3"
+                    style="background: var(--htc-bg); border: 1px dashed var(--htc-border); border-radius: 8px; color: var(--htc-text-muted); font-size: 0.82rem; font-weight: 600;"
+                    onclick="document.getElementById('advancedFields').classList.toggle('d-none'); this.querySelector('.adv-chevron').classList.toggle('bi-chevron-down'); this.querySelector('.adv-chevron').classList.toggle('bi-chevron-up'); this.querySelector('.adv-label').textContent = document.getElementById('advancedFields').classList.contains('d-none') ? 'Show Additional Details' : 'Hide Additional Details';">
+                <span class="d-flex align-items-center gap-2">
+                    <i class="bi bi-sliders2"></i>
+                    <span class="adv-label">Show Additional Details</span>
+                    <span class="badge bg-secondary bg-opacity-25 text-muted" style="font-size: 0.68rem;">Freight, Terms, Quality Specs</span>
+                </span>
+                <i class="bi bi-chevron-down adv-chevron"></i>
+            </button>
+            <div id="advancedFields" class="{% if not object %}d-none{% endif %}" style="margin-top: 0.75rem;">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.est_trucking_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Land Trucking Rate</label>
+                        <div class="input-addon-group">
+                            <span class="addon addon-prefix">₱</span>
+                            {{ form.est_trucking_rate }}
+                        </div>
+                        <div class="form-text text-xs text-muted mt-1">Land transport cost per MT (₱/MT).</div>
+                        {% if form.est_trucking_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_trucking_rate.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="{{ form.est_barge_rate.id_for_label }}" class="form-label font-semibold text-sm">Est. Marine Barging Rate</label>
+                        <div class="input-addon-group">
+                            <span class="addon addon-prefix">₱</span>
+                            {{ form.est_barge_rate }}
+                        </div>
+                        <div class="form-text text-xs text-muted mt-1">Marine barging cost per MT (₱/MT).</div>
+                        {% if form.est_barge_rate.errors %}<div class="text-danger text-xs mt-1">{{ form.est_barge_rate.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-12">
+                        <label for="{{ form.terms.id_for_label }}" class="form-label font-semibold text-sm">Commercial &amp; Payment Terms</label>
+                        {{ form.terms }}
+                        <div class="form-text text-xs text-muted mt-1">Payment terms &amp; commercial conditions (e.g. "Net 30 days, LC at sight").</div>
+                        {% if form.terms.errors %}<div class="text-danger text-xs mt-1">{{ form.terms.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="{{ form.brix_level.id_for_label }}" class="form-label font-semibold text-sm">Brix Quality Level (%)</label>
+                        <div class="input-addon-group">
+                            {{ form.brix_level }}
+                            <span class="addon addon-suffix">% Brix</span>
+                        </div>
+                        <div class="form-text text-xs text-muted mt-1">Verified sugar density specification level.</div>
+                        {% if form.brix_level.errors %}<div class="text-danger text-xs mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="{{ form.chai_specs.id_for_label }}" class="form-label font-semibold text-sm">CHAI Quality Rating Grade</label>
+                        {{ form.chai_specs }}
+                        <div class="form-text text-xs text-muted mt-1">Numerical quality grade scale (1.0 Premium to 5.0 Substandard / Off-Spec).</div>
+                        {% if form.chai_specs.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_specs.errors|striptags }}</div>{% endif %}
+                    </div>
                 </div>
             </div>
         </div>

@@ -195,7 +195,7 @@
                         data-variance="{{ c.variance_text }}"
                         data-status="{{ c.status }}"
                         data-progress="{{ c.timeline_progress }}"
-                        data-chai="{{ c.has_chai_mro|yesno:'true,false' }}"
+
                         data-received="{{ c.has_received|yesno:'true,false' }}"
                         data-invoiced="{{ c.has_invoice|yesno:'true,false' }}"
                         data-url="{% url 'operations:cluster_detail' c.pk %}"
@@ -209,7 +209,18 @@
                         <td>{{ c.margin|floatformat:2 }}%</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--htc-text-muted);">No transaction records match search.</td></tr>
+                    <tr>
+                        <td colspan="7" style="padding: 4rem 2rem; text-align: center; color: var(--htc-text-muted);">
+                            <div class="mb-3">
+                                <i class="bi bi-folder2-open" style="font-size: 2.5rem; color: var(--htc-border);"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-2">No Transactions Found</h5>
+                            <p class="mb-3">There are currently no active transaction clusters in the system.</p>
+                            <a href="{% url 'operations:cluster_create' %}" class="btn btn-primary fw-bold px-4 rounded-pill">
+                                <i class="bi bi-plus-lg me-1"></i> Create First Cluster
+                            </a>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -277,32 +288,25 @@
                         <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub2">Pending</div>
                     </div>
                 </a>
-                <a href="{% url 'operations:mro_summary' %}" class="flowchart-step-link" title="Step 03: View MRO Summary & Quality Specs">
+                <a href="{% url 'operations:logistics_list' %}" class="flowchart-step-link" title="Step 03: View Logistics Ledger">
                     <div class="flowchart-step w-100" id="flowStep3">
                         <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">03</div>
-                        <div class="flowchart-label" style="font-size: 0.72rem;">Specs</div>
-                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub3">CHAI/MRO</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Logistics</div>
+                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub3">Dispatch</div>
                     </div>
                 </a>
-                <a href="{% url 'operations:logistics_list' %}" class="flowchart-step-link" title="Step 04: View Logistics Ledger">
+                <a href="{% url 'finance:invoice_list' %}" class="flowchart-step-link" title="Step 04: View Invoicing Module">
                     <div class="flowchart-step w-100" id="flowStep4">
                         <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">04</div>
-                        <div class="flowchart-label" style="font-size: 0.72rem;">Logistics</div>
-                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub4">Dispatch</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Invoicing</div>
+                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub4">Billing</div>
                     </div>
                 </a>
-                <a href="{% url 'finance:invoice_list' %}" class="flowchart-step-link" title="Step 05: View Invoicing Module">
+                <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link" title="Step 05: View Capital Loans & Finance Settlement">
                     <div class="flowchart-step w-100" id="flowStep5">
                         <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">05</div>
-                        <div class="flowchart-label" style="font-size: 0.72rem;">Invoicing</div>
-                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub5">Billing</div>
-                    </div>
-                </a>
-                <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link" title="Step 06: View Capital Loans & Finance Settlement">
-                    <div class="flowchart-step w-100" id="flowStep6">
-                        <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">06</div>
                         <div class="flowchart-label" style="font-size: 0.72rem;">Settlement</div>
-                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub6">Closure</div>
+                        <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub5">Closure</div>
                     </div>
                 </a>
             </div>
@@ -366,40 +370,31 @@
             setFlowStep('flowStep2', 'is-completed', 'Approved');
         }
 
-        // Step 3: Quality Specs (CHAI/MRO)
-        if (d.chai === 'true') {
-            setFlowStep('flowStep3', 'is-completed', 'Verified');
-        } else if (d.status === 'approved' || d.status === 'active') {
-            setFlowStep('flowStep3', 'is-active', 'Pending CHAI');
+        // Step 3: Logistics & Receiving
+        if (d.received === 'true' || d.status === 'delivered' || d.status === 'closed') {
+            setFlowStep('flowStep3', 'is-completed', 'Received');
+        } else if (d.status === 'active') {
+            setFlowStep('flowStep3', 'is-active', 'In Transit');
         } else {
-            setFlowStep('flowStep3', '', 'Awaiting Cert');
+            setFlowStep('flowStep3', '', 'Pending');
         }
 
-        // Step 4: Logistics & Receiving
-        if (d.received === 'true' || d.status === 'delivered' || d.status === 'closed') {
-            setFlowStep('flowStep4', 'is-completed', 'Received');
-        } else if (d.status === 'active') {
-            setFlowStep('flowStep4', 'is-active', 'In Transit');
+        // Step 4: Invoicing
+        if (d.invoiced === 'true' || d.status === 'closed') {
+            setFlowStep('flowStep4', 'is-completed', 'Issued');
+        } else if (d.received === 'true' || d.status === 'delivered') {
+            setFlowStep('flowStep4', 'is-active', 'Ready to Bill');
         } else {
             setFlowStep('flowStep4', '', 'Pending');
         }
 
-        // Step 5: Invoicing
-        if (d.invoiced === 'true' || d.status === 'closed') {
-            setFlowStep('flowStep5', 'is-completed', 'Issued');
-        } else if (d.received === 'true' || d.status === 'delivered') {
-            setFlowStep('flowStep5', 'is-active', 'Ready to Bill');
+        // Step 5: Settlement
+        if (d.status === 'closed') {
+            setFlowStep('flowStep5', 'is-completed', 'Closed');
+        } else if (d.invoiced === 'true') {
+            setFlowStep('flowStep5', 'is-active', 'Collection');
         } else {
             setFlowStep('flowStep5', '', 'Pending');
-        }
-
-        // Step 6: Settlement
-        if (d.status === 'closed') {
-            setFlowStep('flowStep6', 'is-completed', 'Closed');
-        } else if (d.invoiced === 'true') {
-            setFlowStep('flowStep6', 'is-active', 'Collection');
-        } else {
-            setFlowStep('flowStep6', '', 'Pending');
         }
 
         const pane = document.getElementById('detailPane');

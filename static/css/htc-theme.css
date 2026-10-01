@@ -9,12 +9,12 @@
     --htc-primary-light: #60a5fa;
     --htc-text: #f8fafc;
     --htc-text-muted: #94a3b8;
-    --htc-accent: #ef4444;
-    --htc-accent-soft: #7f1d1d;
-    --htc-gold: #fbbf24;
-    --htc-success: #10b981;
-    --htc-success-bg: #064e3b;
-    --htc-warning: #f59e0b;
+    --htc-accent: #d97777;
+    --htc-accent-soft: #7f3d3d;
+    --htc-gold: #d9bd77;
+    --htc-success: #55b98f;
+    --htc-success-bg: #264e3f;
+    --htc-warning: #d9a45b;
     --htc-warning-bg: #78350f;
     --htc-danger-bg: #7f1d1d;
     --htc-bg: #0f172a;
@@ -43,12 +43,12 @@
     --htc-primary-light: #2563eb;
     --htc-text: #0f172a;
     --htc-text-muted: #64748b;
-    --htc-accent: #dc2626;
-    --htc-accent-soft: #fef2f2;
-    --htc-gold: #d97706;
-    --htc-success: #059669;
-    --htc-success-bg: #d1fae5;
-    --htc-warning: #d97706;
+    --htc-accent: #b24d4d;
+    --htc-accent-soft: #f5eaea;
+    --htc-gold: #b2884d;
+    --htc-success: #3c7d62;
+    --htc-success-bg: #d7e8e0;
+    --htc-warning: #b2884d;
     --htc-warning-bg: #fef3c7;
     --htc-danger-bg: #fee2e2;
     --htc-bg: #f1f5f9;
@@ -2039,7 +2039,7 @@ ul.dropdown-menu li, .dropdown-menu li {
     margin-bottom: 1.75rem;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 [data-theme="light"] .dashboard-hero-card {
@@ -2214,6 +2214,24 @@ html[data-legibility="high"] table {
     font-size: 1rem !important;
 }
 
+html[data-legibility="high"] td,
+html[data-legibility="high"] th {
+    padding: 1rem 0.75rem !important;
+}
+
+html[data-legibility="high"] .card,
+html[data-legibility="high"] .panel-body,
+html[data-legibility="high"] .detail-card,
+html[data-legibility="high"] .cluster-card,
+html[data-legibility="high"] .summary-card {
+    padding: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+}
+
+html[data-legibility="high"] .detail-row {
+    padding: 0.75rem 0 !important;
+}
+
 html[data-legibility="high"] .badge {
     font-size: 0.85rem !important;
     padding: 0.35rem 0.65rem !important;
@@ -2342,6 +2360,7 @@ html[data-legibility="high"] .badge {
     transform: translateY(-1px);
 }
 
+.btn-action-secondary {
     display: inline-flex !important;
     align-items: center !important;
     gap: 0.4rem !important;
@@ -2783,12 +2802,21 @@ body.sidebar-collapsed .sidebar-danger-zone .nav-link {
 }
 html.sidebar-collapsed .sidebar-collapse-btn,
 body.sidebar-collapsed .sidebar-collapse-btn {
-    position: absolute !important;
-    right: 4px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
+    position: static !important;
+    display: flex !important;
+    margin: 0 auto !important;
     z-index: 25 !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+html.sidebar-collapsed .brand-block,
+body.sidebar-collapsed .brand-block {
+    flex-direction: column !important;
+    gap: 0.35rem !important;
+    cursor: pointer !important;
+}
+html.sidebar-collapsed .brand-logo-group,
+body.sidebar-collapsed .brand-logo-group {
+    justify-content: center !important;
 }
 
 .user-block .dropdown-menu {

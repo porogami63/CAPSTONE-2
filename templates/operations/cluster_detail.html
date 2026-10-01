@@ -21,37 +21,56 @@
         <i class="bi bi-x-circle me-1"></i> Return / Reject PO
     </button>
     {% endif %}
-    <a href="{% url 'operations:cluster_edit' cluster.pk %}" class="btn-htc-outline" title="Edit Contract Parameters"><i class="bi bi-pencil"></i> Edit Contract</a>
     {% endif %}
-    {% if user|has_perm:"archive_transaction" %}
-        {% if cluster.is_archived %}
-        <form method="post" action="{% url 'operations:unarchive_cluster' cluster.pk %}" style="display:inline;">
-            {% csrf_token %}
-            <button type="submit" class="btn-htc-outline"><i class="bi bi-arrow-counterclockwise"></i> Restore from Archive</button>
-        </form>
-        {% else %}
-        <form method="post" action="{% url 'operations:archive_cluster' cluster.pk %}" style="display:inline;" onsubmit="return confirm('Move this transaction to Archive Vault?');">
-            {% csrf_token %}
-            <button type="submit" class="btn-htc-outline" title="Archive completed transaction"><i class="bi bi-archive"></i> Archive</button>
-        </form>
-        {% endif %}
-    {% endif %}
-    {% if cluster.mro_file %}
-    <a href="{{ cluster.mro_file.url }}" target="_blank" class="btn-htc-outline text-success border-success" title="Preview MRO Scanned Copy">
-        <i class="bi bi-file-earmark-check-fill"></i> View MRO Soft Copy
-    </a>
-    {% elif user|has_perm:"upload_mro" %}
-    <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#uploadMroModal">
-        <i class="bi bi-upload"></i> Upload MRO Scan
-    </button>
-    {% endif %}
-    {% if user|has_perm:"reconcile_payments" %}
-    <a href="{% url 'finance:reconciliation' cluster.pk %}" class="btn-htc-outline"><i class="bi bi-link-45deg"></i> Payment Matching</a>
-    {% endif %}
-    <button type="button" class="btn-htc-outline" data-bs-toggle="modal" data-bs-target="#debriefModal" style="color: var(--htc-primary-light); border-color: var(--htc-primary-light);" title="View complete step-by-step transaction debrief and formula breakdown"><i class="bi bi-calculator"></i> Audit Debrief</button>
-    <a href="{% url 'operations:download_contract_pdf' cluster.pk %}" class="btn-htc-outline" target="_blank" title="Download Official Supply Contract PDF"><i class="bi bi-file-earmark-text"></i> Contract PDF</a>
-    <a href="{% url 'operations:download_po_pdf' cluster.pk %}" class="btn-htc-outline" target="_blank" title="Download Official Purchase Order PDF"><i class="bi bi-file-earmark-check"></i> PO PDF</a>
+
+    <!-- More Actions Dropdown -->
+    <div class="dropdown">
+        <button class="btn-htc-outline btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.82rem;">
+            <i class="bi bi-three-dots-vertical me-1"></i> More Actions
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; min-width: 240px; padding: 0.5rem;">
+            {% if user|has_perm:"edit_transaction" %}
+            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'operations:cluster_edit' cluster.pk %}" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-pencil text-muted"></i> Edit Contract</a></li>
+            {% endif %}
+            {% if user|has_perm:"reconcile_payments" %}
+            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'finance:reconciliation' cluster.pk %}" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-link-45deg text-muted"></i> Payment Matching</a></li>
+            {% endif %}
+            <li><hr class="dropdown-divider" style="border-color: var(--htc-border); margin: 0.35rem 0;"></li>
+            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="#" data-bs-toggle="modal" data-bs-target="#debriefModal" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-calculator text-muted"></i> Audit Debrief</a></li>
+            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'operations:download_contract_pdf' cluster.pk %}" target="_blank" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-file-earmark-text text-muted"></i> Contract PDF</a></li>
+            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'operations:download_po_pdf' cluster.pk %}" target="_blank" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-file-earmark-check text-muted"></i> PO PDF</a></li>
+            {% if cluster.mro_file %}
+            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{{ cluster.mro_file.url }}" target="_blank" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-file-earmark-check-fill text-success"></i> View MRO Soft Copy</a></li>
+            {% elif user|has_perm:"upload_mro" %}
+            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="#" data-bs-toggle="modal" data-bs-target="#uploadMroModal" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-upload text-muted"></i> Upload MRO Scan</a></li>
+            {% endif %}
+            {% if user|has_perm:"archive_transaction" %}
+            <li><hr class="dropdown-divider" style="border-color: var(--htc-border); margin: 0.35rem 0;"></li>
+            {% if cluster.is_archived %}
+            <li>
+                <form method="post" action="{% url 'operations:unarchive_cluster' cluster.pk %}" class="m-0">{% csrf_token %}
+                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-arrow-counterclockwise text-muted"></i> Restore from Archive</button>
+                </form>
+            </li>
+            {% else %}
+            <li>
+                {% if cluster.is_archivable %}
+                <form method="post" action="{% url 'operations:archive_cluster' cluster.pk %}" class="m-0" onsubmit="return confirm('Move this transaction to Archive Vault?');">{% csrf_token %}
+                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-archive text-muted"></i> Archive</button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'operations:archive_cluster' cluster.pk %}" class="m-0">{% csrf_token %}
+                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2 text-warning" style="font-size: 0.84rem;" title="{{ cluster.get_archival_blockers|join:'; ' }}"><i class="bi bi-exclamation-triangle text-warning"></i> Archive Blocked (Check Rules)</button>
+                </form>
+                {% endif %}
+            </li>
+            {% endif %}
+            {% endif %}
+        </ul>
+    </div>
 </div>
+
+
 
 <!-- Company Process Horizontal Flowchart Tracker -->
 {% include "operations/includes/process_flowchart.html" %}
@@ -322,36 +341,54 @@
                 {% if user|has_perm:"edit_logistics" %}
                 <form method="post" action="{% url 'operations:update_logistics' cluster.pk %}" enctype="multipart/form-data" class="form-stack">{% csrf_token %}
                     {% for field in logistics_form %}
-                    <div class="form-field">
-                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                        {{ field }}
-                        {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
-                        {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
-                    </div>
-                    {% if field.name == 'barge_fees' %}
-                    <!-- Live Auto-Computed Logistics Outlay Summary placed immediately below Barging Freight Rate -->
-                    <div class="live-calc-box mt-2 mb-3" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 0.85rem 1rem;">
-                        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted); margin-bottom: 0.5rem;">Live Computed Logistics Freight Outlay</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 0.75rem; align-items: center;">
-                            <div>
-                                <div style="font-size: 0.7rem; color: var(--htc-text-muted);">Land Trucking</div>
-                                <div id="liveTruckingDisplay" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱0.00</div>
-                                <div id="liveTruckingRateDisplay" style="font-size: 0.72rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 0.7rem; color: var(--htc-text-muted);">Marine Barging</div>
-                                <div id="liveBargingDisplay" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱0.00</div>
-                                <div id="liveBargingRateDisplay" style="font-size: 0.72rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
-                            </div>
-                            <div style="border-left: 1px solid var(--htc-border); padding-left: 0.75rem;">
-                                <div style="font-size: 0.7rem; font-weight: 700; color: var(--htc-gold);">Total Logistics Outlay</div>
-                                <div id="liveTotalLogisticsDisplay" style="font-size: 1.1rem; font-weight: 800; color: var(--htc-gold);">₱0.00</div>
-                                <div id="liveTotalLogisticsRateDisplay" style="font-size: 0.75rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
+                        {% if field.name not in 'vessel_id,partner,waybill_file,dr_file' %}
+                        <div class="form-field">
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
+                            {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+                        </div>
+                        {% if field.name == 'barge_fees' %}
+                        <!-- Live Auto-Computed Logistics Outlay Summary placed immediately below Barging Freight Rate -->
+                        <div class="live-calc-box mt-2 mb-3" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 0.85rem 1rem;">
+                            <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted); margin-bottom: 0.5rem;">Live Computed Logistics Freight Outlay</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 0.75rem; align-items: center;">
+                                <div>
+                                    <div style="font-size: 0.7rem; color: var(--htc-text-muted);">Land Trucking</div>
+                                    <div id="liveTruckingDisplay" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱0.00</div>
+                                    <div id="liveTruckingRateDisplay" style="font-size: 0.72rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.7rem; color: var(--htc-text-muted);">Marine Barging</div>
+                                    <div id="liveBargingDisplay" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱0.00</div>
+                                    <div id="liveBargingRateDisplay" style="font-size: 0.72rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
+                                </div>
+                                <div style="border-left: 1px solid var(--htc-border); padding-left: 0.75rem;">
+                                    <div style="font-size: 0.7rem; font-weight: 700; color: var(--htc-gold);">Total Logistics Outlay</div>
+                                    <div id="liveTotalLogisticsDisplay" style="font-size: 1.1rem; font-weight: 800; color: var(--htc-gold);">₱0.00</div>
+                                    <div id="liveTotalLogisticsRateDisplay" style="font-size: 0.75rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    {% endif %}
+                        {% endif %}
+                        {% endif %}
                     {% endfor %}
+
+                    <details class="w-100 mt-3 mb-2" style="border: 1px solid var(--htc-border); padding: 1rem; border-radius: 8px; background: var(--htc-surface);">
+                        <summary style="cursor: pointer; font-weight: 600; color: var(--htc-primary-light);">Show Advanced Fields & Attachments</summary>
+                        <div class="advanced-fields mt-2">
+                        {% for field in logistics_form %}
+                            {% if field.name in 'vessel_id,partner,waybill_file,dr_file' %}
+                            <div class="form-field">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
+                                {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        </div>
+                    </details>
 
                     <button type="submit" class="btn-htc btn-htc-sm mt-3">Update Logistics</button>
                 </form>
@@ -498,14 +535,68 @@
                 {% endif %}
 
                 {% if user|has_perm:"add_invoice" %}
-                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;">
+                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;" open>
                     <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
                         <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Issue New Invoice
                     </summary>
-                    <div style="font-size: 0.78rem; color: var(--htc-text-muted); margin-top: 0.4rem;" class="d-flex align-items-center gap-2">
+                    <div style="font-size: 0.78rem; color: var(--htc-text-muted); margin-top: 0.4rem;" class="d-flex align-items-center gap-2 mb-2">
                         <i class="bi bi-info-circle text-primary"></i> Supporting documents (Waybill &amp; DR scans) uploaded in Logistics will be attached to customer invoices.
                     </div>
-                    <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}" class="form-stack mt-3">{% csrf_token %}
+
+                    {% if invoice_suggestion_data and invoice_suggestion_data.selling_price > 0 %}
+                    <!-- SMART SUGGESTIVE PRICING INSIGHT BANNER -->
+                    <div class="p-3 mb-3 border rounded-3" style="background: rgba(37, 99, 235, 0.05); border-color: rgba(37, 99, 235, 0.25) !important;">
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="rounded-circle p-1 text-primary bg-primary-subtle d-flex align-items-center justify-content-center" style="width: 26px; height: 26px; flex-shrink: 0; margin-top: 2px;">
+                                <i class="bi bi-lightbulb-fill fs-7"></i>
+                            </div>
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold text-primary" style="font-size: 0.82rem;">
+                                        <i class="bi bi-stars text-warning me-1"></i> Smart Suggestive Pricing Insight
+                                    </span>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.68rem;">₱{{ invoice_suggestion_data.selling_price|floatformat:2|intcomma }} / MT</span>
+                                </div>
+                                
+                                <p class="mb-1 text-secondary" style="font-size: 0.8rem; line-height: 1.35;">
+                                    Initial PO selling price set by user: <strong>₱{{ invoice_suggestion_data.selling_price|floatformat:2|intcomma }}/MT</strong>. Total PO Contract Target: <strong>₱{{ invoice_suggestion_data.contract_total|floatformat:2|intcomma }}</strong> ({{ invoice_suggestion_data.contract_volume|floatformat:3 }} MT).
+                                </p>
+
+                                {% if invoice_suggestion_data.invoices_count > 0 %}
+                                <div class="p-2 my-2 rounded bg-body border" style="font-size: 0.78rem;">
+                                    <div class="text-primary fw-bold mb-0.5"><i class="bi bi-clock-history me-1"></i> Partial Invoice History ({{ invoice_suggestion_data.invoices_count }} previous invoice{{ invoice_suggestion_data.invoices_count|pluralize }})</div>
+                                    <div>Total Previously Billed: <strong>₱{{ invoice_suggestion_data.already_invoiced|floatformat:2|intcomma }}</strong></div>
+                                    <div>Remaining PO Balance: <strong class="text-success">₱{{ invoice_suggestion_data.remaining_balance|floatformat:2|intcomma }}</strong></div>
+                                </div>
+                                {% else %}
+                                <div class="p-2 my-2 rounded bg-body border text-muted" style="font-size: 0.78rem;">
+                                    <i class="bi bi-info-circle me-1"></i> No previous invoices issued for this transaction yet.
+                                </div>
+                                {% endif %}
+
+                                <div class="d-flex flex-wrap gap-1 align-items-center mt-2">
+                                    <span class="text-muted me-1" style="font-size: 0.72rem; font-weight: 600;">Quick Fill Options:</span>
+                                    <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2" id="btnDetailApplyFull" style="font-size: 0.73rem;">
+                                        <i class="bi bi-check2-circle me-1"></i> Contract Balance (₱{{ invoice_suggestion_data.suggested_full|floatformat:2|intcomma }})
+                                    </button>
+                                    {% if invoice_suggestion_data.suggested_received > 0 %}
+                                    <button type="button" class="btn btn-xs btn-outline-success py-1 px-2" id="btnDetailApplyReceived" style="font-size: 0.73rem;">
+                                        <i class="bi bi-truck me-1"></i> Received MT (₱{{ invoice_suggestion_data.suggested_received|floatformat:2|intcomma }})
+                                    </button>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2" id="btnDetailApplyHalf" style="font-size: 0.73rem;">
+                                        <i class="bi bi-pie-chart me-1"></i> 50% Portion (₱{{ invoice_suggestion_data.suggested_50_pct|floatformat:2|intcomma }})
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-info py-1 px-2" id="btnDetailApplyQuarter" style="font-size: 0.73rem;">
+                                        <i class="bi bi-pie-chart-fill me-1"></i> 25% Portion (₱{{ invoice_suggestion_data.suggested_25_pct|floatformat:2|intcomma }})
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}" class="form-stack mt-3" id="addInvoiceForm">{% csrf_token %}
                         <div class="row g-2">
                             <div class="col-md-6">
                                 <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Invoice Number</label>
@@ -514,6 +605,7 @@
                             <div class="col-md-6">
                                 <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Amount (₱)</label>
                                 {{ invoice_form.amount }}
+                                <div id="detailAmountFeedback" class="form-text text-xs mt-1 text-primary fw-medium" style="display: none;"></div>
                             </div>
                             <div class="col-md-6">
                                 <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Issue Date</label>
@@ -523,6 +615,29 @@
                                 <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Status</label>
                                 {{ invoice_form.status }}
                             </div>
+
+                            <!-- Incremental Invoice Designator -->
+                            <div class="col-12 p-2.5 rounded border my-1" style="background: rgba(37, 99, 235, 0.04); border-color: rgba(37, 99, 235, 0.2) !important;">
+                                <div class="form-check d-flex align-items-center gap-2 mb-1">
+                                    {{ invoice_form.is_incremental }}
+                                    <label class="form-check-label font-semibold text-xs text-primary mb-0" for="id_detail_is_incremental" style="cursor: pointer;">
+                                        <i class="bi bi-diagram-3-fill me-1"></i> Incremental / Progress Billing Invoice
+                                    </label>
+                                </div>
+                                <div class="row g-2 mt-1 align-items-center">
+                                    <div class="col-auto">
+                                        <label style="font-size: 0.72rem; font-weight: 600; color: var(--htc-text-muted);">Specified Portion (%):</label>
+                                    </div>
+                                    <div class="col-md-4">
+                                        {{ invoice_form.incremental_percentage }}
+                                    </div>
+                                    <div class="col">
+                                        <span class="text-muted" style="font-size: 0.72rem;">Required if cluster already has an existing invoice (e.g. 50%, 25%).</span>
+                                    </div>
+                                </div>
+                                {% if invoice_form.is_incremental.errors %}<div class="text-danger text-xs mt-1">{{ invoice_form.is_incremental.errors|striptags }}</div>{% endif %}
+                            </div>
+
                             <div class="col-12">
                                 <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Notes</label>
                                 {{ invoice_form.notes }}
@@ -531,6 +646,101 @@
                         <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Record Invoice</button>
                     </form>
                 </details>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const sugg = {{ cluster_suggestions_json|safe }};
+                    const clusterId = "{{ cluster.id }}";
+                    const data = sugg[clusterId];
+
+                    function getDetailInput() {
+                        return document.querySelector('#addInvoiceForm input[name="amount"]') ||
+                               document.getElementById('id_amount') ||
+                               document.querySelector('input[name="amount"]');
+                    }
+                    const feedback = document.getElementById('detailAmountFeedback');
+
+                    const btnF = document.getElementById('btnDetailApplyFull');
+                    const btnR = document.getElementById('btnDetailApplyReceived');
+                    const btnH = document.getElementById('btnDetailApplyHalf');
+
+                    const btnQ = document.getElementById('btnDetailApplyQuarter');
+                    const chkInc = document.getElementById('id_detail_is_incremental');
+                    const txtIncPct = document.getElementById('id_detail_incremental_pct');
+
+                    function fmt(v) {
+                        return '₱' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+
+                    function updateFb() {
+                        const amtInput = getDetailInput();
+                        if (!amtInput || !feedback || !data) return;
+                        const v = parseFloat(amtInput.value) || 0;
+                        if (v <= 0) { feedback.style.display = 'none'; return; }
+                        feedback.style.display = 'block';
+                        const pct = (v / data.contract_total * 100).toFixed(1);
+                        const mt = (v / data.selling_price).toFixed(3);
+
+                        if (txtIncPct && pct > 0) {
+                            txtIncPct.value = pct;
+                        }
+
+                        if (Math.abs(v - data.contract_total) < 0.01) {
+                            feedback.className = 'form-text text-xs mt-1 text-success fw-bold';
+                            feedback.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Full Contract Invoice Amount: 100% of PO target value (' + fmt(data.contract_total) + ').';
+                        } else if (data.remaining_balance > 0 && Math.abs(v - data.remaining_balance) < 0.01) {
+                            feedback.className = 'form-text text-xs mt-1 text-success fw-bold';
+                            feedback.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Remaining Balance Invoice Amount: Completes remaining PO contract balance (' + fmt(data.remaining_balance) + ').';
+                        } else {
+                            feedback.className = 'form-text text-xs mt-1 text-primary fw-medium';
+                            feedback.innerHTML = '<i class="bi bi-pencil-square me-1"></i> Custom Incremental Portion: <strong>' + pct + '%</strong> of total PO contract (~' + mt + ' MT @ ' + fmt(data.selling_price) + '/MT).';
+                        }
+                    }
+
+                    function applyVal(val, pct) {
+                        const amtInput = getDetailInput();
+                        if (amtInput && data) {
+                            amtInput.value = Number(val || 0).toFixed(2);
+                            amtInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            amtInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            if (chkInc) chkInc.checked = true;
+                            if (txtIncPct && pct) txtIncPct.value = pct;
+                            updateFb();
+                        }
+                    }
+
+                    if (btnF) {
+                        btnF.addEventListener('click', function(e) {
+                            if (e) { e.preventDefault(); e.stopPropagation(); }
+                            applyVal(data ? data.suggested_full : 0, 100);
+                        });
+                    }
+                    if (btnR) {
+                        btnR.addEventListener('click', function(e) {
+                            if (e) { e.preventDefault(); e.stopPropagation(); }
+                            applyVal(data ? data.suggested_received : 0, null);
+                        });
+                    }
+                    if (btnH) {
+                        btnH.addEventListener('click', function(e) {
+                            if (e) { e.preventDefault(); e.stopPropagation(); }
+                            applyVal(data ? data.suggested_50_pct : 0, 50);
+                        });
+                    }
+                    if (btnQ) {
+                        btnQ.addEventListener('click', function(e) {
+                            if (e) { e.preventDefault(); e.stopPropagation(); }
+                            applyVal(data ? data.suggested_25_pct : 0, 25);
+                        });
+                    }
+
+                    document.addEventListener('input', function(e) {
+                        if (e.target && (e.target.id === 'id_amount' || e.target.name === 'amount')) {
+                            updateFb();
+                        }
+                    });
+                });
+                </script>
                 {% endif %}
             </div>
         </div>

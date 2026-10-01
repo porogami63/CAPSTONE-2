@@ -436,10 +436,10 @@
 
                 <!-- PDF Report Action Button -->
                 <div class="dropdown d-inline-block">
-                    <button class="btn btn-action-secondary dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-action-secondary dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" data-bs-display="dynamic" aria-expanded="false">
                         <i class="bi bi-file-earmark-pdf-fill action-icon text-danger"></i> PDF Report
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="reportDropdown">
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="reportDropdown" style="z-index: 1050; background: var(--htc-surface); color: var(--htc-text); min-width: 200px;">
                         <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'day' %}"><i class="bi bi-clock-history me-2 text-primary"></i> Last 24 Hours</a></li>
                         <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'week' %}"><i class="bi bi-calendar-week me-2 text-info"></i> Last 7 Days</a></li>
                         <li><a class="dropdown-item" href="{% url 'dashboard:download_report' 'month' %}"><i class="bi bi-calendar-month me-2 text-success"></i> Last 30 Days</a></li>

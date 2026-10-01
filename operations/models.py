@@ -45,6 +45,44 @@ class TransactionCluster(models.Model):
     def __str__(self):
         return self.reference_code
 
+    def get_archival_blockers(self):
+        """Returns a list of human-readable reasons why this transaction cluster cannot be archived yet."""
+        blockers = []
+
+        # 1. Cluster Status Check
+        if self.status not in [self.Status.CLOSED, self.Status.DELIVERED]:
+            blockers.append(f"Status is '{self.get_status_display()}' (Must be Delivered or Closed)")
+
+        # 2. Invoicing & Collection Check
+        invoices = self.invoices.all()
+        if not invoices.exists():
+            blockers.append("No sales invoice has been generated for this transaction")
+        else:
+            unpaid_invoices = [inv.invoice_number for inv in invoices if inv.status != "paid"]
+            if unpaid_invoices:
+                blockers.append(f"Unpaid invoice(s): {', '.join(unpaid_invoices)}")
+
+        # 3. Logistics & Dispute Settlement Check
+        if hasattr(self, "logistics") and self.logistics:
+            if self.logistics.dispute_status == "DISPUTED":
+                blockers.append("Logistics variance dispute is still active/unresolved")
+            if self.logistics.received_at is None:
+                blockers.append("Logistics delivery receipt is incomplete")
+
+        # 4. Financing & Capital Loan Closure Check
+        active_loans = self.loans.exclude(status="closed")
+        if active_loans.exists():
+            loan_banks = [f"{loan.bank_name} ({loan.get_status_display()})" for loan in active_loans]
+            blockers.append(f"Unsettled capital loan(s): {', '.join(loan_banks)}")
+
+        return blockers
+
+    @property
+    def is_archivable(self):
+        """Returns True if the cluster satisfies all prerequisites for archiving."""
+        return len(self.get_archival_blockers()) == 0
+
+
 
 class PurchaseOrder(models.Model):
     cluster = models.OneToOneField(

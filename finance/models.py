@@ -30,6 +30,18 @@ class Invoice(models.Model):
     rejected_at = models.DateTimeField(null=True, blank=True)
     rejected_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="rejected_invoices")
     rejection_comments = models.TextField(blank=True, default="", help_text="Mandatory reason for returning / rejecting invoice")
+    is_incremental = models.BooleanField(
+        default=False,
+        help_text="Designates this invoice as an incremental progress billing (e.g. 50%, 25% partial invoice)",
+    )
+    incremental_percentage = models.DecimalField(
+        "Incremental Portion (%)",
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Specified incremental billing percentage (e.g., 50.00, 25.00)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)

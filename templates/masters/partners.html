@@ -7,7 +7,7 @@
 <div class="d-flex justify-content-end align-items-center gap-2 mb-3" data-step="1" data-intro="Partner Management Toolbar: Search active trading partners or register new Sugar Mill Suppliers and Buyer Client profiles.">
     <div class="search-input-wrap" style="width: 240px;">
         <i class="bi bi-search"></i>
-        <input type="text" id="partnerSearch" placeholder="Search supplier or customer..." class="form-control form-control-sm" onkeyup="filterPartners()">
+        <input type="text" id="partnerSearch" placeholder="Search supplier or customer..." class="form-control form-control-sm" onkeyup="filterPartners()" oninput="filterPartners()">
     </div>
     <button type="button" class="btn-htc btn-htc-sm" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
         <i class="bi bi-plus-lg"></i> Add Supplier
@@ -26,7 +26,7 @@
             </div>
         </div>
         {% for s in suppliers %}
-        <a href="{% url 'masters:supplier_portfolio' s.id %}" class="partner-card partner-item text-decoration-none" data-name="{{ s.name|lower }}" data-type="supplier" style="color: inherit; cursor: pointer;">
+        <a href="{% url 'masters:supplier_portfolio' s.id %}" class="partner-card partner-item text-decoration-none" data-name="{{ s.name|lower }}" data-search="{{ s.name|lower }} {{ s.location|lower }} {{ s.contact_person|lower }} {{ s.email|lower }} {{ s.type|lower }}" data-type="supplier" style="color: inherit; cursor: pointer;">
             {% if s.avatar_url %}
             <img src="{{ s.avatar_url }}" alt="{{ s.name }}" class="rounded-circle border" style="width: 44px; height: 44px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
             <div class="partner-icon rounded-circle bg-success text-white fw-bold align-items-center justify-content-center" style="width: 44px; height: 44px; display: none;">
@@ -67,7 +67,7 @@
             </div>
         </div>
         {% for c in clients %}
-        <a href="{% url 'masters:client_portfolio' c.id %}" class="partner-card partner-item text-decoration-none" data-name="{{ c.name|lower }}" data-type="customer" style="color: inherit; cursor: pointer;">
+        <a href="{% url 'masters:client_portfolio' c.id %}" class="partner-card partner-item text-decoration-none" data-name="{{ c.name|lower }}" data-search="{{ c.name|lower }} {{ c.tin|lower }} {{ c.contact_person|lower }} {{ c.address|lower }} {{ c.type|lower }}" data-type="customer" style="color: inherit; cursor: pointer;">
             {% if c.avatar_url %}
             <img src="{{ c.avatar_url }}" alt="{{ c.name }}" class="rounded-circle border" style="width: 44px; height: 44px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
             <div class="partner-icon rounded-circle bg-primary text-white fw-bold align-items-center justify-content-center" style="width: 44px; height: 44px; display: none;">
@@ -213,14 +213,15 @@
 
 <script>
 function filterPartners() {
-    const q = document.getElementById('partnerSearch').value.toLowerCase();
+    const q = document.getElementById('partnerSearch').value.toLowerCase().trim();
     document.querySelectorAll('.partner-item').forEach(item => {
-        const name = item.getAttribute('data-name');
-        if (name.includes(q)) {
+        const searchText = (item.getAttribute('data-search') || item.getAttribute('data-name') || '').toLowerCase();
+        if (!q || searchText.includes(q)) {
             item.style.display = 'flex';
         } else {
             item.style.display = 'none';
         }
     });
 }
+</script>
 {% endblock %}

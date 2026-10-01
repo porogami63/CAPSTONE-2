@@ -22,18 +22,22 @@ class StandaloneInvoiceForm(forms.ModelForm):
 
     class Meta:
         model = Invoice
-        fields = ["cluster", "invoice_number", "amount", "issued_at", "status", "notes"]
+        fields = ["cluster", "invoice_number", "amount", "issued_at", "status", "is_incremental", "incremental_percentage", "notes"]
         widgets = {
             "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated based on PO (e.g. SI-20260925-001)"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 1500000.00", "step": "0.01"}),
             "issued_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
             "status": forms.Select(attrs={"class": "form-select-htc"}),
+            "is_incremental": forms.CheckboxInput(attrs={"class": "form-check-input", "id": "id_standalone_is_incremental"}),
+            "incremental_percentage": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 50.00", "step": "0.01", "id": "id_standalone_incremental_pct"}),
             "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional invoice notes..."}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["invoice_number"].required = False
+        self.fields["is_incremental"].required = False
+        self.fields["incremental_percentage"].required = False
         self.fields["cluster"].queryset = (
             TransactionCluster.objects.filter(is_archived=False)
             .select_related("client", "sugar_mill", "purchase_order")
@@ -49,16 +53,45 @@ class StandaloneInvoiceForm(forms.ModelForm):
             num = generate_si_reference(cluster_ref)
         return num
 
+    def clean(self):
+        cleaned_data = super().clean()
+        cluster = cleaned_data.get("cluster")
+        is_incremental = cleaned_data.get("is_incremental")
+        incremental_percentage = cleaned_data.get("incremental_percentage")
+
+        if cluster:
+            # 1. Check for Active Capital Loan Prerequisite
+            if not cluster.loans.filter(status__in=["active", "pending_settlement", "closed"]).exists():
+                self.add_error(
+                    "cluster",
+                    "A Capital Loan must be fulfilled (Active/Settled) for this transaction before invoices can be issued."
+                )
+
+            # 2. Check for Incremental Billing Requirement
+            existing_qs = cluster.invoices.all()
+            if self.instance and self.instance.pk:
+                existing_qs = existing_qs.exclude(pk=self.instance.pk)
+            if existing_qs.exists() and not is_incremental and not incremental_percentage:
+                self.add_error(
+                    "is_incremental",
+                    "An invoice has already been issued for this transaction cluster. "
+                    "Creation of additional invoices is restricted unless specified as an incremental billing (e.g. 50%, 25%). "
+                    "Please check 'Incremental / Progress Billing' and specify the incremental percentage."
+                )
+        return cleaned_data
+
 
 class InvoiceForm(forms.ModelForm):
     class Meta:
         model = Invoice
-        fields = ["invoice_number", "amount", "issued_at", "status", "notes"]
+        fields = ["invoice_number", "amount", "issued_at", "status", "is_incremental", "incremental_percentage", "notes"]
         widgets = {
             "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated based on PO (e.g. SI-20260925-001)"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 1500000.00", "step": "0.01"}),
             "issued_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
             "status": forms.Select(attrs={"class": "form-select-htc"}),
+            "is_incremental": forms.CheckboxInput(attrs={"class": "form-check-input", "id": "id_detail_is_incremental"}),
+            "incremental_percentage": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 50.00", "step": "0.01", "id": "id_detail_incremental_pct"}),
             "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional invoice notes..."}),
         }
 
@@ -66,9 +99,13 @@ class InvoiceForm(forms.ModelForm):
         self.cluster = cluster
         super().__init__(*args, **kwargs)
         self.fields["invoice_number"].required = False
+        self.fields["is_incremental"].required = False
+        self.fields["incremental_percentage"].required = False
         if self.cluster and not self.initial.get("invoice_number"):
             from operations.services.reference_generators import generate_si_reference
             self.initial["invoice_number"] = generate_si_reference(self.cluster.reference_code)
+        if self.cluster and self.cluster.invoices.exists():
+            self.initial["is_incremental"] = True
 
     def clean_invoice_number(self):
         num = self.cleaned_data.get("invoice_number", "").strip()
@@ -77,6 +114,31 @@ class InvoiceForm(forms.ModelForm):
             cluster_ref = self.cluster.reference_code if self.cluster else None
             num = generate_si_reference(cluster_ref)
         return num
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_incremental = cleaned_data.get("is_incremental")
+        incremental_percentage = cleaned_data.get("incremental_percentage")
+
+        if self.cluster:
+            # 1. Check for Active Capital Loan Prerequisite
+            if not self.cluster.loans.filter(status__in=["active", "pending_settlement", "closed"]).exists():
+                raise forms.ValidationError(
+                    "A Capital Loan must be fulfilled (Active/Settled) for this transaction before invoices can be issued."
+                )
+
+            # 2. Check for Incremental Billing Requirement
+            existing_qs = self.cluster.invoices.all()
+            if self.instance and self.instance.pk:
+                existing_qs = existing_qs.exclude(pk=self.instance.pk)
+            if existing_qs.exists() and not is_incremental and not incremental_percentage:
+                self.add_error(
+                    "is_incremental",
+                    "An invoice has already been issued for this transaction cluster. "
+                    "Creation of additional invoices is restricted unless specified as an incremental billing (e.g. 50%, 25%). "
+                    "Please check 'Incremental / Progress Billing' and specify the incremental percentage."
+                )
+        return cleaned_data
 
 
 class CashVoucherForm(forms.ModelForm):

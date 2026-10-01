@@ -198,3 +198,70 @@ class LoanVerificationTests(TestCase):
 		self.assertEqual(loan.principal, 2500000)
 		self.assertEqual(loan.status, CapitalLoan.Status.PENDING_CREATION)
 
+
+class SuggestiveInvoicePricingTests(TestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(
+			username="finance_user",
+			password="password123",
+			role=User.Role.FINANCE,
+		)
+		self.client.login(username="finance_user", password="password123")
+		self.client_obj = Client.objects.create(name="San Miguel Foods")
+		self.mill = SugarMill.objects.create(name="Central Azucarera de Tarlac")
+		self.cluster = TransactionCluster.objects.create(reference_code="PO-TEST-100", client=self.client_obj, sugar_mill=self.mill)
+		self.po = PurchaseOrder.objects.create(
+			cluster=self.cluster,
+			volume_mt=100.0,
+			unit_price=35000.0,
+			selling_price=40000.0,
+		)
+		self.logistics = LogisticsLedger.objects.create(
+			cluster=self.cluster,
+			loaded_volume_mt=100.0,
+			received_volume_mt=98.0,
+		)
+
+	def test_get_invoice_suggestion_data_without_previous_invoices(self):
+		from operations.services.pricing import get_invoice_suggestion_data
+		data = get_invoice_suggestion_data(self.cluster)
+		self.assertEqual(data["selling_price"], 40000.0)
+		self.assertEqual(data["contract_volume"], 100.0)
+		self.assertEqual(data["contract_total"], 4000000.0)
+		self.assertEqual(data["already_invoiced"], 0.0)
+		self.assertEqual(data["remaining_balance"], 4000000.0)
+		self.assertEqual(data["suggested_full"], 4000000.0)
+		self.assertEqual(data["suggested_50_pct"], 2000000.0)
+		self.assertEqual(data["received_total"], 3920000.0)
+
+	def test_get_invoice_suggestion_data_with_partial_invoice(self):
+		from operations.services.pricing import get_invoice_suggestion_data
+		Invoice.objects.create(
+			cluster=self.cluster,
+			invoice_number="SI-PARTIAL-001",
+			amount=1500000.0,
+			issued_at=date.today(),
+			status=Invoice.Status.ISSUED,
+		)
+		data = get_invoice_suggestion_data(self.cluster)
+		self.assertEqual(data["already_invoiced"], 1500000.0)
+		self.assertEqual(data["invoices_count"], 1)
+		self.assertEqual(data["remaining_balance"], 2500000.0)
+		self.assertEqual(data["suggested_full"], 2500000.0)
+		self.assertEqual(data["suggested_50_pct"], 1250000.0)
+
+	def test_invoice_list_view_renders_suggestive_banner(self):
+		res = self.client.get(reverse("finance:invoice_list"))
+		self.assertEqual(res.status_code, 200)
+		self.assertIn("cluster_suggestions_json", res.context)
+		self.assertContains(res, "id=\"invoiceSuggestiveBanner\"")
+		self.assertContains(res, "Smart Suggestive Pricing Insight")
+
+	def test_cluster_detail_view_renders_suggestive_banner(self):
+		res = self.client.get(reverse("operations:cluster_detail", kwargs={"pk": self.cluster.pk}))
+		self.assertEqual(res.status_code, 200)
+		self.assertIn("invoice_suggestion_data", res.context)
+		self.assertContains(res, "Smart Suggestive Pricing Insight")
+		self.assertContains(res, "Contract Balance")
+
+

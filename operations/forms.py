@@ -1,6 +1,8 @@
+from datetime import timedelta
 from pathlib import Path
 
 from django import forms
+from django.utils import timezone
 
 from masters.models import Client, LogisticsPartner, SugarMill
 from operations.models import LogisticsLedger, PurchaseOrder, TransactionCluster
@@ -241,14 +243,46 @@ class LogisticsUpdateForm(forms.ModelForm):
         tracking_fees = cleaned_data.get("tracking_fees")
         barge_fees = cleaned_data.get("barge_fees")
 
+        # 1. Check for Active Capital Loan Prerequisite
+        cluster = self.instance.cluster if self.instance else None
+        if cluster:
+            has_active_loan = cluster.loans.filter(status__in=["active", "pending_settlement", "closed"]).exists()
+            if not has_active_loan and (
+                (loaded_vol is not None and loaded_vol > 0) or 
+                (received_vol is not None and received_vol > 0)
+            ):
+                raise forms.ValidationError(
+                    "A Capital Loan must be fulfilled (Active/Settled) for this transaction before logistics (loading/receiving) can commence."
+                )
+
         if loaded_vol is not None and loaded_vol <= 0:
             self.add_error("loaded_volume_mt", "Loaded volume must be a positive number greater than 0 MT.")
 
         if received_vol is not None and received_vol < 0:
             self.add_error("received_volume_mt", "Received volume cannot be negative.")
 
+        now = timezone.now()
+        future_threshold = now + timedelta(minutes=15)
+
+        if loaded_at and loaded_at > future_threshold:
+            self.add_error("loaded_at", "Loading date and time cannot be set in the future.")
+
+        if received_at and received_at > future_threshold:
+            self.add_error("received_at", "Delivered date and time cannot be set in the future.")
+
         if loaded_at and received_at and received_at < loaded_at:
             self.add_error("received_at", "Delivery received timestamp cannot be earlier than loading timestamp.")
+
+        if loaded_at and loaded_at.year < 2020:
+            self.add_error("loaded_at", "Loading timestamp is invalid (cannot be before year 2020).")
+
+        if received_at and received_at.year < 2020:
+            self.add_error("received_at", "Delivered timestamp is invalid (cannot be before year 2020).")
+
+        if received_vol is not None and received_vol > 0 and not received_at:
+            cleaned_data["received_at"] = now
+            if self.instance:
+                self.instance.received_at = now
 
         if tracking_fees is not None and tracking_fees < 0:
             self.add_error("tracking_fees", "Trucking fee rate cannot be negative.")
@@ -339,6 +373,15 @@ class MolassesReleaseOrderForm(forms.ModelForm):
                 defaults={"location": sugar_mill_name}
             )
             cleaned_data["sugar_mill"] = mill_obj
+
+        cluster = cleaned_data.get("cluster")
+        if cluster:
+            has_active_loan = cluster.loans.filter(status__in=["active", "pending_settlement", "closed"]).exists()
+            if not has_active_loan:
+                self.add_error(
+                    "cluster",
+                    "Cannot link to this contract: A Capital Loan must be fulfilled (Active/Settled) before MROs can be assigned."
+                )
 
         if not planter and not planter_name:
             raise forms.ValidationError("Please select an existing planter or enter a new planter name.")

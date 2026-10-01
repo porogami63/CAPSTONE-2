@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
+from django.core.cache import cache
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -66,12 +67,30 @@ def permission_denied(request, exception=None):
     return render(request, "403.html", status=403)
 
 
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect("dashboard:home")
 
     next_url = request.GET.get("next") or request.POST.get("next") or "dashboard:home"
     error_message = None
+
+    ip = get_client_ip(request)
+    cache_key = f"login_attempts_{ip}"
+    attempts = cache.get(cache_key, 0)
+
+    if attempts >= 5:
+        error_message = "Too many failed login attempts. Please try again in 5 minutes."
+        return render(request, "accounts/login.html", {
+            "form": UserLoginForm(),
+            "next": next_url,
+            "login_error": error_message,
+        })
 
     if request.method == "POST":
         form = UserLoginForm(request.POST)
@@ -88,6 +107,7 @@ def login_view(request):
             user = authenticate(request, username=username_to_auth, password=password)
 
             if user is not None:
+                cache.delete(cache_key)
                 if not user.is_active:
                     error_message = "Your user account is pending Administrator approval. Please contact system management."
                 elif user.is_2fa_enabled:
@@ -105,6 +125,7 @@ def login_view(request):
                     messages.success(request, f"Welcome back, {user.get_full_name() or user.username}!")
                     return redirect(next_url)
             else:
+                cache.set(cache_key, attempts + 1, 300)
                 if user_obj and not user_obj.is_active:
                     error_message = "Your user account is pending Administrator approval. Please contact system management."
                 else:
@@ -186,7 +207,7 @@ def two_factor_setup_view(request):
     # Generate QR Code SVG / PNG in base64
     qr_img = qrcode.make(qr_uri)
     buffer = io.BytesIO()
-    qr_img.save(buffer, format="PNG")
+    qr_img.save(buffer)
     qr_code_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     error_message = None

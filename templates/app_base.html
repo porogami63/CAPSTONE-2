@@ -31,10 +31,15 @@
             }
         })();
 
-        function toggleSidebarCollapse() {
-            var isCollapsed = document.body.classList.toggle("sidebar-collapsed");
+        function toggleSidebarCollapse(forceState) {
+            var currentBody = document.body.classList.contains("sidebar-collapsed");
+            var currentHtml = document.documentElement.classList.contains("sidebar-collapsed");
+            var isCollapsed = (typeof forceState === "boolean") ? forceState : !(currentBody && currentHtml);
+            
+            document.body.classList.toggle("sidebar-collapsed", isCollapsed);
             document.documentElement.classList.toggle("sidebar-collapsed", isCollapsed);
             localStorage.setItem("htc-sidebar-collapsed", isCollapsed ? "true" : "false");
+            
             var icon = document.getElementById("sidebarCollapseIcon");
             if (icon) {
                 icon.className = isCollapsed ? "bi bi-chevron-right fs-6" : "bi bi-chevron-left fs-6";
@@ -69,19 +74,6 @@
                 {% endfor %}
             </nav>
 
-            {% if user|has_perm:"view_audit" %}
-            <!-- Isolated Destructive Danger Zone -->
-            <div class="sidebar-danger-zone px-2 py-2 border-top border-secondary-subtle">
-                <a class="nav-link nav-link-danger d-flex align-items-center gap-2.5 text-danger rounded px-2 py-1.5"
-                   href="{% url 'operations:clear_database' %}"
-                   data-bs-toggle="tooltip"
-                   data-bs-placement="right"
-                   title="Destructive Action: Reset System Database">
-                    <i class="bi bi-exclamation-triangle-fill nav-icon text-danger"></i>
-                    <span class="nav-label text-danger fw-semibold" style="font-size: 0.8rem;">Clear Database</span>
-                </a>
-            </div>
-            {% endif %}
 
             <!-- User Profile Dropdown Card -->
             <div class="user-block p-2 border-top border-secondary-subtle position-relative">
@@ -470,29 +462,7 @@
                 });
             }
 
-            // Sidebar Collapse Toggle Logic (Compact Icon Mode)
-            const collapseBtn = document.getElementById("sidebarCollapseBtn");
-            const collapseIcon = document.getElementById("sidebarCollapseIcon");
 
-            function setSidebarCollapsed(collapsed) {
-                document.body.classList.toggle("sidebar-collapsed", collapsed);
-                localStorage.setItem("htc-sidebar-collapsed", collapsed ? "true" : "false");
-                if (collapseIcon) {
-                    collapseIcon.className = collapsed ? "bi bi-chevron-right fs-6" : "bi bi-chevron-left fs-6";
-                }
-            }
-
-            // Restore initial collapsed preference
-            if (localStorage.getItem("htc-sidebar-collapsed") === "true") {
-                setSidebarCollapsed(true);
-            }
-
-            if (collapseBtn) {
-                collapseBtn.addEventListener("click", function() {
-                    const isCollapsed = document.body.classList.contains("sidebar-collapsed");
-                    setSidebarCollapsed(!isCollapsed);
-                });
-            }
 
             // Copilot Slide Drawer Controls (Pushes Content to Left)
             const btnCopilot = document.getElementById("btnCopilotDrawer");
