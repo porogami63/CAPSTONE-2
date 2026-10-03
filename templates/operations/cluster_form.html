@@ -213,6 +213,13 @@
                         <div class="form-text text-xs text-muted mt-1">Numerical quality grade scale (1.0 Premium to 5.0 Substandard / Off-Spec).</div>
                         {% if form.chai_specs.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_specs.errors|striptags }}</div>{% endif %}
                     </div>
+
+                    <div class="col-md-6">
+                        <label for="{{ form.logistics_partner.id_for_label }}" class="form-label font-semibold text-sm">Logistics Partner</label>
+                        {{ form.logistics_partner }}
+                        <div class="form-text text-xs text-muted mt-1">Default trucking or shipping partner for this contract.</div>
+                        {% if form.logistics_partner.errors %}<div class="text-danger text-xs mt-1">{{ form.logistics_partner.errors|striptags }}</div>{% endif %}
+                    </div>
                 </div>
             </div>
         </div>

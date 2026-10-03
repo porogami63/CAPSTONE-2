@@ -35,7 +35,12 @@ def reconciliation_detail(request, pk):
     from operations.services.pricing import cluster_financials
 
     fin = cluster_financials(cluster)
-    total_target = Decimal(str(fin["revenue"]))
+    loans_qs = cluster.loans.all()
+    if loans_qs.exists():
+        total_target = loans_qs.aggregate(total=Sum("principal"))["total"] or Decimal("0")
+    else:
+        total_target = Decimal(str(fin["purchase_total"]))
+
     sourcing_total = Decimal(str(fin["purchase_total"]))
     logistics_total = Decimal(str(fin["logistics_cost"]))
     total_matched = Decimal(str(reconciliation.matches.aggregate(total=Sum("amount"))["total"] or "0"))

@@ -96,6 +96,14 @@ class TransactionClusterForm(forms.ModelForm):
         widget=forms.Select(attrs={"class": "form-select-htc"}),
     )
 
+    logistics_partner = forms.ModelChoiceField(
+        queryset=LogisticsPartner.objects.filter(is_active=True),
+        required=False,
+        label="Logistics Partner (Shipping/Freight)",
+        empty_label="-- To be decided --",
+        widget=forms.Select(attrs={"class": "form-select-htc"}),
+    )
+
     class Meta:
         model = TransactionCluster
         fields = ["reference_code", "client", "sugar_mill", "contract_notes", "status"]
@@ -139,6 +147,7 @@ class TransactionClusterForm(forms.ModelForm):
                     self.fields["chai_specs"].initial = specs_val
             if hasattr(self.instance, "logistics") and self.instance.logistics:
                 log = self.instance.logistics
+                self.fields["logistics_partner"].initial = log.partner
                 vol = float(log.loaded_volume_mt or 0)
                 if vol > 0:
                     if log.tracking_fees:
@@ -179,6 +188,10 @@ class TransactionClusterForm(forms.ModelForm):
         if est_barge_rate is not None and est_barge_rate < 0:
             self.add_error("est_barge_rate", "Marine barging rate cannot be negative.")
 
+        brix_level = cleaned_data.get("brix_level")
+        if brix_level is not None and (brix_level < 0 or brix_level > 100):
+            self.add_error("brix_level", "Brix Quality Level (%) must be a valid percentage between 0 and 100.")
+
         return cleaned_data
 
 
@@ -205,6 +218,10 @@ class LogisticsUpdateForm(forms.ModelForm):
             "barge_partner": "Barging Partner (Marine Transport)",
             "barge_fees": "Barging Freight Rate (₱/MT)",
             "partner": "Primary Logistics Partner (Fallback)",
+            "received_at": "Delivered Date & Time / Vessel ETA",
+        }
+        help_texts = {
+            "received_at": "Actual delivery timestamp or scheduled vessel/truck ETA. Fully editable for schedule adjustments.",
         }
         widgets = {
             "trucking_partner": forms.Select(attrs={"class": "form-select-htc"}),
@@ -267,11 +284,16 @@ class LogisticsUpdateForm(forms.ModelForm):
         if loaded_at and loaded_at > future_threshold:
             self.add_error("loaded_at", "Loading date and time cannot be set in the future.")
 
-        if received_at and received_at > future_threshold:
-            self.add_error("received_at", "Delivered date and time cannot be set in the future.")
+        # Allow received_at to be set in the future for ETA tracking, and remain fully editable.
 
-        if loaded_at and received_at and received_at < loaded_at:
-            self.add_error("received_at", "Delivery received timestamp cannot be earlier than loading timestamp.")
+        if loaded_at and received_at:
+            if received_at < loaded_at:
+                self.add_error("received_at", "Delivery received timestamp cannot be earlier than loading timestamp.")
+            elif loaded_at.date() == received_at.date():
+                self.add_error("received_at", "Loading and receiving on the same day is physically impossible. Please verify the dates.")
+                
+        if received_at and not loaded_at:
+            self.add_error("loaded_at", "Loading timestamp must be provided if delivery received timestamp is specified.")
 
         if loaded_at and loaded_at.year < 2020:
             self.add_error("loaded_at", "Loading timestamp is invalid (cannot be before year 2020).")
@@ -394,6 +416,10 @@ class MolassesReleaseOrderForm(forms.ModelForm):
             )
             cleaned_data["planter"] = planter_obj
 
+        brix_level = cleaned_data.get("brix_level")
+        if brix_level is not None and (brix_level < 0 or brix_level > 100):
+            self.add_error("brix_level", "Brix Level (%) must be a valid percentage between 0 and 100.")
+
         return cleaned_data
 
 
@@ -456,4 +482,14 @@ class CHAIRecordForm(forms.ModelForm):
             from operations.services.reference_generators import generate_chai_number
             val = generate_chai_number()
         return val
+
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        for field in ["brix_level", "purity_percent", "total_sugars_percent"]:
+            val = cleaned_data.get(field)
+            if val is not None and (val < 0 or val > 100):
+                self.add_error(field, f"{self.fields[field].label} must be a valid percentage between 0 and 100.")
+                
+        return cleaned_data
 

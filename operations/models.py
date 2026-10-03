@@ -82,6 +82,153 @@ class TransactionCluster(models.Model):
         """Returns True if the cluster satisfies all prerequisites for archiving."""
         return len(self.get_archival_blockers()) == 0
 
+    def get_workflow_steps_info(self):
+        """
+        Calculates step-by-step completion status and missing prerequisites
+        to advance across all 5 transaction workflow stages.
+        """
+        po = getattr(self, "purchase_order", None)
+        logistics = getattr(self, "logistics", None)
+        invoices = self.invoices.all()
+        loans = self.loans.all()
+
+        linked_mro_count = 0
+        if hasattr(self, "mro_links"):
+            linked_mro_count = self.mro_links.count()
+
+        # Step 1: PO Input & Commercial Terms
+        s1_missing = []
+        if not po:
+            s1_missing.append("Purchase Order details not created")
+        else:
+            if not po.volume_mt or po.volume_mt <= 0:
+                s1_missing.append("Contract Volume (MT) required")
+            if not po.unit_price or po.unit_price <= 0:
+                s1_missing.append("Supplier Sourcing Price (₱/MT) required")
+            if not po.selling_price or po.selling_price <= 0:
+                s1_missing.append("Customer Selling Price (₱/MT) required")
+        s1_complete = len(s1_missing) == 0
+
+        # Step 2: Executive Approval
+        s2_missing = []
+        if not s1_complete:
+            s2_missing.append("PO Input details must be complete first")
+        if self.status == self.Status.DRAFT:
+            s2_missing.append("Transaction PO must be submitted for approval")
+        elif self.status == self.Status.RETURNED:
+            s2_missing.append("Returned PO requires revision and re-submission")
+        elif self.status == self.Status.PENDING_APPROVAL:
+            s2_missing.append("Pending Executive Approval review")
+
+        s2_approved = self.status in [self.Status.APPROVED, self.Status.ACTIVE, self.Status.DELIVERED, self.Status.CLOSED] or self.approved_at is not None
+
+        # Step 3: Logistics & Receiving
+        s3_missing = []
+        if not s2_approved:
+            s3_missing.append("PO must be approved by Executive Manager")
+
+        has_mro = bool(self.mro_file) or (linked_mro_count > 0)
+        if not has_mro:
+            s3_missing.append("MRO Release Permit / scanned copy linked")
+
+        if not logistics or not (logistics.partner or logistics.trucking_partner or logistics.barge_partner):
+            s3_missing.append("Logistics carrier / partner assigned")
+        if not logistics or not logistics.loaded_volume_mt or logistics.loaded_volume_mt <= 0:
+            s3_missing.append("Loaded MT dispatch recorded")
+        if not logistics or not logistics.received_volume_mt or logistics.received_volume_mt <= 0:
+            s3_missing.append("Received MT delivery receipt recorded")
+        if logistics and logistics.dispute_status == logistics.DisputeStatus.DISPUTED:
+            s3_missing.append("Variance dispute exceeds tolerance (>1.0%) — resolution required")
+
+        s3_complete = s2_approved and (len(s3_missing) == 0)
+
+        # Step 4: Sales Invoicing
+        s4_missing = []
+        if not s2_approved:
+            s4_missing.append("PO must be approved by Executive Manager")
+        if not (logistics and logistics.received_volume_mt and logistics.received_volume_mt > 0):
+            s4_missing.append("Logistics delivery receiving (Received MT) recorded")
+        if logistics and not (logistics.waybill_file or logistics.dr_file):
+            s4_missing.append("Supporting Waybill or Delivery Receipt (DR) scan attached")
+        if not invoices.exists():
+            s4_missing.append("Sales Invoice issued & recorded")
+        else:
+            unpaid_count = invoices.exclude(status="paid").count()
+            if unpaid_count > 0:
+                s4_missing.append(f"{unpaid_count} sales invoice(s) pending payment collection")
+
+        s4_complete = s2_approved and (len(s4_missing) == 0)
+
+        # Step 5: Finance Settlement & Closure
+        s5_missing = []
+        if not s4_complete:
+            s5_missing.append("Sales Invoices must be fully issued and paid")
+        active_loans = loans.exclude(status="closed")
+        if active_loans.exists():
+            s5_missing.append(f"{active_loans.count()} active capital loan facility(ies) pending settlement")
+        if self.status not in [self.Status.DELIVERED, self.Status.CLOSED]:
+            s5_missing.append("Deal status must be marked as Delivered or Closed")
+
+        s5_complete = len(s5_missing) == 0 and s4_complete
+
+        if s5_complete:
+            current_step = 5
+        elif s4_complete:
+            current_step = 5
+        elif s3_complete:
+            current_step = 4
+        elif s2_approved:
+            current_step = 3
+        elif s1_complete and self.status == self.Status.PENDING_APPROVAL:
+            current_step = 2
+        else:
+            current_step = 1
+
+        return {
+            "step1": {
+                "number": 1,
+                "title": "PO Input",
+                "label": "PO Input & Specs",
+                "complete": s1_complete,
+                "missing": s1_missing,
+                "status_text": "Complete" if s1_complete else "Incomplete",
+            },
+            "step2": {
+                "number": 2,
+                "title": "Executive Approval",
+                "label": "PO Approval",
+                "complete": s2_approved,
+                "missing": s2_missing,
+                "status_text": "Approved" if s2_approved else ("Pending Review" if self.status == self.Status.PENDING_APPROVAL else ("Returned" if self.status == self.Status.RETURNED else "Draft PO")),
+            },
+            "step3": {
+                "number": 3,
+                "title": "Logistics & Receiving",
+                "label": "Logistics Ledger",
+                "complete": s3_complete,
+                "missing": s3_missing,
+                "status_text": "Received" if (logistics and logistics.received_volume_mt) else ("In Transit" if (logistics and logistics.loaded_volume_mt) else "Pending Dispatch"),
+            },
+            "step4": {
+                "number": 4,
+                "title": "Sales Invoicing",
+                "label": "Sales Invoicing",
+                "complete": s4_complete,
+                "missing": s4_missing,
+                "status_text": "Invoice Paid" if (invoices.exists() and not [inv for inv in invoices if inv.status != 'paid']) else ("Invoice Issued" if invoices.exists() else "Pending Billing"),
+            },
+            "step5": {
+                "number": 5,
+                "title": "Finance Settlement",
+                "label": "Deal Settlement",
+                "complete": s5_complete,
+                "missing": s5_missing,
+                "status_text": "Deal Closed" if s5_complete else "Pending Settlement",
+            },
+            "current_step": current_step,
+        }
+
+
 
 
 class PurchaseOrder(models.Model):

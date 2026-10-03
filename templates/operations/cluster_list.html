@@ -195,6 +195,11 @@
                         data-variance="{{ c.variance_text }}"
                         data-status="{{ c.status }}"
                         data-progress="{{ c.timeline_progress }}"
+                        data-step1-missing="{{ c.get_workflow_steps_info.step1.missing|join:'; ' }}"
+                        data-step2-missing="{{ c.get_workflow_steps_info.step2.missing|join:'; ' }}"
+                        data-step3-missing="{{ c.get_workflow_steps_info.step3.missing|join:'; ' }}"
+                        data-step4-missing="{{ c.get_workflow_steps_info.step4.missing|join:'; ' }}"
+                        data-step5-missing="{{ c.get_workflow_steps_info.step5.missing|join:'; ' }}"
 
                         data-received="{{ c.has_received|yesno:'true,false' }}"
                         data-invoiced="{{ c.has_invoice|yesno:'true,false' }}"
@@ -396,6 +401,19 @@
         } else {
             setFlowStep('flowStep5', '', 'Pending');
         }
+
+        // Update step titles with missing prerequisite soft indicators
+        const f1 = document.getElementById('flowStep1') ? document.getElementById('flowStep1').parentElement : null;
+        const f2 = document.getElementById('flowStep2') ? document.getElementById('flowStep2').parentElement : null;
+        const f3 = document.getElementById('flowStep3') ? document.getElementById('flowStep3').parentElement : null;
+        const f4 = document.getElementById('flowStep4') ? document.getElementById('flowStep4').parentElement : null;
+        const f5 = document.getElementById('flowStep5') ? document.getElementById('flowStep5').parentElement : null;
+
+        if (f1) f1.title = d.step1Missing ? 'Step 01: PO Input (Missing: ' + d.step1Missing + ')' : 'Step 01: PO Input (Complete)';
+        if (f2) f2.title = d.step2Missing ? 'Step 02: Approval (Missing: ' + d.step2Missing + ')' : 'Step 02: Approval (Approved)';
+        if (f3) f3.title = d.step3Missing ? 'Step 03: Logistics (Missing: ' + d.step3Missing + ')' : 'Step 03: Logistics (Complete)';
+        if (f4) f4.title = d.step4Missing ? 'Step 04: Invoicing (Missing: ' + d.step4Missing + ')' : 'Step 04: Invoicing (Complete)';
+        if (f5) f5.title = d.step5Missing ? 'Step 05: Settlement (Missing: ' + d.step5Missing + ')' : 'Step 05: Settlement (Complete)';
 
         const pane = document.getElementById('detailPane');
         const mode = localStorage.getItem('htc_tx_view_mode') || 'split';

@@ -36,8 +36,9 @@ MGMT_INVOICING = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.INVOICING
 # Fine-grained permissions
 PERMISSIONS = {
     "manage_users": {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT},
-    "create_transaction": EXEC_ROLES,
-    "edit_transaction": EXEC_ROLES,
+    "create_transaction": ALL_ROLES,
+    "edit_transaction": ALL_ROLES,
+    "approve_transaction": EXEC_ROLES,
     "archive_transaction": EXEC_ROLES,
     "edit_logistics": EXEC_ROLES,
     "upload_mro": EXEC_ROLES,

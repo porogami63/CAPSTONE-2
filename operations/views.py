@@ -86,7 +86,7 @@ def cluster_list(request):
         c.primary_invoice = invs[0] if invs else None
         c.purchase_order = getattr(c, "purchase_order", None)
         c.logistics_record = getattr(c, "logistics", None)
-        c.partner_name = c.logistics_record.partner.name if c.logistics_record else "—"
+        c.partner_name = c.logistics_record.partner.name if (c.logistics_record and getattr(c.logistics_record, 'partner', None)) else "—"
         c.received_volume = (
             c.logistics_record.received_volume_mt
             if c.logistics_record and c.logistics_record.received_volume_mt is not None
@@ -447,7 +447,12 @@ def clear_database_view(request):
     return render(request, "operations/clear_database_confirm.html")
 
 
-@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
 def cluster_create(request):
     if request.method == "POST":
         form = TransactionClusterForm(request.POST)
@@ -486,20 +491,20 @@ def cluster_create(request):
                         )
                     except Exception:
                         pass
-                default_partner = LogisticsPartner.objects.filter(is_active=True).first()
+                logistics_partner = form.cleaned_data.get("logistics_partner")
                 vol = form.cleaned_data["volume_mt"]
                 est_trucking_rate = form.cleaned_data.get("est_trucking_rate") or Decimal("0")
                 est_barge_rate = form.cleaned_data.get("est_barge_rate") or Decimal("0")
                 tracking_fee = vol * est_trucking_rate
                 barge_fee = vol * est_barge_rate
-                if default_partner:
-                    LogisticsLedger.objects.create(
-                        cluster=cluster,
-                        partner=default_partner,
-                        loaded_volume_mt=vol,
-                        tracking_fees=tracking_fee,
-                        barge_fees=barge_fee,
-                    )
+                
+                LogisticsLedger.objects.create(
+                    cluster=cluster,
+                    partner=logistics_partner,
+                    loaded_volume_mt=vol,
+                    tracking_fees=tracking_fee,
+                    barge_fees=barge_fee,
+                )
                 FinancialReconciliation.objects.create(cluster=cluster)
 
                 # Real-life company process notification trigger:
@@ -521,7 +526,12 @@ def cluster_create(request):
     return render(request, "operations/cluster_form.html", {"form": form, "title": "New Transaction"})
 
 
-@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
 def cluster_edit(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
@@ -577,7 +587,12 @@ def cluster_edit(request, pk):
     return render(request, "operations/cluster_form.html", {"form": form, "object": cluster, "title": f"Edit {cluster.reference_code}"})
 
 
-@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGER)
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
 def submit_cluster_for_approval(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
@@ -815,6 +830,11 @@ def update_logistics(request, pk):
                 messages.success(request, "Logistics updated.")
             cluster.status = TransactionCluster.Status.DELIVERED
             cluster.save(update_fields=["status", "updated_at"])
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    field_label = form.fields[field].label if field in form.fields and form.fields[field].label else field
+                    messages.error(request, f"{field_label}: {error}")
     return redirect("operations:cluster_detail", pk=pk)
 
 
@@ -842,6 +862,11 @@ def add_invoice(request, pk):
             )
 
             messages.success(request, f"Invoice {invoice.invoice_number} recorded.")
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    field_label = form.fields[field].label if field in form.fields and form.fields[field].label else field
+                    messages.error(request, f"{field_label}: {error}")
     return redirect("operations:cluster_detail", pk=pk)
 
 
@@ -878,7 +903,10 @@ def add_voucher(request, pk):
 
             messages.success(request, f"Cash voucher {voucher.voucher_number} recorded and linked to facility.")
         else:
-            messages.error(request, "Error issuing cash voucher. Please check your inputs.")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    field_label = form.fields[field].label if field in form.fields and form.fields[field].label else field
+                    messages.error(request, f"{field_label}: {error}")
     return redirect("operations:cluster_detail", pk=pk)
 
 
@@ -930,7 +958,10 @@ def add_loan(request, pk):
                 )
                 messages.success(request, f"Capital loan facility from {loan.bank_name} recorded as ACTIVE facility.")
         else:
-            messages.error(request, f"Failed to record loan facility: {form.errors.as_text()}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    field_label = form.fields[field].label if field in form.fields and form.fields[field].label else field
+                    messages.error(request, f"{field_label}: {error}")
     return redirect("operations:cluster_detail", pk=pk)
 
 
