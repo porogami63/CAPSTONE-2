@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: htc_core
       POSTGRES_USER: htc
@@ -17,6 +18,7 @@ services:
 
   redis:
     image: redis:alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
     networks:
@@ -24,6 +26,7 @@ services:
 
   web:
     build: .
+    restart: unless-stopped
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -62,6 +65,7 @@ services:
 
   nginx:
     image: nginx:1.27-alpine
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
@@ -78,6 +82,7 @@ services:
 
   celery_worker:
     build: .
+    restart: unless-stopped
     dns:
       - 8.8.8.8
       - 1.1.1.1
