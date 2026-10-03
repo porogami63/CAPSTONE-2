@@ -125,9 +125,12 @@
                     <button class="sidebar-toggle" type="button" aria-controls="appSidebar" aria-expanded="false" data-sidebar-toggle>
                         <i class="bi bi-list"></i>
                     </button>
-                    <div>
-                        <h1>{% block topbar_title %}HTC Core{% endblock %}</h1>
-                        <div class="topbar-subtitle">{% block topbar_subtitle %}Integrated procurement & financial tracking{% endblock %}</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <img src="{% static 'img/htc-logo.png' %}" alt="HTC Logo" class="topbar-logo" style="height: 32px; width: auto; object-fit: contain; flex-shrink: 0;">
+                        <div>
+                            <h1>{% block topbar_title %}HTC Core{% endblock %}</h1>
+                            <div class="topbar-subtitle">{% block topbar_subtitle %}Integrated procurement & financial tracking{% endblock %}</div>
+                        </div>
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.85rem;" data-intro="System Header Toolbar: Access real-time alerts, team chat, tour guide, theme toggle, and active user role badge." data-step="2">

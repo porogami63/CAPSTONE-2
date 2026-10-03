@@ -19,7 +19,7 @@
     {% if user.is_authenticated %}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'dashboard:home' %}">HTC Core</a>
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'dashboard:home' %}"><img src="{% static 'img/htc-logo.png' %}" alt="HTC Logo" style="height: 28px; width: auto; object-fit: contain;"><span>HTC Core</span></a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
                 <span class="navbar-toggler-icon"></span>
             </button>

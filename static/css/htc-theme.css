@@ -2865,34 +2865,35 @@ body.sidebar-collapsed .brand-logo-group {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #0f172a !important;
-    background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) !important;
-    background-size: 32px 32px !important;
+    background: linear-gradient(to bottom, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.88)),
+                url('../img/login-bg.jpg') center/cover no-repeat fixed !important;
     position: relative;
     padding: 2rem 1rem;
 }
 [data-theme="light"] .login-page-wrapper {
-    background-color: #f1f5f9 !important;
-    background-image: linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px) !important;
+    background: linear-gradient(to bottom, rgba(241, 245, 249, 0.75), rgba(241, 245, 249, 0.88)),
+                url('../img/login-bg.jpg') center/cover no-repeat fixed !important;
 }
 .glass-login-card {
-    background: #1e293b !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
-    border-radius: 16px !important;
-    padding: 2.5rem 2rem !important;
+    background: rgba(30, 41, 59, 0.82) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    border-radius: 20px !important;
+    padding: 2.75rem 2.25rem !important;
     width: 100%;
-    max-width: 440px !important;
+    max-width: 450px !important;
     text-align: center;
     position: relative;
     z-index: 2;
 }
 [data-theme="light"] .glass-login-card {
-    background: #ffffff !important;
-    border: 1px solid var(--htc-border) !important;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15) !important;
 }
 .login-brand-badge {
     width: 64px !important;
