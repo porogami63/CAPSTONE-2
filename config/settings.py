@@ -17,19 +17,22 @@ ALLOWED_HOSTS = [
     for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",")
     if host.strip()
 ]
+CSRF_TRUSTED_ORIGINS = [
+    "https://htccore.tech",
+    "https://www.htccore.tech",
+    "http://htccore.tech",
+    "http://www.htccore.tech",
+    "http://18.140.166.84",
+    "http://localhost",
+    "http://127.0.0.1",
+]
 
 csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
 if csrf_origins_env:
-    CSRF_TRUSTED_ORIGINS = [o.strip() for o in csrf_origins_env.split(",") if o.strip()]
-else:
-    CSRF_TRUSTED_ORIGINS = []
-    for host in ALLOWED_HOSTS:
-        if host not in ("*", "localhost", "127.0.0.1", "testserver", "nginx", "web"):
-            CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
-            CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
-    for domain in ["https://htccore.tech", "https://www.htccore.tech", "http://htccore.tech", "http://www.htccore.tech"]:
-        if domain not in CSRF_TRUSTED_ORIGINS:
-            CSRF_TRUSTED_ORIGINS.append(domain)
+    for o in csrf_origins_env.split(","):
+        o_clean = o.strip()
+        if o_clean and o_clean not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(o_clean)
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
