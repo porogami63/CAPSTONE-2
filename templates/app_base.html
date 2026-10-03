@@ -175,9 +175,6 @@
                         <i class="bi bi-chat-dots-fill"></i>
                         <span id="unreadChatBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;">0</span>
                     </a>
-                    <a href="{% url 'accounts:profile' %}" class="btn-theme-toggle text-decoration-none" title="User Profile & Avatar" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem;">
-                        <i class="bi bi-person-circle"></i>
-                    </a>
                     <button type="button" class="btn-theme-toggle" id="helpGuideBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Start Interactive Guided Tour" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
                         <i class="bi bi-question-circle"></i>
                     </button>
@@ -374,7 +371,7 @@
 
                                 if (notifList) {
                                     if (!data.notifications || data.notifications.length === 0) {
-                                        notifList.innerHTML = `<div class="p-4 text-center text-muted fs-7"><i class="bi bi-check2-circle d-block fs-4 text-success mb-1"></i>No unread notifications</div>`;
+                                        notifList.innerHTML = `<div class="p-4 text-center text-muted fs-7"><i class="bi bi-check-circle-fill d-block fs-3 text-success mb-2 opacity-75"></i><strong>All caught up!</strong><br><span class="text-xs text-muted">No unread notifications in this category.</span></div>`;
                                     } else {
                                         let html = "";
                                         data.notifications.forEach(n => {

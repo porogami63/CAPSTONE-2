@@ -8,8 +8,11 @@ import sys
 import django
 
 # Setup Django
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+import django
 django.setup()
 
 from django.db import connection
