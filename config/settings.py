@@ -12,11 +12,14 @@ SECRET_KEY = os.getenv(
     "django-insecure-j78jn$ay_yuk*=qln*8@_=r_xbi9j)$tv24r(mmru7-4%z!h%!",
 )
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",")
-    if host.strip()
-]
+allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "")
+if allowed_hosts_env and allowed_hosts_env.strip() != "*":
+    ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(",") if h.strip()]
+    for default_host in ["htccore.tech", "www.htccore.tech", "18.140.166.84", "localhost", "127.0.0.1", "nginx", "web"]:
+        if default_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(default_host)
+else:
+    ALLOWED_HOSTS = ["*"]
 CSRF_TRUSTED_ORIGINS = [
     "https://htccore.tech",
     "https://www.htccore.tech",

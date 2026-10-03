@@ -34,7 +34,7 @@ services:
     environment:
       DEBUG: "False"
       SECRET_KEY: pilot-change-me-before-uat
-      ALLOWED_HOSTS: localhost,127.0.0.1,nginx
+      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-*}"
       DATABASE_URL: postgres://htc:htc@db:5432/htc_core
       CELERY_TASK_ALWAYS_EAGER: "False"
       CELERY_TASK_EAGER_PROPAGATES: "False"
