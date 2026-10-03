@@ -92,7 +92,7 @@
         <div class="badge bg-danger p-2 fs-5"><i class="bi bi-exclamation-octagon-fill"></i></div>
         <div class="flex-grow-1">
             <h5 class="fw-bold text-danger mb-1">Transaction Returned / Rejected for Revision</h5>
-            <p class="text-sm mb-1"><strong>Returned By:</strong> {{ cluster.rejected_by.get_full_name|default:cluster.rejected_by.username|default:"Executive Manager" }} on {{ cluster.rejected_at|date:"F d, Y at H:i" }}</p>
+            <p class="text-sm mb-1"><strong>Returned By:</strong> {% if cluster.rejected_by %}{{ cluster.rejected_by.get_full_name|default:cluster.rejected_by.username }}{% else %}Executive Manager{% endif %} on {{ cluster.rejected_at|date:"F d, Y at H:i" }}</p>
             <div class="p-2.5 bg-body rounded border border-danger-subtle text-dark font-monospace text-xs" style="background: var(--htc-surface) !important; color: var(--htc-text) !important;">
                 <strong>Mandatory Rejection Comment:</strong> {{ cluster.rejection_comments|default:"No specific comment recorded." }}
             </div>
@@ -106,7 +106,7 @@
             <i class="bi bi-patch-check-fill text-success fs-4"></i>
             <div>
                 <strong class="text-success fs-6">Executive Workflow Status: APPROVED</strong>
-                <div class="text-xs text-muted">Approved by {{ cluster.approved_by.get_full_name|default:cluster.approved_by.username|default:"Authorized Manager" }} on {{ cluster.approved_at|date:"F d, Y at H:i" }}</div>
+                <div class="text-xs text-muted">Approved by {% if cluster.approved_by %}{{ cluster.approved_by.get_full_name|default:cluster.approved_by.username }}{% else %}Authorized Manager{% endif %} on {{ cluster.approved_at|date:"F d, Y at H:i" }}</div>
             </div>
         </div>
         <span class="badge bg-success text-white px-3 py-1 fw-bold">Verified &amp; Approved</span>

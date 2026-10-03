@@ -134,13 +134,13 @@
                     {% if record.approved_at %}
                     <tr>
                         <th class="bg-light text-success">Approved Timestamp:</th>
-                        <td class="text-success font-monospace">{{ record.approved_at|date:"F d, Y at H:i" }} (by {{ record.approved_by.get_full_name|default:record.approved_by.username }})</td>
+                        <td class="text-success font-monospace">{{ record.approved_at|date:"F d, Y at H:i" }} (by {% if record.approved_by %}{{ record.approved_by.get_full_name|default:record.approved_by.username }}{% else %}Authorized Quality Inspector{% endif %})</td>
                     </tr>
                     {% endif %}
                     {% if record.rejected_at %}
                     <tr>
                         <th class="bg-light text-danger">Rejection Timestamp:</th>
-                        <td class="text-danger font-monospace">{{ record.rejected_at|date:"F d, Y at H:i" }} (by {{ record.rejected_by.get_full_name|default:record.rejected_by.username }})</td>
+                        <td class="text-danger font-monospace">{{ record.rejected_at|date:"F d, Y at H:i" }} (by {% if record.rejected_by %}{{ record.rejected_by.get_full_name|default:record.rejected_by.username }}{% else %}Quality Manager{% endif %})</td>
                     </tr>
                     <tr>
                         <th class="bg-light text-danger">Rejection Reason:</th>
