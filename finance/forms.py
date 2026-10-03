@@ -22,22 +22,18 @@ class StandaloneInvoiceForm(forms.ModelForm):
 
     class Meta:
         model = Invoice
-        fields = ["cluster", "invoice_number", "amount", "issued_at", "status", "is_incremental", "incremental_percentage", "notes"]
+        fields = ["cluster", "invoice_number", "amount", "issued_at", "status", "notes"]
         widgets = {
             "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated based on PO (e.g. SI-20260925-001)"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 1500000.00", "step": "0.01"}),
             "issued_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
             "status": forms.Select(attrs={"class": "form-select-htc"}),
-            "is_incremental": forms.CheckboxInput(attrs={"class": "form-check-input", "id": "id_standalone_is_incremental"}),
-            "incremental_percentage": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 50.00", "step": "0.01", "id": "id_standalone_incremental_pct"}),
             "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional invoice notes..."}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["invoice_number"].required = False
-        self.fields["is_incremental"].required = False
-        self.fields["incremental_percentage"].required = False
         self.fields["cluster"].queryset = (
             TransactionCluster.objects.filter(is_archived=False)
             .select_related("client", "sugar_mill", "purchase_order")
@@ -56,8 +52,10 @@ class StandaloneInvoiceForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         cluster = cleaned_data.get("cluster")
-        is_incremental = cleaned_data.get("is_incremental")
-        incremental_percentage = cleaned_data.get("incremental_percentage")
+        amount = cleaned_data.get("amount")
+        
+        if amount is not None and amount <= 0:
+            self.add_error("amount", "Invoice amount must be a positive value greater than ₱0.00.")
 
         if cluster:
             # 1. Check for Active Capital Loan Prerequisite
@@ -66,32 +64,18 @@ class StandaloneInvoiceForm(forms.ModelForm):
                     "cluster",
                     "A Capital Loan must be fulfilled (Active/Settled) for this transaction before invoices can be issued."
                 )
-
-            # 2. Check for Incremental Billing Requirement
-            existing_qs = cluster.invoices.all()
-            if self.instance and self.instance.pk:
-                existing_qs = existing_qs.exclude(pk=self.instance.pk)
-            if existing_qs.exists() and not is_incremental and not incremental_percentage:
-                self.add_error(
-                    "is_incremental",
-                    "An invoice has already been issued for this transaction cluster. "
-                    "Creation of additional invoices is restricted unless specified as an incremental billing (e.g. 50%, 25%). "
-                    "Please check 'Incremental / Progress Billing' and specify the incremental percentage."
-                )
         return cleaned_data
 
 
 class InvoiceForm(forms.ModelForm):
     class Meta:
         model = Invoice
-        fields = ["invoice_number", "amount", "issued_at", "status", "is_incremental", "incremental_percentage", "notes"]
+        fields = ["invoice_number", "amount", "issued_at", "status", "notes"]
         widgets = {
             "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated based on PO (e.g. SI-20260925-001)"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 1500000.00", "step": "0.01"}),
             "issued_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
             "status": forms.Select(attrs={"class": "form-select-htc"}),
-            "is_incremental": forms.CheckboxInput(attrs={"class": "form-check-input", "id": "id_detail_is_incremental"}),
-            "incremental_percentage": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 50.00", "step": "0.01", "id": "id_detail_incremental_pct"}),
             "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional invoice notes..."}),
         }
 
@@ -99,13 +83,9 @@ class InvoiceForm(forms.ModelForm):
         self.cluster = cluster
         super().__init__(*args, **kwargs)
         self.fields["invoice_number"].required = False
-        self.fields["is_incremental"].required = False
-        self.fields["incremental_percentage"].required = False
         if self.cluster and not self.initial.get("invoice_number"):
             from operations.services.reference_generators import generate_si_reference
             self.initial["invoice_number"] = generate_si_reference(self.cluster.reference_code)
-        if self.cluster and self.cluster.invoices.exists():
-            self.initial["is_incremental"] = True
 
     def clean_invoice_number(self):
         num = self.cleaned_data.get("invoice_number", "").strip()
@@ -117,8 +97,10 @@ class InvoiceForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        is_incremental = cleaned_data.get("is_incremental")
-        incremental_percentage = cleaned_data.get("incremental_percentage")
+        amount = cleaned_data.get("amount")
+        
+        if amount is not None and amount <= 0:
+            self.add_error("amount", "Invoice amount must be a positive value greater than ₱0.00.")
 
         if self.cluster:
             # 1. Check for Active Capital Loan Prerequisite
@@ -127,16 +109,13 @@ class InvoiceForm(forms.ModelForm):
                     "A Capital Loan must be fulfilled (Active/Settled) for this transaction before invoices can be issued."
                 )
 
-            # 2. Check for Incremental Billing Requirement
-            existing_qs = self.cluster.invoices.all()
-            if self.instance and self.instance.pk:
-                existing_qs = existing_qs.exclude(pk=self.instance.pk)
-            if existing_qs.exists() and not is_incremental and not incremental_percentage:
-                self.add_error(
-                    "is_incremental",
-                    "An invoice has already been issued for this transaction cluster. "
-                    "Creation of additional invoices is restricted unless specified as an incremental billing (e.g. 50%, 25%). "
-                    "Please check 'Incremental / Progress Billing' and specify the incremental percentage."
+            # 2. Check if 100% full contract target has already been invoiced
+            from operations.services.pricing import get_invoice_suggestion_data
+            sugg = get_invoice_suggestion_data(self.cluster)
+            if (not self.instance or not self.instance.pk) and sugg["invoices_count"] > 0 and sugg["remaining_balance"] <= 0.01:
+                raise forms.ValidationError(
+                    f"Full 100% contract balance (₱{sugg['already_invoiced']:,.2f}) has already been issued for this transaction. "
+                    "Creation of additional invoices is restricted once the full contract balance is 100% invoiced."
                 )
         return cleaned_data
 
@@ -169,6 +148,13 @@ class CashVoucherForm(forms.ModelForm):
             cluster_ref = self.cluster.reference_code if self.cluster else None
             num = generate_cv_reference(cluster_ref)
         return num
+        
+    def clean(self):
+        cleaned_data = super().clean()
+        amount = cleaned_data.get("amount")
+        if amount is not None and amount <= 0:
+            self.add_error("amount", "Cash voucher amount must be a positive value greater than ₱0.00.")
+        return cleaned_data
 
 
 class StandaloneLoanForm(forms.ModelForm):
@@ -345,3 +331,10 @@ class PaymentExpenseMatchForm(forms.ModelForm):
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 500000.00", "step": "0.01"}),
             "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional reconciliation notes..."}),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        amount = cleaned_data.get("amount")
+        if amount is not None and amount <= 0:
+            self.add_error("amount", "Allocated amount must be a positive value greater than ₱0.00.")
+        return cleaned_data

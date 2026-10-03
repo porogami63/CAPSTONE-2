@@ -34,7 +34,7 @@
         <div class="row g-2 mt-2">
             <div class="col" style="min-width: 180px;">
                 <div class="p-2 border rounded text-center bg-light">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Customer Invoiced Revenue</small>
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Transaction Capital Loan Amount</small>
                     <span class="fs-6 font-weight-bold text-primary">₱{{ total_target|floatformat:2|intcomma }}</span>
                 </div>
             </div>
@@ -185,6 +185,45 @@
                 </table>
             </div>
         </div>
+
+        <!-- Generated Cash Vouchers List -->
+        <div class="card border-0 shadow-sm mt-4" style="border-radius: 12px; background: var(--htc-surface);">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-receipt-cutoff text-success me-2"></i>Generated Cash Vouchers</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr class="text-uppercase text-muted" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                            <th>Voucher #</th>
+                            <th>Date</th>
+                            <th>Purpose</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in cluster.cash_vouchers.all %}
+                        <tr>
+                            <td>
+                                <strong class="text-dark font-monospace">{{ v.voucher_number }}</strong>
+                                <a href="{% url 'finance:download_voucher_pdf' v.pk %}" class="btn btn-sm btn-outline-danger ms-2 py-0 px-2" style="font-size: 0.7rem;" title="Download Official Voucher PDF">
+                                    <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                                </a>
+                            </td>
+                            <td class="text-muted" style="font-size: 0.8rem;">{{ v.issued_at|date:"M d, Y" }}</td>
+                            <td><span class="text-muted">{{ v.purpose }}</span></td>
+                            <td class="text-end font-weight-bold">₱{{ v.amount|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">No cash vouchers generated yet. Matching an expense will automatically generate one.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 </div>
 {% endblock %}

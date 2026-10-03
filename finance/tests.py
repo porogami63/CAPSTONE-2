@@ -250,18 +250,17 @@ class SuggestiveInvoicePricingTests(TestCase):
 		self.assertEqual(data["suggested_full"], 2500000.0)
 		self.assertEqual(data["suggested_50_pct"], 1250000.0)
 
-	def test_invoice_list_view_renders_suggestive_banner(self):
+	def test_invoice_list_view_renders_suggestive_tooltip(self):
 		res = self.client.get(reverse("finance:invoice_list"))
 		self.assertEqual(res.status_code, 200)
 		self.assertIn("cluster_suggestions_json", res.context)
-		self.assertContains(res, "id=\"invoiceSuggestiveBanner\"")
-		self.assertContains(res, "Smart Suggestive Pricing Insight")
+		self.assertContains(res, "standaloneAmountWrap")
 
-	def test_cluster_detail_view_renders_suggestive_banner(self):
+	def test_cluster_detail_view_renders_suggestive_tooltip(self):
 		res = self.client.get(reverse("operations:cluster_detail", kwargs={"pk": self.cluster.pk}))
 		self.assertEqual(res.status_code, 200)
 		self.assertIn("invoice_suggestion_data", res.context)
-		self.assertContains(res, "Smart Suggestive Pricing Insight")
-		self.assertContains(res, "Contract Balance")
+		self.assertContains(res, "Suggested Contract Balance")
+
 
 
