@@ -3233,6 +3233,41 @@ html[data-theme="dark"] .btn-close {
     transform: translateY(-1px);
 }
 
+/* 5. Smooth Loading & Page Transition Controls */
+#htcTopProgressBar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0%;
+    background: linear-gradient(90deg, #3b82f6, #6366f1, #10b981);
+    z-index: 99999;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+    pointer-events: none;
+}
+
+.app-main-wrap {
+    animation: htcSmoothPageFade 0.3s ease-out;
+}
+
+@keyframes htcSmoothPageFade {
+    from { opacity: 0.88; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.skeleton-shimmer {
+    background: linear-gradient(90deg, var(--htc-surface) 25%, var(--htc-sidebar-hover) 50%, var(--htc-surface) 75%);
+    background-size: 200% 100%;
+    animation: htcShimmer 1.5s infinite;
+    border-radius: 6px;
+}
+
+@keyframes htcShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
 
 
 

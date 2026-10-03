@@ -591,7 +591,43 @@
                 <button type="submit" class="btn btn-sm btn-primary px-3" id="copilotSendBtn"><i class="bi bi-send-fill"></i></button>
             </form>
         </div>
-    </aside>
+    <!-- Smooth Loading Progress Bar Script -->
+    <script>
+        (function() {
+            var topBar = document.createElement('div');
+            topBar.id = 'htcTopProgressBar';
+            document.body.prepend(topBar);
+
+            function startLoading() {
+                topBar.style.opacity = '1';
+                topBar.style.width = '30%';
+                setTimeout(function() { if (topBar.style.width === '30%') topBar.style.width = '70%'; }, 250);
+            }
+
+            function finishLoading() {
+                topBar.style.width = '100%';
+                setTimeout(function() {
+                    topBar.style.opacity = '0';
+                    setTimeout(function() { topBar.style.width = '0%'; }, 350);
+                }, 200);
+            }
+
+            document.addEventListener('click', function(e) {
+                var link = e.target.closest('a');
+                if (link && link.href && !link.target && !link.hasAttribute('download') && link.origin === location.origin) {
+                    if (link.pathname !== location.pathname || link.search !== location.search) {
+                        startLoading();
+                    }
+                }
+            });
+
+            document.addEventListener('submit', function() {
+                startLoading();
+            });
+
+            window.addEventListener('pageshow', finishLoading);
+        })();
+    </script>
 </body>
 </html>
 
