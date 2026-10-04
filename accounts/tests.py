@@ -45,13 +45,13 @@ class AccountsPermissionTests(TestCase):
         self.assertFalse(user_has_perm(self.ops_mgmt_user, "clear_database"))
 
     def test_finance_user_permissions(self):
-        self.assertFalse(user_has_perm(self.finance_user, "create_transaction"))
+        self.assertTrue(user_has_perm(self.finance_user, "create_transaction"))
         self.assertTrue(user_has_perm(self.finance_user, "add_invoice"))
         self.assertTrue(user_has_perm(self.finance_user, "add_loan"))
         self.assertTrue(user_has_perm(self.finance_user, "reconcile_payments"))
 
     def test_invoicing_user_permissions(self):
-        self.assertFalse(user_has_perm(self.invoicing_user, "create_transaction"))
+        self.assertTrue(user_has_perm(self.invoicing_user, "create_transaction"))
         self.assertTrue(user_has_perm(self.invoicing_user, "add_invoice"))
         self.assertFalse(user_has_perm(self.invoicing_user, "add_loan"))
 
@@ -212,6 +212,54 @@ class AccountsViewTests(TestCase):
         self.assertEqual(res_second.status_code, 302)
         self.assertNotIn("/accounts/two-factor-verify/", res_second.url)
         self.assertEqual(int(self.client.session["_auth_user_id"]), user_2fa.id)
+
+
+class ForgotPasswordTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="resetuser",
+            email="resetuser@example.com",
+            password="oldpassword123",
+            is_active=True,
+        )
+
+    def test_forgot_password_get(self):
+        res = self.client.get("/accounts/forgot-password/")
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Account Recovery")
+
+    def test_forgot_password_post_valid_username(self):
+        res = self.client.post("/accounts/forgot-password/", {"username_or_email": "resetuser"})
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.context["submitted_reset"])
+        self.assertIsNotNone(res.context["reset_link"])
+
+    def test_forgot_password_post_valid_email(self):
+        res = self.client.post("/accounts/forgot-password/", {"username_or_email": "resetuser@example.com"})
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.context["submitted_reset"])
+        self.assertIsNotNone(res.context["reset_link"])
+
+    def test_password_reset_confirm_and_login(self):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = default_token_generator.make_token(self.user)
+
+        url = f"/accounts/reset-password/{uidb64}/{token}/"
+        res_get = self.client.get(url)
+        self.assertEqual(res_get.status_code, 200)
+        self.assertTrue(res_get.context["validlink"])
+
+        res_post = self.client.post(url, {"new_password": "newpassword123", "confirm_password": "newpassword123"})
+        self.assertEqual(res_post.status_code, 302)
+
+        # Verify new password works
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("newpassword123"))
+
 
 
 

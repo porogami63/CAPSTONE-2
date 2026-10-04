@@ -42,8 +42,17 @@ def reconciliation_detail(request, pk):
         total_target = Decimal(str(fin["purchase_total"]))
 
     sourcing_total = Decimal(str(fin["purchase_total"]))
+    trucking_total = Decimal(str(fin["tracking_fees"]))
+    barge_total = Decimal(str(fin["barge_fees"]))
     logistics_total = Decimal(str(fin["logistics_cost"]))
-    total_matched = Decimal(str(reconciliation.matches.aggregate(total=Sum("amount"))["total"] or "0"))
+
+    matches_qs = reconciliation.matches.all()
+    matched_sourcing = matches_qs.filter(expense_type=PaymentExpenseMatch.ExpenseType.SOURCING).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    matched_trucking = matches_qs.filter(expense_type__in=["trucking", "tracking"]).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    matched_barge = matches_qs.filter(expense_type=PaymentExpenseMatch.ExpenseType.BARGE).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    matched_deposit = matches_qs.filter(expense_type=PaymentExpenseMatch.ExpenseType.LOGISTICS_DEPOSIT).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+
+    total_matched = Decimal(str(matches_qs.aggregate(total=Sum("amount"))["total"] or "0"))
     remaining_balance = max(total_target - total_matched, Decimal("0"))
     total_outlay = sourcing_total + logistics_total
 
@@ -69,7 +78,13 @@ def reconciliation_detail(request, pk):
             "form": form,
             "total_target": total_target,
             "sourcing_total": sourcing_total,
+            "trucking_total": trucking_total,
+            "barge_total": barge_total,
             "logistics_total": logistics_total,
+            "matched_sourcing": matched_sourcing,
+            "matched_trucking": matched_trucking,
+            "matched_barge": matched_barge,
+            "matched_deposit": matched_deposit,
             "total_matched": total_matched,
             "remaining_balance": remaining_balance,
             "total_outlay": total_outlay,

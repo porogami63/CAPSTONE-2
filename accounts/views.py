@@ -18,6 +18,8 @@ from django.utils import timezone
 from accounts.decorators import role_required
 from accounts.forms import (
     AdminPasswordResetForm,
+    ForgotPasswordForm,
+    PasswordResetConfirmForm,
     TwoFactorVerifyForm,
     UserEditForm,
     UserLoginForm,
@@ -82,7 +84,10 @@ def login_view(request):
 
     ip = get_client_ip(request)
     cache_key = f"login_attempts_{ip}"
-    attempts = cache.get(cache_key, 0)
+    try:
+        attempts = cache.get(cache_key, 0)
+    except Exception:
+        attempts = 0
 
     if attempts >= 5:
         error_message = "Too many failed login attempts. Please try again in 5 minutes."
@@ -102,12 +107,14 @@ def login_view(request):
                 Q(username__iexact=login_input) | Q(email__iexact=login_input)
             ).first()
 
-
             username_to_auth = user_obj.username if user_obj else login_input
             user = authenticate(request, username=username_to_auth, password=password)
 
             if user is not None:
-                cache.delete(cache_key)
+                try:
+                    cache.delete(cache_key)
+                except Exception:
+                    pass
                 if not user.is_active:
                     error_message = "Your user account is pending Administrator approval. Please contact system management."
                 elif user.is_2fa_enabled:
@@ -125,7 +132,10 @@ def login_view(request):
                     messages.success(request, f"Welcome back, {user.get_full_name() or user.username}!")
                     return redirect(next_url)
             else:
-                cache.set(cache_key, attempts + 1, 300)
+                try:
+                    cache.set(cache_key, attempts + 1, 300)
+                except Exception:
+                    pass
                 if user_obj and not user_obj.is_active:
                     error_message = "Your user account is pending Administrator approval. Please contact system management."
                 else:
@@ -355,4 +365,109 @@ def profile_view(request):
         form = UserProfileForm(instance=request.user)
 
     return render(request, "accounts/profile.html", {"form": form})
+
+
+def forgot_password_view(request):
+    if request.user.is_authenticated:
+        return redirect("dashboard:home")
+
+    submitted_reset = False
+    target_input = ""
+    reset_link = None
+    target_user = None
+
+    if request.method == "POST":
+        form = ForgotPasswordForm(request.POST)
+        if form.is_valid():
+            target_input = form.cleaned_data.get("username_or_email").strip()
+            submitted_reset = True
+
+            user_qs = User.objects.filter(
+                Q(username__iexact=target_input) | Q(email__iexact=target_input)
+            )
+            target_user = user_qs.first()
+
+            if target_user and target_user.is_active:
+                from django.contrib.auth.tokens import default_token_generator
+                from django.utils.encoding import force_bytes
+                from django.utils.http import urlsafe_base64_encode
+                from django.urls import reverse
+
+                uidb64 = urlsafe_base64_encode(force_bytes(target_user.pk))
+                token = default_token_generator.make_token(target_user)
+                relative_url = reverse("accounts:password_reset_confirm", kwargs={"uidb64": uidb64, "token": token})
+                reset_link = request.build_absolute_uri(relative_url)
+
+                try:
+                    from chat.views import send_system_notification
+                    send_system_notification(
+                        None,
+                        f"Password reset link generated for user @{target_user.username}.",
+                    )
+                except Exception:
+                    pass
+    else:
+        form = ForgotPasswordForm()
+
+    return render(
+        request,
+        "accounts/forgot_password.html",
+        {
+            "form": form,
+            "submitted_reset": submitted_reset,
+            "target_input": target_input,
+            "target_user": target_user,
+            "reset_link": reset_link,
+        },
+    )
+
+
+def password_reset_confirm_view(request, uidb64, token):
+    if request.user.is_authenticated:
+        return redirect("dashboard:home")
+
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.encoding import force_str
+    from django.utils.http import urlsafe_base64_decode
+
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    validlink = False
+    if user is not None and default_token_generator.check_token(user, token):
+        validlink = True
+
+    if request.method == "POST":
+        if not validlink:
+            messages.error(request, "The password reset link is invalid or has expired.")
+            return redirect("accounts:forgot_password")
+
+        form = PasswordResetConfirmForm(request.POST)
+        if form.is_valid():
+            new_pass = form.cleaned_data.get("new_password")
+            user.set_password(new_pass)
+            user.save()
+            messages.success(
+                request,
+                f"Password for @{user.username} has been successfully updated! You can now log in with your new password.",
+            )
+            return redirect("accounts:login")
+        else:
+            messages.error(request, "Please correct the password errors below.")
+    else:
+        form = PasswordResetConfirmForm()
+
+    return render(
+        request,
+        "accounts/password_reset_confirm.html",
+        {
+            "form": form,
+            "validlink": validlink,
+            "target_user": user,
+        },
+    )
+
 

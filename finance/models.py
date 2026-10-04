@@ -228,7 +228,8 @@ class FinancialReconciliation(models.Model):
 class PaymentExpenseMatch(models.Model):
     class ExpenseType(models.TextChoices):
         SOURCING = "sourcing", "Sourcing"
-        TRACKING = "tracking", "Tracking Fees"
+        TRUCKING = "trucking", "Trucking Fees"
+        TRACKING = "tracking", "Trucking Fees"
         BARGE = "barge", "Barge Fees"
         LOGISTICS_DEPOSIT = "logistics_deposit", "50% Logistics Deposit"
         OTHER = "other", "Other"

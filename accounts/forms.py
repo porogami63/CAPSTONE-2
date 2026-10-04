@@ -118,3 +118,55 @@ class TwoFactorVerifyForm(forms.Form):
         ),
     )
 
+
+class ForgotPasswordForm(forms.Form):
+    username_or_email = forms.CharField(
+        label="Username or Email Address",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control-htc",
+                "placeholder": "Enter registered username or email",
+                "autofocus": True,
+                "required": True,
+                "id": "id_username_or_email",
+            }
+        ),
+    )
+
+
+class PasswordResetConfirmForm(forms.Form):
+    new_password = forms.CharField(
+        label="New Password",
+        widget=forms.PasswordInput(
+            attrs={
+                "class": "form-control-htc",
+                "placeholder": "Enter new password (min. 8 characters)",
+                "required": True,
+                "id": "id_new_password",
+            }
+        ),
+    )
+    confirm_password = forms.CharField(
+        label="Confirm New Password",
+        widget=forms.PasswordInput(
+            attrs={
+                "class": "form-control-htc",
+                "placeholder": "Re-enter new password",
+                "required": True,
+                "id": "id_confirm_password",
+            }
+        ),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get("new_password")
+        p2 = cleaned_data.get("confirm_password")
+
+        if p1 and len(p1) < 8:
+            self.add_error("new_password", "Password must be at least 8 characters long.")
+        if p1 and p2 and p1 != p2:
+            self.add_error("confirm_password", "Passwords do not match.")
+        return cleaned_data
+
+
