@@ -229,7 +229,6 @@ class PaymentExpenseMatch(models.Model):
     class ExpenseType(models.TextChoices):
         SOURCING = "sourcing", "Sourcing"
         TRUCKING = "trucking", "Trucking Fees"
-        TRACKING = "tracking", "Trucking Fees"
         BARGE = "barge", "Barge Fees"
         LOGISTICS_DEPOSIT = "logistics_deposit", "50% Logistics Deposit"
         OTHER = "other", "Other"
@@ -247,6 +246,11 @@ class PaymentExpenseMatch(models.Model):
 
     class Meta:
         ordering = ["-matched_at"]
+
+    def get_expense_type_display(self):
+        if self.expense_type == "tracking":
+            return "Trucking Fees"
+        return super().get_expense_type_display()
 
     def __str__(self):
         return f"{self.payment_reference} -> {self.get_expense_type_display()}"

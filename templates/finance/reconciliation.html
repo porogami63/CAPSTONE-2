@@ -30,51 +30,55 @@
             </div>
         </div>
 
-        <!-- Financial Breakdown Pill Grid (Individual Sourcing, Trucking, Barging, & Combined Freight) -->
-        <div class="row g-2 mt-2">
-            <div class="col" style="min-width: 160px;">
-                <div class="p-2 border rounded text-center bg-light">
+        <!-- Financial Breakdown KPI Card Grid (Uniform Height & Clean Category Titles) -->
+        <div class="row g-2 mt-2 align-items-stretch">
+            <div class="col" style="min-width: 150px;">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
                     <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Capital Loan Facility</small>
-                    <span class="fs-6 font-weight-bold text-primary">₱{{ total_target|floatformat:2|intcomma }}</span>
+                    <span class="fs-6 font-weight-bold text-primary my-1">₱{{ total_target|floatformat:2|intcomma }}</span>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Facility Limit</small>
                 </div>
             </div>
-            <div class="col" style="min-width: 160px;">
-                <div class="p-2 border rounded text-center bg-light">
+            <div class="col" style="min-width: 150px;">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
                     <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Supplier Sourcing</small>
-                    <span class="fs-6 font-weight-bold text-danger">₱{{ sourcing_total|floatformat:2|intcomma }}</span>
+                    <span class="fs-6 font-weight-bold text-danger my-1">₱{{ sourcing_total|floatformat:2|intcomma }}</span>
                     <small class="text-muted d-block" style="font-size: 0.7rem;">Matched: <strong class="text-success">₱{{ matched_sourcing|floatformat:2|intcomma }}</strong></small>
                 </div>
             </div>
-            <div class="col" style="min-width: 160px;">
-                <div class="p-2 border rounded text-center bg-light border-warning" style="background-color: rgba(255,193,7,0.05);">
-                    <small class="text-dark d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-truck me-1 text-warning"></i>Trucking (Individual)</small>
-                    <span class="fs-6 font-weight-bold text-dark">₱{{ trucking_total|floatformat:2|intcomma }}</span>
+            <div class="col" style="min-width: 150px;">
+                <div class="p-2 border rounded text-center bg-light border-warning h-100 d-flex flex-column justify-content-between" style="background-color: rgba(255,193,7,0.05);">
+                    <small class="text-dark d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-truck me-1 text-warning"></i>Trucking Fees</small>
+                    <span class="fs-6 font-weight-bold text-dark my-1">₱{{ trucking_total|floatformat:2|intcomma }}</span>
                     <small class="text-muted d-block" style="font-size: 0.7rem;">Matched: <strong class="text-success">₱{{ matched_trucking|floatformat:2|intcomma }}</strong></small>
                 </div>
             </div>
-            <div class="col" style="min-width: 160px;">
-                <div class="p-2 border rounded text-center bg-light">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-water me-1 text-info"></i>Barging (Individual)</small>
-                    <span class="fs-6 font-weight-bold text-dark">₱{{ barge_total|floatformat:2|intcomma }}</span>
+            <div class="col" style="min-width: 150px;">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-water me-1 text-info"></i>Barging Fees</small>
+                    <span class="fs-6 font-weight-bold text-dark my-1">₱{{ barge_total|floatformat:2|intcomma }}</span>
                     <small class="text-muted d-block" style="font-size: 0.7rem;">Matched: <strong class="text-success">₱{{ matched_barge|floatformat:2|intcomma }}</strong></small>
                 </div>
             </div>
-            <div class="col" style="min-width: 160px;">
-                <div class="p-2 border rounded text-center bg-light">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Total Freight (Combined)</small>
-                    <span class="fs-6 font-weight-bold text-danger">₱{{ logistics_total|floatformat:2|intcomma }}</span>
+            <div class="col" style="min-width: 150px;">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Total Freight</small>
+                    <span class="fs-6 font-weight-bold text-danger my-1">₱{{ logistics_total|floatformat:2|intcomma }}</span>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Matched: <strong class="text-success">₱{{ matched_freight|floatformat:2|intcomma }}</strong></small>
                 </div>
             </div>
-            <div class="col" style="min-width: 160px;">
-                <div class="p-2 border rounded text-center bg-light">
+            <div class="col" style="min-width: 150px;">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
                     <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Total Recorded Matches</small>
-                    <span class="fs-6 font-weight-bold text-success">₱{{ total_matched|floatformat:2|intcomma }}</span>
+                    <span class="fs-6 font-weight-bold text-success my-1">₱{{ total_matched|floatformat:2|intcomma }}</span>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Total Outlays</small>
                 </div>
             </div>
-            <div class="col" style="min-width: 160px;">
-                <div class="p-2 border rounded text-center bg-light">
+            <div class="col" style="min-width: 150px;">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
                     <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Remaining Balance</small>
-                    <span class="fs-6 font-weight-bold {% if remaining_balance > 0 %}text-warning{% else %}text-muted{% endif %}">₱{{ remaining_balance|floatformat:2|intcomma }}</span>
+                    <span class="fs-6 font-weight-bold {% if remaining_balance > 0 %}text-warning{% else %}text-muted{% endif %} my-1">₱{{ remaining_balance|floatformat:2|intcomma }}</span>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Unmatched Outlay</small>
                 </div>
             </div>
         </div>

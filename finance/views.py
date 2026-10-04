@@ -51,6 +51,7 @@ def reconciliation_detail(request, pk):
     matched_trucking = matches_qs.filter(expense_type__in=["trucking", "tracking"]).aggregate(total=Sum("amount"))["total"] or Decimal("0")
     matched_barge = matches_qs.filter(expense_type=PaymentExpenseMatch.ExpenseType.BARGE).aggregate(total=Sum("amount"))["total"] or Decimal("0")
     matched_deposit = matches_qs.filter(expense_type=PaymentExpenseMatch.ExpenseType.LOGISTICS_DEPOSIT).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    matched_freight = matched_trucking + matched_barge
 
     total_matched = Decimal(str(matches_qs.aggregate(total=Sum("amount"))["total"] or "0"))
     remaining_balance = max(total_target - total_matched, Decimal("0"))
@@ -84,6 +85,7 @@ def reconciliation_detail(request, pk):
             "matched_sourcing": matched_sourcing,
             "matched_trucking": matched_trucking,
             "matched_barge": matched_barge,
+            "matched_freight": matched_freight,
             "matched_deposit": matched_deposit,
             "total_matched": total_matched,
             "remaining_balance": remaining_balance,
