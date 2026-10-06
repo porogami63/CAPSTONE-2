@@ -1277,7 +1277,7 @@ a:hover { text-decoration: underline; }
 
 .interactive-row { cursor: pointer; transition: background-color 0.15s; }
 .interactive-row:hover { background-color: var(--htc-sidebar-hover) !important; }
-.interactive-row.selected { background-color: #eff6ff !important; box-shadow: inset 3px 0 0 var(--htc-primary-light); }
+.interactive-row.selected { background-color: var(--htc-sidebar-active) !important; box-shadow: inset 3px 0 0 var(--htc-primary-light); }
 
 .detail-pane {
     background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius);
