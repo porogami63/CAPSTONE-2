@@ -185,8 +185,9 @@ def home(request):
     # ── Role-Specific Custom Metrics & Queues ─────────────────────────────
     user_role = request.user.role if hasattr(request.user, "role") and request.user.role else "administrator"
     role_override = request.GET.get("role") or request.GET.get("view_as")
-    if role_override in [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING]:
-        user_role = role_override
+    if role_override and request.user.is_superuser:
+        if role_override in [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING]:
+            user_role = role_override
 
     # Operations role metrics
     active_shipments_count = LogisticsLedger.objects.filter(
@@ -287,12 +288,17 @@ def home(request):
     User.Role.OPERATIONS,
 )
 def analytics(request):
+    import math
     try:
         order_qty = float(request.GET.get("qty", "500"))
+        if math.isnan(order_qty) or math.isinf(order_qty) or order_qty <= 0:
+            order_qty = 500.0
     except ValueError:
         order_qty = 500.0
     try:
         selling_price = float(request.GET.get("price", "18500"))
+        if math.isnan(selling_price) or math.isinf(selling_price) or selling_price <= 0:
+            selling_price = 18500.0
     except ValueError:
         selling_price = 18500.0
 

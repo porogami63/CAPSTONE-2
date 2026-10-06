@@ -19,8 +19,15 @@ def chat_room_view(request):
     recipient_id = request.GET.get("user")
     cluster_id = request.GET.get("cluster")
     
-    active_recipient = get_object_or_404(User, id=recipient_id) if recipient_id else None
-    active_cluster = get_object_or_404(TransactionCluster, id=cluster_id) if cluster_id else None
+    try:
+        active_recipient = get_object_or_404(User, id=recipient_id) if recipient_id else None
+    except Exception:
+        active_recipient = None
+
+    try:
+        active_cluster = get_object_or_404(TransactionCluster, id=cluster_id) if cluster_id else None
+    except Exception:
+        active_cluster = None
 
     if active_recipient:
         messages_qs = ChatMessage.objects.filter(
@@ -54,20 +61,25 @@ def api_fetch_messages(request):
     cluster_id = request.GET.get("cluster_id")
 
     if recipient_id:
-        qs = ChatMessage.objects.filter(
-            (Q(sender=request.user, recipient_id=recipient_id) | Q(sender_id=recipient_id, recipient=request.user))
-        )
-        # Mark incoming direct messages as read
-        ChatMessage.objects.filter(sender_id=recipient_id, recipient=request.user, is_read=False).update(is_read=True)
+        try:
+            qs = ChatMessage.objects.filter(
+                (Q(sender=request.user, recipient_id=recipient_id) | Q(sender_id=recipient_id, recipient=request.user))
+            )
+            ChatMessage.objects.filter(sender_id=recipient_id, recipient=request.user, is_read=False).update(is_read=True)
+        except Exception:
+            qs = ChatMessage.objects.none()
     elif cluster_id:
-        qs = ChatMessage.objects.filter(cluster_id=cluster_id)
+        try:
+            qs = ChatMessage.objects.filter(cluster_id=cluster_id)
+        except Exception:
+            qs = ChatMessage.objects.none()
     else:
         qs = ChatMessage.objects.filter(recipient__isnull=True, cluster__isnull=True)
 
-    qs = qs.select_related("sender").order_by("created_at")[:50]
+    qs = qs.select_related("sender").order_by("-created_at")[:50]
 
     data = []
-    for msg in qs:
+    for msg in reversed(qs):
         data.append({
             "id": msg.id,
             "sender_id": msg.sender.id,
@@ -93,8 +105,20 @@ def api_send_message(request):
         if not text:
             return JsonResponse({"status": "error", "error": "Message body cannot be empty."}, status=400)
 
-        recipient = User.objects.filter(id=recipient_id).first() if recipient_id else None
-        cluster = TransactionCluster.objects.filter(id=cluster_id).first() if cluster_id else None
+        if recipient_id:
+            try:
+                recipient = User.objects.filter(id=recipient_id).first()
+            except Exception:
+                recipient = None
+            if not recipient:
+                return JsonResponse({"status": "error", "error": "Invalid recipient ID."}, status=400)
+        else:
+            recipient = None
+            
+        try:
+            cluster = TransactionCluster.objects.filter(id=cluster_id).first() if cluster_id else None
+        except Exception:
+            cluster = None
 
         msg = ChatMessage.objects.create(
             sender=request.user,

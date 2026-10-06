@@ -85,7 +85,6 @@ def _mill_display(source):
 
 
 def clear_operational_data():
-    from audit.models import SystemAuditTrail
     from finance.models import CashVoucher, CapitalLoan, PaymentExpenseMatch
 
     PaymentExpenseMatch.objects.all().delete()
@@ -99,7 +98,6 @@ def clear_operational_data():
     Client.objects.all().delete()
     SugarMill.objects.all().delete()
     LogisticsPartner.objects.all().delete()
-    SystemAuditTrail.objects.all().delete()
 
 
 def load_workbook_rows(source):

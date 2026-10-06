@@ -1,17 +1,33 @@
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "django-insecure-j78jn$ay_yuk*=qln*8@_=r_xbi9j)$tv24r(mmru7-4%z!h%!",
-)
-DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip().lower() in ("true", "1", "yes")
+
+
+# Secure by default: DEBUG must be switched on explicitly (see .env.example for local development).
+DEBUG = _env_bool("DEBUG", False)
+
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-local-development-only-key"
+    else:
+        raise ImproperlyConfigured(
+            "SECRET_KEY environment variable is required when DEBUG is False. "
+            "Set it in the container environment / .env file."
+        )
 allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "")
 if allowed_hosts_env and allowed_hosts_env.strip() != "*":
     ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(",") if h.strip()]
@@ -77,6 +93,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
+    "config.middleware.ContentSecurityPolicyMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -168,16 +185,39 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
-SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+# Uploaded PDFs are previewed in same-origin iframes; everything else may not be framed.
+X_FRAME_OPTIONS = "SAMEORIGIN"
+# Authenticated sessions expire after 24h (override with SESSION_COOKIE_AGE env var, in seconds).
+SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", "86400"))
+
+# Content-Security-Policy (see config/middleware.py). Set CSP_REPORT_ONLY=True to trial the policy.
+CSP_ENABLED = _env_bool("CSP_ENABLED", True)
+CSP_REPORT_ONLY = _env_bool("CSP_REPORT_ONLY", False)
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False").lower() in ("true", "1", "yes")
-    SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
-    CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
-    SECURE_HSTS_SECONDS = 31536000 if SECURE_SSL_REDIRECT else 0
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_SSL_REDIRECT
-    SECURE_HSTS_PRELOAD = SECURE_SSL_REDIRECT
+    # TLS is terminated by Nginx (it redirects all HTTP to HTTPS), so cookies are Secure in production
+    # regardless of SECURE_SSL_REDIRECT. Set SECURE_COOKIES=False only for a plain-HTTP test stack.
+    _secure_cookies = _env_bool("SECURE_COOKIES", True)
+    SESSION_COOKIE_SECURE = _secure_cookies
+    CSRF_COOKIE_SECURE = _secure_cookies
+
+    # SECURE_SSL_REDIRECT stays opt-in: Nginx already redirects, and the container healthcheck talks to
+    # Gunicorn over plain HTTP, which a Django-level redirect would break.
+    SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", False)
+    # HSTS only takes effect on HTTPS responses (SECURE_PROXY_SSL_HEADER is set above).
+    SECURE_HSTS_SECONDS = int(os.getenv("HSTS_SECONDS", "2592000"))  # 30 days
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool("HSTS_INCLUDE_SUBDOMAINS", False)
+    SECURE_HSTS_PRELOAD = _env_bool("HSTS_PRELOAD", False)
+
+# Outbound email is optional. Without EMAIL_HOST no reset e-mails are sent (admins are notified instead).
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "HTC Core <no-reply@htccore.tech>")
 
 # Celery Configuration
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")

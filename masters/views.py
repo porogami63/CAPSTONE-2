@@ -154,15 +154,24 @@ def supplier_portfolio(request, pk):
 @role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.FINANCE)
 def update_partner_avatar(request, partner_type, pk):
     if request.method == "POST" and request.FILES.get("avatar"):
+        avatar_file = request.FILES["avatar"]
+        from config.upload_validators import validate_image_upload
+        from django.core.exceptions import ValidationError
+        try:
+            avatar_file = validate_image_upload(avatar_file)
+        except ValidationError as e:
+            messages.error(request, e.message)
+            return redirect("masters:client_portfolio" if partner_type == "client" else "masters:supplier_portfolio", pk=pk)
+
         if partner_type == "client":
             partner = get_object_or_404(Client, pk=pk)
-            partner.avatar = request.FILES["avatar"]
+            partner.avatar = avatar_file
             partner.save()
             messages.success(request, f"Profile picture updated for {partner.name}.")
             return redirect("masters:client_portfolio", pk=pk)
         elif partner_type == "supplier":
             partner = get_object_or_404(SugarMill, pk=pk)
-            partner.avatar = request.FILES["avatar"]
+            partner.avatar = avatar_file
             partner.save()
             messages.success(request, f"Profile picture updated for {partner.name}.")
             return redirect("masters:supplier_portfolio", pk=pk)
@@ -195,6 +204,16 @@ def create_client(request):
             messages.error(request, "Customer name is required.")
             return redirect("masters:partners")
 
+        avatar_file = request.FILES.get("avatar")
+        if avatar_file:
+            from config.upload_validators import validate_image_upload
+            from django.core.exceptions import ValidationError
+            try:
+                avatar_file = validate_image_upload(avatar_file)
+            except ValidationError as e:
+                messages.error(request, e.message)
+                return redirect("masters:partners")
+
         client = Client.objects.create(
             name=name,
             tin=request.POST.get("tin", "").strip(),
@@ -203,7 +222,7 @@ def create_client(request):
             contact_phone=request.POST.get("contact_phone", "").strip(),
             email=request.POST.get("email", "").strip(),
             notes=request.POST.get("notes", "").strip(),
-            avatar=request.FILES.get("avatar"),
+            avatar=avatar_file,
         )
         messages.success(request, f"Customer '{client.name}' registered successfully.")
         return redirect("masters:client_portfolio", pk=client.pk)
@@ -218,6 +237,16 @@ def create_supplier(request):
             messages.error(request, "Supplier name is required.")
             return redirect("masters:partners")
 
+        avatar_file = request.FILES.get("avatar")
+        if avatar_file:
+            from config.upload_validators import validate_image_upload
+            from django.core.exceptions import ValidationError
+            try:
+                avatar_file = validate_image_upload(avatar_file)
+            except ValidationError as e:
+                messages.error(request, e.message)
+                return redirect("masters:partners")
+
         mill = SugarMill.objects.create(
             name=name,
             location=request.POST.get("location", "").strip(),
@@ -225,7 +254,7 @@ def create_supplier(request):
             contact_phone=request.POST.get("contact_phone", "").strip(),
             email=request.POST.get("email", "").strip(),
             notes=request.POST.get("notes", "").strip(),
-            avatar=request.FILES.get("avatar"),
+            avatar=avatar_file,
         )
         messages.success(request, f"Supplier '{mill.name}' registered successfully.")
         return redirect("masters:supplier_portfolio", pk=mill.pk)

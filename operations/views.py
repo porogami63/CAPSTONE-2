@@ -327,8 +327,9 @@ def export_logistics_csv(request):
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="HTC_Logistics_Master_Ledger.csv"'
 
+    from config.csv_utils import safe_csv_row
     writer = csv.writer(response)
-    writer.writerow([
+    writer.writerow(safe_csv_row([
         "Shipment Code",
         "Contract Reference PO",
         "Customer / Client",
@@ -341,7 +342,7 @@ def export_logistics_csv(request):
         "Variance Exceeded",
         "Cluster Status",
         "Last Updated",
-    ])
+    ]))
 
     for log in ledgers_qs:
         log._compute_variance()
@@ -353,7 +354,7 @@ def export_logistics_csv(request):
                 shrinkage_pct = (shrinkage_mt / float(log.loaded_volume_mt)) * 100.0
 
         sh_code = "SH-" + log.cluster.reference_code.split("-").pop()
-        writer.writerow([
+        writer.writerow(safe_csv_row([
             sh_code,
             log.cluster.reference_code,
             log.cluster.client.name,
@@ -366,7 +367,7 @@ def export_logistics_csv(request):
             "YES" if log.variance_exceeds_tolerance else "NO",
             log.cluster.get_status_display(),
             log.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-        ])
+        ]))
 
     return response
 
@@ -535,10 +536,17 @@ def cluster_create(request):
 def cluster_edit(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
+        if cluster.status in [TransactionCluster.Status.APPROVED, TransactionCluster.Status.ACTIVE, TransactionCluster.Status.DELIVERED, TransactionCluster.Status.CLOSED]:
+            messages.error(request, "Cannot edit an approved or active transaction. It must be returned for revision first.")
+            return redirect("operations:cluster_detail", pk=cluster.pk)
+
         form = TransactionClusterForm(request.POST, instance=cluster)
         if form.is_valid():
             with transaction.atomic():
                 cluster = form.save()
+                if cluster.status == TransactionCluster.Status.RETURNED:
+                    cluster.status = TransactionCluster.Status.DRAFT
+                    cluster.save(update_fields=["status"])
                 po = getattr(cluster, "purchase_order", None)
                 if po:
                     chai_val = form.cleaned_data.get("chai_specs", "").strip()
@@ -617,6 +625,10 @@ def submit_cluster_for_approval(request, pk):
 def approve_cluster(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
+        if cluster.status != TransactionCluster.Status.PENDING_APPROVAL:
+            messages.error(request, "Only pending transactions can be approved.")
+            return redirect("operations:cluster_detail", pk=pk)
+
         now = timezone.now()
         cluster.status = TransactionCluster.Status.APPROVED
         cluster.approved_at = now
@@ -649,6 +661,10 @@ def reject_cluster(request, pk):
         comments = request.POST.get("rejection_comments", "").strip()
         if not comments:
             messages.error(request, "Mandatory Error: Rejection comments are required to document returned transactions.")
+            return redirect("operations:cluster_detail", pk=pk)
+
+        if cluster.status not in [TransactionCluster.Status.PENDING_APPROVAL, TransactionCluster.Status.APPROVED]:
+            messages.error(request, "Only pending or approved transactions can be returned.")
             return redirect("operations:cluster_detail", pk=pk)
 
         now = timezone.now()
@@ -1196,7 +1212,10 @@ def mro_summary_view(request):
         mro_qs = mro_qs.filter(Q(crop_year=crop_year_filter) | Q(crop_year=norm_cy))
 
     if planter_filter:
-        mro_qs = mro_qs.filter(planter_id=planter_filter)
+        try:
+            mro_qs = mro_qs.filter(planter_id=planter_filter)
+        except Exception:
+            pass
 
     if mill_filter:
         mro_qs = mro_qs.filter(Q(sugar_mill_name__iexact=mill_filter) | Q(sugar_mill__name__icontains=mill_filter))
@@ -1293,6 +1312,9 @@ def mro_edit_view(request, pk):
     return redirect("operations:mro_summary")
 
 
+from django.views.decorators.http import require_POST
+
+@require_POST
 @role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.OPERATIONS)
 def mro_delete_view(request, pk):
     mro = get_object_or_404(MolassesReleaseOrder, pk=pk)
@@ -1339,7 +1361,10 @@ def mro_export_csv_view(request):
         norm_cy = normalize_crop_year(crop_year_filter)
         mro_qs = mro_qs.filter(Q(crop_year=crop_year_filter) | Q(crop_year=norm_cy))
     if planter_filter:
-        mro_qs = mro_qs.filter(planter_id=planter_filter)
+        try:
+            mro_qs = mro_qs.filter(planter_id=planter_filter)
+        except Exception:
+            pass
     if mill_filter:
         mro_qs = mro_qs.filter(Q(sugar_mill_name__iexact=mill_filter) | Q(sugar_mill__name__icontains=mill_filter))
     if q:
@@ -1355,11 +1380,12 @@ def mro_export_csv_view(request):
     filename = f"MRO_Release_Summary_{mill_filter or 'All_Suppliers'}_{crop_year_filter or 'All'}.csv"
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
+    from config.csv_utils import safe_csv_row
     writer = csv.writer(response)
-    writer.writerow(["SUPPLIER / MILL", "PLANTERS", "TONS", "DATE", "TRADER", "MRO #", "CROP YEAR"])
+    writer.writerow(safe_csv_row(["SUPPLIER / MILL", "PLANTERS", "TONS", "DATE", "TRADER", "MRO #", "CROP YEAR"]))
 
     for item in mro_qs:
-        writer.writerow([
+        writer.writerow(safe_csv_row([
             item.display_sugar_mill,
             item.planter.name,
             f"{item.tons:.5f}",
@@ -1367,7 +1393,7 @@ def mro_export_csv_view(request):
             item.trader,
             item.mro_number,
             item.crop_year,
-        ])
+        ]))
 
     return response
 
@@ -1472,7 +1498,11 @@ def chai_list(request):
             Q(cluster__reference_code__icontains=q)
         )
     if grade:
-        chai_qs = chai_qs.filter(chai_value=Decimal(grade))
+        from decimal import InvalidOperation
+        try:
+            chai_qs = chai_qs.filter(chai_value=Decimal(grade))
+        except InvalidOperation:
+            pass
     if mill_id:
         chai_qs = chai_qs.filter(sugar_mill_id=mill_id)
     if status_filter:
@@ -1655,20 +1685,25 @@ def export_chai_csv(request):
             Q(sugar_mill__name__icontains=q)
         )
     if grade:
-        chai_qs = chai_qs.filter(chai_value=Decimal(grade))
+        from decimal import InvalidOperation
+        try:
+            chai_qs = chai_qs.filter(chai_value=Decimal(grade))
+        except InvalidOperation:
+            pass
 
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="HTC_CHAI_Quality_Records.csv"'
 
+    from config.csv_utils import safe_csv_row
     writer = csv.writer(response)
-    writer.writerow([
+    writer.writerow(safe_csv_row([
         "CHAI Record #", "Grade Value", "Quality Title", "Sugar Mill Supplier",
         "Linked Contract PO", "Brix (%)", "Purity (%)", "Total Sugars (%)",
         "Inspection Date", "Inspector", "Status", "Remarks"
-    ])
+    ]))
 
     for r in chai_qs:
-        writer.writerow([
+        writer.writerow(safe_csv_row([
             r.chai_number,
             f"CHAI {r.chai_value:.1f}",
             r.title,
@@ -1681,7 +1716,7 @@ def export_chai_csv(request):
             r.inspector or "—",
             r.get_status_display(),
             r.remarks or "",
-        ])
+        ]))
 
     return response
 

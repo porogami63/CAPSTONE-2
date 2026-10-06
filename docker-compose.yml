@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: htc_core
-      POSTGRES_USER: htc
-      POSTGRES_PASSWORD: htc
+      POSTGRES_DB: ${POSTGRES_DB:-htc_core}
+      POSTGRES_USER: ${POSTGRES_USER:-htc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-htc}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,8 +19,6 @@ services:
   redis:
     image: redis:alpine
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     networks:
       - htc_net
 
@@ -35,12 +33,12 @@ services:
              python manage.py collectstatic --noinput &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
     environment:
-      DEBUG: "False"
-      SECRET_KEY: pilot-change-me-before-uat
+      DEBUG: "${DEBUG:-False}"
+      SECRET_KEY: "${SECRET_KEY:-pilot-change-me-before-uat}"
       ALLOWED_HOSTS: "${ALLOWED_HOSTS:-*}"
-      DATABASE_URL: postgres://htc:htc@db:5432/htc_core
-      CELERY_TASK_ALWAYS_EAGER: "False"
-      CELERY_TASK_EAGER_PROPAGATES: "False"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-htc}:${POSTGRES_PASSWORD:-htc}@db:5432/${POSTGRES_DB:-htc_core}"
+      CELERY_TASK_ALWAYS_EAGER: "${CELERY_TASK_ALWAYS_EAGER:-False}"
+      CELERY_TASK_EAGER_PROPAGATES: "${CELERY_TASK_EAGER_PROPAGATES:-False}"
       CELERY_BROKER_URL: "redis://redis:6379/0"
       CELERY_RESULT_BACKEND: "redis://redis:6379/0"
     expose:
@@ -89,9 +87,9 @@ services:
     command: >
       sh -c "celery -A config worker -l INFO"
     environment:
-      DEBUG: "False"
-      SECRET_KEY: pilot-change-me-before-uat
-      DATABASE_URL: postgres://htc:htc@db:5432/htc_core
+      DEBUG: "${DEBUG:-False}"
+      SECRET_KEY: "${SECRET_KEY:-pilot-change-me-before-uat}"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-htc}:${POSTGRES_PASSWORD:-htc}@db:5432/${POSTGRES_DB:-htc_core}"
       CELERY_BROKER_URL: "redis://redis:6379/0"
       CELERY_RESULT_BACKEND: "redis://redis:6379/0"
     depends_on:

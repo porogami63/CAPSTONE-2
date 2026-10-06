@@ -20,7 +20,10 @@ def audit_list(request):
     if table_filter:
         entries_qs = entries_qs.filter(table_name__icontains=table_filter)
     if user_filter:
-        entries_qs = entries_qs.filter(user_id=user_filter)
+        try:
+            entries_qs = entries_qs.filter(user_id=user_filter)
+        except Exception:
+            pass
     if q:
         entries_qs = entries_qs.filter(
             Q(table_name__icontains=q) |

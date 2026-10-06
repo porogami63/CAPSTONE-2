@@ -191,7 +191,7 @@
                                     </button>
                                 </li>
                                 <li>
-                                    <form method="post" action="{% url 'operations:mro_delete' item.id %}" onsubmit="return confirm('Delete this MRO entry ({{ item.mro_number }} - {{ item.planter.name }})?');">
+                                    <form method="post" action="{% url 'operations:mro_delete' item.id %}" onsubmit="return confirm('Delete this MRO entry ({{ item.mro_number|escapejs }} - {{ item.planter.name|escapejs }})?');">
                                         {% csrf_token %}
                                         <button class="dropdown-item text-danger btn-sm" type="submit">
                                             <i class="bi bi-trash me-2"></i>Delete Line

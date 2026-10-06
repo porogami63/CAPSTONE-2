@@ -14,6 +14,8 @@ from django.core.cache import cache
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from accounts.decorators import role_required
 from accounts.forms import (
@@ -70,9 +72,12 @@ def permission_denied(request, exception=None):
 
 
 def get_client_ip(request):
+    x_real_ip = request.META.get('HTTP_X_REAL_IP')
+    if x_real_ip:
+        return x_real_ip
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
-        return x_forwarded_for.split(',')[0].strip()
+        return x_forwarded_for.split(',')[-1].strip()
     return request.META.get('REMOTE_ADDR')
 
 def login_view(request):
@@ -80,10 +85,14 @@ def login_view(request):
         return redirect("dashboard:home")
 
     next_url = request.GET.get("next") or request.POST.get("next") or "dashboard:home"
+    if next_url and next_url != "dashboard:home":
+        if not url_has_allowed_host_and_scheme(url=next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+            next_url = "dashboard:home"
     error_message = None
 
     ip = get_client_ip(request)
-    cache_key = f"login_attempts_{ip}"
+    login_input = request.POST.get("username", "").strip() if request.method == "POST" else ""
+    cache_key = f"login_attempts_{ip}_{login_input}"
     try:
         attempts = cache.get(cache_key, 0)
     except Exception:
@@ -136,10 +145,7 @@ def login_view(request):
                     cache.set(cache_key, attempts + 1, 300)
                 except Exception:
                     pass
-                if user_obj and not user_obj.is_active:
-                    error_message = "Your user account is pending Administrator approval. Please contact system management."
-                else:
-                    error_message = "Invalid username/email or password. Please check your credentials and try again."
+                error_message = "Invalid username/email or password. Please check your credentials and try again."
         else:
             error_message = "Please fill in both username/email and password fields."
     else:
@@ -161,6 +167,20 @@ def two_factor_verify_view(request):
     next_url = request.session.get("pre_2fa_next", "dashboard:home")
     error_message = None
 
+    ip = get_client_ip(request)
+    cache_key = f"2fa_attempts_{ip}_{user.username}"
+    try:
+        attempts = cache.get(cache_key, 0)
+    except Exception:
+        attempts = 0
+
+    if attempts >= 5:
+        error_message = "Too many failed 2FA attempts. Please try again in 5 minutes."
+        return render(request, "accounts/two_factor_verify.html", {
+            "form": TwoFactorVerifyForm(),
+            "error_message": error_message,
+        })
+
     if request.method == "POST":
         form = TwoFactorVerifyForm(request.POST)
         if form.is_valid():
@@ -178,6 +198,10 @@ def two_factor_verify_view(request):
                     user.save(update_fields=["backup_codes"])
 
             if is_valid_totp or is_backup_code:
+                try:
+                    cache.delete(cache_key)
+                except Exception:
+                    pass
                 # Clear pre-2FA session variables
                 del request.session["pre_2fa_user_id"]
                 if "pre_2fa_next" in request.session:
@@ -188,6 +212,10 @@ def two_factor_verify_view(request):
                 response = redirect(next_url)
                 return set_2fa_remember_cookie(response, request, user)
             else:
+                try:
+                    cache.set(cache_key, attempts + 1, 300)
+                except Exception:
+                    pass
                 error_message = "Invalid 2FA code or backup code. Please try again."
     else:
         form = TwoFactorVerifyForm()
@@ -251,14 +279,19 @@ def two_factor_setup_view(request):
 
 
 @login_required
+@require_POST
 def two_factor_disable_view(request):
-    if request.method == "POST":
-        user = request.user
-        user.is_2fa_enabled = False
-        user.otp_secret = None
-        user.backup_codes = []
-        user.save()
-        messages.success(request, "Two-Factor Authentication has been disabled for your account.")
+    password = request.POST.get("password", "")
+    if not request.user.check_password(password):
+        messages.error(request, "Incorrect password. Two-Factor Authentication was not disabled.")
+        return redirect("accounts:profile")
+
+    user = request.user
+    user.is_2fa_enabled = False
+    user.otp_secret = None
+    user.backup_codes = []
+    user.save()
+    messages.success(request, "Two-Factor Authentication has been disabled for your account.")
     return redirect("accounts:profile")
 
 
@@ -271,7 +304,7 @@ def signup_view(request):
         if form.is_valid():
             user = form.save(commit=False)
             user.is_active = False
-            user.role = User.Role.OPERATIONS_MANAGEMENT
+            user.role = User.Role.INVOICING
             user.save()
             messages.success(
                 request,
@@ -286,7 +319,7 @@ def signup_view(request):
     return render(request, "accounts/signup.html", {"form": form})
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+@role_required(User.Role.ADMINISTRATOR)
 def user_list_view(request):
     users = User.objects.all().order_by("-date_joined")
     pending_users = users.filter(is_active=False)
@@ -299,7 +332,7 @@ def user_list_view(request):
     })
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+@role_required(User.Role.ADMINISTRATOR)
 def user_approve_view(request, pk):
     target_user = get_object_or_404(User, pk=pk)
     if request.method == "POST":
@@ -312,7 +345,7 @@ def user_approve_view(request, pk):
     return redirect("accounts:user_list")
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+@role_required(User.Role.ADMINISTRATOR)
 def user_reset_password_view(request, pk):
     target_user = get_object_or_404(User, pk=pk)
     if request.method == "POST":
@@ -334,7 +367,7 @@ def user_reset_password_view(request, pk):
     })
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+@role_required(User.Role.ADMINISTRATOR)
 def user_edit_view(request, pk):
     target_user = get_object_or_404(User, pk=pk)
     if request.method == "POST":
@@ -373,8 +406,6 @@ def forgot_password_view(request):
 
     submitted_reset = False
     target_input = ""
-    reset_link = None
-    target_user = None
 
     if request.method == "POST":
         form = ForgotPasswordForm(request.POST)
@@ -398,14 +429,7 @@ def forgot_password_view(request):
                 relative_url = reverse("accounts:password_reset_confirm", kwargs={"uidb64": uidb64, "token": token})
                 reset_link = request.build_absolute_uri(relative_url)
 
-                try:
-                    from chat.views import send_system_notification
-                    send_system_notification(
-                        None,
-                        f"Password reset link generated for user @{target_user.username}.",
-                    )
-                except Exception:
-                    pass
+                print(f"[SECURITY] Password reset link generated for {target_user.username}: {reset_link}")
     else:
         form = ForgotPasswordForm()
 
@@ -416,8 +440,6 @@ def forgot_password_view(request):
             "form": form,
             "submitted_reset": submitted_reset,
             "target_input": target_input,
-            "target_user": target_user,
-            "reset_link": reset_link,
         },
     )
 

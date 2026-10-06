@@ -192,8 +192,8 @@
                         </div>`;
                 } else {
                     const avatarHtml = msg.sender_avatar 
-                        ? `<img src="${msg.sender_avatar}" alt="${msg.sender_name}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">`
-                        : `<div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center font-weight-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">${msg.sender_initial}</div>`;
+                        ? `<img src="${escapeHtml(msg.sender_avatar)}" alt="${escapeHtml(msg.sender_name)}" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">`
+                        : `<div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center font-weight-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">${escapeHtml(msg.sender_initial)}</div>`;
                     
                     html += `
                         <div class="d-flex mb-3">

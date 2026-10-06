@@ -343,16 +343,34 @@ def loan_list(request):
 def settle_loan(request, pk):
     loan = get_object_or_404(CapitalLoan, pk=pk)
     if request.method == "POST":
+        if loan.status != CapitalLoan.Status.ACTIVE:
+            messages.error(request, "Only ACTIVE loans can be submitted for settlement clearance.")
+            return redirect("finance:loan_list")
+
         receipt_num = request.POST.get("settlement_receipt_number", "").strip()
         settlement_date_str = request.POST.get("settlement_date")
         settlement_notes = request.POST.get("settlement_notes", "").strip()
         settlement_doc = request.FILES.get("settlement_document")
 
+        if settlement_doc:
+            from config.upload_validators import validate_document_upload
+            from django.core.exceptions import ValidationError
+            try:
+                settlement_doc = validate_document_upload(settlement_doc, label="Settlement Document")
+            except ValidationError as e:
+                messages.error(request, e.message)
+                return redirect("finance:loan_list")
+
         loan.status = CapitalLoan.Status.PENDING_SETTLEMENT
         if receipt_num:
             loan.settlement_receipt_number = receipt_num
         if settlement_date_str:
-            loan.settlement_date = settlement_date_str
+            from datetime import datetime
+            try:
+                loan.settlement_date = datetime.strptime(settlement_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                messages.error(request, "Invalid date format for settlement date.")
+                return redirect("finance:loan_list")
         else:
             loan.settlement_date = timezone.localdate()
         if settlement_notes:
@@ -391,6 +409,10 @@ def settle_loan(request, pk):
 def verify_loan_creation(request, pk):
     loan = get_object_or_404(CapitalLoan, pk=pk)
     if request.method == "POST":
+        if loan.status != CapitalLoan.Status.PENDING_CREATION:
+            messages.error(request, "Only loans pending creation verification can be processed.")
+            return redirect("finance:loan_list")
+
         action = request.POST.get("action", "approve").lower()
         notes = request.POST.get("verification_notes", "").strip()
 
@@ -426,6 +448,10 @@ def verify_loan_creation(request, pk):
 def verify_loan_settlement(request, pk):
     loan = get_object_or_404(CapitalLoan, pk=pk)
     if request.method == "POST":
+        if loan.status != CapitalLoan.Status.PENDING_SETTLEMENT:
+            messages.error(request, "Only loans pending settlement verification can be processed.")
+            return redirect("finance:loan_list")
+
         action = request.POST.get("action", "approve").lower()
         notes = request.POST.get("verification_notes", "").strip()
 

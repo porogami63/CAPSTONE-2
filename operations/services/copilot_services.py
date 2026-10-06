@@ -2,6 +2,7 @@ import re
 from decimal import Decimal
 from django.db.models import Q, Sum, Avg, Count
 from django.utils import timezone
+from django.utils.html import escape
 
 from accounts.models import User
 from operations.models import TransactionCluster, LogisticsLedger, MolassesReleaseOrder, PurchaseOrder
@@ -62,8 +63,8 @@ def evaluate_copilot_query(user, query_text):
             <div class='d-flex justify-content-between align-items-center p-2 mb-2 rounded bg-body-tertiary border border-danger-subtle'>
                 <div>
                     <span class='badge bg-danger me-2'>Alert</span>
-                    <a href='/operations/{d.cluster.pk}/' class='fw-bold text-decoration-none'>{d.cluster.reference_code}</a>
-                    <span class='text-muted fs-7 ms-2'>({d.cluster.client.name})</span>
+                    <a href='/operations/{d.cluster.pk}/' class='fw-bold text-decoration-none'>{escape(d.cluster.reference_code)}</a>
+                    <span class='text-muted fs-7 ms-2'>({escape(d.cluster.client.name)})</span>
                     <div class='fs-7 text-muted mt-1'>Loaded: {loaded} MT | Received: {received} MT</div>
                 </div>
                 <div class='text-end'>
@@ -98,9 +99,10 @@ def evaluate_copilot_query(user, query_text):
         unassigned_samples = unassigned_qs.select_related("planter").order_by("-tons")[:4]
         samples_html = []
         for m in unassigned_samples:
+            mill_display = m.display_sugar_mill if hasattr(m, 'display_sugar_mill') else m.sugar_mill.name if m.sugar_mill else 'Unknown'
             samples_html.append(f"""
             <li class='list-group-item d-flex justify-content-between align-items-center fs-7 py-1 px-2'>
-                <span><strong>MRO #{m.mro_number}</strong> — {m.planter.name} ({m.display_sugar_mill})</span>
+                <span><strong>MRO #{escape(m.mro_number)}</strong> — {escape(m.planter.name if m.planter else 'Unknown')} ({escape(mill_display)})</span>
                 <span class='badge bg-primary rounded-pill'>{m.tons:.2f} MT</span>
             </li>
             """)
@@ -138,9 +140,9 @@ def evaluate_copilot_query(user, query_text):
                 "suggestions": suggestions
             }
 
-        active_loans = CapitalLoan.objects.filter(is_settled=False).select_related("cluster")
+        active_loans = CapitalLoan.objects.filter(~Q(status='closed')).select_related("cluster")
         count = active_loans.count()
-        total_principal = active_loans.aggregate(total=Sum("principal_amount"))["total"] or Decimal("0")
+        total_principal = active_loans.aggregate(total=Sum("principal"))["total"] or Decimal("0")
 
         items_html = []
         for loan in active_loans[:5]:
@@ -148,8 +150,8 @@ def evaluate_copilot_query(user, query_text):
             items_html.append(f"""
             <div class='d-flex justify-content-between align-items-center p-2 mb-2 rounded bg-body-tertiary border'>
                 <div>
-                    <div class='fw-bold fs-7'>{loan.lender_name}</div>
-                    <div class='fs-8 text-muted'>Cluster: {loan.cluster.reference_code} | Principal: ₱{loan.principal_amount:,.2f}</div>
+                    <div class='fw-bold fs-7'>{escape(loan.bank_name)}</div>
+                    <div class='fs-8 text-muted'>Cluster: {escape(loan.cluster.reference_code)} | Principal: ₱{loan.principal:,.2f}</div>
                 </div>
                 <div class='text-end'>
                     <div class='fs-7 fw-bold text-warning'>Interest: ₱{accrued:,.2f}</div>
@@ -179,12 +181,12 @@ def evaluate_copilot_query(user, query_text):
         cluster_rows = []
         for c in clusters:
             vol = c.purchase_order.volume_mt if hasattr(c, "purchase_order") else Decimal("0")
-            status_badge = f"<span class='badge bg-primary'>{c.get_status_display()}</span>"
+            status_badge = f"<span class='badge bg-primary'>{escape(c.get_status_display())}</span>"
             cluster_rows.append(f"""
             <div class='d-flex justify-content-between align-items-center p-2 mb-1 rounded bg-body-tertiary border fs-7'>
                 <div>
-                    <a href='/operations/{c.pk}/' class='fw-bold text-decoration-none'>{c.reference_code}</a>
-                    <span class='text-muted ms-2'>({c.client.name} / {c.sugar_mill.name})</span>
+                    <a href='/operations/{c.pk}/' class='fw-bold text-decoration-none'>{escape(c.reference_code)}</a>
+                    <span class='text-muted ms-2'>({escape(c.client.name)} / {escape(c.sugar_mill.name)})</span>
                 </div>
                 <div>
                     <span class='me-2 fw-semibold'>{vol:.2f} MT</span>

@@ -78,14 +78,13 @@ class AdminPasswordResetForm(forms.Form):
 class UserEditForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "email", "role", "is_active", "is_staff"]
+        fields = ["first_name", "last_name", "email", "role", "is_active"]
         widgets = {
             "first_name": forms.TextInput(attrs={"class": "form-control-htc"}),
             "last_name": forms.TextInput(attrs={"class": "form-control-htc"}),
             "email": forms.EmailInput(attrs={"class": "form-control-htc"}),
             "role": forms.Select(attrs={"class": "form-select-htc"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "is_staff": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
 

@@ -18,11 +18,9 @@ class ExcelImportForm(forms.Form):
     )
 
     def clean_workbook(self):
-        workbook = self.cleaned_data["workbook"]
-        filename = workbook.name.lower()
-        if not filename.endswith((".xlsx", ".xlsm")):
-            raise forms.ValidationError("Upload an .xlsx or .xlsm workbook.")
-        return workbook
+        workbook = self.cleaned_data.get("workbook")
+        from config.upload_validators import validate_spreadsheet_upload
+        return validate_spreadsheet_upload(workbook, label="Workbook")
 
 
 class TransactionClusterForm(forms.ModelForm):
@@ -106,12 +104,11 @@ class TransactionClusterForm(forms.ModelForm):
 
     class Meta:
         model = TransactionCluster
-        fields = ["reference_code", "client", "sugar_mill", "contract_notes", "status"]
+        fields = ["reference_code", "client", "sugar_mill", "contract_notes"]
         widgets = {
             "reference_code": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated (e.g. PO-20260925-001)"}),
             "client": forms.Select(attrs={"class": "form-select-htc"}),
             "sugar_mill": forms.Select(attrs={"class": "form-select-htc"}),
-            "status": forms.Select(attrs={"class": "form-select-htc"}),
             "contract_notes": forms.Textarea(attrs={"class": "form-control-htc", "rows": 3, "placeholder": "Optional internal notes or delivery instructions..."}),
         }
 
@@ -312,24 +309,16 @@ class LogisticsUpdateForm(forms.ModelForm):
         if barge_fees is not None and barge_fees < 0:
             self.add_error("barge_fees", "Barging fee rate cannot be negative.")
 
-        # Defensive file upload validation (Extension & File Size check)
-        allowed_exts = {".pdf", ".png", ".jpg", ".jpeg"}
-        max_size_bytes = 10 * 1024 * 1024  # 10 MB limit
+        from config.upload_validators import validate_document_upload
+        from django.core.exceptions import ValidationError
 
         for field_name in ["waybill_file", "dr_file"]:
             file_obj = cleaned_data.get(field_name)
-            if file_obj and hasattr(file_obj, "name"):
-                ext = Path(file_obj.name).suffix.lower()
-                if ext not in allowed_exts:
-                    self.add_error(
-                        field_name,
-                        f"Unsupported file format '{ext}'. Only PDF and image scans (.pdf, .png, .jpg, .jpeg) are allowed.",
-                    )
-                if hasattr(file_obj, "size") and file_obj.size > max_size_bytes:
-                    self.add_error(
-                        field_name,
-                        f"File size ({file_obj.size / (1024*1024):.1f} MB) exceeds maximum 10 MB limit.",
-                    )
+            if file_obj:
+                try:
+                    cleaned_data[field_name] = validate_document_upload(file_obj, label=self.fields[field_name].label)
+                except ValidationError as e:
+                    self.add_error(field_name, e.message)
 
         return cleaned_data
 
@@ -434,6 +423,11 @@ class MROExcelImportForm(forms.Form):
         help_text="Will apply if crop year column is empty in spreadsheet (e.g. 2024 - 25)",
         widget=forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 2024 - 25"}),
     )
+
+    def clean_file(self):
+        file_obj = self.cleaned_data.get("file")
+        from config.upload_validators import validate_spreadsheet_upload
+        return validate_spreadsheet_upload(file_obj, label="MRO File", legacy=True)
 
 
 class CHAIRecordForm(forms.ModelForm):

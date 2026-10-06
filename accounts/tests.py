@@ -120,7 +120,7 @@ class AccountsViewTests(TestCase):
         pending_user = User.objects.create_user(username="pending", password="password123", is_active=False)
         res = self.client.post("/accounts/login/", {"username": "pending", "password": "password123"})
         self.assertEqual(res.status_code, 200)
-        self.assertIn("pending Administrator approval", res.context["login_error"])
+        self.assertIn("Invalid username/email or password", res.context["login_error"])
 
     def test_admin_approve_user(self):
         pending_user = User.objects.create_user(username="pending2", password="password123", is_active=False)
@@ -232,13 +232,11 @@ class ForgotPasswordTests(TestCase):
         res = self.client.post("/accounts/forgot-password/", {"username_or_email": "resetuser"})
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.context["submitted_reset"])
-        self.assertIsNotNone(res.context["reset_link"])
 
     def test_forgot_password_post_valid_email(self):
         res = self.client.post("/accounts/forgot-password/", {"username_or_email": "resetuser@example.com"})
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.context["submitted_reset"])
-        self.assertIsNotNone(res.context["reset_link"])
 
     def test_password_reset_confirm_and_login(self):
         from django.contrib.auth.tokens import default_token_generator
