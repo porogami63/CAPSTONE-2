@@ -130,21 +130,21 @@ class Command(BaseCommand):
                 tracking_fees=Decimal("12500.00"),
                 barge_fees=Decimal("85000.00"),
             )
-            inv_num, inv_amt = spec["invoice"]
+            inv_num, inv_amt = spec["invoice"]  # type: ignore
             Invoice.objects.create(
                 cluster=cluster,
                 invoice_number=inv_num,
                 amount=inv_amt,
                 status=Invoice.Status.ISSUED,
             )
-            cv_num, cv_amt, cv_purpose = spec["voucher"]
+            cv_num, cv_amt, cv_purpose = spec["voucher"]  # type: ignore
             CashVoucher.objects.create(
                 cluster=cluster,
                 voucher_number=cv_num,
                 amount=cv_amt,
                 purpose=cv_purpose,
             )
-            bank, principal, rate, days_ago = spec["loan"]
+            bank, principal, rate, days_ago = spec["loan"]  # type: ignore
             CapitalLoan.objects.create(
                 cluster=cluster,
                 bank_name=bank,
