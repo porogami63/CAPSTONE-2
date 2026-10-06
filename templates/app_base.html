@@ -21,6 +21,7 @@
         (function() {
             var theme = localStorage.getItem('htc-theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('data-bs-theme', theme);
             var legibility = localStorage.getItem('htc-legibility') || 'normal';
             if (legibility === 'high') {
                 document.documentElement.setAttribute('data-legibility', 'high');
@@ -269,6 +270,7 @@
                     const currentTheme = htmlTag.getAttribute('data-theme') || 'dark';
                     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
                     htmlTag.setAttribute('data-theme', newTheme);
+                    htmlTag.setAttribute('data-bs-theme', newTheme);
                     localStorage.setItem('htc-theme', newTheme);
                     updateThemeIcon();
                 });
