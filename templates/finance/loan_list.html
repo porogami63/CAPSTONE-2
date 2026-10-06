@@ -8,9 +8,9 @@
 <style>
     /* Clocks badge */
     .clocks-badge {
-        background-color: #ecfdf5;
-        color: #047857;
-        border: 1px solid #a7f3d0;
+        background-color: var(--htc-success-bg);
+        color: var(--htc-success);
+        border: 1px solid var(--htc-success);
         padding: 0.3rem 0.75rem;
         border-radius: 9999px;
         font-size: 0.75rem;
@@ -33,12 +33,12 @@
 
     /* Info Bar */
     .info-bar {
-        background-color: #fffbeb;
-        border: 1px solid #fef3c7;
+        background-color: var(--htc-warning-bg);
+        border: 1px solid var(--htc-warning);
         border-radius: var(--htc-radius-sm);
         padding: 0.75rem 1rem;
         font-size: 0.825rem;
-        color: #92400e;
+        color: var(--htc-text);
         font-weight: 500;
         display: flex;
         align-items: center;
@@ -47,7 +47,7 @@
     }
     .info-bar i {
         font-size: 1.15rem;
-        color: #f59e0b;
+        color: var(--htc-warning);
     }
 
     /* Loan Card Split */
@@ -86,7 +86,7 @@
     }
     .loan-right-stats {
         padding: 1.25rem 1.35rem;
-        background-color: #f8fafc;
+        background-color: rgba(148, 163, 184, 0.08);
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1.1rem;
@@ -96,7 +96,7 @@
     .card-code {
         font-size: 0.75rem;
         font-weight: 700;
-        background-color: #f1f5f9;
+        background-color: rgba(148, 163, 184, 0.16);
         color: var(--htc-primary);
         padding: 0.2rem 0.55rem;
         border-radius: 6px;
@@ -119,7 +119,7 @@
         margin-top: 1.25rem;
     }
     .timeline-track-bar {
-        background-color: #e2e8f0;
+        background-color: var(--htc-border);
         height: 8px;
         border-radius: 999px;
         overflow: hidden;
@@ -168,7 +168,7 @@
         font-size: 0.85rem;
         font-weight: 700;
         text-align: center;
-        background: #ffffff;
+        background: var(--htc-bg);
         color: var(--htc-text);
     }
 
@@ -179,13 +179,13 @@
         flex-wrap: wrap;
     }
     .cheque-badge {
-        background-color: #ffffff;
-        border: 1px solid #cbd5e1;
+        background-color: var(--htc-surface);
+        border: 1px solid var(--htc-border);
         border-radius: 6px;
         padding: 0.2rem 0.55rem;
         font-size: 0.775rem;
         font-weight: 600;
-        color: #334155;
+        color: var(--htc-text);
     }
 
     .status-badge {
@@ -198,9 +198,9 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
     }
-    .status-badge.active { background-color: #e0f2fe; color: #0369a1; }
-    .status-badge.settled { background-color: #d1fae5; color: #047857; }
-    .status-badge.overdue { background-color: #fee2e2; color: #b91c1c; }
+    .status-badge.active { background-color: rgba(59, 130, 246, 0.16); color: var(--htc-primary-light); }
+    .status-badge.settled { background-color: var(--htc-success-bg); color: var(--htc-success); }
+    .status-badge.overdue { background-color: var(--htc-danger-bg); color: var(--htc-accent); }
 
     /* Red urgency text */
     .text-urgent-red {
@@ -539,7 +539,7 @@
                 <span class="text-urgent-red fs-6">₱{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
             </div>
 
-            <div class="stat-metric" style="grid-column: 1 / -1; background: #ffffff; padding: 0.85rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <div class="stat-metric cheque-binder" style="grid-column: 1 / -1;">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="text-uppercase fw-bold text-secondary small"><i class="bi bi-card-checklist text-primary me-1"></i> Physical Cheque Binder & Bank Account</span>
                     <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1">
@@ -708,9 +708,22 @@ function switchFinanceTab(tabKey, btn) {
                 <h5 class="modal-title fw-bold" id="newLoanModalLabel"><i class="bi bi-bank me-2"></i>Create New Capital Loan Facility</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="post" action="{% url 'finance:loan_list' %}">
+            <form method="post" action="{% url 'finance:loan_list' %}" id="newLoanForm">
                 {% csrf_token %}
                 <div class="modal-body p-4">
+                    {% if loan_form.errors %}
+                    <div class="alert alert-danger mb-3 py-2 px-3 text-xs shadow-sm">
+                        <strong class="d-block mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Loan Validation Error:</strong>
+                        <ul class="mb-0 ps-3">
+                            {% for field, errors in loan_form.errors.items %}
+                                {% for error in errors %}
+                                <li><strong>{{ field|title }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
                     <div class="alert alert-info py-2 px-3 text-xs mb-3">
                         <i class="bi bi-info-circle-fill me-1"></i> Record a new capital loan facility and link it directly to an existing transaction deal upon approval.
                     </div>
@@ -720,6 +733,26 @@ function switchFinanceTab(tabKey, btn) {
                             {{ loan_form.cluster }}
                             <div class="form-text text-xs text-muted">Select the trade contract transaction linked to this loan facility.</div>
                         </div>
+
+                        <!-- LIVE SUGGESTIVE CALCULATION CARD -->
+                        <div class="col-12" id="suggestiveLoanCard" style="display: none;">
+                            <div class="p-3 border rounded-3 bg-primary-subtle border-primary-subtle">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="fw-bold text-primary text-uppercase fs-7"><i class="bi bi-lightbulb-fill text-warning me-1"></i> Suggestive Loan Capital Requirement</span>
+                                    <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-7 font-bold" id="btnApplyLoanSuggestion">
+                                        <i class="bi bi-magic me-1"></i> Apply Suggested Principal &amp; Dates
+                                    </button>
+                                </div>
+                                <div class="row g-2 fs-7 text-dark mb-2">
+                                    <div class="col-md-3">Sourcing (100%): <strong id="suggSourcing">₱0.00</strong></div>
+                                    <div class="col-md-3">Trucking (50%): <strong id="suggTrucking">₱0.00</strong></div>
+                                    <div class="col-md-3">Barging/Freight (50%): <strong id="suggFreight">₱0.00</strong></div>
+                                    <div class="col-md-3 text-md-end">Min Required: <strong class="text-danger fs-6" id="suggRequired">₱0.00</strong></div>
+                                </div>
+                                <div class="text-muted text-xs fst-italic" id="suggFormula">Select a transaction cluster to compute minimum loan coverage.</div>
+                            </div>
+                        </div>
+
                         <div class="col-md-6">
                             <label class="form-label font-semibold text-sm">Financing Bank Name <span class="text-danger">*</span></label>
                             {{ loan_form.bank_name }}
@@ -737,7 +770,14 @@ function switchFinanceTab(tabKey, btn) {
                             {{ loan_form.start_date }}
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label font-semibold text-sm">Maturity / Due Date <span class="text-danger">*</span></label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label font-semibold text-sm mb-0">Maturity / Due Date <span class="text-danger">*</span></label>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setPresetTenor(30)">+30d</button>
+                                    <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setPresetTenor(60)">+60d</button>
+                                    <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setPresetTenor(90)">+90d</button>
+                                </div>
+                            </div>
                             {{ loan_form.due_date }}
                         </div>
                         <details class="col-12 mt-3 mb-2" style="border: 1px solid var(--htc-border); padding: 1rem; border-radius: 8px; background: var(--htc-surface);">
@@ -750,6 +790,10 @@ function switchFinanceTab(tabKey, btn) {
                                 <div class="col-md-6">
                                     <label class="form-label font-semibold text-sm">Cheque Reference # (Optional)</label>
                                     {{ loan_form.cheque_number }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-semibold text-sm">Cheque Issue Date (Optional)</label>
+                                    {{ loan_form.cheque_date }}
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label font-semibold text-sm">Bank Account # (Optional)</label>
@@ -771,6 +815,93 @@ function switchFinanceTab(tabKey, btn) {
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if reopen_loan_modal %}
+    var loanModalEl = document.getElementById('newLoanModal');
+    if (loanModalEl) {
+        var modal = new bootstrap.Modal(loanModalEl);
+        modal.show();
+    }
+    {% endif %}
+
+    var clusterSelect = document.getElementById('id_standalone_loan_cluster');
+    var suggCard = document.getElementById('suggestiveLoanCard');
+    var principalInput = document.getElementById('id_principal');
+    var startDateInput = document.getElementById('id_start_date');
+    var dueDateInput = document.getElementById('id_due_date');
+    var chequeDateInput = document.getElementById('id_cheque_date');
+    var applyBtn = document.getElementById('btnApplyLoanSuggestion');
+
+    var currentSuggestion = null;
+
+    function formatMoney(val) {
+        return '₱' + Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fetchLoanRequirement(clusterId) {
+        if (!clusterId) {
+            suggCard.style.display = 'none';
+            currentSuggestion = null;
+            return;
+        }
+        fetch('/finance/loans/requirement/' + clusterId + '/')
+            .then(res => res.json())
+            .then(data => {
+                currentSuggestion = data;
+                document.getElementById('suggSourcing').textContent = formatMoney(data.sourcing);
+                document.getElementById('suggTrucking').textContent = formatMoney(data.trucking_down_payment);
+                document.getElementById('suggFreight').textContent = formatMoney(data.freight_down_payment);
+                document.getElementById('suggRequired').textContent = formatMoney(data.required);
+                document.getElementById('suggFormula').textContent = data.formula;
+                suggCard.style.display = 'block';
+
+                if (!principalInput.value || parseFloat(principalInput.value) <= 0) {
+                    principalInput.value = data.required.toFixed(2);
+                }
+            })
+            .catch(err => console.error(err));
+    }
+
+    if (clusterSelect) {
+        clusterSelect.addEventListener('change', function() {
+            fetchLoanRequirement(this.value);
+        });
+        if (clusterSelect.value) {
+            fetchLoanRequirement(clusterSelect.value);
+        }
+    }
+
+    if (applyBtn) {
+        applyBtn.addEventListener('click', function() {
+            if (currentSuggestion && currentSuggestion.required) {
+                principalInput.value = currentSuggestion.required.toFixed(2);
+                var today = new Date();
+                var todayStr = today.toISOString().split('T')[0];
+                if (!startDateInput.value) startDateInput.value = todayStr;
+                if (!chequeDateInput.value) chequeDateInput.value = startDateInput.value || todayStr;
+
+                var baseDate = new Date(startDateInput.value || todayStr);
+                baseDate.setDate(baseDate.getDate() + 60);
+                dueDateInput.value = baseDate.toISOString().split('T')[0];
+            }
+        });
+    }
+});
+
+function setPresetTenor(days) {
+    var startDateInput = document.getElementById('id_start_date');
+    var dueDateInput = document.getElementById('id_due_date');
+    var baseStr = startDateInput ? startDateInput.value : '';
+    var baseDate = baseStr ? new Date(baseStr) : new Date();
+    baseDate.setDate(baseDate.getDate() + days);
+    if (dueDateInput) {
+        dueDateInput.value = baseDate.toISOString().split('T')[0];
+    }
+}
+</script>
 {% endif %}
 
 {% endblock %}
+

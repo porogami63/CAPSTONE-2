@@ -771,11 +771,41 @@
                 {% endfor %}
 
                 {% if user|has_perm:"add_loan" %}
-                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;">
+                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;" {% if loan_form.errors %}open{% endif %}>
                     <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
                         <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Link Capital Loan Facility
                     </summary>
-                    <form method="post" action="{% url 'operations:add_loan' cluster.pk %}" class="form-stack mt-3">{% csrf_token %}
+                    {% if loan_form.errors %}
+                    <div class="alert alert-danger mt-3 py-2 px-3 text-xs shadow-sm">
+                        <strong class="d-block mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Loan Validation Error:</strong>
+                        <ul class="mb-0 ps-3">
+                            {% for field, errors in loan_form.errors.items %}
+                                {% for error in errors %}
+                                <li><strong>{{ field|title }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- SUGGESTIVE CAPITAL REQUIREMENT DISPLAY -->
+                    <div class="p-3 my-3 border rounded-3 bg-primary-subtle border-primary-subtle" id="detailLoanSuggBox">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-primary text-uppercase fs-7"><i class="bi bi-lightbulb-fill text-warning me-1"></i> Suggestive Loan Capital Requirement</span>
+                            <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-7 font-bold" id="btnApplyDetailLoanSugg">
+                                <i class="bi bi-magic me-1"></i> Apply Suggestion
+                            </button>
+                        </div>
+                        <div class="row g-2 fs-7 text-dark mb-1">
+                            <div class="col-md-3">Sourcing (100%): <strong>₱{{ loan_requirement.sourcing|floatformat:2|intcomma }}</strong></div>
+                            <div class="col-md-3">Trucking (50%): <strong>₱{{ loan_requirement.trucking_down_payment|floatformat:2|intcomma }}</strong></div>
+                            <div class="col-md-3">Barging/Freight (50%): <strong>₱{{ loan_requirement.freight_down_payment|floatformat:2|intcomma }}</strong></div>
+                            <div class="col-md-3 text-md-end">Min Required: <strong class="text-danger fs-6">₱{{ loan_requirement.required|floatformat:2|intcomma }}</strong></div>
+                        </div>
+                        <div class="text-muted text-xs fst-italic">{{ loan_requirement.formula }}</div>
+                    </div>
+
+                    <form method="post" action="{% url 'operations:add_loan' cluster.pk %}" class="form-stack mt-3" id="clusterDetailLoanForm">{% csrf_token %}
                         <div class="row g-2">
                             <div class="col-md-6">
                                 <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Bank / Financing Partner</label>
@@ -803,7 +833,14 @@
                                 {{ loan_form.start_date }}
                             </div>
                             <div class="col-md-6">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Maturity / Due Date</label>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted); margin-bottom: 0;">Maturity / Due Date</label>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setDetailTenor(30)">+30d</button>
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setDetailTenor(60)">+60d</button>
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setDetailTenor(90)">+90d</button>
+                                    </div>
+                                </div>
                                 {{ loan_form.due_date }}
                             </div>
                             <div class="col-md-4">
@@ -822,6 +859,48 @@
                         <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Link Loan Facility</button>
                     </form>
                 </details>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    var loanReqData = {{ loan_requirement_json|safe }};
+                    var form = document.getElementById('clusterDetailLoanForm');
+                    if (!form) return;
+                    var pInput = form.querySelector('[name="principal"]');
+                    var startInput = form.querySelector('[name="start_date"]');
+                    var dueInput = form.querySelector('[name="due_date"]');
+                    var chqInput = form.querySelector('[name="cheque_date"]');
+                    var btnApply = document.getElementById('btnApplyDetailLoanSugg');
+
+                    if (pInput && loanReqData && loanReqData.required && (!pInput.value || parseFloat(pInput.value) <= 0)) {
+                        pInput.value = loanReqData.required.toFixed(2);
+                    }
+
+                    if (btnApply) {
+                        btnApply.addEventListener('click', function() {
+                            if (loanReqData && loanReqData.required) {
+                                pInput.value = loanReqData.required.toFixed(2);
+                                var todayStr = new Date().toISOString().split('T')[0];
+                                if (!startInput.value) startInput.value = todayStr;
+                                if (!chqInput.value) chqInput.value = startInput.value || todayStr;
+                                var b = new Date(startInput.value || todayStr);
+                                b.setDate(b.getDate() + 60);
+                                dueInput.value = b.toISOString().split('T')[0];
+                            }
+                        });
+                    }
+                });
+
+                function setDetailTenor(days) {
+                    var form = document.getElementById('clusterDetailLoanForm');
+                    if (!form) return;
+                    var startInput = form.querySelector('[name="start_date"]');
+                    var dueInput = form.querySelector('[name="due_date"]');
+                    var baseStr = startInput ? startInput.value : '';
+                    var baseDate = baseStr ? new Date(baseStr) : new Date();
+                    baseDate.setDate(baseDate.getDate() + days);
+                    if (dueInput) dueInput.value = baseDate.toISOString().split('T')[0];
+                }
+                </script>
                 {% endif %}
             </div>
         </div>

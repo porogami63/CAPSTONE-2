@@ -192,7 +192,24 @@ def delete_match(request, cluster_pk, match_pk):
 
 
 @role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE)
+def loan_requirement(request, pk):
+    """JSON: minimum principal for a cluster = 50% (Trucking + Freight) + 100% Sourcing."""
+    from django.http import JsonResponse
+    from operations.services.pricing import loan_requirement_data
+
+    cluster = get_object_or_404(
+        TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics"),
+        pk=pk,
+    )
+    data = loan_requirement_data(cluster)
+    payload = {k: (float(v) if isinstance(v, Decimal) else v) for k, v in data.items()}
+    payload["cluster_created"] = timezone.localtime(cluster.created_at).date().isoformat()
+    return JsonResponse(payload)
+
+
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE)
 def loan_list(request):
+    bound_loan_form = None
     if request.method == "POST":
         from accounts.permissions import user_has_perm
         if user_has_perm(request.user, "add_loan"):
@@ -238,7 +255,13 @@ def loan_list(request):
                     )
                 return redirect("finance:loan_list")
             else:
-                messages.error(request, "Error creating loan facility. Please check your form entries.")
+                bound_loan_form = form
+                for field_name, errors in form.errors.items():
+                    label = "Loan" if field_name == "__all__" else (
+                        form.fields[field_name].label or field_name.replace("_", " ").title()
+                    )
+                    for error in errors:
+                        messages.error(request, f"{label}: {error}")
 
     loans = list(CapitalLoan.objects.select_related("cluster", "cluster__client", "verified_by").order_by("-created_at"))
 
@@ -319,7 +342,7 @@ def loan_list(request):
             "status": "Issued",
         })
 
-    loan_form = StandaloneLoanForm(user=request.user)
+    loan_form = bound_loan_form or StandaloneLoanForm(user=request.user)
 
     return render(
         request,
@@ -335,6 +358,7 @@ def loan_list(request):
             "logistics_deposits_m": logistics_deposits_m,
             "overdue_facilities": overdue_facilities,
             "loan_form": loan_form,
+            "reopen_loan_modal": bound_loan_form is not None,
         },
     )
 

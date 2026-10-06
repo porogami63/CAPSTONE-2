@@ -189,6 +189,8 @@
                         data-selling-price="₱{{ c.selling_price|floatformat:2|intcomma }}/MT"
                         data-profit="₱{{ c.profit|floatformat:2|intcomma }}"
                         data-margin="{{ c.margin|floatformat:2 }}%"
+                        data-trucking="₱{{ c.tracking_fees|floatformat:2|intcomma }}"
+                        data-barging="₱{{ c.barge_fees|floatformat:2|intcomma }}"
                         data-logistics="₱{{ c.logistics_cost|floatformat:2|intcomma }}"
                         data-invoice="{{ c.invoice_number }}"
                         data-notes="{{ c.notes|escapejs }}"
@@ -258,7 +260,9 @@
             <div class="detail-row"><span>Customer Selling Price</span><span id="panelSelling">—</span></div>
             <div class="detail-row"><span>Supplier Outlay (Cost)</span><span id="panelOrderValue">—</span></div>
             <div class="detail-row"><span>Customer Sales (Revenue)</span><span id="panelRevenue">—</span></div>
-            <div class="detail-row"><span>Logistics Freight Cost</span><span id="panelLogistics">—</span></div>
+            <div class="detail-row"><span>Land Transport (Trucking)</span><span id="panelTrucking">—</span></div>
+            <div class="detail-row"><span>Marine Transport (Barging)</span><span id="panelBarging">—</span></div>
+            <div class="detail-row"><span>Total Logistics Freight</span><span id="panelLogistics" style="font-weight:700;">—</span></div>
             <div class="detail-row"><span>Net Trade Profit</span><span id="panelProfit" style="color:var(--htc-success);font-weight:700;">—</span></div>
             <div class="detail-row"><span>Net Margin</span><span id="panelMargin">—</span></div>
         </div>
@@ -346,6 +350,8 @@
         document.getElementById('panelPurchase').textContent = d.purchasePrice;
         document.getElementById('panelSelling').textContent = d.sellingPrice;
         document.getElementById('panelRevenue').textContent = d.revenue;
+        document.getElementById('panelTrucking').textContent = d.trucking;
+        document.getElementById('panelBarging').textContent = d.barging;
         document.getElementById('panelLogistics').textContent = d.logistics;
         document.getElementById('panelProfit').textContent = d.profit;
         document.getElementById('panelOrderValue').textContent = d.totalValue;

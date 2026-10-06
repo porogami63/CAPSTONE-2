@@ -1,4 +1,7 @@
+from datetime import date, timedelta
+
 from django import forms
+from django.utils import timezone
 
 from finance.models import CapitalLoan, CashVoucher, Invoice, PaymentExpenseMatch
 from operations.models import TransactionCluster
@@ -157,7 +160,80 @@ class CashVoucherForm(forms.ModelForm):
         return cleaned_data
 
 
-class StandaloneLoanForm(forms.ModelForm):
+class LoanRulesMixin:
+    """Shared business rules for capital loan facilities.
+
+    - Principal must cover 50% down payment on Trucking + Freight (barging) plus 100% of Sourcing cost.
+    - Loan (start) date, maturity date and cheque issue date must be coherent with each other.
+    """
+
+    MIN_LOAN_DATE = date(2020, 1, 1)
+    MAX_START_AHEAD_DAYS = 90
+    MAX_TENOR_DAYS = 730
+    MAX_INTEREST_RATE = 100
+
+    def apply_loan_rules(self, cleaned_data, cluster=None):
+        principal = cleaned_data.get("principal")
+        interest_rate = cleaned_data.get("interest_rate_annual")
+        start_date = cleaned_data.get("start_date")
+        due_date = cleaned_data.get("due_date")
+        cheque_date = cleaned_data.get("cheque_date")
+        today = timezone.localdate()
+        is_new = not (self.instance and self.instance.pk)
+
+        # ---- Principal vs. required capital ---------------------------------------------
+        if principal is not None:
+            if principal <= 0:
+                self.add_error("principal", "Loan principal amount must be a positive number greater than ₱0.00.")
+            elif cluster is not None:
+                from operations.services.pricing import loan_requirement_data
+
+                req = loan_requirement_data(cluster)
+                if req["has_data"] and principal < req["required"]:
+                    shortfall = req["required"] - principal
+                    self.add_error(
+                        "principal",
+                        f"Principal ₱{principal:,.2f} is ₱{shortfall:,.2f} short of the required ₱{req['required']:,.2f}. "
+                        f"Required = {req['formula']}.",
+                    )
+
+        if interest_rate is not None:
+            if interest_rate < 0:
+                self.add_error("interest_rate_annual", "Annual interest rate cannot be negative.")
+            elif interest_rate > self.MAX_INTEREST_RATE:
+                self.add_error("interest_rate_annual", f"Annual interest rate cannot exceed {self.MAX_INTEREST_RATE}%.")
+
+        # ---- Loan (start) date ----------------------------------------------------------
+        if start_date:
+            if start_date < self.MIN_LOAN_DATE:
+                self.add_error("start_date", "Loan date is invalid (cannot be before January 1, 2020).")
+            elif is_new and start_date > today + timedelta(days=self.MAX_START_AHEAD_DAYS):
+                latest = today + timedelta(days=self.MAX_START_AHEAD_DAYS)
+                self.add_error("start_date", f"Loan date cannot be more than {self.MAX_START_AHEAD_DAYS} days ahead (latest allowed: {latest:%b %d, %Y}).")
+
+        # ---- Maturity date --------------------------------------------------------------
+        if due_date:
+            if start_date and due_date <= start_date:
+                self.add_error("due_date", "Facility due date must be later than the loan start date.")
+            elif start_date and (due_date - start_date).days > self.MAX_TENOR_DAYS:
+                latest = start_date + timedelta(days=self.MAX_TENOR_DAYS)
+                self.add_error("due_date", f"Maturity is too far out (max tenor {self.MAX_TENOR_DAYS} days; latest allowed: {latest:%b %d, %Y}).")
+            elif is_new and due_date < today:
+                self.add_error("due_date", "Maturity date has already passed. A new facility must mature today or later.")
+
+        # ---- Cheque issue date ----------------------------------------------------------
+        if cheque_date:
+            if cheque_date < self.MIN_LOAN_DATE:
+                self.add_error("cheque_date", "Cheque issue date is invalid (cannot be before January 1, 2020).")
+            elif start_date and cheque_date < start_date:
+                self.add_error("cheque_date", f"Cheque issue date cannot be earlier than the loan date ({start_date:%b %d, %Y}).")
+            elif due_date and cheque_date > due_date:
+                self.add_error("cheque_date", f"Cheque issue date cannot be later than the maturity date ({due_date:%b %d, %Y}).")
+
+        return cleaned_data
+
+
+class StandaloneLoanForm(LoanRulesMixin, forms.ModelForm):
     cluster = ClusterChoiceField(
         queryset=TransactionCluster.objects.none(),
         empty_label="-- Select Target Transaction Cluster --",
@@ -224,24 +300,10 @@ class StandaloneLoanForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        principal = cleaned_data.get("principal")
-        interest_rate = cleaned_data.get("interest_rate_annual")
-        start_date = cleaned_data.get("start_date")
-        due_date = cleaned_data.get("due_date")
-
-        if principal is not None and principal <= 0:
-            self.add_error("principal", "Loan principal amount must be a positive number greater than ₱0.00.")
-
-        if interest_rate is not None and interest_rate < 0:
-            self.add_error("interest_rate_annual", "Annual interest rate cannot be negative.")
-
-        if start_date and due_date and due_date <= start_date:
-            self.add_error("due_date", "Facility due date must be later than the loan start date.")
-
-        return cleaned_data
+        return self.apply_loan_rules(cleaned_data, cluster=cleaned_data.get("cluster"))
 
 
-class CapitalLoanForm(forms.ModelForm):
+class CapitalLoanForm(LoanRulesMixin, forms.ModelForm):
     class Meta:
         model = CapitalLoan
         fields = [
@@ -269,7 +331,8 @@ class CapitalLoanForm(forms.ModelForm):
             "status": forms.Select(attrs={"class": "form-select-htc"}),
         }
 
-    def __init__(self, *args, user=None, **kwargs):
+    def __init__(self, *args, user=None, cluster=None, **kwargs):
+        self.cluster = cluster
         super().__init__(*args, **kwargs)
         self.fields["cheque_number"].required = False
         self.fields["cheque_date"].required = False
@@ -298,21 +361,7 @@ class CapitalLoanForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        principal = cleaned_data.get("principal")
-        interest_rate = cleaned_data.get("interest_rate_annual")
-        start_date = cleaned_data.get("start_date")
-        due_date = cleaned_data.get("due_date")
-
-        if principal is not None and principal <= 0:
-            self.add_error("principal", "Loan principal amount must be a positive number greater than ₱0.00.")
-
-        if interest_rate is not None and interest_rate < 0:
-            self.add_error("interest_rate_annual", "Annual interest rate cannot be negative.")
-
-        if start_date and due_date and due_date <= start_date:
-            self.add_error("due_date", "Facility due date must be later than the loan start date.")
-
-        return cleaned_data
+        return self.apply_loan_rules(cleaned_data, cluster=self.cluster)
 
 
 class PaymentExpenseMatchForm(forms.ModelForm):

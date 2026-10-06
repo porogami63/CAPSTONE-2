@@ -110,6 +110,8 @@ def cluster_list(request):
         c.order_value = fin["order_value"]
         c.revenue = fin["revenue"]
         c.logistics_cost = fin["logistics_cost"]
+        c.tracking_fees = fin["tracking_fees"]
+        c.barge_fees = fin["barge_fees"]
         c.invoice_number = fin["invoice_number"] or "—"
 
         c.timeline_progress = 22
@@ -715,7 +717,7 @@ def cluster_detail(request, pk):
     logistics_form = LogisticsUpdateForm(instance=getattr(cluster, "logistics", None))
     invoice_form = InvoiceForm(cluster=cluster)
     voucher_form = CashVoucherForm(cluster=cluster)
-    loan_form = CapitalLoanForm(user=request.user)
+    loan_form = CapitalLoanForm(user=request.user, cluster=cluster)
 
     linked_mros = list(cluster.mro_releases.select_related("planter", "sugar_mill").all())
     available_mros = list(
@@ -749,9 +751,13 @@ def cluster_detail(request, pk):
 
     audit_events.sort(key=lambda x: x["date"], reverse=True)
     debrief = cluster_financials(cluster)
-    from operations.services.pricing import get_invoice_suggestion_data
+    from operations.services.pricing import get_invoice_suggestion_data, loan_requirement_data
     invoice_suggestion_data = get_invoice_suggestion_data(cluster)
     cluster_suggestions_json = json.dumps({str(cluster.id): invoice_suggestion_data})
+    loan_requirement = loan_requirement_data(cluster)
+    loan_requirement_json = json.dumps(
+        {k: (float(v) if isinstance(v, Decimal) else v) for k, v in loan_requirement.items()}
+    )
 
     return render(
         request,
@@ -766,6 +772,8 @@ def cluster_detail(request, pk):
             "debrief": debrief,
             "invoice_suggestion_data": invoice_suggestion_data,
             "cluster_suggestions_json": cluster_suggestions_json,
+            "loan_requirement": loan_requirement,
+            "loan_requirement_json": loan_requirement_json,
             "linked_mros": linked_mros,
             "available_mros": available_mros,
             "total_mro_tons": total_mro_tons,
@@ -930,7 +938,7 @@ def add_voucher(request, pk):
 def add_loan(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
-        form = CapitalLoanForm(request.POST, user=request.user)
+        form = CapitalLoanForm(request.POST, user=request.user, cluster=cluster)
         if form.is_valid():
             loan = form.save(commit=False)
             loan.cluster = cluster

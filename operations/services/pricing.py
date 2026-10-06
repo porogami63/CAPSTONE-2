@@ -40,16 +40,16 @@ def cluster_financials(cluster) -> dict:
     barge_partner_name = "—"
 
     if po:
-        volume = po.volume_mt or Decimal("0")
-        purchase_price = po.unit_price or Decimal("0")
-        selling_price = po.selling_price or _parse_selling_from_terms(po.terms) or Decimal("0")
+        volume = Decimal(str(po.volume_mt)) if po.volume_mt is not None else Decimal("0")
+        purchase_price = Decimal(str(po.unit_price)) if po.unit_price is not None else Decimal("0")
+        selling_price = Decimal(str(po.selling_price)) if po.selling_price is not None else (_parse_selling_from_terms(po.terms) or Decimal("0"))
 
     if logistics:
-        loaded_vol = logistics.loaded_volume_mt or Decimal("0")
-        received_vol = logistics.received_volume_mt if logistics.received_volume_mt is not None else loaded_vol
-        tracking_fees = logistics.tracking_fees or Decimal("0")
-        barge_fees = logistics.barge_fees or Decimal("0")
-        logistics_cost = logistics.total_logistics_cost
+        loaded_vol = Decimal(str(logistics.loaded_volume_mt)) if logistics.loaded_volume_mt is not None else Decimal("0")
+        received_vol = Decimal(str(logistics.received_volume_mt)) if logistics.received_volume_mt is not None else loaded_vol
+        tracking_fees = Decimal(str(logistics.tracking_fees)) if logistics.tracking_fees is not None else Decimal("0")
+        barge_fees = Decimal(str(logistics.barge_fees)) if logistics.barge_fees is not None else Decimal("0")
+        logistics_cost = Decimal(str(logistics.total_logistics_cost))
 
         # Partner names
         if logistics.trucking_partner:
@@ -139,6 +139,45 @@ def cluster_financials(cluster) -> dict:
         "ewt_formula": ewt_formula,
         "net_sales_formula": net_sales_formula,
         "profit_formula": profit_formula,
+    }
+
+
+LOGISTICS_DOWN_PAYMENT_PCT = Decimal("50")
+
+
+def loan_requirement_data(cluster) -> dict:
+    """Minimum capital a loan must cover for a transaction.
+
+    Required principal = 50% down payment on Trucking + 50% down payment on Freight (barging)
+    + 100% of Sourcing cost. Trucking and Freight are kept as separate line items.
+    """
+    fin = cluster_financials(cluster)
+    two = Decimal("0.01")
+    pct = LOGISTICS_DOWN_PAYMENT_PCT / Decimal("100")
+
+    sourcing = Decimal(str(fin["purchase_total"])).quantize(two)
+    trucking = Decimal(str(fin["tracking_fees"])).quantize(two)
+    freight = Decimal(str(fin["barge_fees"])).quantize(two)
+    trucking_dp = (trucking * pct).quantize(two)
+    freight_dp = (freight * pct).quantize(two)
+    required = sourcing + trucking_dp + freight_dp
+
+    return {
+        "cluster_id": str(cluster.pk),
+        "ref": cluster.reference_code,
+        "volume_mt": fin["volume_mt"],
+        "down_payment_pct": float(LOGISTICS_DOWN_PAYMENT_PCT),
+        "sourcing": sourcing,
+        "trucking": trucking,
+        "freight": freight,
+        "trucking_down_payment": trucking_dp,
+        "freight_down_payment": freight_dp,
+        "required": required,
+        "has_data": required > 0,
+        "formula": (
+            f"₱{sourcing:,.2f} (Sourcing, 100%) + ₱{trucking_dp:,.2f} (Trucking {LOGISTICS_DOWN_PAYMENT_PCT:g}% of ₱{trucking:,.2f}) "
+            f"+ ₱{freight_dp:,.2f} (Freight {LOGISTICS_DOWN_PAYMENT_PCT:g}% of ₱{freight:,.2f}) = ₱{required:,.2f}"
+        ),
     }
 
 

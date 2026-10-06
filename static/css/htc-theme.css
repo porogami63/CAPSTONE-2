@@ -3268,6 +3268,241 @@ html[data-theme="dark"] .btn-close {
     100% { background-position: -200% 0; }
 }
 
+/* ==========================================================================
+   Comprehensive Dark Mode Fixes for All Views & Modules
+   ========================================================================== */
+html[data-theme="dark"],
+html:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    /* Body & App Containers */
+    body, .app-shell, .app-main, .app-main-wrap {
+        background-color: var(--htc-bg) !important;
+        color: var(--htc-text) !important;
+    }
+
+    /* Cards, Modals, Panes & Surfaces */
+    .card,
+    .modal-content,
+    .detail-pane,
+    .content-card,
+    .metric-box,
+    .status-card,
+    .chart-box,
+    .pane-card,
+    .doc-category,
+    .kpi-card,
+    .panel,
+    .panel-body,
+    .panel-header {
+        background-color: var(--htc-surface) !important;
+        color: var(--htc-text) !important;
+        border-color: var(--htc-border) !important;
+    }
+
+    /* Header & Footer Containers */
+    .card-header,
+    .modal-header,
+    .modal-footer,
+    .card-footer,
+    .table-light,
+    .table-light th,
+    .table-light td {
+        background-color: var(--htc-sidebar-hover) !important;
+        color: var(--htc-text) !important;
+        border-color: var(--htc-border) !important;
+    }
+
+    /* Explicit Utility Class Overrides in Dark Mode */
+    .bg-white {
+        background-color: var(--htc-surface) !important;
+        color: var(--htc-text) !important;
+    }
+
+    .bg-light {
+        background-color: var(--htc-sidebar-hover) !important;
+        color: var(--htc-text) !important;
+    }
+
+    .bg-body {
+        background-color: var(--htc-bg) !important;
+        color: var(--htc-text) !important;
+    }
+
+    .text-dark {
+        color: var(--htc-text) !important;
+    }
+
+    .text-secondary {
+        color: var(--htc-text-muted) !important;
+    }
+
+    .text-muted {
+        color: var(--htc-text-muted) !important;
+    }
+
+    .border, .border-top, .border-bottom, .border-start, .border-end {
+        border-color: var(--htc-border) !important;
+    }
+
+    /* Tables & Rows */
+    table, .table {
+        color: var(--htc-text) !important;
+        border-color: var(--htc-border) !important;
+    }
+
+    .table > :not(caption) > * > * {
+        background-color: transparent;
+        color: var(--htc-text) !important;
+        border-bottom-color: var(--htc-border) !important;
+    }
+
+    .table-hover > tbody > tr:hover,
+    .interactive-row:hover,
+    .interactive-row.selected {
+        background-color: var(--htc-sidebar-hover) !important;
+        color: var(--htc-text) !important;
+    }
+
+    /* Dropdowns & Navigation Menus */
+    .dropdown-menu {
+        background-color: var(--htc-surface) !important;
+        color: var(--htc-text) !important;
+        border: 1px solid var(--htc-border) !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .dropdown-item {
+        color: var(--htc-text) !important;
+    }
+
+    .dropdown-item:hover,
+    .dropdown-item:focus {
+        background-color: var(--htc-sidebar-hover) !important;
+        color: var(--htc-primary-light) !important;
+    }
+
+    .dropdown-divider {
+        border-top-color: var(--htc-border) !important;
+    }
+
+    /* Form Controls & Inputs */
+    .form-control,
+    .form-select,
+    .form-control-htc,
+    .form-select-htc,
+    textarea {
+        background-color: var(--htc-surface) !important;
+        color: var(--htc-text) !important;
+        border-color: var(--htc-border) !important;
+    }
+
+    .form-control:focus,
+    .form-select:focus,
+    .form-control-htc:focus,
+    .form-select-htc:focus {
+        background-color: var(--htc-surface) !important;
+        color: var(--htc-text) !important;
+        border-color: var(--htc-primary-light) !important;
+        box-shadow: 0 0 0 0.25rem rgba(96, 165, 250, 0.25) !important;
+    }
+
+    .form-text {
+        color: var(--htc-text-muted) !important;
+    }
+
+    /* Subtle Badge & Alert Utility Themes */
+    .bg-warning-subtle {
+        background-color: var(--htc-warning-bg) !important;
+        color: var(--htc-warning) !important;
+    }
+
+    .text-warning-emphasis {
+        color: var(--htc-warning) !important;
+    }
+
+    .bg-info-subtle {
+        background-color: rgba(6, 182, 212, 0.2) !important;
+        color: #38bdf8 !important;
+    }
+
+    .text-info-emphasis {
+        color: #38bdf8 !important;
+    }
+
+    .bg-primary-subtle {
+        background-color: rgba(59, 130, 246, 0.2) !important;
+        color: #60a5fa !important;
+    }
+
+    .text-primary-emphasis {
+        color: #60a5fa !important;
+    }
+
+    .bg-success-subtle {
+        background-color: var(--htc-success-bg) !important;
+        color: var(--htc-success) !important;
+    }
+
+    .text-success-emphasis {
+        color: var(--htc-success) !important;
+    }
+
+    .bg-danger-subtle {
+        background-color: var(--htc-danger-bg) !important;
+        color: #f87171 !important;
+    }
+
+    .text-danger-emphasis {
+        color: #f87171 !important;
+    }
+
+    .bg-secondary-subtle {
+        background-color: var(--htc-sidebar-hover) !important;
+        color: var(--htc-sidebar-text) !important;
+    }
+
+    /* List Groups & Accordions */
+    .list-group-item {
+        background-color: var(--htc-surface) !important;
+        color: var(--htc-text) !important;
+        border-color: var(--htc-border) !important;
+    }
+
+    .accordion-item {
+        background-color: var(--htc-surface) !important;
+        color: var(--htc-text) !important;
+        border-color: var(--htc-border) !important;
+    }
+
+    .accordion-button {
+        background-color: var(--htc-surface) !important;
+        color: var(--htc-text) !important;
+    }
+
+    .accordion-button:not(.collapsed) {
+        background-color: var(--htc-sidebar-hover) !important;
+        color: var(--htc-primary-light) !important;
+    }
+
+    /* Buttons */
+    .btn-light {
+        background-color: var(--htc-sidebar-hover) !important;
+        color: var(--htc-text) !important;
+        border-color: var(--htc-border) !important;
+    }
+
+    .btn-outline-secondary {
+        color: var(--htc-sidebar-text) !important;
+        border-color: var(--htc-border) !important;
+    }
+
+    .btn-outline-secondary:hover {
+        background-color: var(--htc-sidebar-hover) !important;
+        color: var(--htc-text) !important;
+    }
+}
+
 
 
 

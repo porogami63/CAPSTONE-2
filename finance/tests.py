@@ -263,4 +263,84 @@ class SuggestiveInvoicePricingTests(TestCase):
 		self.assertContains(res, "Suggested Contract Balance")
 
 
+class LoanValidationTests(TestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(
+			username="finance_officer",
+			password="password123",
+			role=User.Role.FINANCE,
+		)
+		self.client.login(username="finance_officer", password="password123")
+		self.client_obj = Client.objects.create(name="Universal Robina")
+		self.mill = SugarMill.objects.create(name="First Sugar Mill")
+		self.cluster = TransactionCluster.objects.create(reference_code="PO-VAL-001", client=self.client_obj, sugar_mill=self.mill)
+		self.po = PurchaseOrder.objects.create(
+			cluster=self.cluster,
+			volume_mt=100.0,
+			unit_price=10000.0, # Sourcing = 1,000,000
+		)
+		self.logistics = LogisticsLedger.objects.create(
+			cluster=self.cluster,
+			loaded_volume_mt=100.0,
+			tracking_fees=100000.0, # Trucking = 100,000 (50% = 50,000)
+			barge_fees=200000.0, # Freight/Barging = 200,000 (50% = 100,000)
+		)
+
+	def test_loan_requirement_data(self):
+		from operations.services.pricing import loan_requirement_data
+		req = loan_requirement_data(self.cluster)
+		self.assertEqual(req["sourcing"], 1000000.0)
+		self.assertEqual(req["trucking_down_payment"], 50000.0)
+		self.assertEqual(req["freight_down_payment"], 100000.0)
+		# Required = 1,000,000 + 50,000 + 100,000 = 1,150,000
+		self.assertEqual(req["required"], 1150000.0)
+
+	def test_loan_creation_hard_blocks_insufficient_principal(self):
+		# Required = 1,150,000. Try submitting 1,000,000
+		res = self.client.post(
+			reverse("finance:loan_list"),
+			{
+				"cluster": self.cluster.pk,
+				"bank_name": "BDO",
+				"principal": "1000000.00",
+				"interest_rate_annual": "10.00",
+				"start_date": str(date.today()),
+				"due_date": str(date.today() + timedelta(days=60)),
+			},
+		)
+		self.assertEqual(res.status_code, 200) # Re-renders page with errors
+		self.assertContains(res, "short of the required")
+		self.assertFalse(CapitalLoan.objects.filter(cluster=self.cluster, bank_name="BDO").exists())
+
+	def test_loan_creation_accepts_valid_principal(self):
+		res = self.client.post(
+			reverse("finance:loan_list"),
+			{
+				"cluster": self.cluster.pk,
+				"bank_name": "BPI",
+				"principal": "1200000.00",
+				"interest_rate_annual": "10.00",
+				"start_date": str(date.today()),
+				"due_date": str(date.today() + timedelta(days=60)),
+			},
+		)
+		self.assertRedirects(res, reverse("finance:loan_list"))
+		self.assertTrue(CapitalLoan.objects.filter(cluster=self.cluster, bank_name="BPI").exists())
+
+	def test_due_date_must_be_after_start_date(self):
+		res = self.client.post(
+			reverse("finance:loan_list"),
+			{
+				"cluster": self.cluster.pk,
+				"bank_name": "Metrobank",
+				"principal": "1500000.00",
+				"interest_rate_annual": "10.00",
+				"start_date": str(date.today()),
+				"due_date": str(date.today() - timedelta(days=5)), # Invalid
+			},
+		)
+		self.assertEqual(res.status_code, 200)
+		self.assertContains(res, "Facility due date must be later than the loan start date")
+
+
 
