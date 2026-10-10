@@ -212,9 +212,10 @@ def run():
         print("Approve Edge Cluster status:", app_resp2.status_code)
         
         for url, name in urls_to_test:
-            if cluster.pk in str(url):
+            if str(cluster.pk) in str(url):
                 url = str(url).replace(str(cluster.pk), str(cluster2.pk))
-            if hasattr(locals(), 'chai') and chai.pk in str(url):
+            chai_obj = locals().get('chai')
+            if chai_obj and str(chai_obj.pk) in str(url):
                 continue # Skip chai detail
                 
             resp = client.get(url)

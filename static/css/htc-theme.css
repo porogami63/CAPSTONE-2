@@ -2985,6 +2985,139 @@ body.sidebar-collapsed .brand-logo-group {
 }
 
 /* ==========================================================================
+   Real-time Outlier Notice & Tooltip on Form Inputs
+   ========================================================================== */
+.input-addon-group.has-outlier-warning .addon {
+    border-color: #f59e0b !important;
+    background-color: rgba(245, 158, 11, 0.08) !important;
+    color: #d97706 !important;
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.input-addon-group.has-outlier-warning input,
+.form-control-htc.is-outlier-warning,
+input.is-outlier-warning {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme="dark"] .input-addon-group.has-outlier-warning .addon {
+    border-color: #d97706 !important;
+    background-color: rgba(217, 119, 6, 0.2) !important;
+    color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .input-addon-group.has-outlier-warning input,
+[data-theme="dark"] .form-control-htc.is-outlier-warning,
+[data-theme="dark"] input.is-outlier-warning {
+    border-color: #d97706 !important;
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25) !important;
+}
+
+.outlier-field-notice {
+    display: block;
+    margin-top: 0.35rem;
+    margin-bottom: 0.25rem;
+    animation: outlierSlideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes outlierSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.outlier-notice-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+    padding: 0.35rem 0.65rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-left: 3.5px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 0.74rem;
+    color: #92400e;
+    line-height: 1.35;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .outlier-notice-pill {
+    background: rgba(120, 53, 15, 0.25);
+    border: 1px solid rgba(217, 119, 6, 0.4);
+    border-left: 3.5px solid #f59e0b;
+    color: #fde68a;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.outlier-notice-pill .outlier-body {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    flex: 1;
+}
+
+.outlier-notice-pill .outlier-badge-tag {
+    font-weight: 700;
+    color: #b45309;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.74rem;
+}
+
+[data-theme="dark"] .outlier-notice-pill .outlier-badge-tag {
+    color: #fbbf24;
+}
+
+.outlier-notice-pill .outlier-stats-text {
+    font-weight: 500;
+    font-size: 0.72rem;
+    color: #78350f;
+}
+
+[data-theme="dark"] .outlier-notice-pill .outlier-stats-text {
+    color: #fef3c7;
+}
+
+.outlier-notice-pill .outlier-info-btn {
+    background: transparent;
+    border: none;
+    padding: 0.1rem 0.25rem;
+    margin: 0;
+    color: #d97706;
+    cursor: pointer;
+    font-size: 0.88rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 4px;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.outlier-notice-pill .outlier-info-btn:hover {
+    color: #b45309;
+    transform: scale(1.15);
+}
+
+[data-theme="dark"] .outlier-notice-pill .outlier-info-btn {
+    color: #f59e0b;
+}
+
+[data-theme="dark"] .outlier-notice-pill .outlier-info-btn:hover {
+    color: #fbbf24;
+}
+
+
+/* ==========================================================================
    Horizontal Process Flowchart Component (Company Process Handoffs)
    ========================================================================== */
 .htc-flowchart-card {
@@ -3503,6 +3636,28 @@ html:not([data-theme="light"]) {
     }
 }
 
+/* ==========================================================================
+   Draft Restore Notification Pill
+   ========================================================================== */
+.htc-draft-restored-pill {
+    background-color: rgba(96, 165, 250, 0.12);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    border-radius: var(--htc-radius-sm, 6px);
+    padding: 0.45rem 0.85rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--htc-text);
+    display: block;
+    animation: fadeInDown 0.25s ease-out;
+}
 
+[data-theme="light"] .htc-draft-restored-pill {
+    background-color: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1e40af;
+}
 
-
+.htc-draft-restored-pill .draft-clear-btn:hover {
+    color: var(--htc-accent, #dc2626) !important;
+}

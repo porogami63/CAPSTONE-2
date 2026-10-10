@@ -1,158 +1,292 @@
 /**
- * Stark Outlier Guard & Confirmation Modal
- * Intercepts numerical form submissions to verify input sanity against historical Mean, Median, and Mode computations.
- * Adheres strictly to design constraints:
- * - Very prominent modal box
- * - NO emojis or icons
- * - Stark Red action button (.btn-stark-red)
+ * Real-time Outlier Guard & Live Input Notice/Tooltip
+ * Replaces the intrusive submission modal with instantaneous, inline notices & tooltips
+ * directly attached to input boxes as values are entered.
+ *
+ * Automatically monitors numerical fields against historical Mean, Median, and Mode thresholds:
+ * - Purchase Order Volume (MT)
+ * - Supplier Sourcing Price (₱/MT)
+ * - Customer Selling Price (₱/MT)
+ * - Brix Quality Level (%)
+ * - CHAI Quality Rating Grade
+ * - Molasses Release Tons & Logistics Volume
  */
 
-document.addEventListener("DOMContentLoaded", function () {
-    const forms = document.querySelectorAll('form[data-outlier-guard="true"]');
-    forms.forEach(form => {
-        form.addEventListener("submit", function (e) {
-            // If already confirmed by user, allow submission
-            let confirmedField = form.querySelector('input[name="confirmed_outlier"]');
-            if (confirmedField && confirmedField.value === "true") {
-                return true;
-            }
+(function () {
+    const FIELD_PARAM_MAP = {
+        volume_mt: "po_volume",
+        unit_price: "po_unit_price",
+        selling_price: "po_selling_price",
+        brix_level: "po_brix",
+        chai_specs: "chai_grade",
+        chai_value: "chai_grade",
+        chai_brix: "chai_brix",
+        tons: "mro_tons",
+        loaded_volume_mt: "logistics_loaded",
+        amount: "invoice_amount",
+    };
 
-            e.preventDefault();
+    let cachedOperationalStats = null;
+    let statsFetchPromise = null;
 
-            const formData = new FormData(form);
-            const csrfToken = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || getCsrfTokenCookie();
+    /**
+     * Fetch operational stats once and cache in memory for 0ms client-side validation.
+     */
+    function getOperationalStats() {
+        if (cachedOperationalStats) {
+            return Promise.resolve(cachedOperationalStats);
+        }
+        if (statsFetchPromise) {
+            return statsFetchPromise;
+        }
 
-            fetch("/operations/api/stats-check/", {
-                method: "POST",
-                headers: {
-                    "X-CSRFToken": csrfToken,
-                },
-                body: formData,
+        statsFetchPromise = fetch("/operations/api/stats-check/?get_thresholds=true")
+            .then(res => res.json())
+            .then(data => {
+                cachedOperationalStats = data.operational_stats || {};
+                return cachedOperationalStats;
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.is_flagged && data.outliers && data.outliers.length > 0) {
-                        showStarkOutlierModal(form, data.outliers);
-                    } else {
-                        // Submit form normally
-                        ensureConfirmedHiddenField(form, "true");
-                        form.submit();
-                    }
-                })
-                .catch(err => {
-                    console.error("Outlier stats check error:", err);
-                    // Fallback to regular submit on error
-                    form.submit();
-                });
+            .catch(err => {
+                console.warn("Could not prefetch operational statistics:", err);
+                cachedOperationalStats = {};
+                return cachedOperationalStats;
+            });
+
+        return statsFetchPromise;
+    }
+
+    /**
+     * Format numbers into readable strings with appropriate units/currency.
+     */
+    function formatStatValue(num, fieldKey) {
+        if (num === null || num === undefined || isNaN(num)) return "0.00";
+        const val = Number(num);
+        const formatted = val.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
         });
-    });
-});
 
-function ensureConfirmedHiddenField(form, val) {
-    let confirmedField = form.querySelector('input[name="confirmed_outlier"]');
-    if (!confirmedField) {
-        confirmedField = document.createElement("input");
-        confirmedField.type = "hidden";
-        confirmedField.name = "confirmed_outlier";
-        form.appendChild(confirmedField);
-    }
-    confirmedField.value = val;
-}
-
-function showStarkOutlierModal(form, outliers) {
-    let modalEl = document.getElementById("starkOutlierModal");
-    if (!modalEl) {
-        modalEl = document.createElement("div");
-        modalEl.id = "starkOutlierModal";
-        modalEl.className = "modal fade";
-        modalEl.setAttribute("tabindex", "-1");
-        modalEl.setAttribute("aria-hidden", "true");
-        modalEl.setAttribute("data-bs-backdrop", "static");
-        document.body.appendChild(modalEl);
+        if (fieldKey === "unit_price" || fieldKey === "selling_price" || fieldKey === "amount") {
+            return "₱" + formatted;
+        }
+        if (fieldKey === "volume_mt" || fieldKey === "tons" || fieldKey === "loaded_volume_mt") {
+            return formatted + " MT";
+        }
+        if (fieldKey === "brix_level" || fieldKey === "chai_brix") {
+            return formatted + "%";
+        }
+        return formatted;
     }
 
-    let rowsHtml = outliers.map(item => `
-        <tr>
-            <td style="font-weight: 700;">${escapeHtml(item.label)}</td>
-            <td style="font-weight: 800; color: #dc2626;">${escapeHtml(item.value.toString())}</td>
-            <td>${escapeHtml(item.mean.toString())}</td>
-            <td>${escapeHtml(item.median.toString())}</td>
-            <td>${escapeHtml(item.mode.toString())}</td>
-        </tr>
-    `).join("");
+    /**
+     * Escape HTML strings for safety.
+     */
+    function escapeHtml(str) {
+        return String(str || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
-    modalEl.innerHTML = `
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content stark-outlier-card">
-                <div class="modal-header stark-outlier-header">
-                    <h4 class="modal-title stark-outlier-title">Are you sure?</h4>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <p style="font-size: 1.05rem; font-weight: 600; color: var(--htc-text); margin-bottom: 1rem;">
-                        One or more entered numerical values exceed historical operational thresholds.
-                    </p>
-                    <p style="font-size: 0.9rem; color: var(--htc-text-muted); margin-bottom: 1.25rem;">
-                        Statistical calculations (Mean, Median, Mode) indicate that the values below are unusually high. 
-                        Please review to ensure user input errors do not corrupt operational records.
-                    </p>
-                    <div class="table-responsive mb-3">
-                        <table class="stark-stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Field Parameter</th>
-                                    <th>Entered Value</th>
-                                    <th>Historical Mean</th>
-                                    <th>Historical Median</th>
-                                    <th>Historical Mode</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${rowsHtml}
-                            </tbody>
-                        </table>
-                    </div>
-                    <p style="font-size: 0.85rem; color: var(--htc-text-muted); margin-bottom: 0;">
-                        Clicking <strong>Confirm &amp; Proceed</strong> will record this transaction despite the statistical deviation.
-                    </p>
-                </div>
-                <div class="modal-footer border-top p-3 d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary px-4 fw-bold" data-bs-dismiss="modal">
-                        Cancel &amp; Revise Input
-                    </button>
-                    <button type="button" id="starkConfirmProceedBtn" class="btn-stark-red">
-                        Confirm &amp; Proceed
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
+    /**
+     * Extract numerical value from input text.
+     */
+    function parseNumericValue(valStr) {
+        if (!valStr || valStr.trim() === "") return null;
+        const clean = String(valStr).replace(/,/g, "").trim();
+        const num = parseFloat(clean);
+        return isNaN(num) ? null : num;
+    }
 
-    const bsModal = new bootstrap.Modal(modalEl);
-    bsModal.show();
+    /**
+     * Remove outlier notice and warning styling from an input.
+     */
+    function clearInputNotice(input) {
+        input.classList.remove("is-outlier-warning");
+        const addonGroup = input.closest(".input-addon-group");
+        if (addonGroup) {
+            addonGroup.classList.remove("has-outlier-warning");
+        }
 
-    document.getElementById("starkConfirmProceedBtn").addEventListener("click", function () {
-        bsModal.hide();
-        ensureConfirmedHiddenField(form, "true");
-        form.submit();
-    });
-}
-
-function escapeHtml(str) {
-    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function getCsrfTokenCookie() {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== "") {
-        const cookies = document.cookie.split(";");
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, 10) === "csrftoken=") {
-                cookieValue = decodeURIComponent(cookie.substring(10));
-                break;
+        const noticeId = "outlierNotice_" + (input.name || input.id);
+        const existingNotice = document.getElementById(noticeId);
+        if (existingNotice) {
+            const tooltipTrigger = existingNotice.querySelector('[data-bs-toggle="tooltip"]');
+            if (tooltipTrigger && window.bootstrap && bootstrap.Tooltip) {
+                const inst = bootstrap.Tooltip.getInstance(tooltipTrigger);
+                if (inst) inst.dispose();
             }
+            existingNotice.remove();
         }
     }
-    return cookieValue;
-}
+
+    /**
+     * Render or update live inline notice and tooltip for an input.
+     */
+    function renderInputNotice(input, fieldKey, statInfo, enteredVal) {
+        input.classList.add("is-outlier-warning");
+        const addonGroup = input.closest(".input-addon-group");
+        if (addonGroup) {
+            addonGroup.classList.add("has-outlier-warning");
+        }
+
+        const noticeId = "outlierNotice_" + (input.name || input.id);
+        let noticeEl = document.getElementById(noticeId);
+
+        const enteredFormatted = formatStatValue(enteredVal, fieldKey);
+        const meanFormatted = formatStatValue(statInfo.mean, fieldKey);
+        const medianFormatted = formatStatValue(statInfo.median, fieldKey);
+        const modeFormatted = formatStatValue(statInfo.mode, fieldKey);
+        const thresholdFormatted = formatStatValue(statInfo.high_threshold, fieldKey);
+
+        const tooltipHtml = `<strong>Statistical calculations (Mean, Median, Mode) indicate this value is unusually high:</strong><br><br>` +
+            `• <strong>Field:</strong> ${escapeHtml(statInfo.label)}<br>` +
+            `• <strong>Entered Value:</strong> ${escapeHtml(enteredFormatted)}<br>` +
+            `• <strong>Historical Mean:</strong> ${escapeHtml(meanFormatted)}<br>` +
+            `• <strong>Historical Median:</strong> ${escapeHtml(medianFormatted)}<br>` +
+            `• <strong>Historical Mode:</strong> ${escapeHtml(modeFormatted)}<br>` +
+            `• <strong>Historical Threshold:</strong> ${escapeHtml(thresholdFormatted)}<br><br>` +
+            `<small style="opacity:0.9;">Please review input to ensure numerical typos do not corrupt records.</small>`;
+
+        const innerHtml = `
+            <div class="outlier-notice-pill">
+                <div class="outlier-body">
+                    <span class="outlier-badge-tag">
+                        <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                        <span>Unusually High Value:</span>
+                    </span>
+                    <span class="outlier-stats-text">
+                        Historical Mean: <strong>${escapeHtml(meanFormatted)}</strong> | Median: <strong>${escapeHtml(medianFormatted)}</strong> | Mode: <strong>${escapeHtml(modeFormatted)}</strong>
+                    </span>
+                </div>
+                <button type="button" class="outlier-info-btn" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" data-bs-title="${escapeHtml(tooltipHtml)}" title="${escapeHtml(tooltipHtml)}" aria-label="Detailed Statistical Outlier Breakdown">
+                    <i class="bi bi-info-circle-fill"></i>
+                </button>
+            </div>
+        `;
+
+        if (!noticeEl) {
+            noticeEl = document.createElement("div");
+            noticeEl.id = noticeId;
+            noticeEl.className = "outlier-field-notice";
+            noticeEl.setAttribute("role", "alert");
+
+            // Insert directly below input or addon group (before helper text or errors)
+            const targetContainer = addonGroup || input;
+            if (targetContainer.nextSibling) {
+                targetContainer.parentNode.insertBefore(noticeEl, targetContainer.nextSibling);
+            } else {
+                targetContainer.parentNode.appendChild(noticeEl);
+            }
+        }
+
+        noticeEl.innerHTML = innerHtml;
+
+        // Initialize Bootstrap Tooltip on info button
+        const tooltipTrigger = noticeEl.querySelector('[data-bs-toggle="tooltip"]');
+        if (tooltipTrigger && window.bootstrap && bootstrap.Tooltip) {
+            const oldInst = bootstrap.Tooltip.getInstance(tooltipTrigger);
+            if (oldInst) oldInst.dispose();
+            new bootstrap.Tooltip(tooltipTrigger);
+        }
+    }
+
+    /**
+     * Evaluate single input against statistical thresholds.
+     */
+    function evaluateInput(input, operationalStats) {
+        const fieldKey = input.name || input.id;
+        const statKey = FIELD_PARAM_MAP[fieldKey];
+        if (!statKey || !operationalStats || !operationalStats[statKey]) {
+            clearInputNotice(input);
+            return;
+        }
+
+        const statInfo = operationalStats[statKey];
+        const enteredVal = parseNumericValue(input.value);
+
+        if (enteredVal === null) {
+            clearInputNotice(input);
+            return;
+        }
+
+        // Statistical threshold check: must have prior records and exceed high threshold
+        if (statInfo.count >= 2 && statInfo.high_threshold > 0 && enteredVal > statInfo.high_threshold) {
+            renderInputNotice(input, fieldKey, statInfo, enteredVal);
+        } else {
+            clearInputNotice(input);
+        }
+    }
+
+    /**
+     * Ensure confirmed_outlier hidden input exists on form so backend can accept submitted transaction.
+     */
+    function ensureConfirmedHiddenField(form, val) {
+        let confirmedField = form.querySelector('input[name="confirmed_outlier"]');
+        if (!confirmedField) {
+            confirmedField = document.createElement("input");
+            confirmedField.type = "hidden";
+            confirmedField.name = "confirmed_outlier";
+            form.appendChild(confirmedField);
+        }
+        confirmedField.value = val;
+    }
+
+    /**
+     * Debounce helper for smooth keystroke input handling.
+     */
+    function debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
+    /**
+     * Initialize outlier guard on all configured forms.
+     */
+    function initOutlierGuard() {
+        const forms = document.querySelectorAll('form[data-outlier-guard="true"]');
+        if (!forms.length) return;
+
+        getOperationalStats().then(stats => {
+            forms.forEach(form => {
+                // Ensure form can submit without modal blockage
+                ensureConfirmedHiddenField(form, "true");
+
+                // Find all monitored inputs in this form
+                Object.keys(FIELD_PARAM_MAP).forEach(fieldName => {
+                    const selector = `input[name="${fieldName}"], input#id_${fieldName}`;
+                    const inputs = form.querySelectorAll(selector);
+
+                    inputs.forEach(input => {
+                        const debouncedEval = debounce(() => evaluateInput(input, stats), 180);
+
+                        input.addEventListener("input", debouncedEval);
+                        input.addEventListener("change", () => evaluateInput(input, stats));
+                        input.addEventListener("blur", () => evaluateInput(input, stats));
+
+                        // Initial check for pre-filled / edit forms
+                        if (input.value && input.value.trim() !== "") {
+                            evaluateInput(input, stats);
+                        }
+                    });
+                });
+
+                // Smooth submission without modal interface
+                form.addEventListener("submit", function () {
+                    ensureConfirmedHiddenField(form, "true");
+                });
+            });
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initOutlierGuard);
+    } else {
+        initOutlierGuard();
+    }
+})();

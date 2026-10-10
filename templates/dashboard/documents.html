@@ -75,7 +75,7 @@
 
                             <div class="d-flex align-items-center gap-1 flex-shrink-0">
                                 {% if doc.has_scan %}
-                                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" title="Preview Scanned MRO" onclick="previewSoftCopy('{{ doc.scan_url }}', '{{ doc.name }}', {{ doc.is_pdf|yesno:'true,false' }})">
+                                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" title="Preview Scanned MRO" data-url="{{ doc.scan_url }}" data-title="{{ doc.name }}" data-is-pdf="{{ doc.is_pdf|yesno:'true,false' }}" onclick="previewSoftCopy(this.dataset.url, this.dataset.title, this.dataset.isPdf === 'true')">
                                         <i class="bi bi-eye-fill"></i> Preview MRO
                                     </button>
                                 {% elif doc.pdf_url %}

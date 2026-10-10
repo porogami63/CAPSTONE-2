@@ -701,7 +701,7 @@ function switchFinanceTab(tabKey, btn) {
 
 {% if user|has_perm:"add_loan" %}
 <!-- CREATE NEW LOAN MODAL -->
-<div class="modal fade" id="newLoanModal" tabindex="-1" aria-labelledby="newLoanModalLabel" aria-hidden="true">
+<div class="modal fade" id="newLoanModal" tabindex="-1" aria-labelledby="newLoanModalLabel" aria-hidden="true" {% if reopen_loan_modal %}data-auto-open="true"{% endif %}>
     <div class="modal-dialog modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-dark text-white">
@@ -818,13 +818,11 @@ function switchFinanceTab(tabKey, btn) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    {% if reopen_loan_modal %}
     var loanModalEl = document.getElementById('newLoanModal');
-    if (loanModalEl) {
+    if (loanModalEl && loanModalEl.dataset.autoOpen === 'true') {
         var modal = new bootstrap.Modal(loanModalEl);
         modal.show();
     }
-    {% endif %}
 
     var clusterSelect = document.getElementById('id_standalone_loan_cluster');
     var suggCard = document.getElementById('suggestiveLoanCard');

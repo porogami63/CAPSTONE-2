@@ -320,7 +320,7 @@
                 </thead>
                 <tbody>
                     {% for inv in sales_invoices %}
-                    <tr style="cursor: pointer;" onclick="window.location='{% url 'operations:cluster_detail' inv.cluster.pk %}';">
+                    <tr style="cursor: pointer;" data-href="{% url 'operations:cluster_detail' inv.cluster.pk %}" onclick="window.location = this.dataset.href;">
                         <td>
                             <a href="{% url 'operations:cluster_detail' inv.cluster.pk %}" class="fw-bold text-decoration-none" style="color: var(--htc-primary-light);" title="View deal details">
                                 <i class="bi bi-file-earmark-text me-1"></i>{{ inv.invoice_number }}
@@ -368,7 +368,7 @@
         </div>
         <div class="supplier-list">
             {% for sup in supplier_invoices|slice:":6" %}
-            <div class="supplier-item" style="cursor: pointer;" onclick="window.location='{% url 'operations:cluster_detail' sup.cluster.pk %}';" title="Click to view deal {{ sup.cluster.reference_code }}">
+            <div class="supplier-item" style="cursor: pointer;" data-href="{% url 'operations:cluster_detail' sup.cluster.pk %}" onclick="window.location = this.dataset.href;" title="Click to view deal {{ sup.cluster.reference_code }}">
                 <div class="info">
                     <strong>{{ sup.sugar_mill.name }}</strong>
                     <span>Invoice: {{ sup.invoice_number }}</span>
@@ -386,9 +386,13 @@
     </div>
 </div>
 
+<script id="clusterSuggestionsData" type="application/json">
+{{ cluster_suggestions_json|safe }}
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const clusterSuggestionsMap = {{ cluster_suggestions_json|safe }};
+    const clusterSuggestionsEl = document.getElementById('clusterSuggestionsData');
+    const clusterSuggestionsMap = clusterSuggestionsEl ? JSON.parse(clusterSuggestionsEl.textContent || '{}') : {};
     const clusterSelect = document.getElementById('id_standalone_cluster') || document.querySelector('#createInvoiceForm select[name="cluster"]');
     
     function getAmountInput() {

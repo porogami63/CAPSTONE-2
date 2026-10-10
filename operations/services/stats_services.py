@@ -153,6 +153,7 @@ def check_input_outliers(field_values_dict):
         "unit_price": "po_unit_price",
         "selling_price": "po_selling_price",
         "brix_level": "po_brix",
+        "chai_specs": "chai_grade",
         "chai_value": "chai_grade",
         "chai_brix": "chai_brix",
         "tons": "mro_tons",
@@ -166,9 +167,19 @@ def check_input_outliers(field_values_dict):
         if input_raw is None or input_raw == "":
             continue
         try:
-            val = float(input_raw)
+            # Strip commas or non-numeric suffixes if any
+            clean_str = str(input_raw).replace(",", "").strip()
+            val = float(clean_str)
         except (ValueError, TypeError):
-            continue
+            import re
+            m = re.search(r"(\d+(?:\.\d+)?)", str(input_raw))
+            if m:
+                try:
+                    val = float(m.group(1))
+                except (ValueError, TypeError):
+                    continue
+            else:
+                continue
 
         stat_key = field_mapping.get(field_key)
         if not stat_key or stat_key not in operational_stats:
@@ -194,4 +205,5 @@ def check_input_outliers(field_values_dict):
     return {
         "is_flagged": len(outliers) > 0,
         "outliers": outliers,
+        "operational_stats": operational_stats,
     }
