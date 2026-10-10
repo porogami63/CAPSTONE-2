@@ -759,6 +759,9 @@ def cluster_detail(request, pk):
         {k: (float(v) if isinstance(v, Decimal) else v) for k, v in loan_requirement.items()}
     )
 
+    wf = cluster.get_workflow_steps_info()
+    is_concluded = wf["step5"]["complete"]
+
     return render(
         request,
         "operations/cluster_detail.html",
@@ -777,6 +780,8 @@ def cluster_detail(request, pk):
             "linked_mros": linked_mros,
             "available_mros": available_mros,
             "total_mro_tons": total_mro_tons,
+            "wf": wf,
+            "is_concluded": is_concluded,
         },
     )
 
@@ -1124,6 +1129,23 @@ def unarchive_cluster(request, pk):
 
         messages.success(request, f"Transaction cluster {cluster.reference_code} restored to active list.")
     return redirect("operations:archive_list")
+
+
+@role_required(
+    User.Role.ADMINISTRATOR,
+    User.Role.OPERATIONS_MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.MANAGEMENT,
+)
+def delete_cluster(request, pk):
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST":
+        ref = cluster.reference_code
+        cluster._audit_user = request.user
+        cluster.delete()
+        messages.success(request, f"Transaction Purchase Order {ref} has been permanently deleted.")
+        return redirect("operations:cluster_list")
+    return redirect("operations:cluster_detail", pk=pk)
 
 
 @role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)

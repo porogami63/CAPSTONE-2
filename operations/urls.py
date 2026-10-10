@@ -23,6 +23,7 @@ urlpatterns = [
     path("bulk-archive/", views.bulk_archive_completed, name="bulk_archive_completed"),
     path("<uuid:pk>/archive/", views.archive_cluster, name="archive_cluster"),
     path("<uuid:pk>/unarchive/", views.unarchive_cluster, name="unarchive_cluster"),
+    path("<uuid:pk>/delete/", views.delete_cluster, name="delete_cluster"),
     path("<uuid:pk>/upload-mro/", views.upload_mro, name="upload_mro"),
     path("mro-summary/", views.mro_summary_view, name="mro_summary"),
     path("mro-summary/create/", views.mro_create_view, name="mro_create"),

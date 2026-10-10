@@ -55,12 +55,14 @@
         <div class="d-flex align-items-center gap-2">
             {% if cluster.status == 'returned' %}
             <span class="badge bg-danger px-3 py-1.5 fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> Returned / Revision Required</span>
+            {% elif wf.step5.complete or cluster.status == 'closed' %}
+            <span class="badge bg-success text-white px-3 py-1.5 fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Concluded &amp; Settled</span>
+            {% elif cluster.status == 'delivered' %}
+            <span class="badge bg-info text-dark px-3 py-1.5 fw-bold"><i class="bi bi-box-seam me-1"></i> Delivered</span>
             {% elif cluster.status == 'approved' or cluster.status == 'active' %}
             <span class="badge bg-success text-white px-3 py-1.5 fw-bold"><i class="bi bi-patch-check-fill me-1"></i> Approved &amp; Active</span>
             {% elif cluster.status == 'pending_approval' %}
             <span class="badge bg-warning text-dark px-3 py-1.5 fw-bold"><i class="bi bi-clock-history me-1"></i> Pending Executive Review</span>
-            {% elif cluster.status == 'closed' %}
-            <span class="badge bg-secondary text-white px-3 py-1.5 fw-bold"><i class="bi bi-lock-fill me-1"></i> Transaction Closed</span>
             {% else %}
             <span class="badge bg-info text-dark px-3 py-1.5 fw-bold">{{ cluster.get_status_display }}</span>
             {% endif %}
@@ -195,17 +197,20 @@
         </a>
 
         <!-- STEP 5: Finance Settlement -->
-        <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link"
-           data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top"
-           title="&lt;div class='text-start p-1'&gt;&lt;strong&gt;{% if wf.step5.complete %}✓{% else %}⚠️{% endif %} Step 05: Finance Settlement &amp; Closure&lt;/strong&gt;&lt;br&gt;&lt;span class='text-xs text-muted'&gt;Status: {{ wf.step5.status_text }}&lt;/span&gt;{% if wf.step5.missing %}&lt;div class='mt-1 pt-1 border-top border-secondary text-warning text-xs'&gt;&lt;strong&gt;Missing Prerequisites:&lt;/strong&gt;&lt;br&gt;{% for m in wf.step5.missing %}• {{ m }}&lt;br&gt;{% endfor %}&lt;/div&gt;{% else %}&lt;div class='text-success text-xs mt-1'&gt;✓ Deal fully settled and closed.&lt;/div&gt;{% endif %}&lt;/div&gt;">
-            {% if wf.step5.complete %}
+        {% if wf.step5.complete %}
+        <div role="button" class="flowchart-step-link" data-bs-toggle="modal" data-bs-target="#debriefModal" title="Click to view finalized Audit Debrief Statement">
             <div class="flowchart-step is-completed w-100">
                 <div class="flowchart-node"><i class="bi bi-check-lg"></i></div>
                 <div class="flowchart-label">Settlement</div>
-                <div class="flowchart-subtext">Deal Closed</div>
-                <span class="prereq-pill is-ok"><i class="bi bi-shield-check"></i> Closed</span>
+                <div class="flowchart-subtext">Deal Concluded</div>
+                <span class="prereq-pill is-ok"><i class="bi bi-shield-check"></i> Concluded</span>
             </div>
-            {% elif wf.current_step == 5 %}
+        </div>
+        {% else %}
+        <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link"
+           data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top"
+           title="&lt;div class='text-start p-1'&gt;&lt;strong&gt;⚠️ Step 05: Finance Settlement &amp; Closure&lt;/strong&gt;&lt;br&gt;&lt;span class='text-xs text-muted'&gt;Status: {{ wf.step5.status_text }}&lt;/span&gt;{% if wf.step5.missing %}&lt;div class='mt-1 pt-1 border-top border-secondary text-warning text-xs'&gt;&lt;strong&gt;Missing Prerequisites:&lt;/strong&gt;&lt;br&gt;{% for m in wf.step5.missing %}• {{ m }}&lt;br&gt;{% endfor %}&lt;/div&gt;{% else %}&lt;div class='text-success text-xs mt-1'&gt;✓ Deal fully settled and closed.&lt;/div&gt;{% endif %}&lt;/div&gt;">
+            {% if wf.current_step == 5 %}
             <div class="flowchart-step is-active w-100">
                 <div class="flowchart-node">05</div>
                 <div class="flowchart-label">Settlement</div>
@@ -223,6 +228,7 @@
             </div>
             {% endif %}
         </a>
+        {% endif %}
     </div>
 
 

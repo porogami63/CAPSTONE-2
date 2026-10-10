@@ -128,7 +128,9 @@ class TransactionCluster(models.Model):
             s3_missing.append("PO must be approved by Executive Manager")
 
         has_mro = bool(self.mro_file) or (linked_mro_count > 0)
-        if not has_mro:
+        is_received = bool(logistics and logistics.received_volume_mt and logistics.received_volume_mt > 0)
+        is_delivered = self.status in [self.Status.DELIVERED, self.Status.CLOSED]
+        if not has_mro and not is_received and not is_delivered:
             s3_missing.append("MRO Release Permit / scanned copy linked")
 
         if not logistics or not (logistics.partner or logistics.trucking_partner or logistics.barge_partner):
@@ -146,10 +148,8 @@ class TransactionCluster(models.Model):
         s4_missing = []
         if not s2_approved:
             s4_missing.append("PO must be approved by Executive Manager")
-        if not (logistics and logistics.received_volume_mt and logistics.received_volume_mt > 0):
+        if not is_received and not is_delivered:
             s4_missing.append("Logistics delivery receiving (Received MT) recorded")
-        if logistics and not (logistics.waybill_file or logistics.dr_file):
-            s4_missing.append("Supporting Waybill or Delivery Receipt (DR) scan attached")
         if not invoices.exists():
             s4_missing.append("Sales Invoice issued & recorded")
         else:
@@ -162,14 +162,22 @@ class TransactionCluster(models.Model):
         # Step 5: Finance Settlement & Closure
         s5_missing = []
         if not s4_complete:
-            s5_missing.append("Sales Invoices must be fully issued and paid")
-        active_loans = loans.exclude(status="closed")
+            if not invoices.exists():
+                s5_missing.append("Sales Invoices must be issued")
+            else:
+                unpaid_count = invoices.exclude(status="paid").count()
+                if unpaid_count > 0:
+                    s5_missing.append(f"{unpaid_count} sales invoice(s) pending payment")
+                else:
+                    s5_missing.append("Sales Invoicing stage must be completed")
+
+        active_loans = loans.exclude(status="closed").exclude(status="rejected")
         if active_loans.exists():
             s5_missing.append(f"{active_loans.count()} active capital loan facility(ies) pending settlement")
         if self.status not in [self.Status.DELIVERED, self.Status.CLOSED]:
             s5_missing.append("Deal status must be marked as Delivered or Closed")
 
-        s5_complete = len(s5_missing) == 0 and s4_complete
+        s5_complete = (len(s5_missing) == 0) and s4_complete
 
         if s5_complete:
             current_step = 5
