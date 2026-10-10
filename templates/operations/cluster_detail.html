@@ -18,12 +18,16 @@
     {% endif %}
 
     {% if user|has_perm:"approve_transaction" %}
-    {% if cluster.status != 'approved' %}
+    {% if cluster.status == 'pending_approval' %}
     <form method="post" action="{% url 'operations:approve_cluster' cluster.pk %}" style="display:inline;">{% csrf_token %}
         <button type="submit" class="btn btn-sm btn-success fw-bold shadow-xs" data-bs-toggle="tooltip" title="Executive Approval unlocks Logistics dispatch and Receiving operations"><i class="bi bi-check-circle me-1"></i> Approve PO</button>
     </form>
     <button type="button" class="btn btn-sm btn-danger fw-bold shadow-xs" data-bs-toggle="modal" data-bs-target="#rejectClusterModal">
         <i class="bi bi-x-circle me-1"></i> Return / Reject PO
+    </button>
+    {% elif cluster.status == 'approved' %}
+    <button type="button" class="btn btn-sm btn-outline-danger fw-bold shadow-xs" data-bs-toggle="modal" data-bs-target="#rejectClusterModal">
+        <i class="bi bi-arrow-return-left me-1"></i> Return Order for Changes
     </button>
     {% endif %}
     {% endif %}
