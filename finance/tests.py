@@ -319,8 +319,8 @@ class LoanValidationTests(TestCase):
 				"due_date": str(date.today() + timedelta(days=60)),
 			},
 		)
-		self.assertEqual(res.status_code, 200) # Re-renders page with errors
-		self.assertContains(res, "already 100% funded across existing facilities")
+		self.assertEqual(res.status_code, 200) # Re-renders page with errors because cluster is excluded from dropdown choices
+		self.assertContains(res, "Select a valid choice. That choice is not one of the available choices.")
 		self.assertFalse(CapitalLoan.objects.filter(cluster=self.cluster, bank_name="BDO Extra").exists())
 
 	def test_loan_creation_accepts_valid_principal(self):
