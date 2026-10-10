@@ -60,6 +60,12 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       - ./templates:/app/templates
+      - ./operations:/app/operations
+      - ./finance:/app/finance
+      - ./accounts:/app/accounts
+      - ./masters:/app/masters
+      - ./config:/app/config
+      - ./static:/app/static
 
   nginx:
     image: nginx:1.27-alpine
@@ -92,6 +98,14 @@ services:
       DATABASE_URL: "postgres://${POSTGRES_USER:-htc}:${POSTGRES_PASSWORD:-htc}@db:5432/${POSTGRES_DB:-htc_core}"
       CELERY_BROKER_URL: "redis://redis:6379/0"
       CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+    volumes:
+      - ./operations:/app/operations
+      - ./finance:/app/finance
+      - ./accounts:/app/accounts
+      - ./masters:/app/masters
+      - ./config:/app/config
+      - ./templates:/app/templates
+      - media_volume:/app/media
     depends_on:
       db:
         condition: service_healthy
