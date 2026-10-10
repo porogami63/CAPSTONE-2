@@ -104,11 +104,12 @@ class TransactionClusterForm(forms.ModelForm):
 
     class Meta:
         model = TransactionCluster
-        fields = ["reference_code", "client", "sugar_mill", "contract_notes"]
+        fields = ["reference_code", "client", "sugar_mill", "contract_notes", "status"]
         widgets = {
             "reference_code": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated (e.g. PO-20260925-001)"}),
             "client": forms.Select(attrs={"class": "form-select-htc"}),
             "sugar_mill": forms.Select(attrs={"class": "form-select-htc"}),
+            "status": forms.Select(attrs={"class": "form-select-htc"}),
             "contract_notes": forms.Textarea(attrs={"class": "form-control-htc", "rows": 3, "placeholder": "Optional internal notes or delivery instructions..."}),
         }
 
@@ -120,10 +121,14 @@ class TransactionClusterForm(forms.ModelForm):
         self.fields["sugar_mill"].queryset = SugarMill.objects.filter(is_active=True)
         self.fields["client"].empty_label = "Select Customer (Client)..."
         self.fields["sugar_mill"].empty_label = "Select Supplier (Sugar Mill)..."
+        if "status" in self.fields:
+            self.fields["status"].choices = TransactionCluster.Status.choices
 
         if not self.instance or not self.instance.pk:
             if not self.initial.get("reference_code"):
                 self.initial["reference_code"] = generate_po_reference()
+            if not self.initial.get("status"):
+                self.initial["status"] = TransactionCluster.Status.DRAFT
 
         if self.instance and self.instance.pk:
             if hasattr(self.instance, "purchase_order") and self.instance.purchase_order:
