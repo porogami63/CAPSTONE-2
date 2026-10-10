@@ -3,7 +3,8 @@
 import re
 from decimal import Decimal
 
-from finance.models import Invoice
+from django.db.models import Sum
+from finance.models import CapitalLoan, Invoice
 
 
 def _parse_selling_from_terms(terms: str) -> Decimal | None:
@@ -162,6 +163,20 @@ def loan_requirement_data(cluster) -> dict:
     freight_dp = (freight * pct).quantize(two)
     required = sourcing + trucking_dp + freight_dp
 
+    already_loaned = Decimal("0")
+    loans_count = 0
+    if hasattr(cluster, "loans"):
+        non_rejected = cluster.loans.exclude(status=CapitalLoan.Status.REJECTED)
+        loans_count = non_rejected.count()
+        agg = non_rejected.aggregate(total=Sum("principal"))["total"]
+        if agg:
+            already_loaned = Decimal(str(agg)).quantize(two)
+
+    remaining_required = max(Decimal("0"), required - already_loaned)
+    is_complete = (loans_count > 0 and already_loaned >= required - two) if required > 0 else (loans_count > 0)
+    completion_pct = float(round(min(Decimal("100.0"), (already_loaned / required * Decimal("100"))), 1)) if required > 0 else (100.0 if loans_count > 0 else 0.0)
+    remaining_pct = float(round(max(Decimal("0.0"), Decimal("100.0") - Decimal(str(completion_pct))), 1)) if required > 0 else 0.0
+
     return {
         "cluster_id": str(cluster.pk),
         "ref": cluster.reference_code,
@@ -173,6 +188,12 @@ def loan_requirement_data(cluster) -> dict:
         "trucking_down_payment": trucking_dp,
         "freight_down_payment": freight_dp,
         "required": required,
+        "already_loaned": already_loaned,
+        "remaining_required": remaining_required,
+        "is_complete": is_complete,
+        "completion_pct": completion_pct,
+        "remaining_pct": remaining_pct,
+        "loans_count": loans_count,
         "has_data": required > 0,
         "formula": (
             f"₱{sourcing:,.2f} (Sourcing, 100%) + ₱{trucking_dp:,.2f} (Trucking {LOGISTICS_DOWN_PAYMENT_PCT:g}% of ₱{trucking:,.2f}) "
@@ -205,8 +226,11 @@ def get_invoice_suggestion_data(cluster) -> dict:
     remaining_received_balance = max(0.0, round(received_total - already_invoiced, 2)) if received_vol > 0 else 0.0
 
     suggested_full = remaining_balance if (already_invoiced > 0 or remaining_balance > 0) else contract_total
-
     has_existing_invoice = invoices_count > 0
+
+    is_complete = (invoices_count > 0 and (remaining_balance <= 0.01 or already_invoiced >= contract_total - 0.01)) if contract_total > 0 else (invoices_count > 0)
+    completion_pct = round(min(100.0, (already_invoiced / contract_total * 100)), 1) if contract_total > 0 else (100.0 if invoices_count > 0 else 0.0)
+    remaining_pct = round(max(0.0, 100.0 - completion_pct), 1)
 
     return {
         "cluster_id": str(cluster.id) if hasattr(cluster, "id") else None,
@@ -220,6 +244,9 @@ def get_invoice_suggestion_data(cluster) -> dict:
         "has_existing_invoice": has_existing_invoice,
         "incremental_required": has_existing_invoice,
         "remaining_balance": remaining_balance,
+        "is_complete": is_complete,
+        "completion_pct": completion_pct,
+        "remaining_pct": remaining_pct,
         "received_volume": received_vol,
         "received_total": received_total,
         "remaining_received_balance": remaining_received_balance,

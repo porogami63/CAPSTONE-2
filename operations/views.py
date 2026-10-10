@@ -866,6 +866,15 @@ def update_logistics(request, pk):
 def add_invoice(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
+        from operations.services.pricing import get_invoice_suggestion_data
+        sugg = get_invoice_suggestion_data(cluster)
+        if sugg["is_complete"]:
+            messages.error(
+                request,
+                f"Cannot issue additional invoice: Transaction {cluster.reference_code} is already 100% invoiced (₱{sugg['already_invoiced']:,.2f} of ₱{sugg['contract_total']:,.2f})."
+            )
+            return redirect("operations:cluster_detail", pk=pk)
+
         form = InvoiceForm(request.POST, cluster=cluster)
         if form.is_valid():
             invoice = form.save(commit=False)
@@ -938,6 +947,15 @@ def add_voucher(request, pk):
 def add_loan(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
+        from operations.services.pricing import loan_requirement_data
+        req = loan_requirement_data(cluster)
+        if req["is_complete"]:
+            messages.error(
+                request,
+                f"Cannot link additional loan: Capital requirement for {cluster.reference_code} is already 100% funded (₱{req['already_loaned']:,.2f} of ₱{req['required']:,.2f})."
+            )
+            return redirect("operations:cluster_detail", pk=pk)
+
         form = CapitalLoanForm(request.POST, user=request.user, cluster=cluster)
         if form.is_valid():
             loan = form.save(commit=False)
@@ -1002,6 +1020,9 @@ def update_invoice_status(request, invoice_pk):
                 request,
                 f"Invoice {invoice.invoice_number} status updated to {invoice.get_status_display()}.",
             )
+        next_url = request.POST.get("next")
+        if next_url:
+            return redirect(next_url)
     return redirect("operations:cluster_detail", pk=invoice.cluster.pk)
 
 

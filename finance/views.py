@@ -526,7 +526,10 @@ def invoice_list(request):
             )
             return redirect("finance:invoice_list")
         else:
-            messages.error(request, "Error creating invoice. Please check your form input.")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    field_label = form.fields[field].label if field in form.fields and form.fields[field].label else field
+                    messages.error(request, f"{field_label}: {error}")
     else:
         form = StandaloneInvoiceForm()
 

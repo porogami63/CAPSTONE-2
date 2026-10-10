@@ -1,6 +1,8 @@
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django import forms
+from django.db.models import Sum
 from django.utils import timezone
 
 from finance.models import CapitalLoan, CashVoucher, Invoice, PaymentExpenseMatch
@@ -37,8 +39,16 @@ class StandaloneInvoiceForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["invoice_number"].required = False
-        self.fields["cluster"].queryset = (
+        from operations.services.pricing import get_invoice_suggestion_data
+        all_clusters = (
             TransactionCluster.objects.filter(is_archived=False)
+            .select_related("client", "sugar_mill", "purchase_order")
+            .prefetch_related("invoices")
+            .order_by("-created_at")
+        )
+        valid_cluster_ids = [c.id for c in all_clusters if not get_invoice_suggestion_data(c)["is_complete"]]
+        self.fields["cluster"].queryset = (
+            TransactionCluster.objects.filter(id__in=valid_cluster_ids)
             .select_related("client", "sugar_mill", "purchase_order")
             .order_by("-created_at")
         )
@@ -66,6 +76,16 @@ class StandaloneInvoiceForm(forms.ModelForm):
                 self.add_error(
                     "cluster",
                     "A Capital Loan must be fulfilled (Active/Settled) for this transaction before invoices can be issued."
+                )
+
+            # 2. Check if 100% full contract target has already been invoiced
+            from operations.services.pricing import get_invoice_suggestion_data
+            sugg = get_invoice_suggestion_data(cluster)
+            if (not self.instance or not self.instance.pk) and sugg["is_complete"]:
+                self.add_error(
+                    "cluster",
+                    f"Full 100% contract balance (₱{sugg['already_invoiced']:,.2f}) has already been issued for {cluster.reference_code}. "
+                    "Creation of additional invoices is restricted once the full contract balance is 100% invoiced."
                 )
         return cleaned_data
 
@@ -115,7 +135,7 @@ class InvoiceForm(forms.ModelForm):
             # 2. Check if 100% full contract target has already been invoiced
             from operations.services.pricing import get_invoice_suggestion_data
             sugg = get_invoice_suggestion_data(self.cluster)
-            if (not self.instance or not self.instance.pk) and sugg["invoices_count"] > 0 and sugg["remaining_balance"] <= 0.01:
+            if (not self.instance or not self.instance.pk) and sugg["is_complete"]:
                 raise forms.ValidationError(
                     f"Full 100% contract balance (₱{sugg['already_invoiced']:,.2f}) has already been issued for this transaction. "
                     "Creation of additional invoices is restricted once the full contract balance is 100% invoiced."
@@ -189,12 +209,22 @@ class LoanRulesMixin:
                 from operations.services.pricing import loan_requirement_data
 
                 req = loan_requirement_data(cluster)
-                if req["has_data"] and principal < req["required"]:
-                    shortfall = req["required"] - principal
+                existing_loans = cluster.loans.exclude(status=CapitalLoan.Status.REJECTED)
+                if self.instance and self.instance.pk:
+                    existing_loans = existing_loans.exclude(pk=self.instance.pk)
+
+                already_loaned = Decimal("0")
+                agg = existing_loans.aggregate(total=Sum("principal"))["total"]
+                if agg:
+                    already_loaned = Decimal(str(agg)).quantize(Decimal("0.01"))
+
+                rem_req = max(Decimal("0"), req["required"] - already_loaned)
+
+                if is_new and existing_loans.exists() and rem_req <= Decimal("0.01"):
                     self.add_error(
                         "principal",
-                        f"Principal ₱{principal:,.2f} is ₱{shortfall:,.2f} short of the required ₱{req['required']:,.2f}. "
-                        f"Required = {req['formula']}.",
+                        f"Capital loan requirement (₱{req['required']:,.2f}) for {cluster.reference_code} is already 100% funded across existing facilities. "
+                        "Additional loan creation is restricted.",
                     )
 
         if interest_rate is not None:
@@ -271,8 +301,16 @@ class StandaloneLoanForm(LoanRulesMixin, forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["cluster"].queryset = (
+        from operations.services.pricing import loan_requirement_data
+        all_clusters = (
             TransactionCluster.objects.filter(is_archived=False)
+            .select_related("client", "sugar_mill", "purchase_order", "logistics")
+            .prefetch_related("loans")
+            .order_by("-created_at")
+        )
+        valid_loan_cluster_ids = [c.id for c in all_clusters if not loan_requirement_data(c)["is_complete"]]
+        self.fields["cluster"].queryset = (
+            TransactionCluster.objects.filter(id__in=valid_loan_cluster_ids)
             .select_related("client", "sugar_mill", "purchase_order")
             .order_by("-created_at")
         )

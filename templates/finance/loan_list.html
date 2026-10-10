@@ -749,6 +749,10 @@ function switchFinanceTab(tabKey, btn) {
                                     <div class="col-md-3">Barging/Freight (50%): <strong id="suggFreight">₱0.00</strong></div>
                                     <div class="col-md-3 text-md-end">Min Required: <strong class="text-danger fs-6" id="suggRequired">₱0.00</strong></div>
                                 </div>
+                                <div id="suggPartialRow" class="row g-2 fs-7 text-dark mb-2 pt-1 border-top border-primary-subtle" style="display: none;">
+                                    <div class="col-md-6">Already Funded: <strong class="text-success" id="suggAlreadyLoaned">₱0.00</strong> (<span id="suggPctFunded">0</span>%)</div>
+                                    <div class="col-md-6 text-md-end">Remaining Required: <strong class="text-primary fs-6" id="suggRemainingRequired">₱0.00</strong> (<span id="suggPctRemaining">0</span>%)</div>
+                                </div>
                                 <div class="text-muted text-xs fst-italic" id="suggFormula">Select a transaction cluster to compute minimum loan coverage.</div>
                             </div>
                         </div>
@@ -759,7 +763,9 @@ function switchFinanceTab(tabKey, btn) {
                         </div>
                         <div class="col-md-6">
                             <label class="form-label font-semibold text-sm">Loan Principal Amount (₱) <span class="text-danger">*</span></label>
-                            {{ loan_form.principal }}
+                            <div id="standaloneLoanPrincipalWrap" data-bs-toggle="tooltip" data-bs-placement="top" title="Select a transaction cluster to view suggested capital requirement">
+                                {{ loan_form.principal }}
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label font-semibold text-sm">Annual Interest Rate (%) <span class="text-danger">*</span></label>
@@ -853,10 +859,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('suggFreight').textContent = formatMoney(data.freight_down_payment);
                 document.getElementById('suggRequired').textContent = formatMoney(data.required);
                 document.getElementById('suggFormula').textContent = data.formula;
+
+                var partialRow = document.getElementById('suggPartialRow');
+                var principalWrap = document.getElementById('standaloneLoanPrincipalWrap');
+                var targetAmt = (data.remaining_required > 0) ? data.remaining_required : data.required;
+
+                if (data.already_loaned > 0) {
+                    if (partialRow) {
+                        partialRow.style.display = 'flex';
+                        document.getElementById('suggAlreadyLoaned').textContent = formatMoney(data.already_loaned);
+                        document.getElementById('suggPctFunded').textContent = data.completion_pct;
+                        document.getElementById('suggRemainingRequired').textContent = formatMoney(data.remaining_required);
+                        document.getElementById('suggPctRemaining').textContent = data.remaining_pct;
+                    }
+                    var tip = 'Remaining Capital Balance Required: ' + formatMoney(data.remaining_required) + ' (' + data.remaining_pct + '% of Total Min Required ' + formatMoney(data.required) + ')';
+                    if (principalWrap) {
+                        principalWrap.setAttribute('title', tip);
+                        principalWrap.setAttribute('data-bs-original-title', tip);
+                    }
+                    if (principalInput) {
+                        principalInput.setAttribute('title', tip);
+                        principalInput.setAttribute('placeholder', 'Remaining: ' + formatMoney(targetAmt));
+                    }
+                } else {
+                    if (partialRow) partialRow.style.display = 'none';
+                    var tip = 'Suggested Min Capital Requirement: ' + formatMoney(data.required);
+                    if (principalWrap) {
+                        principalWrap.setAttribute('title', tip);
+                        principalWrap.setAttribute('data-bs-original-title', tip);
+                    }
+                    if (principalInput) {
+                        principalInput.setAttribute('title', tip);
+                        principalInput.setAttribute('placeholder', 'Suggested: ' + formatMoney(data.required));
+                    }
+                }
+
                 suggCard.style.display = 'block';
 
                 if (!principalInput.value || parseFloat(principalInput.value) <= 0) {
-                    principalInput.value = data.required.toFixed(2);
+                    principalInput.value = targetAmt.toFixed(2);
                 }
             })
             .catch(err => console.error(err));
@@ -873,8 +914,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (applyBtn) {
         applyBtn.addEventListener('click', function() {
-            if (currentSuggestion && currentSuggestion.required) {
-                principalInput.value = currentSuggestion.required.toFixed(2);
+            if (currentSuggestion) {
+                var amtToApply = (currentSuggestion.remaining_required > 0) ? currentSuggestion.remaining_required : currentSuggestion.required;
+                if (amtToApply) {
+                    principalInput.value = amtToApply.toFixed(2);
+                }
                 var today = new Date();
                 var todayStr = today.toISOString().split('T')[0];
                 if (!startDateInput.value) startDateInput.value = todayStr;

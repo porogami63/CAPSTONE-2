@@ -342,7 +342,22 @@
                             </span>
                         </td>
                         <td onclick="event.stopPropagation();">
-                            <div class="d-inline-flex gap-1">
+                            <div class="d-inline-flex align-items-center gap-1">
+                                {% if user|has_perm:"add_invoice" %}
+                                <form method="post" action="{% url 'operations:update_invoice_status' inv.pk %}" style="display: inline-flex; gap: 0.25rem; margin: 0;">{% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    {% if inv.status == 'draft' %}
+                                    <button type="submit" name="status" value="issued" class="btn-htc-outline btn-sm" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; color: var(--htc-primary-light); border-color: rgba(96,165,250,0.4);" title="Mark as Issued">
+                                        <i class="bi bi-send-check"></i> Issue
+                                    </button>
+                                    {% endif %}
+                                    {% if inv.status != 'paid' %}
+                                    <button type="submit" name="status" value="paid" class="btn-htc btn-sm" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; background: var(--htc-success); border-color: var(--htc-success);" title="Mark as Paid">
+                                        <i class="bi bi-check-circle-fill"></i> Mark Paid
+                                    </button>
+                                    {% endif %}
+                                </form>
+                                {% endif %}
                                 <a href="{% url 'operations:cluster_detail' inv.cluster.pk %}" class="btn-htc-outline btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;" title="Open Transaction Cluster Details">
                                     <i class="bi bi-eye-fill me-1"></i> View Deal
                                 </a>
@@ -421,10 +436,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const tipText = 'Suggested Contract Target: ' + formatPHP(currentSuggestion.suggested_full) +
-            (currentSuggestion.remaining_balance < currentSuggestion.contract_total ? ' (Remaining Balance: ' + formatPHP(currentSuggestion.remaining_balance) + ')' : '');
+        const tipText = (currentSuggestion.already_invoiced > 0)
+            ? ('Remaining Balance to Issue: ' + formatPHP(currentSuggestion.remaining_balance) + ' (' + currentSuggestion.remaining_pct + '% of PO Target ' + formatPHP(currentSuggestion.contract_total) + ')')
+            : ('Suggested Contract Target: ' + formatPHP(currentSuggestion.suggested_full) + ' (100% of PO contract value)');
         amtInput.setAttribute('title', tipText);
-        amtInput.setAttribute('placeholder', 'Suggested: ' + formatPHP(currentSuggestion.suggested_full));
+        amtInput.setAttribute('placeholder', (currentSuggestion.already_invoiced > 0 ? 'Remaining: ' : 'Suggested: ') + formatPHP(currentSuggestion.suggested_full));
+        if (!amtInput.value || parseFloat(amtInput.value) <= 0) {
+            amtInput.value = currentSuggestion.suggested_full.toFixed(2);
+        }
+        const wrap = document.getElementById('standaloneAmountWrap');
+        if (wrap) {
+            wrap.setAttribute('title', tipText);
+            wrap.setAttribute('data-bs-original-title', tipText);
+        }
 
         evaluateAmountFeedback();
     }

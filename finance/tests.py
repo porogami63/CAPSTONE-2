@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.test import TestCase
 from django.urls import reverse
@@ -295,22 +296,32 @@ class LoanValidationTests(TestCase):
 		# Required = 1,000,000 + 50,000 + 100,000 = 1,150,000
 		self.assertEqual(req["required"], 1150000.0)
 
-	def test_loan_creation_hard_blocks_insufficient_principal(self):
-		# Required = 1,150,000. Try submitting 1,000,000
+	def test_loan_creation_blocks_when_already_fully_funded(self):
+		# First create a fully funding loan
+		CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="BDO",
+			principal=Decimal("1150000.00"),
+			interest_rate_annual=Decimal("10.00"),
+			start_date=date.today(),
+			due_date=date.today() + timedelta(days=60),
+			status=CapitalLoan.Status.ACTIVE,
+		)
+		# Now try submitting another loan for the same cluster
 		res = self.client.post(
 			reverse("finance:loan_list"),
 			{
 				"cluster": self.cluster.pk,
-				"bank_name": "BDO",
-				"principal": "1000000.00",
+				"bank_name": "BDO Extra",
+				"principal": "500000.00",
 				"interest_rate_annual": "10.00",
 				"start_date": str(date.today()),
 				"due_date": str(date.today() + timedelta(days=60)),
 			},
 		)
 		self.assertEqual(res.status_code, 200) # Re-renders page with errors
-		self.assertContains(res, "short of the required")
-		self.assertFalse(CapitalLoan.objects.filter(cluster=self.cluster, bank_name="BDO").exists())
+		self.assertContains(res, "already 100% funded across existing facilities")
+		self.assertFalse(CapitalLoan.objects.filter(cluster=self.cluster, bank_name="BDO Extra").exists())
 
 	def test_loan_creation_accepts_valid_principal(self):
 		res = self.client.post(

@@ -584,6 +584,7 @@
                                     <div style="display: inline-flex; align-items: center; gap: 0.4rem;">
                                         {% if user|has_perm:"add_invoice" %}
                                         <form method="post" action="{% url 'operations:update_invoice_status' inv.pk %}" style="display: inline-flex; gap: 0.25rem; margin: 0;">{% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                             {% if inv.status == 'draft' %}
                                             <button type="submit" name="status" value="issued" class="btn-htc-outline" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; color: var(--htc-primary-light); border-color: rgba(96,165,250,0.4);" title="Mark as Issued">
                                                 <i class="bi bi-send-check"></i> Issue
@@ -610,7 +611,27 @@
                 <p style="color: var(--htc-text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">No invoices recorded for this transaction yet.</p>
                 {% endif %}
 
-                {% if user|has_perm:"add_invoice" %}
+                {% if invoice_suggestion_data.is_complete %}
+                <div class="p-3 rounded-3 border d-flex align-items-center justify-content-between mb-2 shadow-sm" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3) !important;">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                        <div>
+                            <div class="fw-bold text-success" style="font-size: 0.85rem;">100% Sales Invoiced (₱{{ invoice_suggestion_data.already_invoiced|floatformat:2|intcomma }})</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Full PO contract revenue is 100% invoiced across {{ invoice_suggestion_data.invoices_count }} invoice{{ invoice_suggestion_data.invoices_count|pluralize }}. Additional invoice issuance is closed.</div>
+                        </div>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1" style="font-size: 0.72rem;">Fully Billed</span>
+                </div>
+                {% elif user|has_perm:"add_invoice" %}
+                {% if invoice_suggestion_data.already_invoiced > 0 %}
+                <div class="alert alert-warning py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-sm">
+                    <span>
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        <strong>Partial Invoicing Active:</strong> ₱{{ invoice_suggestion_data.already_invoiced|floatformat:2|intcomma }} ({{ invoice_suggestion_data.completion_pct }}%) billed. Remaining contract balance to issue: <strong>₱{{ invoice_suggestion_data.remaining_balance|floatformat:2|intcomma }}</strong> ({{ invoice_suggestion_data.remaining_pct }}%).
+                    </span>
+                    <span class="badge bg-warning text-dark">{{ invoice_suggestion_data.remaining_pct }}% Remaining</span>
+                </div>
+                {% endif %}
                 <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1rem 1.15rem;" open>
                     <summary style="cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
                         <i class="bi bi-plus-circle-fill text-primary"></i> Issue New Invoice
@@ -644,7 +665,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label style="font-size: 0.78rem; font-weight: 600; color: var(--htc-text-muted);" class="mb-1">Amount (₱)</label>
-                                <div id="detailAmountWrap" data-bs-toggle="tooltip" data-bs-placement="top" title="{% if invoice_suggestion_data %}Suggested Contract Balance: ₱{{ invoice_suggestion_data.suggested_full|floatformat:2|intcomma }}{% if invoice_suggestion_data.remaining_balance < invoice_suggestion_data.contract_total %} (Remaining PO Balance: ₱{{ invoice_suggestion_data.remaining_balance|floatformat:2|intcomma }}){% endif %}{% else %}Enter invoice amount in PHP{% endif %}">
+                                <div id="detailAmountWrap" data-bs-toggle="tooltip" data-bs-placement="top" title="{% if invoice_suggestion_data %}{% if invoice_suggestion_data.already_invoiced > 0 %}Remaining PO Balance: ₱{{ invoice_suggestion_data.remaining_balance|floatformat:2|intcomma }} ({{ invoice_suggestion_data.remaining_pct }}% of PO Target ₱{{ invoice_suggestion_data.contract_total|floatformat:2|intcomma }}){% else %}Suggested Contract Balance: ₱{{ invoice_suggestion_data.suggested_full|floatformat:2|intcomma }}{% endif %}{% else %}Enter invoice amount in PHP{% endif %}">
                                     {{ invoice_form.amount }}
                                 </div>
                                 <div id="detailAmountFeedback" class="form-text text-xs mt-1 text-primary fw-medium" style="display: none;"></div>
@@ -690,10 +711,14 @@
 
                     const amtInput = getDetailInput();
                     if (amtInput && data && data.selling_price > 0) {
-                        const tipText = 'Suggested Contract Target: ' + fmt(data.suggested_full) +
-                            (data.remaining_balance < data.contract_total ? ' (Remaining Balance: ' + fmt(data.remaining_balance) + ')' : '');
+                        const tipText = (data.already_invoiced > 0)
+                            ? ('Remaining PO Balance: ' + fmt(data.remaining_balance) + ' (' + data.remaining_pct + '% of Target ' + fmt(data.contract_total) + ')')
+                            : ('Suggested Contract Target: ' + fmt(data.suggested_full));
                         amtInput.setAttribute('title', tipText);
-                        amtInput.setAttribute('placeholder', 'Suggested: ' + fmt(data.suggested_full));
+                        amtInput.setAttribute('placeholder', (data.already_invoiced > 0 ? 'Remaining: ' : 'Suggested: ') + fmt(data.suggested_full));
+                        if (!amtInput.value || parseFloat(amtInput.value) <= 0) {
+                            amtInput.value = data.suggested_full.toFixed(2);
+                        }
                     }
 
                     function updateFb() {
@@ -770,7 +795,27 @@
                 <p style="color: var(--htc-text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">No capital bank credit facilities linked to this trade.</p>
                 {% endfor %}
 
-                {% if user|has_perm:"add_loan" %}
+                {% if loan_requirement.is_complete %}
+                <div class="p-3 rounded-3 border d-flex align-items-center justify-content-between mb-2 shadow-sm" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3) !important;">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <i class="bi bi-shield-check text-success fs-5"></i>
+                        <div>
+                            <div class="fw-bold text-success" style="font-size: 0.85rem;">100% Capital Funded (₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }})</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Minimum capital requirement fulfilled across {{ loan_requirement.loans_count }} facility{{ loan_requirement.loans_count|pluralize:"ies" }}. Additional loan linking is restricted.</div>
+                        </div>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1" style="font-size: 0.72rem;">Fully Covered</span>
+                </div>
+                {% elif user|has_perm:"add_loan" %}
+                {% if loan_requirement.already_loaned > 0 %}
+                <div class="alert alert-warning py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-sm">
+                    <span>
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        <strong>Partial Capital Funding:</strong> ₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }} ({{ loan_requirement.completion_pct }}%) funded. Remaining required balance: <strong>₱{{ loan_requirement.remaining_required|floatformat:2|intcomma }}</strong> ({{ loan_requirement.remaining_pct }}%).
+                    </span>
+                    <span class="badge bg-warning text-dark">{{ loan_requirement.remaining_pct }}% Remaining</span>
+                </div>
+                {% endif %}
                 <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;" {% if loan_form.errors %}open{% endif %}>
                     <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
                         <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Link Capital Loan Facility
@@ -802,7 +847,13 @@
                             <div class="col-md-3">Barging/Freight (50%): <strong>₱{{ loan_requirement.freight_down_payment|floatformat:2|intcomma }}</strong></div>
                             <div class="col-md-3 text-md-end">Min Required: <strong class="text-danger fs-6">₱{{ loan_requirement.required|floatformat:2|intcomma }}</strong></div>
                         </div>
-                        <div class="text-muted text-xs fst-italic">{{ loan_requirement.formula }}</div>
+                        {% if loan_requirement.already_loaned > 0 %}
+                        <div class="row g-2 fs-7 text-dark mt-1 pt-1 border-top border-primary-subtle">
+                            <div class="col-md-6">Already Funded: <strong class="text-success">₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }}</strong> ({{ loan_requirement.completion_pct }}%)</div>
+                            <div class="col-md-6 text-md-end">Remaining Required: <strong class="text-primary fs-6">₱{{ loan_requirement.remaining_required|floatformat:2|intcomma }}</strong> ({{ loan_requirement.remaining_pct }}%)</div>
+                        </div>
+                        {% endif %}
+                        <div class="text-muted text-xs fst-italic mt-1">{{ loan_requirement.formula }}</div>
                     </div>
 
                     <form method="post" action="{% url 'operations:add_loan' cluster.pk %}" class="form-stack mt-3" id="clusterDetailLoanForm">{% csrf_token %}
@@ -813,7 +864,9 @@
                             </div>
                             <div class="col-md-6">
                                 <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Principal Amount (₱)</label>
-                                {{ loan_form.principal }}
+                                <div data-bs-toggle="tooltip" data-bs-placement="top" title="{% if loan_requirement.already_loaned > 0 %}Remaining Capital Balance Required: ₱{{ loan_requirement.remaining_required|floatformat:2|intcomma }} (Total Min Required: ₱{{ loan_requirement.required|floatformat:2|intcomma }}){% else %}Suggested Min Capital Requirement: ₱{{ loan_requirement.required|floatformat:2|intcomma }}{% endif %}">
+                                    {{ loan_form.principal }}
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Annual Interest Rate (%)</label>
@@ -871,14 +924,16 @@
                     var chqInput = form.querySelector('[name="cheque_date"]');
                     var btnApply = document.getElementById('btnApplyDetailLoanSugg');
 
-                    if (pInput && loanReqData && loanReqData.required && (!pInput.value || parseFloat(pInput.value) <= 0)) {
-                        pInput.value = loanReqData.required.toFixed(2);
+                    var targetAmt = (loanReqData && loanReqData.remaining_required > 0) ? loanReqData.remaining_required : (loanReqData ? loanReqData.required : 0);
+                    if (pInput && targetAmt && (!pInput.value || parseFloat(pInput.value) <= 0)) {
+                        pInput.value = targetAmt.toFixed(2);
                     }
 
                     if (btnApply) {
                         btnApply.addEventListener('click', function() {
-                            if (loanReqData && loanReqData.required) {
-                                pInput.value = loanReqData.required.toFixed(2);
+                            if (loanReqData) {
+                                var amtToApply = (loanReqData.remaining_required > 0) ? loanReqData.remaining_required : loanReqData.required;
+                                if (amtToApply) pInput.value = amtToApply.toFixed(2);
                                 var todayStr = new Date().toISOString().split('T')[0];
                                 if (!startInput.value) startInput.value = todayStr;
                                 if (!chqInput.value) chqInput.value = startInput.value || todayStr;
