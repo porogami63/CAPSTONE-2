@@ -353,8 +353,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         filledAny = true;
                     }
                     if (termsInput && terms && (!termsInput.value || !userEditedFields.has(termsInput.id))) {
-                        termsInput.value = terms;
-                        filledAny = true;
+                        if (!terms.includes('Selenium') && !terms.includes('Automated')) {
+                            termsInput.value = terms;
+                            filledAny = true;
+                        }
                     }
                     if (brixInput && brix !== null && brix !== undefined && !userEditedFields.has(brixInput.id)) {
                         brixInput.value = parseFloat(brix).toFixed(1);

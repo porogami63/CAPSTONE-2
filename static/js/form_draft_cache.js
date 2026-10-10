@@ -13,6 +13,12 @@
  */
 
 (function () {
+    // If running under automated WebDriver test suite (Selenium, Puppeteer, Playwright),
+    // bypass draft caching to prevent polluting test runs or persistent browser state.
+    if (typeof window !== "undefined" && window.navigator && window.navigator.webdriver) {
+        return;
+    }
+
     const STORAGE_PREFIX = "htc_form_draft_v1:";
     const DRAFT_MAX_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
 
@@ -140,6 +146,7 @@
      * Save all eligible inputs for a form into localStorage.
      */
     function saveFormDraft(form, index) {
+        if (!form || form._isSubmitting) return;
         if (isAuthForm(form)) return;
 
         const storageKey = getFormStorageKey(form, index);
@@ -426,20 +433,25 @@
             });
 
             // Clear draft when form is submitted
-            form.addEventListener("submit", function () {
-                clearFormDraft(form, index);
+            form.addEventListener("submit", function (e) {
+                if (!e.defaultPrevented) {
+                    form._isSubmitting = true;
+                    clearFormDraft(form, index);
+                }
             });
 
             // Clear draft when form is reset
             form.addEventListener("reset", function () {
+                form._isSubmitting = true;
                 clearFormDraft(form, index);
+                setTimeout(() => { if (form) form._isSubmitting = false; }, 200);
             });
         });
 
-        // Flush save before page unload / navigation swap
+        // Flush save before page unload / navigation swap (only for unsubmitted drafts)
         window.addEventListener("beforeunload", function () {
             forms.forEach((form, index) => {
-                if (!isAuthForm(form)) {
+                if (!isAuthForm(form) && !form._isSubmitting) {
                     saveFormDraft(form, index);
                 }
             });
@@ -447,7 +459,7 @@
 
         window.addEventListener("pagehide", function () {
             forms.forEach((form, index) => {
-                if (!isAuthForm(form)) {
+                if (!isAuthForm(form) && !form._isSubmitting) {
                     saveFormDraft(form, index);
                 }
             });

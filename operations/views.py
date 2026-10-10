@@ -1816,7 +1816,14 @@ def predict_trade_terms_api(request):
         or request.POST.get("mill")
     )
 
-    pos = PurchaseOrder.objects.filter(cluster__is_archived=False).select_related("cluster", "cluster__client", "cluster__sugar_mill").order_by("-approved_at", "-id")
+    pos = (
+        PurchaseOrder.objects.filter(cluster__is_archived=False)
+        .exclude(cluster__reference_code__startswith="PO-SEL-")
+        .exclude(terms__icontains="Selenium")
+        .exclude(terms__icontains="Automated")
+        .select_related("cluster", "cluster__client", "cluster__sugar_mill")
+        .order_by("-approved_at", "-id")
+    )
 
     matched_pos = pos.none()
     match_type = None
@@ -1867,6 +1874,8 @@ def predict_trade_terms_api(request):
     trucking_val = float(avg_trucking) if avg_trucking else None
     barge_val = float(avg_barge) if avg_barge else None
     terms_val = latest_po.terms or "Net 30 days"
+    if any(k in (terms_val or "") for k in ["Selenium", "Automated", "PO-SEL"]):
+        terms_val = "Net 30 days"
     brix_val = float(latest_po.brix_level) if latest_po.brix_level else 85.00
     chai_clean_val = chai_clean
 
