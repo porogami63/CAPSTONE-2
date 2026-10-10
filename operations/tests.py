@@ -92,7 +92,7 @@ class OperationsViewTests(TestCase):
         response = self.client.get(reverse("operations:cluster_list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Transactions")
+        self.assertContains(response, "Orders &amp; Deals")
         self.assertContains(response, "PO-001")
 
     def test_logistics_list_renders(self):

@@ -213,7 +213,7 @@
     <div>
         {% if user|has_perm:"add_loan" %}
         <button type="button" class="btn btn-primary btn-sm rounded-pill font-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#newLoanModal">
-            <i class="bi bi-plus-circle me-1"></i> Create Capital Loan Facility
+            <i class="bi bi-plus-circle me-1"></i> Add Bank Loan
         </button>
         {% endif %}
     </div>
@@ -221,35 +221,35 @@
 </div>
 
 <!-- TOP KPI CARDS -->
-<div class="metric-grid" data-step="1" data-intro="Financial KPI summary showing total Active Loan Exposure, real-time Accrued Interest liabilities (in urgent red), 50% Logistics Deposits, and Overdue Facilities.">
+<div class="metric-grid" data-step="1" data-intro="Financial KPI summary showing total Active Loans, real-time Incurred Interest liabilities, 50% Delivery Deposits, and Overdue Loans.">
     <div class="metric-box">
-        <div class="label">Active Loan Exposure</div>
+        <div class="label">Total Active Loans</div>
         <div class="value">₱{{ active_exposure_m|floatformat:2 }}M</div>
-        <div class="subtext">{{ loans|length }} facilities recorded</div>
+        <div class="subtext">{{ loans|length }} loans recorded</div>
     </div>
     <div class="metric-box">
-        <div class="label">Accrued Interest Liability</div>
+        <div class="label">Interest Incurred (To Date)</div>
         <div class="value text-urgent-red">₱{{ accrued_interest|floatformat:2|intcomma }}</div>
-        <div class="subtext danger">Daily interest clock — all facilities</div>
+        <div class="subtext danger">Daily interest clock — all loans</div>
     </div>
     <div class="metric-box">
-        <div class="label">Logistics Deposits (50%)</div>
+        <div class="label">Delivery Deposits (50%)</div>
         <div class="value text-primary">₱{{ logistics_deposits_m|floatformat:2 }}M</div>
         <div class="subtext">Upfront deposit obligations</div>
     </div>
     <div class="metric-box">
-        <div class="label">Overdue Facilities</div>
+        <div class="label">Overdue Loans</div>
         <div class="value {% if overdue_facilities > 0 %}text-urgent-red{% else %}text-success{% endif %}">{{ overdue_facilities }}</div>
         <div class="subtext {% if overdue_facilities > 0 %}danger{% endif %}">
-            {% if overdue_facilities > 0 %}Immediate settlement required{% else %}All facilities compliant{% endif %}
+            {% if overdue_facilities > 0 %}Immediate payment needed{% else %}All loans on track{% endif %}
         </div>
     </div>
 </div>
 
 <!-- TABS ROW -->
-<div class="tabs-row mb-4" style="display: flex; gap: 0.5rem;" data-step="2" data-intro="Switch between the Capital Loan Facilities view and the Physical Paper Cheque Register.">
+<div class="tabs-row mb-4" style="display: flex; gap: 0.5rem;" data-step="2" data-intro="Switch between the Bank Loans view and the Physical Paper Cheque Register.">
     <button type="button" class="tab-btn active" onclick="switchFinanceTab('loans', this)">
-        <i class="bi bi-bank me-1"></i> Capital Loan Facilities
+        <i class="bi bi-bank me-1"></i> Bank Loans
     </button>
     <button type="button" class="tab-btn" onclick="switchFinanceTab('cheques', this)">
         <i class="bi bi-wallet2 me-1"></i> Paper Cheque Register ({{ cheques|length }})
@@ -261,24 +261,24 @@
 <div class="card mb-4 border-warning shadow-sm">
     <div class="card-header bg-warning-subtle py-3 flex-between">
         <h6 class="mb-0 font-weight-bold text-warning-emphasis">
-            <i class="bi bi-shield-exclamation text-warning me-2 fs-5"></i> Dual-Authorization Loan Verification Queue
+            <i class="bi bi-shield-exclamation text-warning me-2 fs-5"></i> Loan Approval Queue (Manager Sign-off)
         </h6>
         <span class="badge bg-warning text-dark font-weight-bold fs-6">{{ pending_verification_count }} Action Pending</span>
     </div>
     <div class="card-body p-3">
         {% if pending_creation_loans %}
         <div class="mb-3">
-            <strong class="text-uppercase text-muted fs-7 d-block mb-2 font-weight-bold"><i class="bi bi-plus-circle-fill text-primary me-1"></i> Loans Awaiting Creation Verification ({{ pending_creation_loans|length }})</strong>
+            <strong class="text-uppercase text-muted fs-7 d-block mb-2 font-weight-bold"><i class="bi bi-plus-circle-fill text-primary me-1"></i> Loans Awaiting Manager Approval ({{ pending_creation_loans|length }})</strong>
             <div class="table-responsive">
                 <table class="table table-hover align-middle bg-white border rounded mb-0" style="font-size: 0.85rem;">
                     <thead class="table-light">
                         <tr class="text-uppercase text-muted fs-7">
-                            <th>Facility Reference</th>
-                            <th>Bank & Account</th>
-                            <th>Principal Amount</th>
-                            <th>Deposit Funded</th>
-                            <th>Logged By / Date</th>
-                            <th class="text-end">Verification Action</th>
+                            <th>PO #</th>
+                            <th>Bank &amp; Account</th>
+                            <th>Loan Amount</th>
+                            <th>Delivery Deposit (50%)</th>
+                            <th>Created By / Date</th>
+                            <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -335,16 +335,16 @@
 
         {% if pending_settlement_loans %}
         <div>
-            <strong class="text-uppercase text-muted fs-7 d-block mb-2 font-weight-bold"><i class="bi bi-file-earmark-check-fill text-info me-1"></i> Loans Awaiting Settlement Verification ({{ pending_settlement_loans|length }})</strong>
+            <strong class="text-uppercase text-muted fs-7 d-block mb-2 font-weight-bold"><i class="bi bi-file-earmark-check-fill text-info me-1"></i> Loans Awaiting Payoff Verification ({{ pending_settlement_loans|length }})</strong>
             <div class="table-responsive">
                 <table class="table table-hover align-middle bg-white border rounded mb-0" style="font-size: 0.85rem;">
                     <thead class="table-light">
                         <tr class="text-uppercase text-muted fs-7">
-                            <th>Facility Reference</th>
+                            <th>PO #</th>
                             <th>Bank Clearance Receipt #</th>
-                            <th>Principal + Accrued</th>
-                            <th>Proof Document</th>
-                            <th class="text-end">Settlement Action</th>
+                            <th>Loan + Incurred Interest</th>
+                            <th>Payment Proof</th>
+                            <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -434,7 +434,7 @@
 <!-- Timeline Info Banner -->
 <div class="info-bar" data-step="3" data-intro="Each bank facility card displays real-time interest accrual, maturity timeline bars, paper cheque numbers, and settlement authorization controls.">
     <i class="bi bi-info-circle-fill"></i>
-    <span>Daily interest liabilities accrue in real time. Marking a bank loan as settled requires uploading official Bank Release Advice or Settlement Documentation for audit verification.</span>
+    <span>Daily interest liabilities accrue in real time. Marking a bank loan as settled requires uploading official bank payoff documentation for verification.</span>
 </div>
 
 <!-- TAB 1: LOAN REGISTRY STACK -->
@@ -445,23 +445,23 @@
         <div class="loan-left-timeline">
             <div>
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="card-code">FACILITY #{{ forloop.counter }}</span>
+                    <span class="card-code">LOAN #{{ forloop.counter }}</span>
                     <span class="status-badge {{ loan.status }}">
                         {{ loan.get_status_display }}
                     </span>
                 </div>
                 <div class="card-bank">{{ loan.bank_name }}</div>
                 <div class="card-subtext mb-2">
-                    Contract Reference: <a href="{% url 'operations:cluster_detail' loan.cluster.pk %}" class="fw-bold text-decoration-none">{{ loan.cluster.reference_code }}</a>
+                    PO #: <a href="{% url 'operations:cluster_detail' loan.cluster.pk %}" class="fw-bold text-decoration-none">{{ loan.cluster.reference_code }}</a>
                 </div>
                 <div class="card-subtext">
                     {% if loan.status == 'pending_creation' %}
                         <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1">
-                            <i class="bi bi-clock-history me-1"></i> Pending Creation Approval
+                            <i class="bi bi-clock-history me-1"></i> Pending Manager Approval
                         </span>
                     {% elif loan.status == 'pending_settlement' %}
                         <span class="badge bg-info-subtle text-info border border-info px-2 py-1">
-                            <i class="bi bi-hourglass-split me-1"></i> Pending Settlement Approval
+                            <i class="bi bi-hourglass-split me-1"></i> Pending Payoff Approval
                         </span>
                     {% elif loan.status == 'closed' %}
                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
@@ -483,7 +483,7 @@
                         <span class="text-urgent-red"><i class="bi bi-exclamation-triangle-fill"></i> Due Date: {{ loan.due_date|date:"M d, Y" }} (Overdue)</span>
                     {% else %}
                         <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                            <i class="bi bi-check-circle-fill me-1"></i> Active Facility
+                            <i class="bi bi-check-circle-fill me-1"></i> Active Loan
                         </span>
                         <span class="ms-1 text-muted small"><i class="bi bi-calendar-event"></i> Due: <strong>{{ loan.due_date|date:"M d, Y" }}</strong> ({{ loan.days_remaining }} days left)</span>
                     {% endif %}
@@ -502,7 +502,7 @@
                 </div>
                 <div class="timeline-dates-row">
                     <span>Start: {{ loan.start_date|date:"M d, Y" }}</span>
-                    <span>Maturity: {{ loan.due_date|date:"M d, Y" }}</span>
+                    <span>Due: {{ loan.due_date|date:"M d, Y" }}</span>
                 </div>
             </div>
         </div>
@@ -510,12 +510,12 @@
         <!-- Right half: Numbers grid & Cheque Binder -->
         <div class="loan-right-stats">
             <div class="stat-metric">
-                <span>Principal Facility</span>
+                <span>Loan Amount</span>
                 <span class="fs-6 fw-bold text-dark">₱{{ loan.principal|floatformat:2|intcomma }}</span>
             </div>
             
             <div class="stat-metric">
-                <span>Annual Interest Rate</span>
+                <span>Yearly Interest Rate</span>
                 <div class="rate-input-wrap">
                     <input type="text" value="{{ loan.interest_rate_annual }}" disabled>
                     <span>% p.a.</span>
@@ -524,7 +524,7 @@
 
             <div class="stat-metric">
                 <span class="d-inline-flex align-items-center gap-1">
-                    Logistics Deposit Funded (50%)
+                    Delivery Deposit (50%)
                     <i class="bi bi-question-circle text-primary cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: 50% Deposit = (Volume MT × ₱450.00/MT Freight Rate) × 50% Upfront Obligation"></i>
                 </span>
                 <span class="text-primary fw-bold">₱{{ loan.logistics_deposit|floatformat:2|intcomma }}</span>
@@ -533,7 +533,7 @@
             <!-- VIVID URGENT RED ACCRUED INTEREST -->
             <div class="stat-metric">
                 <span class="d-inline-flex align-items-center gap-1">
-                    Accrued Interest (₱{{ loan.daily_interest|intcomma }}/day)
+                    Interest Incurred (₱{{ loan.daily_interest|intcomma }}/day)
                     <i class="bi bi-question-circle text-danger cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: Principal × (Annual Interest Rate % / 365) × Days Outstanding"></i>
                 </span>
                 <span class="text-urgent-red fs-6">₱{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
@@ -541,10 +541,10 @@
 
             <div class="stat-metric cheque-binder" style="grid-column: 1 / -1;">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-uppercase fw-bold text-secondary small"><i class="bi bi-card-checklist text-primary me-1"></i> Physical Cheque Binder & Bank Account</span>
+                    <span class="text-uppercase fw-bold text-secondary small"><i class="bi bi-card-checklist text-primary me-1"></i> Cheques &amp; Bank Account</span>
                     <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1">
-                        Total Liability: <strong class="text-dark">₱{{ loan.total_liability|floatformat:2|intcomma }}</strong>
-                        <i class="bi bi-question-circle text-secondary cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: Principal Facility + Accrued Interest Liability"></i>
+                        Total to Repay: <strong class="text-dark">₱{{ loan.total_liability|floatformat:2|intcomma }}</strong>
+                        <i class="bi bi-question-circle text-secondary cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: Principal + Interest Incurred"></i>
                     </span>
                 </div>
                 <div class="cheque-badge-list align-items-center">
@@ -705,7 +705,7 @@ function switchFinanceTab(tabKey, btn) {
     <div class="modal-dialog modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title fw-bold" id="newLoanModalLabel"><i class="bi bi-bank me-2"></i>Create New Capital Loan Facility</h5>
+                <h5 class="modal-title fw-bold" id="newLoanModalLabel"><i class="bi bi-bank me-2"></i>Add Bank Loan</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post" action="{% url 'finance:loan_list' %}" id="newLoanForm">
@@ -725,59 +725,59 @@ function switchFinanceTab(tabKey, btn) {
                     {% endif %}
 
                     <div class="alert alert-info py-2 px-3 text-xs mb-3">
-                        <i class="bi bi-info-circle-fill me-1"></i> Record a new capital loan facility and link it directly to an existing transaction deal upon approval.
+                        <i class="bi bi-info-circle-fill me-1"></i> Record a new bank loan and link it directly to an existing purchase order.
                     </div>
                     <div class="row g-3">
                         <div class="col-12">
-                            <label class="form-label font-semibold text-sm">Target Transaction Cluster <span class="text-danger">*</span></label>
+                            <label class="form-label font-semibold text-sm">Purchase Order / Deal (PO #) <span class="text-danger">*</span></label>
                             {{ loan_form.cluster }}
-                            <div class="form-text text-xs text-muted">Select the trade contract transaction linked to this loan facility.</div>
+                            <div class="form-text text-xs text-muted">Select the purchase order linked to this loan.</div>
                         </div>
 
                         <!-- LIVE SUGGESTIVE CALCULATION CARD -->
                         <div class="col-12" id="suggestiveLoanCard" style="display: none;">
                             <div class="p-3 border rounded-3 bg-primary-subtle border-primary-subtle">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold text-primary text-uppercase fs-7"><i class="bi bi-lightbulb-fill text-warning me-1"></i> Suggestive Loan Capital Requirement</span>
+                                    <span class="fw-bold text-primary text-uppercase fs-7"><i class="bi bi-lightbulb-fill text-warning me-1"></i> Suggested Bank Loan Amount</span>
                                     <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-7 font-bold" id="btnApplyLoanSuggestion">
-                                        <i class="bi bi-magic me-1"></i> Apply Suggested Principal &amp; Dates
+                                        <i class="bi bi-magic me-1"></i> Apply Suggested Amount &amp; Dates
                                     </button>
                                 </div>
                                 <div class="row g-2 fs-7 text-dark mb-2">
-                                    <div class="col-md-3">Sourcing (100%): <strong id="suggSourcing">₱0.00</strong></div>
-                                    <div class="col-md-3">Trucking (50%): <strong id="suggTrucking">₱0.00</strong></div>
-                                    <div class="col-md-3">Barging/Freight (50%): <strong id="suggFreight">₱0.00</strong></div>
-                                    <div class="col-md-3 text-md-end">Min Required: <strong class="text-danger fs-6" id="suggRequired">₱0.00</strong></div>
+                                    <div class="col-md-3">Supplier Cost (100%): <strong id="suggSourcing">₱0.00</strong></div>
+                                    <div class="col-md-3">Truck Delivery (50%): <strong id="suggTrucking">₱0.00</strong></div>
+                                    <div class="col-md-3">Barge Delivery (50%): <strong id="suggFreight">₱0.00</strong></div>
+                                    <div class="col-md-3 text-md-end">Total Needed: <strong class="text-danger fs-6" id="suggRequired">₱0.00</strong></div>
                                 </div>
                                 <div id="suggPartialRow" class="row g-2 fs-7 text-dark mb-2 pt-1 border-top border-primary-subtle" style="display: none;">
-                                    <div class="col-md-6">Already Funded: <strong class="text-success" id="suggAlreadyLoaned">₱0.00</strong> (<span id="suggPctFunded">0</span>%)</div>
-                                    <div class="col-md-6 text-md-end">Remaining Required: <strong class="text-primary fs-6" id="suggRemainingRequired">₱0.00</strong> (<span id="suggPctRemaining">0</span>%)</div>
+                                    <div class="col-md-6">Already Loaned: <strong class="text-success" id="suggAlreadyLoaned">₱0.00</strong> (<span id="suggPctFunded">0</span>%)</div>
+                                    <div class="col-md-6 text-md-end">Remaining Needed: <strong class="text-primary fs-6" id="suggRemainingRequired">₱0.00</strong> (<span id="suggPctRemaining">0</span>%)</div>
                                 </div>
-                                <div class="text-muted text-xs fst-italic" id="suggFormula">Select a transaction cluster to compute minimum loan coverage.</div>
+                                <div class="text-muted text-xs fst-italic" id="suggFormula">Select a purchase order to compute suggested loan coverage.</div>
                             </div>
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label font-semibold text-sm">Financing Bank Name <span class="text-danger">*</span></label>
+                            <label class="form-label font-semibold text-sm">Bank / Lender Name <span class="text-danger">*</span></label>
                             {{ loan_form.bank_name }}
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label font-semibold text-sm">Loan Principal Amount (₱) <span class="text-danger">*</span></label>
-                            <div id="standaloneLoanPrincipalWrap" data-bs-toggle="tooltip" data-bs-placement="top" title="Select a transaction cluster to view suggested capital requirement">
+                            <label class="form-label font-semibold text-sm">Loan Amount (₱) <span class="text-danger">*</span></label>
+                            <div id="standaloneLoanPrincipalWrap" data-bs-toggle="tooltip" data-bs-placement="top" title="Select a purchase order to view suggested loan amount">
                                 {{ loan_form.principal }}
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label font-semibold text-sm">Annual Interest Rate (%) <span class="text-danger">*</span></label>
+                            <label class="form-label font-semibold text-sm">Yearly Interest Rate (%) <span class="text-danger">*</span></label>
                             {{ loan_form.interest_rate_annual }}
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label font-semibold text-sm">Facility Start Date <span class="text-danger">*</span></label>
+                            <label class="form-label font-semibold text-sm">Loan Start Date <span class="text-danger">*</span></label>
                             {{ loan_form.start_date }}
                         </div>
                         <div class="col-md-6">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label font-semibold text-sm mb-0">Maturity / Due Date <span class="text-danger">*</span></label>
+                                <label class="form-label font-semibold text-sm mb-0">Loan Due Date <span class="text-danger">*</span></label>
                                 <div class="btn-group btn-group-sm" role="group">
                                     <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setPresetTenor(30)">+30d</button>
                                     <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setPresetTenor(60)">+60d</button>
@@ -787,7 +787,7 @@ function switchFinanceTab(tabKey, btn) {
                             {{ loan_form.due_date }}
                         </div>
                         <details class="col-12 mt-3 mb-2" style="border: 1px solid var(--htc-border); padding: 1rem; border-radius: 8px; background: var(--htc-surface);">
-                            <summary style="cursor: pointer; font-weight: 600; color: var(--htc-primary-light);">Show Additional & Optional Fields</summary>
+                            <summary style="cursor: pointer; font-weight: 600; color: var(--htc-primary-light);">Show Additional &amp; Optional Fields</summary>
                             <div class="row g-3 mt-1">
                                 <div class="col-md-6">
                                     <label class="form-label font-semibold text-sm">50% Deposit Funding (%)</label>
@@ -815,7 +815,7 @@ function switchFinanceTab(tabKey, btn) {
                 </div>
                 <div class="modal-footer bg-light px-4">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Submit Loan Facility</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Save Bank Loan</button>
                 </div>
             </form>
         </div>

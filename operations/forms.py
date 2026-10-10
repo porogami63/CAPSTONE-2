@@ -27,78 +27,81 @@ class TransactionClusterForm(forms.ModelForm):
     volume_mt = forms.DecimalField(
         max_digits=14,
         decimal_places=3,
-        label="Contract Volume (MT)",
+        label="Order Quantity (MT)",
+        help_text="Total order volume in Metric Tons (1 MT = 1,000 kg)",
         widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 100.000", "step": "0.001"}),
     )
     unit_price = forms.DecimalField(
         max_digits=12,
         decimal_places=2,
-        label="Supplier Sourcing Price (Cost to HTC) (₱/MT)",
-        help_text="Price HTC pays to the sugar mill per MT",
+        label="Buying Price from Supplier (₱/MT)",
+        help_text="Price we pay the sugar mill per MT",
         widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 32500.00", "step": "0.01"}),
     )
     selling_price = forms.DecimalField(
         max_digits=12,
         decimal_places=2,
         required=False,
-        label="Customer Selling Price (Revenue to HTC) (₱/MT)",
-        help_text="Price HTC bills to the customer per MT",
+        label="Selling Price to Customer (₱/MT)",
+        help_text="Price we bill to the customer per MT",
         widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 43500.00", "step": "0.01"}),
     )
     est_trucking_rate = forms.DecimalField(
         max_digits=12,
         decimal_places=2,
         required=False,
-        label="Est. Land Trucking Rate (₱/MT)",
-        help_text="Estimated land trucking rate per MT",
+        label="Estimated Truck Delivery Cost (₱/MT)",
+        help_text="Estimated land delivery cost per MT",
         widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 150.00", "step": "0.01"}),
     )
     est_barge_rate = forms.DecimalField(
         max_digits=12,
         decimal_places=2,
         required=False,
-        label="Est. Marine Barging Rate (₱/MT)",
-        help_text="Estimated marine barging rate per MT",
+        label="Estimated Boat / Barge Delivery Cost (₱/MT)",
+        help_text="Estimated water transport cost per MT",
         widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 350.00", "step": "0.01"}),
     )
     terms = forms.CharField(
         max_length=200,
         required=False,
-        label="Commercial & Payment Terms",
+        label="Payment Terms",
+        help_text="Payment conditions (e.g. 'Net 30 days')",
         widget=forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Net 30 days"}),
     )
     brix_level = forms.DecimalField(
         max_digits=5,
         decimal_places=2,
         required=False,
-        label="Brix Quality Level (%)",
+        label="Sugar Quality (Brix %)",
+        help_text="Percentage of sugar solids in molasses (e.g. 85.50%)",
         widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 85.50", "step": "0.01"}),
     )
     CHAI_CHOICES = [
-        ("", "-- Select CHAI Quality Rating --"),
+        ("", "-- Select Quality Grade --"),
         ("1.0", "1.0 — Premium Grade A (Brix 85°+)"),
         ("1.5", "1.5 — Superior Grade A- (Brix 83.0° – 84.9°)"),
-        ("2.0", "2.0 — Standard Commercial Grade B (Brix 80.0° – 82.9°)"),
-        ("2.5", "2.5 — Medium Commercial Grade B- (Brix 78.0° – 79.9°)"),
-        ("3.0", "3.0 — Industrial Distillation Grade C (Brix 75.0° – 77.9°)"),
+        ("2.0", "2.0 — Standard Grade B (Brix 80.0° – 82.9°)"),
+        ("2.5", "2.5 — Medium Grade B- (Brix 78.0° – 79.9°)"),
+        ("3.0", "3.0 — Distillation Grade C (Brix 75.0° – 77.9°)"),
         ("3.5", "3.5 — Utility Grade C- (Brix 72.0° – 74.9°)"),
         ("4.0", "4.0 — Low Grade D (Brix 70.0° – 71.9°)"),
-        ("5.0", "5.0 — Substandard / Off-Spec (< 70.0° Brix)"),
+        ("5.0", "5.0 — Substandard (< 70.0° Brix)"),
     ]
 
     chai_specs = forms.ChoiceField(
         choices=CHAI_CHOICES,
         required=False,
-        label="CHAI Quality Rating",
-        help_text="Select standard CHAI quality numerical rating grade",
+        label="Quality Rating (CHAI Grade)",
+        help_text="Standard quality rating grade for molasses",
         widget=forms.Select(attrs={"class": "form-select-htc"}),
     )
 
     logistics_partner = forms.ModelChoiceField(
         queryset=LogisticsPartner.objects.filter(is_active=True),
         required=False,
-        label="Logistics Partner (Shipping/Freight)",
-        empty_label="-- To be decided --",
+        label="Delivery Company (Shipping / Trucking)",
+        empty_label="-- Select delivery partner --",
         widget=forms.Select(attrs={"class": "form-select-htc"}),
     )
 
@@ -106,7 +109,7 @@ class TransactionClusterForm(forms.ModelForm):
         model = TransactionCluster
         fields = ["reference_code", "client", "sugar_mill", "contract_notes"]
         widgets = {
-            "reference_code": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated (e.g. PO-20260925-001)"}),
+            "reference_code": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated (e.g. PO-20261010-001)"}),
             "client": forms.Select(attrs={"class": "form-select-htc"}),
             "sugar_mill": forms.Select(attrs={"class": "form-select-htc"}),
             "contract_notes": forms.Textarea(attrs={"class": "form-control-htc", "rows": 3, "placeholder": "Optional internal notes or delivery instructions..."}),

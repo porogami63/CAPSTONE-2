@@ -227,11 +227,11 @@ class FinancialReconciliation(models.Model):
 
 class PaymentExpenseMatch(models.Model):
     class ExpenseType(models.TextChoices):
-        SOURCING = "sourcing", "Sourcing"
-        TRUCKING = "trucking", "Trucking Fees"
-        BARGE = "barge", "Barge Fees"
-        LOGISTICS_DEPOSIT = "logistics_deposit", "50% Logistics Deposit"
-        OTHER = "other", "Other"
+        SOURCING = "sourcing", "Supplier Purchase Cost"
+        TRUCKING = "trucking", "Truck Delivery"
+        BARGE = "barge", "Boat / Barge Delivery"
+        LOGISTICS_DEPOSIT = "logistics_deposit", "50% Delivery Advance"
+        OTHER = "other", "Other Expenses"
 
     reconciliation = models.ForeignKey(
         FinancialReconciliation,
@@ -249,7 +249,7 @@ class PaymentExpenseMatch(models.Model):
 
     def get_expense_type_display(self):
         if self.expense_type in ("tracking", "trucking"):
-            return "Trucking Fees"
+            return "Truck Delivery"
         choices_map = dict(self.ExpenseType.choices)
         return choices_map.get(self.expense_type, str(self.expense_type).title())
 

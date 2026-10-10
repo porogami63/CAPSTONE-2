@@ -407,21 +407,21 @@ class PaymentExpenseMatchForm(forms.ModelForm):
         model = PaymentExpenseMatch
         fields = ["payment_reference", "expense_type", "amount", "notes"]
         labels = {
-            "payment_reference": "Step 1: Bank Deposit / Receipt / Voucher Ref #",
-            "expense_type": "Step 2: Matching Allocation Category",
-            "amount": "Step 3: Allocated Amount (₱)",
-            "notes": "Reconciliation Notes / Discrepancy Explanation",
+            "payment_reference": "Step 1: Receipt / Voucher Reference Number",
+            "expense_type": "Step 2: Expense Category",
+            "amount": "Step 3: Payment Amount (₱)",
+            "notes": "Notes / Reason (Optional)",
         }
         widgets = {
             "payment_reference": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. OR-99482 / DEP-20260828-01"}),
             "expense_type": forms.Select(attrs={"class": "form-select-htc"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 500000.00", "step": "0.01"}),
-            "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional reconciliation notes..."}),
+            "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional notes..."}),
         }
 
     def clean(self):
         cleaned_data = super().clean()
         amount = cleaned_data.get("amount")
         if amount is not None and amount <= 0:
-            self.add_error("amount", "Allocated amount must be a positive value greater than ₱0.00.")
+            self.add_error("amount", "Payment amount must be greater than ₱0.00.")
         return cleaned_data

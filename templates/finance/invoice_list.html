@@ -1,8 +1,8 @@
 {% extends "app_base.html" %}
 {% load role_tags humanize %}
-{% block title %}Invoicing · Molasses Trading{% endblock %}
-{% block topbar_title %}Invoicing{% endblock %}
-{% block topbar_subtitle %}Manage sales invoices, collections & cash vouchers{% endblock %}
+{% block title %}Customer Invoices · Molasses Trading{% endblock %}
+{% block topbar_title %}Customer Invoices{% endblock %}
+{% block topbar_subtitle %}Manage customer billing, payment collections &amp; cash vouchers{% endblock %}
 {% block content %}
 <style>
     /* Top metrics grid */
@@ -168,8 +168,8 @@
         <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 14px 28px rgba(0,0,0,0.25);">
             <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1.25rem 1.5rem;">
                 <div>
-                    <h5 class="modal-title" id="createInvoiceModalLabel" style="font-weight: 700; color: var(--htc-text);">Create &amp; Link Sales Invoice</h5>
-                    <div style="font-size: 0.8rem; color: var(--htc-text-muted);">Generate customer sales invoice and link to an existing transaction</div>
+                    <h5 class="modal-title" id="createInvoiceModalLabel" style="font-weight: 700; color: var(--htc-text);">Create Customer Invoice</h5>
+                    <div style="font-size: 0.8rem; color: var(--htc-text-muted);">Generate customer invoice and link to an existing purchase order</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -177,9 +177,9 @@
                 {% csrf_token %}
                 <div class="modal-body" style="padding: 1.5rem;">
                     <div class="mb-3">
-                        <label for="{{ invoice_form.cluster.id_for_label }}" class="form-label font-semibold text-sm">Select Transaction Cluster <span class="text-danger">*</span></label>
+                        <label for="{{ invoice_form.cluster.id_for_label }}" class="form-label font-semibold text-sm">Select Purchase Order / Deal (PO #) <span class="text-danger">*</span></label>
                         {{ invoice_form.cluster }}
-                        <div class="form-text text-xs text-muted mt-1">Select the existing trade transaction cluster to link this invoice to.</div>
+                        <div class="form-text text-xs text-muted mt-1">Select the existing purchase order to link this invoice to.</div>
                         {% if invoice_form.cluster.errors %}<div class="text-danger text-xs mt-1">{{ invoice_form.cluster.errors|striptags }}</div>{% endif %}
                     </div>
 

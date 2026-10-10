@@ -1,8 +1,8 @@
 {% extends "app_base.html" %}
 {% load role_tags humanize %}
-{% block title %}Transactions · Molasses Trading{% endblock %}
-{% block topbar_title %}Transactions{% endblock %}
-{% block topbar_subtitle %}Purchase order management with immutable audit trail{% endblock %}
+{% block title %}Orders &amp; Deals · Molasses Trading{% endblock %}
+{% block topbar_title %}Orders &amp; Deals{% endblock %}
+{% block topbar_subtitle %}Manage purchase orders, deliveries, and deal financials{% endblock %}
 {% block content %}
 <style>
 
@@ -34,11 +34,11 @@
     <div class="d-flex align-items-center gap-2">
         <form method="post" action="{% url 'operations:bulk_archive_completed' %}" style="display:inline;" onsubmit="return confirm('Archive all closed and paid transactions?');">
             {% csrf_token %}
-            <button type="submit" class="btn-htc-outline btn-sm" title="Clear completed transactions to Archive"><i class="bi bi-archive"></i> Archive Completed</button>
+            <button type="submit" class="btn-htc-outline btn-sm" title="Clear completed orders to Archive"><i class="bi bi-archive"></i> Archive Completed</button>
         </form>
         <a href="{% url 'operations:archive_list' %}" class="btn-htc-outline btn-sm" data-step="4" data-intro="Access historical completed contracts stored in the secure Archive Vault."><i class="bi bi-box-seam"></i> Archive Vault</a>
         {% if user|has_perm:"create_transaction" %}
-        <a href="{% url 'operations:cluster_create' %}" class="btn-htc btn-sm" data-step="3" data-intro="Create new standalone molasses trade contracts directly in the system."><i class="bi bi-plus-lg"></i> New Transaction</a>
+        <a href="{% url 'operations:cluster_create' %}" class="btn-htc btn-sm" data-step="3" data-intro="Create new standalone purchase orders directly in the system."><i class="bi bi-plus-lg"></i> New Purchase Order</a>
         {% endif %}
     </div>
 </div>
@@ -57,7 +57,7 @@
         <div class="value">{{ avg_margin|floatformat:2 }}%</div>
     </div>
     <div class="metric-box">
-        <div class="label">Transactions</div>
+        <div class="label">Active Orders</div>
         <div class="value">{{ total_transactions }}</div>
     </div>
 </div>
@@ -115,16 +115,16 @@
 
 <div class="tabs-row d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
-        <button class="tab-btn active" type="button"><i class="bi bi-receipt"></i> Transactions</button>
-        <a href="{% url 'audit:list' %}" class="tab-btn"><i class="bi bi-shield-check"></i> Audit Trail</a>
+        <button class="tab-btn active" type="button"><i class="bi bi-receipt"></i> Orders &amp; Deals</button>
+        <a href="{% url 'audit:list' %}" class="tab-btn"><i class="bi bi-shield-check"></i> Activity History</a>
     </div>
 
     <div class="d-flex align-items-center gap-1">
         <span class="text-xs text-muted me-1 font-semibold">View Density:</span>
-        <button type="button" class="view-mode-btn active" id="btnSplitView" onclick="setTxViewMode('split')" title="Split panel layout (Table + Contract Detail Pane)">
+        <button type="button" class="view-mode-btn active" id="btnSplitView" onclick="setTxViewMode('split')" title="Split panel layout (Table + Order Detail Pane)">
             <i class="bi bi-layout-split"></i> Split View
         </button>
-        <button type="button" class="view-mode-btn" id="btnFullView" onclick="setTxViewMode('full')" title="Full width table mode for uncluttered scanning of many transactions">
+        <button type="button" class="view-mode-btn" id="btnFullView" onclick="setTxViewMode('full')" title="Full width table mode for uncluttered scanning of many orders">
             <i class="bi bi-table"></i> Full Table Mode
         </button>
     </div>
@@ -133,17 +133,17 @@
 <div class="split-layout">
     <div class="list-pane">
         <div class="list-pane-header">
-            <h3>All Transactions</h3>
-            <p>Click a row to view contract details</p>
+            <h3>All Orders &amp; Deals</h3>
+            <p>Click a row to view order details</p>
         </div>
         <div style="overflow-x:auto;">
             <table class="table-htc" style="margin:0;border:none;">
                 <thead>
                     <tr>
-                        <th>PO</th>
+                        <th>PO #</th>
                         <th>Customer</th>
                         <th>Supplier</th>
-                        <th>Qty (MT)</th>
+                        <th>Quantity (MT)</th>
                         <th>Status</th>
                         <th>Profit</th>
                         <th>Margin</th>
@@ -197,10 +197,10 @@
                             <div class="mb-3">
                                 <i class="bi bi-folder2-open" style="font-size: 2.5rem; color: var(--htc-border);"></i>
                             </div>
-                            <h5 class="fw-bold text-dark mb-2">No Transactions Found</h5>
-                            <p class="mb-3">There are currently no active transaction clusters in the system.</p>
+                            <h5 class="fw-bold text-dark mb-2">No Orders Found</h5>
+                            <p class="mb-3">There are currently no active purchase orders in the system.</p>
                             <a href="{% url 'operations:cluster_create' %}" class="btn btn-primary fw-bold px-4 rounded-pill">
-                                <i class="bi bi-plus-lg me-1"></i> Create First Cluster
+                                <i class="bi bi-plus-lg me-1"></i> Create First Purchase Order
                             </a>
                         </td>
                     </tr>
@@ -214,42 +214,42 @@
         <div class="flex-between" style="gap:0.75rem;align-items:start;">
             <div>
                 <h3 id="panelRef">—</h3>
-                <div class="subtitle" id="panelSub">Select a transaction</div>
+                <div class="subtitle" id="panelSub">Select an order</div>
             </div>
             <span class="badge-status draft" id="panelStatusChip">—</span>
         </div>
 
         <div class="detail-section">
-            <div class="detail-section-title">Contract Summary</div>
+            <div class="detail-section-title">Order Summary</div>
             <div class="detail-row"><span>Customer</span><span id="panelCustomer">—</span></div>
             <div class="detail-row"><span>Supplier</span><span id="panelSupplier">—</span></div>
             <div class="detail-row"><span>Quantity</span><span id="panelQuantity">—</span></div>
             <div class="detail-row"><span>Created</span><span id="panelCreated">—</span></div>
             <div class="detail-row"><span>Last Updated</span><span id="panelUpdated">—</span></div>
-            <div class="detail-row"><span>Logistics Partner</span><span id="panelPartner">—</span></div>
-            <div class="detail-row"><span>Invoice Ref</span><span id="panelInvoice">—</span></div>
+            <div class="detail-row"><span>Delivery Company</span><span id="panelPartner">—</span></div>
+            <div class="detail-row"><span>Invoice #</span><span id="panelInvoice">—</span></div>
         </div>
 
         <div class="detail-section">
-            <div class="detail-section-title">Pricing &amp; Profit Derivation</div>
-            <div class="detail-row"><span>Supplier Sourcing Price</span><span id="panelPurchase">—</span></div>
+            <div class="detail-section-title">Pricing &amp; Profit Breakdown</div>
+            <div class="detail-row"><span>Supplier Buying Price</span><span id="panelPurchase">—</span></div>
             <div class="detail-row"><span>Customer Selling Price</span><span id="panelSelling">—</span></div>
-            <div class="detail-row"><span>Supplier Outlay (Cost)</span><span id="panelOrderValue">—</span></div>
-            <div class="detail-row"><span>Customer Sales (Revenue)</span><span id="panelRevenue">—</span></div>
-            <div class="detail-row"><span>Land Transport (Trucking)</span><span id="panelTrucking">—</span></div>
-            <div class="detail-row"><span>Marine Transport (Barging)</span><span id="panelBarging">—</span></div>
-            <div class="detail-row"><span>Total Logistics Freight</span><span id="panelLogistics" style="font-weight:700;">—</span></div>
-            <div class="detail-row"><span>Net Trade Profit</span><span id="panelProfit" style="color:var(--htc-success);font-weight:700;">—</span></div>
-            <div class="detail-row"><span>Net Margin</span><span id="panelMargin">—</span></div>
+            <div class="detail-row"><span>Total Buying Cost</span><span id="panelOrderValue">—</span></div>
+            <div class="detail-row"><span>Total Selling Income</span><span id="panelRevenue">—</span></div>
+            <div class="detail-row"><span>Truck Delivery Cost</span><span id="panelTrucking">—</span></div>
+            <div class="detail-row"><span>Barge Delivery Cost</span><span id="panelBarging">—</span></div>
+            <div class="detail-row"><span>Total Delivery Cost</span><span id="panelLogistics" style="font-weight:700;">—</span></div>
+            <div class="detail-row"><span>Net Profit</span><span id="panelProfit" style="color:var(--htc-success);font-weight:700;">—</span></div>
+            <div class="detail-row"><span>Profit Margin</span><span id="panelMargin">—</span></div>
         </div>
 
         <div class="detail-section">
-            <div class="detail-section-title">Logistics Snapshot</div>
-            <div class="detail-row"><span>Variance</span><span id="panelVariance">—</span></div>
+            <div class="detail-section-title">Delivery Snapshot</div>
+            <div class="detail-row"><span>Weight Difference</span><span id="panelVariance">—</span></div>
             <div class="detail-row"><span>Notes</span><span id="panelNotes" style="max-width:160px;text-align:right;">—</span></div>
             <div class="detail-progress">
                 <div class="detail-row" style="margin-bottom:0;">
-                    <span>Lifecycle Progress</span>
+                    <span>Order Progress</span>
                     <span id="panelProgressLabel">—</span>
                 </div>
                 <div class="track"><div class="fill" id="panelProgressBar" style="width:0;"></div></div>
@@ -257,40 +257,40 @@
         </div>
 
         <div class="detail-section">
-            <div class="detail-section-title">Company Process Live Flowchart</div>
+            <div class="detail-section-title">Order Progress Tracker</div>
             <div class="flowchart-container" style="gap: 4px; margin-top: 0.5rem; margin-bottom: 0.5rem; padding-bottom: 0;">
-                <a href="#" id="flowLink1" class="flowchart-step-link" title="Step 01: View PO Input Details">
+                <a href="#" id="flowLink1" class="flowchart-step-link" title="Step 01: View Order Details">
                     <div class="flowchart-step w-100" id="flowStep1">
                         <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">01</div>
-                        <div class="flowchart-label" style="font-size: 0.72rem;">PO Input</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Order Created</div>
                         <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub1">Registered</div>
                     </div>
                 </a>
-                <a href="{% url 'operations:pending_tasks' %}" class="flowchart-step-link" title="Step 02: View Pending Task Approvals">
+                <a href="{% url 'operations:pending_tasks' %}" class="flowchart-step-link" title="Step 02: View Manager Approval">
                     <div class="flowchart-step w-100" id="flowStep2">
                         <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">02</div>
-                        <div class="flowchart-label" style="font-size: 0.72rem;">Approval</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Manager Approved</div>
                         <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub2">Pending</div>
                     </div>
                 </a>
-                <a href="{% url 'operations:logistics_list' %}" class="flowchart-step-link" title="Step 03: View Logistics Ledger">
+                <a href="{% url 'operations:logistics_list' %}" class="flowchart-step-link" title="Step 03: View Delivery Details">
                     <div class="flowchart-step w-100" id="flowStep3">
                         <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">03</div>
-                        <div class="flowchart-label" style="font-size: 0.72rem;">Logistics</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Delivered</div>
                         <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub3">Dispatch</div>
                     </div>
                 </a>
-                <a href="{% url 'finance:invoice_list' %}" class="flowchart-step-link" title="Step 04: View Invoicing Module">
+                <a href="{% url 'finance:invoice_list' %}" class="flowchart-step-link" title="Step 04: View Customer Billing">
                     <div class="flowchart-step w-100" id="flowStep4">
                         <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">04</div>
-                        <div class="flowchart-label" style="font-size: 0.72rem;">Invoicing</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Invoiced &amp; Paid</div>
                         <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub4">Billing</div>
                     </div>
                 </a>
-                <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link" title="Step 05: View Capital Loans & Finance Settlement">
+                <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link" title="Step 05: View Bank Loan &amp; Deal Completion">
                     <div class="flowchart-step w-100" id="flowStep5">
                         <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">05</div>
-                        <div class="flowchart-label" style="font-size: 0.72rem;">Settlement</div>
+                        <div class="flowchart-label" style="font-size: 0.72rem;">Completed</div>
                         <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub5">Closure</div>
                     </div>
                 </a>

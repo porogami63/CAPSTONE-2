@@ -7,16 +7,16 @@ Role = User.Role
 CORE_NAV_ITEMS = [
     ("dashboard:home", "Dashboard", "bi-grid-1x2-fill", ("dashboard:home",)),
     ("operations:pending_tasks", "Pending Tasks", "bi-check2-square", ("operations:pending_tasks",)),
-    ("operations:cluster_list", "Transactions", "bi-receipt", ("operations:cluster", "operations:import_excel", "operations:clear_database")),
-    ("operations:mro_summary", "MRO Summary", "bi-file-earmark-ruled", ("operations:mro",)),
-    ("finance:invoice_list", "Invoicing", "bi-file-earmark-spreadsheet", ("finance:invoice", "finance:reconciliation")),
-    ("operations:logistics_list", "Logistics", "bi-truck", ("operations:logistics",)),
-    ("finance:loan_list", "Finance", "bi-bank", ("finance:loan",)),
+    ("operations:cluster_list", "Orders & Deals", "bi-receipt", ("operations:cluster", "operations:import_excel", "operations:clear_database")),
+    ("operations:mro_summary", "Loading Permits (MRO)", "bi-file-earmark-ruled", ("operations:mro",)),
+    ("finance:invoice_list", "Customer Invoices", "bi-file-earmark-spreadsheet", ("finance:invoice", "finance:reconciliation")),
+    ("operations:logistics_list", "Deliveries & Trucking", "bi-truck", ("operations:logistics",)),
+    ("finance:loan_list", "Bank Loans", "bi-bank", ("finance:loan",)),
     ("dashboard:analytics", "Analytics", "bi-graph-up-arrow", ("dashboard:analytics",)),
     ("masters:partners", "Suppliers & Customers", "bi-building", ("masters:",)),
     ("dashboard:documents", "Documents", "bi-folder2-open", ("dashboard:documents",)),
     ("chat:room", "Team Chat", "bi-chat-dots-fill", ("chat:",)),
-    ("audit:list", "Audit Logs", "bi-journal-text", ("audit:",)),
+    ("audit:list", "Activity History", "bi-journal-text", ("audit:",)),
     ("accounts:user_list", "User Management", "bi-people-fill", ("accounts:user",)),
 ]
 
