@@ -649,12 +649,9 @@
 
                 {% if invoice_suggestion_data.is_complete or invoice_suggestion_data.remaining_balance <= 0.01 and invoice_suggestion_data.already_invoiced > 0 %}
                 <div class="p-3 rounded-3 border d-flex align-items-center justify-content-between mb-2 shadow-sm" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3) !important;">
-                    <div class="d-flex align-items-center gap-2.5">
-                        <i class="bi bi-check-circle-fill text-success fs-5"></i>
-                        <div>
-                            <div class="fw-bold text-success" style="font-size: 0.85rem;">100% Sales Invoiced (₱{{ invoice_suggestion_data.already_invoiced|floatformat:2|intcomma }})</div>
-                            <div class="text-muted" style="font-size: 0.75rem;">Full PO contract revenue is 100% invoiced across {{ invoice_suggestion_data.invoices_count }} invoice{{ invoice_suggestion_data.invoices_count|pluralize }}. Additional invoice issuance is closed.</div>
-                        </div>
+                    <div>
+                        <div class="fw-bold text-success" style="font-size: 0.85rem;">100% Sales Invoiced (₱{{ invoice_suggestion_data.already_invoiced|floatformat:2|intcomma }})</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">Full PO contract revenue is 100% invoiced across {{ invoice_suggestion_data.invoices_count }} invoice{{ invoice_suggestion_data.invoices_count|pluralize }}. Additional invoice issuance is closed.</div>
                     </div>
                     <span class="badge bg-success-subtle text-success border border-success px-2 py-1" style="font-size: 0.72rem;">Fully Billed</span>
                 </div>
@@ -833,12 +830,9 @@
 
                 {% if loan_requirement.is_complete or loan_requirement.remaining_required <= 0.01 and loan_requirement.already_loaned > 0 %}
                 <div class="p-3 rounded-3 border d-flex align-items-center justify-content-between mb-2 shadow-sm" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3) !important;">
-                    <div class="d-flex align-items-center gap-2.5">
-                        <i class="bi bi-shield-check text-success fs-5"></i>
-                        <div>
-                            <div class="fw-bold text-success" style="font-size: 0.85rem;">100% Loan Funded (₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }})</div>
-                            <div class="text-muted" style="font-size: 0.75rem;">Required loan amount fully covered across {{ loan_requirement.loans_count }} loan{{ loan_requirement.loans_count|pluralize:"s" }}. Additional loan linking is restricted.</div>
-                        </div>
+                    <div>
+                        <div class="fw-bold text-success" style="font-size: 0.85rem;">100% Loan Funded (₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }})</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">Required loan amount fully covered across {{ loan_requirement.loans_count }} loan{{ loan_requirement.loans_count|pluralize:"s" }}. Additional loan linking is restricted.</div>
                     </div>
                     <span class="badge bg-success-subtle text-success border border-success px-2 py-1" style="font-size: 0.72rem;">Fully Covered</span>
                 </div>
