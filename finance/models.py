@@ -248,9 +248,10 @@ class PaymentExpenseMatch(models.Model):
         ordering = ["-matched_at"]
 
     def get_expense_type_display(self):
-        if self.expense_type == "tracking":
+        if self.expense_type in ("tracking", "trucking"):
             return "Trucking Fees"
-        return super().get_expense_type_display()
+        choices_map = dict(self.ExpenseType.choices)
+        return choices_map.get(self.expense_type, str(self.expense_type).title())
 
     def __str__(self):
         return f"{self.payment_reference} -> {self.get_expense_type_display()}"

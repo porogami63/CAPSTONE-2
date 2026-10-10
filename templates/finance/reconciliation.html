@@ -40,31 +40,31 @@
                 </div>
             </div>
             <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('sourcing')" data-bs-toggle="tooltip" title="Click to select Supplier Sourcing in payment matching">
                     <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Supplier Sourcing</small>
                     <span class="fs-6 font-weight-bold text-danger my-1">₱{{ sourcing_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Matched: <strong class="text-success">₱{{ matched_sourcing|floatformat:2|intcomma }}</strong></small>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_sourcing|floatformat:2|intcomma }}</strong></small>
                 </div>
             </div>
             <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light border-warning h-100 d-flex flex-column justify-content-between" style="background-color: rgba(255,193,7,0.05);">
+                <div class="p-2 border rounded text-center bg-light border-warning h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="background-color: rgba(255,193,7,0.05); cursor: pointer;" onclick="selectReconCategory('trucking')" data-bs-toggle="tooltip" title="Click to select Trucking Fees in payment matching">
                     <small class="text-dark d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-truck me-1 text-warning"></i>Trucking Fees</small>
                     <span class="fs-6 font-weight-bold text-dark my-1">₱{{ trucking_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Matched: <strong class="text-success">₱{{ matched_trucking|floatformat:2|intcomma }}</strong></small>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_trucking|floatformat:2|intcomma }}</strong></small>
                 </div>
             </div>
             <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('barge')" data-bs-toggle="tooltip" title="Click to select Barging Fees in payment matching">
                     <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-water me-1 text-info"></i>Barging Fees</small>
                     <span class="fs-6 font-weight-bold text-dark my-1">₱{{ barge_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Matched: <strong class="text-success">₱{{ matched_barge|floatformat:2|intcomma }}</strong></small>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_barge|floatformat:2|intcomma }}</strong></small>
                 </div>
             </div>
             <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Total Freight</small>
-                    <span class="fs-6 font-weight-bold text-danger my-1">₱{{ logistics_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Matched: <strong class="text-success">₱{{ matched_freight|floatformat:2|intcomma }}</strong></small>
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('logistics_deposit')" data-bs-toggle="tooltip" title="Click to select 50% Logistics Deposit in payment matching">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">50% Logistics Deposit</small>
+                    <span class="fs-6 font-weight-bold text-danger my-1">₱{{ deposit_total|floatformat:2|intcomma }}</span>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_deposit|floatformat:2|intcomma }}</strong></small>
                 </div>
             </div>
             <div class="col" style="min-width: 150px;">
@@ -75,7 +75,7 @@
                 </div>
             </div>
             <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('other')" data-bs-toggle="tooltip" title="Click to select Other Outlay in payment matching">
                     <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Remaining Balance</small>
                     <span class="fs-6 font-weight-bold {% if remaining_balance > 0 %}text-warning{% else %}text-muted{% endif %} my-1">₱{{ remaining_balance|floatformat:2|intcomma }}</span>
                     <small class="text-muted d-block" style="font-size: 0.7rem;">Unmatched Outlay</small>
@@ -110,15 +110,116 @@
                 <h6 class="mb-0 font-weight-bold"><i class="bi bi-patch-check-fill me-2"></i>3-Step Payment Matching Entry</h6>
             </div>
             <div class="card-body p-4">
-                <form method="post" action="{% url 'finance:add_match' cluster.pk %}" class="form-stack">{% csrf_token %}
-                    {% for field in form %}
-                    <div class="form-field mb-3">
-                        <label for="{{ field.id_for_label }}" class="form-label font-semibold text-sm">{{ field.label }}</label>
-                        {{ field }}
-                        {% if field.help_text %}<div class="field-help text-xs text-muted mt-1">{{ field.help_text }}</div>{% endif %}
-                        {% if field.errors %}<div class="field-error text-xs text-danger mt-1">{{ field.errors|striptags }}</div>{% endif %}
+                <form method="post" action="{% url 'finance:add_match' cluster.pk %}" class="form-stack" id="paymentMatchForm">{% csrf_token %}
+                    
+                    <!-- Quick Allocation Tabs -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1.5">
+                            <label class="form-label font-semibold text-xs text-uppercase text-muted mb-0">
+                                <i class="bi bi-segmented-nav me-1"></i> Quick Allocation Tabs
+                            </label>
+                            <span class="text-xs text-primary fw-medium">Based on Incurred Costs</span>
+                        </div>
+                        <div class="nav nav-pills nav-fill gap-1 bg-light p-1 rounded-3 border" id="reconCategoryTabs" role="tablist">
+                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold active rounded-2" data-recon-cat="sourcing">
+                                <i class="bi bi-shop me-1"></i> Sourcing
+                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_sourcing|floatformat:0|intcomma }} rem</span>
+                            </button>
+                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="trucking">
+                                <i class="bi bi-truck me-1"></i> Trucking
+                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_trucking|floatformat:0|intcomma }} rem</span>
+                            </button>
+                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="barge">
+                                <i class="bi bi-water me-1"></i> Barging
+                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_barge|floatformat:0|intcomma }} rem</span>
+                            </button>
+                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="logistics_deposit">
+                                <i class="bi bi-percent me-1"></i> 50% Deposit
+                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_deposit|floatformat:0|intcomma }} rem</span>
+                            </button>
+                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="other">
+                                <i class="bi bi-three-dots me-1"></i> Other
+                                <span class="d-block text-xs fw-normal opacity-75">₱{{ remaining_balance|floatformat:0|intcomma }} rem</span>
+                            </button>
+                        </div>
                     </div>
-                    {% endfor %}
+
+                    <!-- Step 1: Payment Reference -->
+                    <div class="form-field mb-3">
+                        <label for="{{ form.payment_reference.id_for_label }}" class="form-label font-semibold text-sm">
+                            {{ form.payment_reference.label }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.payment_reference }}
+                        {% if form.payment_reference.help_text %}<div class="field-help text-xs text-muted mt-1">{{ form.payment_reference.help_text }}</div>{% endif %}
+                        {% if form.payment_reference.errors %}<div class="field-error text-xs text-danger mt-1">{{ form.payment_reference.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <!-- Step 2: Allocation Category Dropdown -->
+                    <div class="form-field mb-2">
+                        <label for="{{ form.expense_type.id_for_label }}" class="form-label font-semibold text-sm">
+                            {{ form.expense_type.label }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.expense_type }}
+                        {% if form.expense_type.help_text %}<div class="field-help text-xs text-muted mt-1">{{ form.expense_type.help_text }}</div>{% endif %}
+                        {% if form.expense_type.errors %}<div class="field-error text-xs text-danger mt-1">{{ form.expense_type.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <!-- LIVE SUGGESTIVE INCURRED ALLOCATION CARD -->
+                    <div class="p-3 my-2 border rounded-3 bg-primary-subtle border-primary-subtle shadow-sm" id="reconSuggestiveCard">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-primary text-uppercase fs-7">
+                                <i class="bi bi-lightbulb-fill text-warning me-1"></i> Incurred Suggestion: <span id="suggCatName">Supplier Sourcing</span>
+                            </span>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-7 fw-bold" id="btnApplyReconRemaining" title="Auto-fill remaining unmatched incurred cost">
+                                    <i class="bi bi-magic me-1"></i> Apply Remaining
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 fs-7" id="btnApplyReconFull" title="Auto-fill 100% full incurred cost">
+                                    100%
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 fs-7" id="btnApplyRecon50" title="Auto-fill 50% portion">
+                                    50%
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-2 fs-7 text-dark mb-1">
+                            <div class="col-6">
+                                <span class="text-muted d-block text-xs">Total Incurred Cost:</span>
+                                <strong id="suggIncurredAmt" class="fs-6 text-dark">₱0.00</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span class="text-muted d-block text-xs">Remaining Unmatched:</span>
+                                <strong id="suggRemainingAmt" class="text-primary fs-6">₱0.00</strong>
+                            </div>
+                            <div class="col-12 mt-1 pt-1 border-top border-primary-subtle d-flex justify-content-between text-xs">
+                                <span>Already Matched: <strong id="suggMatchedAmt" class="text-success">₱0.00</strong> (<span id="suggMatchedPct">0</span>%)</span>
+                                <span id="suggStatusBadge" class="badge bg-secondary">Unmatched</span>
+                            </div>
+                        </div>
+                        <div class="text-muted text-xs fst-italic mt-1" id="suggDescription">Select a category to view incurred balance.</div>
+                    </div>
+
+                    <!-- Step 3: Allocated Amount -->
+                    <div class="form-field mb-3">
+                        <label for="{{ form.amount.id_for_label }}" class="form-label font-semibold text-sm">
+                            {{ form.amount.label }} <span class="text-danger">*</span>
+                        </label>
+                        <div id="reconAmountWrap" data-bs-toggle="tooltip" data-bs-placement="top" title="Enter allocated amount in PHP">
+                            {{ form.amount }}
+                        </div>
+                        <div id="reconAmountFeedback" class="form-text text-xs mt-1 text-primary fw-medium" style="display: none;"></div>
+                        {% if form.amount.help_text %}<div class="field-help text-xs text-muted mt-1">{{ form.amount.help_text }}</div>{% endif %}
+                        {% if form.amount.errors %}<div class="field-error text-xs text-danger mt-1">{{ form.amount.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="form-field mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label font-semibold text-sm">{{ form.notes.label }}</label>
+                        {{ form.notes }}
+                        {% if form.notes.help_text %}<div class="field-help text-xs text-muted mt-1">{{ form.notes.help_text }}</div>{% endif %}
+                        {% if form.notes.errors %}<div class="field-error text-xs text-danger mt-1">{{ form.notes.errors|striptags }}</div>{% endif %}
+                    </div>
+
                     <button type="submit" class="btn-htc w-100 mt-2 py-2">
                         <i class="bi bi-check-circle-fill me-1"></i> Record &amp; Verify Payment Match
                     </button>
@@ -245,4 +346,202 @@
 
     </div>
 </div>
+
+<style>
+.recon-kpi-clickable {
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.recon-kpi-clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    border-color: var(--htc-primary-light) !important;
+}
+#reconCategoryTabs .nav-link {
+    transition: all 0.2s ease;
+}
+#reconCategoryTabs .nav-link.active {
+    background-color: var(--htc-primary, #1e40af) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(30, 64, 175, 0.25);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const suggestions = {{ reconciliation_suggestions_json|safe }};
+    const dropdown = document.getElementById('id_expense_type');
+    const amountInput = document.getElementById('id_amount');
+    const amountWrap = document.getElementById('reconAmountWrap');
+    const amountFeedback = document.getElementById('reconAmountFeedback');
+    const tabButtons = document.querySelectorAll('#reconCategoryTabs button[data-recon-cat]');
+
+    function fmt(v) {
+        return '₱' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getSelectedCategory() {
+        return dropdown ? dropdown.value : 'sourcing';
+    }
+
+    window.selectReconCategory = function(catKey) {
+        if (!suggestions || !suggestions[catKey]) return;
+
+        // 1. Sync dropdown
+        if (dropdown && dropdown.value !== catKey) {
+            dropdown.value = catKey;
+        }
+
+        // 2. Sync category tabs
+        tabButtons.forEach(function(btn) {
+            if (btn.getAttribute('data-recon-cat') === catKey) {
+                btn.classList.add('active');
+                btn.classList.remove('text-dark');
+            } else {
+                btn.classList.remove('active');
+                btn.classList.add('text-dark');
+            }
+        });
+
+        // 3. Update Suggestive Card
+        const data = suggestions[catKey];
+        const nameEl = document.getElementById('suggCatName');
+        const incurredEl = document.getElementById('suggIncurredAmt');
+        const remainingEl = document.getElementById('suggRemainingAmt');
+        const matchedEl = document.getElementById('suggMatchedAmt');
+        const matchedPctEl = document.getElementById('suggMatchedPct');
+        const badgeEl = document.getElementById('suggStatusBadge');
+        const descEl = document.getElementById('suggDescription');
+
+        if (nameEl) nameEl.textContent = data.name;
+        if (incurredEl) incurredEl.textContent = fmt(data.incurred);
+        if (remainingEl) remainingEl.textContent = fmt(data.remaining);
+        if (matchedEl) matchedEl.textContent = fmt(data.matched);
+        if (matchedPctEl) matchedPctEl.textContent = data.pct_matched;
+        if (descEl) descEl.textContent = data.hint;
+
+        if (badgeEl) {
+            if (data.pct_matched >= 100) {
+                badgeEl.className = 'badge bg-success';
+                badgeEl.textContent = 'Fully Reconciled';
+            } else if (data.pct_matched > 0) {
+                badgeEl.className = 'badge bg-warning text-dark';
+                badgeEl.textContent = data.pct_matched + '% Matched';
+            } else {
+                badgeEl.className = 'badge bg-secondary';
+                badgeEl.textContent = 'Unmatched';
+            }
+        }
+
+        // 4. Update Amount Input attributes & auto-suggestion
+        if (amountInput) {
+            const tip = 'Suggested Remaining for ' + data.name + ': ' + fmt(data.suggested) + ' (Incurred: ' + fmt(data.incurred) + ')';
+            amountInput.setAttribute('placeholder', 'Suggested: ' + fmt(data.suggested));
+            if (amountWrap) {
+                amountWrap.setAttribute('data-bs-original-title', tip);
+                amountWrap.setAttribute('title', tip);
+            }
+            if (!amountInput.value || parseFloat(amountInput.value) <= 0) {
+                amountInput.value = data.suggested.toFixed(2);
+            }
+        }
+
+        // 5. Update Live Feedback
+        updateFeedback();
+    };
+
+    function updateFeedback() {
+        if (!amountInput || !amountFeedback) return;
+        const catKey = getSelectedCategory();
+        const data = suggestions[catKey];
+        if (!data) { amountFeedback.style.display = 'none'; return; }
+
+        const val = parseFloat(amountInput.value) || 0;
+        if (val <= 0) {
+            amountFeedback.style.display = 'none';
+            return;
+        }
+
+        amountFeedback.style.display = 'block';
+        if (data.incurred > 0 && Math.abs(val - data.remaining) < 0.01) {
+            amountFeedback.className = 'form-text text-xs mt-1 text-success fw-bold';
+            amountFeedback.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Exact Remaining Match: Completes 100% of unallocated ' + data.name + ' cost (' + fmt(data.remaining) + ').';
+        } else if (data.incurred > 0 && Math.abs(val - data.incurred) < 0.01) {
+            amountFeedback.className = 'form-text text-xs mt-1 text-primary fw-bold';
+            amountFeedback.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i> Full Incurred Amount: 100% of total ' + data.name + ' cost (' + fmt(data.incurred) + ').';
+        } else if (data.incurred > 0) {
+            const pct = (val / data.incurred * 100).toFixed(1);
+            const afterRem = Math.max(0, data.remaining - val);
+            amountFeedback.className = 'form-text text-xs mt-1 text-primary fw-medium';
+            amountFeedback.innerHTML = 'Portion: <strong>' + pct + '%</strong> of incurred cost. Remaining unallocated after this: <strong>' + fmt(afterRem) + '</strong>.';
+        } else {
+            amountFeedback.className = 'form-text text-xs mt-1 text-muted';
+            amountFeedback.textContent = 'Allocated amount: ' + fmt(val);
+        }
+    }
+
+    function applyAmount(amt) {
+        if (!amountInput) return;
+        amountInput.value = Number(amt || 0).toFixed(2);
+        amountInput.classList.add('border-primary');
+        setTimeout(() => amountInput.classList.remove('border-primary'), 600);
+        updateFeedback();
+    }
+
+    // Quick suggestion buttons
+    const btnRem = document.getElementById('btnApplyReconRemaining');
+    if (btnRem) {
+        btnRem.addEventListener('click', function(e) {
+            e.preventDefault();
+            const catKey = getSelectedCategory();
+            const data = suggestions[catKey];
+            if (data) applyAmount(data.suggested);
+        });
+    }
+
+    const btnFull = document.getElementById('btnApplyReconFull');
+    if (btnFull) {
+        btnFull.addEventListener('click', function(e) {
+            e.preventDefault();
+            const catKey = getSelectedCategory();
+            const data = suggestions[catKey];
+            if (data) applyAmount(data.incurred);
+        });
+    }
+
+    const btn50 = document.getElementById('btnApplyRecon50');
+    if (btn50) {
+        btn50.addEventListener('click', function(e) {
+            e.preventDefault();
+            const catKey = getSelectedCategory();
+            const data = suggestions[catKey];
+            if (data) applyAmount(data.suggested_50);
+        });
+    }
+
+    // Tab buttons listener
+    tabButtons.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const catKey = this.getAttribute('data-recon-cat');
+            selectReconCategory(catKey);
+        });
+    });
+
+    // Dropdown change listener
+    if (dropdown) {
+        dropdown.addEventListener('change', function() {
+            selectReconCategory(this.value);
+        });
+    }
+
+    // Amount input listener
+    if (amountInput) {
+        amountInput.addEventListener('input', updateFeedback);
+    }
+
+    // Initial load
+    const initialCat = dropdown ? dropdown.value : 'sourcing';
+    selectReconCategory(initialCat || 'sourcing');
+});
+</script>
 {% endblock %}

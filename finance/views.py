@@ -57,6 +57,71 @@ def reconciliation_detail(request, pk):
     remaining_balance = max(total_target - total_matched, Decimal("0"))
     total_outlay = sourcing_total + logistics_total
 
+    deposit_total = (logistics_total * Decimal("0.5")).quantize(Decimal("0.01"))
+    rem_sourcing = max(Decimal("0"), sourcing_total - matched_sourcing)
+    rem_trucking = max(Decimal("0"), trucking_total - matched_trucking)
+    rem_barge = max(Decimal("0"), barge_total - matched_barge)
+    rem_deposit = max(Decimal("0"), deposit_total - matched_deposit)
+    rem_freight = max(Decimal("0"), logistics_total - matched_freight)
+
+    reconciliation_suggestions = {
+        "sourcing": {
+            "key": "sourcing",
+            "name": "Supplier Sourcing",
+            "incurred": float(sourcing_total),
+            "matched": float(matched_sourcing),
+            "remaining": float(rem_sourcing),
+            "pct_matched": round(float(matched_sourcing) / float(sourcing_total) * 100, 1) if sourcing_total > 0 else 100.0,
+            "suggested": float(rem_sourcing if rem_sourcing > 0 else sourcing_total),
+            "suggested_50": round(float(sourcing_total) * 0.5, 2),
+            "hint": "100% Raw Sugar / Molasses Procurement from Supplier",
+        },
+        "trucking": {
+            "key": "trucking",
+            "name": "Trucking Fees",
+            "incurred": float(trucking_total),
+            "matched": float(matched_trucking),
+            "remaining": float(rem_trucking),
+            "pct_matched": round(float(matched_trucking) / float(trucking_total) * 100, 1) if trucking_total > 0 else 100.0,
+            "suggested": float(rem_trucking if rem_trucking > 0 else trucking_total),
+            "suggested_50": round(float(trucking_total) * 0.5, 2),
+            "hint": "Inland Freight & Hauling to Port / Mill",
+        },
+        "barge": {
+            "key": "barge",
+            "name": "Barge Fees",
+            "incurred": float(barge_total),
+            "matched": float(matched_barge),
+            "remaining": float(rem_barge),
+            "pct_matched": round(float(matched_barge) / float(barge_total) * 100, 1) if barge_total > 0 else 100.0,
+            "suggested": float(rem_barge if rem_barge > 0 else barge_total),
+            "suggested_50": round(float(barge_total) * 0.5, 2),
+            "hint": "Marine Vessel Transport & Sea Freight",
+        },
+        "logistics_deposit": {
+            "key": "logistics_deposit",
+            "name": "50% Logistics Deposit",
+            "incurred": float(deposit_total),
+            "matched": float(matched_deposit),
+            "remaining": float(rem_deposit),
+            "pct_matched": round(float(matched_deposit) / float(deposit_total) * 100, 1) if deposit_total > 0 else 100.0,
+            "suggested": float(rem_deposit if rem_deposit > 0 else deposit_total),
+            "suggested_50": round(float(deposit_total) * 0.5, 2),
+            "hint": "50% Required Advance Down Payment for Logistics Operations",
+        },
+        "other": {
+            "key": "other",
+            "name": "Other / Ancillary Outlay",
+            "incurred": float(remaining_balance),
+            "matched": 0.0,
+            "remaining": float(remaining_balance),
+            "pct_matched": 0.0,
+            "suggested": float(remaining_balance),
+            "suggested_50": round(float(remaining_balance) * 0.5, 2),
+            "hint": "Miscellaneous or Ancillary Operational Matching",
+        },
+    }
+
     match_pct = float((total_matched / total_target * Decimal("100")).quantize(Decimal("0.1"))) if total_target > 0 else 0.0
     match_pct = min(match_pct, 100.0)
 
@@ -82,11 +147,17 @@ def reconciliation_detail(request, pk):
             "trucking_total": trucking_total,
             "barge_total": barge_total,
             "logistics_total": logistics_total,
+            "deposit_total": deposit_total,
             "matched_sourcing": matched_sourcing,
             "matched_trucking": matched_trucking,
             "matched_barge": matched_barge,
             "matched_freight": matched_freight,
             "matched_deposit": matched_deposit,
+            "rem_sourcing": rem_sourcing,
+            "rem_trucking": rem_trucking,
+            "rem_barge": rem_barge,
+            "rem_deposit": rem_deposit,
+            "rem_freight": rem_freight,
             "total_matched": total_matched,
             "remaining_balance": remaining_balance,
             "total_outlay": total_outlay,
@@ -94,6 +165,7 @@ def reconciliation_detail(request, pk):
             "match_status": match_status,
             "match_badge": match_badge,
             "financials": fin,
+            "reconciliation_suggestions_json": json.dumps(reconciliation_suggestions),
         },
     )
 
