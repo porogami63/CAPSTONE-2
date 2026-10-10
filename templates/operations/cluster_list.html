@@ -5,24 +5,7 @@
 {% block topbar_subtitle %}Purchase order management with immutable audit trail{% endblock %}
 {% block content %}
 <style>
-    .status-chip {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.25rem 0.65rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--htc-text-muted);
-        background: var(--htc-surface);
-        border: 1px solid var(--htc-border);
-        text-decoration: none;
-        transition: all 0.15s ease;
-    }
-    .status-chip:hover, .status-chip.active {
-        background: var(--htc-primary);
-        color: #ffffff;
-        border-color: var(--htc-primary);
-    }
+
     .view-mode-btn {
         padding: 0.25rem 0.6rem;
         font-size: 0.75rem;
@@ -128,14 +111,7 @@
     {% endif %}
 </form>
 
-<!-- QUICK STATUS CHIPS -->
-<div class="d-flex align-items-center gap-1 mb-3 flex-wrap">
-    <span class="text-xs text-muted font-semibold me-2"><i class="bi bi-funnel-fill text-primary me-1"></i>Quick Status:</span>
-    <a href="{% url 'operations:cluster_list' %}" class="status-chip {% if not current_status %}active{% endif %}">All ({{ total_transactions }})</a>
-    {% for code, label in status_choices %}
-    <a href="?status={{ code }}" class="status-chip {% if current_status == code %}active{% endif %}">{{ label }}</a>
-    {% endfor %}
-</div>
+
 
 <div class="tabs-row d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
