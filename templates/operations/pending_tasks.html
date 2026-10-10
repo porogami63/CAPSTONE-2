@@ -1,21 +1,21 @@
 {% extends "app_base.html" %}
 {% load humanize %}
 
-{% block title %}Pending Tasks & Operational Follow-Ups · HTC Core{% endblock %}
-{% block topbar_title %}Pending Tasks & Workflow Follow-Ups{% endblock %}
-{% block topbar_subtitle %}Actionable task matrix tracking real-life company process handoffs across Operations, Invoicing, and Finance{% endblock %}
+{% block title %}Pending Tasks · Molasses Trading{% endblock %}
+{% block topbar_title %}Pending Tasks{% endblock %}
+{% block topbar_subtitle %}Actionable tasks and next steps across Deliveries &amp; Trucking, Invoicing, and Finance{% endblock %}
 
 {% block content %}
 <div class="page-header mb-4 flex-between flex-wrap gap-3">
     <div>
-        <h2 class="fw-bold mb-1" style="color: var(--htc-text);">Operational Process Handoffs &amp; Action Queue</h2>
+        <h2 class="fw-bold mb-1" style="color: var(--htc-text);">Pending Tasks &amp; Action Items</h2>
         <p class="text-muted mb-0" style="font-size: 0.88rem;">
-            Real-time tracking of pending tasks, quality alerts, unbilled purchase orders, and payment collection follow-ups.
+            Real-time tracking of delivery weight issues, quality alerts, unbilled purchase orders, and customer invoice payments.
         </p>
     </div>
     <div class="d-flex align-items-center gap-2">
         <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline btn-sm">
-            <i class="bi bi-arrow-left"></i> Transactions Dashboard
+            <i class="bi bi-arrow-left"></i> Orders &amp; Deals
         </a>
     </div>
 </div>
@@ -26,36 +26,36 @@
         <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
             <div class="text-xs text-muted fw-bold text-uppercase">Total Pending Tasks</div>
             <div class="fs-3 fw-bold mt-1 text-primary">{{ total_pending_action }}</div>
-            <div class="text-xs text-muted mt-1">Cross-role action items</div>
+            <div class="text-xs text-muted mt-1">Items needing attention</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
-            <div class="text-xs text-muted fw-bold text-uppercase">Operations Follow-Ups</div>
+            <div class="text-xs text-muted fw-bold text-uppercase">Deliveries &amp; Quality</div>
             <div class="fs-3 fw-bold mt-1 text-warning">{{ disputed_logistics.count|add:offspec_chai.count|add:unlinked_mros.count }}</div>
-            <div class="text-xs text-muted mt-1">Disputes, MROs &amp; Off-spec CHAI</div>
+            <div class="text-xs text-muted mt-1">Weight shortages &amp; quality alerts</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
-            <div class="text-xs text-muted fw-bold text-uppercase">Invoicing Handoffs</div>
+            <div class="text-xs text-muted fw-bold text-uppercase">Customer Invoices to Issue</div>
             <div class="fs-3 fw-bold mt-1 text-info">{{ unbilled_clusters.count }}</div>
-            <div class="text-xs text-muted mt-1">Active POs pending billing</div>
+            <div class="text-xs text-muted mt-1">Approved orders waiting for invoice</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
-            <div class="text-xs text-muted fw-bold text-uppercase">Finance Collections</div>
+            <div class="text-xs text-muted fw-bold text-uppercase">Customer Payments Due</div>
             <div class="fs-3 fw-bold mt-1 text-success">{{ unpaid_invoices.count }}</div>
-            <div class="text-xs text-muted mt-1">Issued invoices pending payment</div>
+            <div class="text-xs text-muted mt-1">Invoices waiting for payment</div>
         </div>
     </div>
 </div>
 
-<!-- Section 1: Operations Manager Tasks -->
+<!-- Section 1: Deliveries & Quality Tasks -->
 <div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
     <div class="card-header bg-transparent border-bottom p-3 d-flex justify-content-between align-items-center">
-        <h5 class="fw-bold mb-0 text-warning"><i class="bi bi-shield-exclamation me-2"></i> Operations Manager Tasks &amp; Quality Alerts</h5>
+        <h5 class="fw-bold mb-0 text-warning"><i class="bi bi-truck me-2"></i> Deliveries &amp; Quality Tasks</h5>
         <span class="badge bg-warning text-dark">{{ disputed_logistics.count|add:offspec_chai.count }} Items Needing Attention</span>
     </div>
     <div class="card-body p-0">
@@ -64,22 +64,22 @@
                 <thead style="background: rgba(15, 45, 92, 0.04);">
                     <tr>
                         <th class="ps-3 py-2">Category</th>
-                        <th class="py-2">Reference Code / Subject</th>
+                        <th class="py-2">PO / Document #</th>
                         <th class="py-2">Details</th>
                         <th class="py-2">Status</th>
-                        <th class="text-end pe-3 py-2">Action Required</th>
+                        <th class="text-end pe-3 py-2">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <!-- Logistics Shortage Disputes -->
                     {% for d in disputed_logistics %}
                     <tr>
-                        <td class="ps-3"><span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-truck me-1"></i> Logistics Shortage</span></td>
+                        <td class="ps-3"><span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-truck me-1"></i> Weight Shortage</span></td>
                         <td class="fw-bold"><a href="{% url 'operations:cluster_detail' d.cluster.pk %}">{{ d.cluster.reference_code }}</a></td>
-                        <td>Partner: {{ d.partner.name|default:"—" }} | Variance: <strong class="text-danger">{{ d.variance_percent|floatformat:2 }}%</strong></td>
-                        <td><span class="badge bg-danger">Disputed — Over 1% Tolerance</span></td>
+                        <td>Delivery Company: {{ d.partner.name|default:"—" }} | Weight Loss: <strong class="text-danger">{{ d.variance_percent|floatformat:2 }}%</strong></td>
+                        <td><span class="badge bg-danger">Over 1% Allowed Difference</span></td>
                         <td class="text-end pe-3">
-                            <a href="{% url 'operations:cluster_detail' d.cluster.pk %}" class="btn btn-sm btn-outline-danger font-semibold">Resolve Dispute</a>
+                            <a href="{% url 'operations:cluster_detail' d.cluster.pk %}" class="btn btn-sm btn-outline-danger font-semibold">Resolve Weight Difference</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -87,19 +87,19 @@
                     <!-- Off-spec CHAI Certificates -->
                     {% for c in offspec_chai %}
                     <tr>
-                        <td class="ps-3"><span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-patch-exclamation me-1"></i> CHAI Off-Spec</span></td>
+                        <td class="ps-3"><span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-patch-exclamation me-1"></i> Quality Check Alert</span></td>
                         <td class="fw-bold"><a href="{% url 'operations:chai_detail' c.pk %}">{{ c.chai_number }}</a></td>
-                        <td>Supplier: {{ c.sugar_mill.name|default:"—" }} | Rating: <strong class="text-danger">CHAI {{ c.chai_value }}</strong> (Brix {{ c.brix_level }}%)</td>
-                        <td><span class="badge bg-danger">Low Grade / Rejected</span></td>
+                        <td>Supplier: {{ c.sugar_mill.name|default:"—" }} | Quality Rating: <strong class="text-danger">Grade {{ c.chai_value }}</strong> (Brix {{ c.brix_level }}%)</td>
+                        <td><span class="badge bg-danger">Below Required Quality</span></td>
                         <td class="text-end pe-3">
-                            <a href="{% url 'operations:chai_detail' c.pk %}" class="btn btn-sm btn-outline-warning font-semibold">Review Quality Concession</a>
+                            <a href="{% url 'operations:chai_detail' c.pk %}" class="btn btn-sm btn-outline-warning font-semibold">Review Quality Issue</a>
                         </td>
                     </tr>
                     {% endfor %}
 
                     {% if not disputed_logistics and not offspec_chai %}
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">No pending logistics disputes or off-spec CHAI alerts. Operations quality parameters are clear.</td>
+                        <td colspan="5" class="text-center py-4 text-muted">No pending delivery issues or quality alerts. All deliveries are in good order.</td>
                     </tr>
                     {% endif %}
                 </tbody>
@@ -108,23 +108,23 @@
     </div>
 </div>
 
-<!-- Section 2: Invoicing Officer Tasks -->
+<!-- Section 2: Invoicing Tasks -->
 <div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
     <div class="card-header bg-transparent border-bottom p-3 d-flex justify-content-between align-items-center">
-        <h5 class="fw-bold mb-0 text-info"><i class="bi bi-file-earmark-spreadsheet me-2"></i> Invoicing Officer Queue: Unbilled Purchase Orders</h5>
-        <span class="badge bg-info text-dark">{{ unbilled_clusters.count }} POs Pending Billing</span>
+        <h5 class="fw-bold mb-0 text-info"><i class="bi bi-file-earmark-spreadsheet me-2"></i> Invoicing Tasks: Orders Ready to Bill</h5>
+        <span class="badge bg-info text-dark">{{ unbilled_clusters.count }} Orders Waiting for Invoice</span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
                 <thead style="background: rgba(15, 45, 92, 0.04);">
                     <tr>
-                        <th class="ps-3 py-2">PO Reference</th>
-                        <th class="py-2">Customer / Client</th>
-                        <th class="py-2">Supplier Mill</th>
-                        <th class="py-2">Volume (MT)</th>
-                        <th class="py-2">Selling Value (₱)</th>
-                        <th class="text-end pe-3 py-2">Handoff Action</th>
+                        <th class="ps-3 py-2">PO #</th>
+                        <th class="py-2">Customer</th>
+                        <th class="py-2">Supplier</th>
+                        <th class="py-2">Quantity (MT)</th>
+                        <th class="py-2">Total Amount (₱)</th>
+                        <th class="text-end pe-3 py-2">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -136,12 +136,12 @@
                         <td><strong>{{ cl.purchase_order.volume_mt|floatformat:2|intcomma }} MT</strong></td>
                         <td class="fw-bold text-success">₱{{ cl.purchase_order.total_selling_value|floatformat:2|intcomma }}</td>
                         <td class="text-end pe-3">
-                            <a href="{% url 'operations:cluster_detail' cl.pk %}" class="btn btn-sm btn-htc font-semibold">Issue Sales Invoice</a>
+                            <a href="{% url 'operations:cluster_detail' cl.pk %}" class="btn btn-sm btn-htc font-semibold">Create Customer Invoice</a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">All active Purchase Orders have been billed and invoiced. No unbilled POs.</td>
+                        <td colspan="6" class="text-center py-4 text-muted">All active orders have been billed and invoiced. No orders waiting for billing.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -150,11 +150,11 @@
     </div>
 </div>
 
-<!-- Section 3: Finance Officer Tasks -->
+<!-- Section 3: Finance Tasks -->
 <div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
     <div class="card-header bg-transparent border-bottom p-3 d-flex justify-content-between align-items-center">
-        <h5 class="fw-bold mb-0 text-success"><i class="bi bi-bank me-2"></i> Finance Officer Queue: Invoice Collections &amp; Capital Facilities</h5>
-        <span class="badge bg-success text-white">{{ unpaid_invoices.count }} Issued Invoices Pending Payment</span>
+        <h5 class="fw-bold mb-0 text-success"><i class="bi bi-bank me-2"></i> Finance Tasks: Customer Invoices Waiting for Payment</h5>
+        <span class="badge bg-success text-white">{{ unpaid_invoices.count }} Invoices Waiting for Payment</span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -162,11 +162,11 @@
                 <thead style="background: rgba(15, 45, 92, 0.04);">
                     <tr>
                         <th class="ps-3 py-2">Invoice #</th>
-                        <th class="py-2">PO Contract</th>
-                        <th class="py-2">Customer Client</th>
-                        <th class="py-2">Issued Date</th>
-                        <th class="py-2">Invoice Amount (₱)</th>
-                        <th class="text-end pe-3 py-2">Collection Action</th>
+                        <th class="py-2">PO #</th>
+                        <th class="py-2">Customer</th>
+                        <th class="py-2">Date Issued</th>
+                        <th class="py-2">Amount Due (₱)</th>
+                        <th class="text-end pe-3 py-2">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -178,12 +178,12 @@
                         <td class="text-muted">{{ inv.issued_at|date:"M d, Y" }}</td>
                         <td class="fw-bold text-success">₱{{ inv.amount|floatformat:2|intcomma }}</td>
                         <td class="text-end pe-3">
-                            <a href="{% url 'operations:cluster_detail' inv.cluster.pk %}" class="btn btn-sm btn-outline-success font-semibold">Record Payment</a>
+                            <a href="{% url 'operations:cluster_detail' inv.cluster.pk %}" class="btn btn-sm btn-outline-success font-semibold">Record Payment Received</a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">All issued invoices have been settled or paid. Outstanding collection balance is clear.</td>
+                        <td colspan="6" class="text-center py-4 text-muted">All issued invoices have been settled or paid. No outstanding customer balances.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

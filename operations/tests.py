@@ -619,7 +619,7 @@ class RoleProcessNotificationTests(TestCase):
         url = reverse("operations:pending_tasks")
         res = self.client.get(url)
         self.assertEqual(res.status_code, 200)
-        self.assertContains(res, "Operational Process Handoffs")
+        self.assertContains(res, "Pending Tasks")
 
 
 class ApprovalWorkflowAndReminderTests(TestCase):

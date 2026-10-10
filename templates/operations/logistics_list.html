@@ -1,8 +1,8 @@
 {% extends "app_base.html" %}
 {% load role_tags humanize %}
-{% block title %}Logistics & Shrinkage · Molasses Trading{% endblock %}
-{% block topbar_title %}Logistics & Vessel Tracking{% endblock %}
-{% block topbar_subtitle %}Volume variance tracker — ±{{ tolerance_threshold|floatformat:1 }}% standard shrinkage tolerance{% endblock %}
+{% block title %}Deliveries &amp; Trucking · Molasses Trading{% endblock %}
+{% block topbar_title %}Deliveries &amp; Trucking{% endblock %}
+{% block topbar_subtitle %}Track deliveries, trucking stages, and weight differences (±{{ tolerance_threshold|floatformat:1 }}% allowed difference){% endblock %}
 
 {% block content %}
 <style>
@@ -384,11 +384,11 @@
             </div>
             <div class="col-md-3">
                 <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="">-- All Status Swimlanes --</option>
+                    <option value="">-- All Delivery Stages --</option>
                     <option value="transit" {% if current_status == "transit" %}selected{% endif %}>In Transit / Loading</option>
                     <option value="pending_review" {% if current_status == "pending_review" %}selected{% endif %}>Pending Review</option>
-                    <option value="disputed" {% if current_status == "disputed" %}selected{% endif %}>Disputed / Over Tolerance</option>
-                    <option value="accepted" {% if current_status == "accepted" %}selected{% endif %}>Accepted / Delivered</option>
+                    <option value="disputed" {% if current_status == "disputed" %}selected{% endif %}>Weight Shortage (Over Limit)</option>
+                    <option value="accepted" {% if current_status == "accepted" %}selected{% endif %}>Accepted &amp; Delivered</option>
                 </select>
             </div>
             <div class="col-md-2 d-flex gap-1">
@@ -404,8 +404,8 @@
 
 <!-- TOP KPI CARDS (Step 1 of Intro.js Tour) -->
 <div class="metric-grid"
-     data-intro="Monitor real-time shipment counts across all active transit, delivery, pending review, and disputed states."
-     data-title="Logistics Metrics Deck"
+     data-intro="Monitor real-time delivery counts across all active transit, delivery, pending review, and weight shortage states."
+     data-title="Deliveries &amp; Trucking Metrics"
      data-step="1">
     <div class="metric-box blue">
         <div class="label">In Transit / Loading</div>
@@ -424,59 +424,59 @@
         <div class="value">{{ pending_review_count }}</div>
     </div>
     <div class="metric-box red">
-        <div class="label">Disputed / Flagged</div>
+        <div class="label">Weight Shortage / Flagged</div>
         <div class="value">{{ disputed_count }}</div>
     </div>
 </div>
 
-<!-- Shipment Lifecycle Diagram (Step 2 of Intro.js Tour) -->
+<!-- Delivery Lifecycle Diagram (Step 2 of Intro.js Tour) -->
 <div class="lifecycle-card"
-     data-intro="Every shipment follows a strict 5-stage lifecycle from loading to variance checks and final acceptance."
-     data-title="Shipment Lifecycle Flow"
+     data-intro="Every delivery follows a clear 5-stage sequence from loading to weight verification and final acceptance."
+     data-title="Delivery &amp; Trucking Stages"
      data-step="2">
     <div class="lifecycle-header">
         <div>
-            <h3><i class="bi bi-diagram-3-fill"></i> Shipment Operational Lifecycle</h3>
-            <p>Standard 5-stage shipment sequence — shrinkage variance is evaluated at destination discharge.</p>
+            <h3><i class="bi bi-diagram-3-fill"></i> Delivery Progress Stages</h3>
+            <p>Standard 5-stage delivery sequence — delivery weight difference is verified upon arrival.</p>
         </div>
         <div class="lifecycle-legend-pills">
-            <span class="legend-pill green"><i class="bi bi-check-circle-fill"></i> Accepted (within ±{{ tolerance_threshold|floatformat:1 }}%)</span>
+            <span class="legend-pill green"><i class="bi bi-check-circle-fill"></i> Accepted (within ±{{ tolerance_threshold|floatformat:1 }}% difference)</span>
             <span class="legend-pill orange"><i class="bi bi-hourglass-split"></i> Pending Review</span>
-            <span class="legend-pill red"><i class="bi bi-exclamation-triangle-fill"></i> Disputed (over tolerance)</span>
+            <span class="legend-pill red"><i class="bi bi-exclamation-triangle-fill"></i> Weight Shortage (over limit)</span>
         </div>
     </div>
 
     <div class="pipeline-container">
         <div class="pipeline-step"><span class="step-num">1</span> <i class="bi bi-box-seam me-1"></i> Mill Loading</div>
         <i class="bi bi-chevron-right pipeline-arrow"></i>
-        <div class="pipeline-step"><span class="step-num">2</span> <i class="bi bi-truck me-1"></i> Barge Transit</div>
+        <div class="pipeline-step"><span class="step-num">2</span> <i class="bi bi-truck me-1"></i> In Transit (Truck / Barge)</div>
         <i class="bi bi-chevron-right pipeline-arrow"></i>
-        <div class="pipeline-step"><span class="step-num">3</span> <i class="bi bi-building-check me-1"></i> Port Discharge</div>
+        <div class="pipeline-step"><span class="step-num">3</span> <i class="bi bi-building-check me-1"></i> Destination Arrival</div>
         <i class="bi bi-chevron-right pipeline-arrow"></i>
-        <div class="pipeline-step"><span class="step-num">4</span> <i class="bi bi-calculator me-1"></i> Variance Check</div>
+        <div class="pipeline-step"><span class="step-num">4</span> <i class="bi bi-calculator me-1"></i> Weight Difference Check</div>
         <i class="bi bi-chevron-right pipeline-arrow"></i>
-        <div class="pipeline-step"><span class="step-num">5</span> <i class="bi bi-file-earmark-check me-1"></i> Resolution / Sign-Off</div>
+        <div class="pipeline-step"><span class="step-num">5</span> <i class="bi bi-file-earmark-check me-1"></i> Delivery Accepted</div>
     </div>
 </div>
 
 <!-- TABS (Step 3 of Intro.js Tour) -->
 <div class="tabs-row" style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem;"
-     data-intro="Switch between the Visual Variance Analysis Cards view and the All Shipments Operational Data Table view."
+     data-intro="Switch between the Deliveries &amp; Trucking stages view and the All Deliveries table view."
      data-title="Interactive View Switcher"
      data-step="3">
     <button class="tab-btn active" id="tabBtnVariance" onclick="switchLogisticsTab('variance')">
-        <i class="bi bi-bezier2"></i> Variance Analysis (Status Swimlanes)
+        <i class="bi bi-truck"></i> Deliveries &amp; Trucking
     </button>
     <button class="tab-btn" id="tabBtnAll" onclick="switchLogisticsTab('all')">
-        <i class="bi bi-list-task"></i> All Shipments Master Table
+        <i class="bi bi-list-task"></i> All Deliveries Table
     </button>
 </div>
 
-<!-- VARIANCE ANALYSIS VIEW CONTAINER (4-COLUMN SWIMLANES) -->
+<!-- DELIVERIES & TRUCKING VIEW CONTAINER (4-COLUMN STAGES) -->
 <div id="varianceAnalysisView">
     <div class="kanban-grid"
-         data-intro="Shipments are organized into 4 status columns: In Transit, Pending Review, Disputed, and Accepted."
-         data-title="Status Swimlanes & Categorized Cards"
+         data-intro="Deliveries are organized into 4 stages: In Transit, Pending Review, Weight Shortage, and Accepted."
+         data-title="Deliveries &amp; Trucking"
          data-step="4">
         
         <!-- Column 1: In Transit / Loading -->
@@ -550,13 +550,13 @@
             </div>
         </div>
 
-        <!-- Column 3: Disputed / Flagged -->
+        <!-- Column 3: Weight Shortage / Flagged -->
         <div class="kanban-col">
             <div class="kanban-header-box red">
-                <span><i class="bi bi-exclamation-triangle-fill me-1"></i> Disputed / Flagged</span>
+                <span><i class="bi bi-exclamation-triangle-fill me-1"></i> Weight Shortage / Flagged</span>
                 <span class="count-pill">{{ disputed_shipments|length }}</span>
             </div>
-            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search disputed..." onkeyup="filterColumnCards(this, 'colDisputedBody')" style="font-size: 0.78rem;">
+            <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search weight issues..." onkeyup="filterColumnCards(this, 'colDisputedBody')" style="font-size: 0.78rem;">
 
             <div class="kanban-cards-body" id="colDisputedBody">
                 {% for sh in disputed_shipments %}
@@ -572,25 +572,25 @@
                     <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
                     <div class="progress-bar-wrap"><div class="progress-bar-fill red" style="width: {{ sh.prog_pct }}%;"></div></div>
                     <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
-                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val red">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
-                    <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val red">{{ sh.over_limit|floatformat:2 }}% over limit</span></div>
+                    <div class="shrinkage-row"><span>Weight Loss</span><span class="shrinkage-val red">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                    <div class="headroom-row"><span>Allowed Limit (±1.0%)</span><span class="headroom-val red">{{ sh.over_limit|floatformat:2 }}% over limit</span></div>
                     
                     <button type="button" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; font-size: 0.73rem; color: var(--htc-accent); border-color: rgba(229,62,62,0.4);" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal" data-url="{% url 'operations:resolve_dispute' sh.pk %}" data-code="{{ sh.sh_code }}" data-customer="{{ sh.customer }}" data-mt="{{ sh.shrinkage_mt|floatformat:1 }}" data-pct="{{ sh.shrinkage_pct|floatformat:2 }}" onclick="setupDisputeModal(this)">
-                        <i class="bi bi-shield-exclamation"></i> Resolve Dispute
+                        <i class="bi bi-shield-exclamation"></i> Resolve Weight Difference
                     </button>
                 </div>
                 {% empty %}
                 <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
-                    No disputed shipments.
+                    No deliveries with weight shortages.
                 </div>
                 {% endfor %}
             </div>
         </div>
 
-        <!-- Column 4: Accepted / Delivered -->
+        <!-- Column 4: Accepted & Delivered -->
         <div class="kanban-col">
             <div class="kanban-header-box green">
-                <span><i class="bi bi-check-circle-fill me-1"></i> Accepted / Delivered</span>
+                <span><i class="bi bi-check-circle-fill me-1"></i> Accepted &amp; Delivered</span>
                 <span class="count-pill">{{ accepted_shipments|length }}</span>
             </div>
             <input type="text" class="form-control form-control-sm bg-white" placeholder="Quick search accepted..." onkeyup="filterColumnCards(this, 'colAcceptedBody')" style="font-size: 0.78rem;">
@@ -609,15 +609,15 @@
                     <div class="progress-label-row"><span>Loaded</span><span>{{ sh.loaded_mt }} MT</span></div>
                     <div class="progress-bar-wrap"><div class="progress-bar-fill green" style="width: {{ sh.prog_pct }}%;"></div></div>
                     <div class="progress-label-row" style="margin-top:-0.3rem; margin-bottom:0.6rem;"><span>Received</span><span>{{ sh.received_mt }} MT</span></div>
-                    <div class="shrinkage-row"><span>Shrinkage</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
-                    <div class="headroom-row"><span>Vs ±1.0% limit</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
+                    <div class="shrinkage-row"><span>Weight Loss</span><span class="shrinkage-val green">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
+                    <div class="headroom-row"><span>Allowed Limit (±1.0%)</span><span class="headroom-val green">{{ sh.headroom|floatformat:2 }}% headroom</span></div>
                     <a href="{% url 'operations:cluster_detail' sh.pk %}" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; display: block; font-size: 0.73rem;">
-                        <i class="bi bi-file-earmark-text"></i> View Contract
+                        <i class="bi bi-file-earmark-text"></i> View Order Details
                     </a>
                 </div>
                 {% empty %}
                 <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">
-                    No completed shipments yet.
+                    No completed deliveries yet.
                 </div>
                 {% endfor %}
             </div>
@@ -626,11 +626,11 @@
     </div>
 </div>
 
-<!-- ALL SHIPMENTS DATA TABLE VIEW CONTAINER -->
+<!-- ALL DELIVERIES DATA TABLE VIEW CONTAINER -->
 <div id="allShipmentsView" style="display: none;">
     <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; padding: 1.25rem; box-shadow: var(--htc-shadow);">
         <div class="flex-between mb-3">
-            <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--htc-primary); margin: 0;">Logistics Operational Master Ledger</h3>
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--htc-primary); margin: 0;">Deliveries &amp; Trucking Master Ledger</h3>
             <span class="text-muted text-xs">Total Records: {{ shipments|length }}</span>
         </div>
 
@@ -638,12 +638,12 @@
             <table class="table-htc" style="margin: 0; width: 100%; font-size: 0.85rem;">
                 <thead>
                     <tr style="border-bottom: 1px solid var(--htc-border);">
-                        <th style="padding: 0.65rem 0.8rem;">Shipment Code</th>
-                        <th style="padding: 0.65rem 0.8rem;">Contract PO</th>
+                        <th style="padding: 0.65rem 0.8rem;">Delivery #</th>
+                        <th style="padding: 0.65rem 0.8rem;">PO #</th>
                         <th style="padding: 0.65rem 0.8rem;">Customer</th>
                         <th style="padding: 0.65rem 0.8rem;">Loaded (MT)</th>
                         <th style="padding: 0.65rem 0.8rem;">Received (MT)</th>
-                        <th style="padding: 0.65rem 0.8rem;">Variance (%)</th>
+                        <th style="padding: 0.65rem 0.8rem;">Weight Difference (%)</th>
                         <th style="padding: 0.65rem 0.8rem;">Status</th>
                         <th style="padding: 0.65rem 0.8rem; text-align: right;">Action</th>
                     </tr>
@@ -697,8 +697,8 @@
         <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 14px 28px rgba(0,0,0,0.25);">
             <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1.25rem 1.5rem;">
                 <div>
-                    <h5 class="modal-title" id="resolveDisputeModalLabel" style="font-weight: 700; color: var(--htc-text);">Resolve Variance Dispute</h5>
-                    <div style="font-size: 0.8rem; color: var(--htc-text-muted);" id="modalSubhead">Shipment Resolution</div>
+                    <h5 class="modal-title" id="resolveDisputeModalLabel" style="font-weight: 700; color: var(--htc-text);">Resolve Weight Difference</h5>
+                    <div style="font-size: 0.8rem; color: var(--htc-text-muted);" id="modalSubhead">Delivery Shortage Resolution</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -706,18 +706,18 @@
                 {% csrf_token %}
                 <div class="modal-body" style="padding: 1.5rem;">
                     <div style="background: var(--htc-danger-bg); border: 1px solid #fed7d7; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: #9b2c2c;">
-                        <strong>Variance Alert:</strong> Exceeded 1.0% shrinkage tolerance by <span id="modalShrinkageVal">0.0 MT (0.00%)</span>. Select how management will resolve this dispute:
+                        <strong>Weight Difference Alert:</strong> Exceeded 1.0% allowed difference limit by <span id="modalShrinkageVal">0.0 MT (0.00%)</span>. Select how management will resolve this:
                     </div>
 
                     <div style="margin-bottom: 1.25rem;">
-                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; display: block;">Select Resolution Pathway</label>
+                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; display: block;">Select Resolution Option</label>
 
                         <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
                             <input class="form-check-input" type="radio" name="resolution_type" id="resConcede" value="CONCEDED" checked>
                             <label class="form-check-label" for="resConcede" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
-                                Concede &amp; Proceed As-Is <span class="badge bg-secondary" style="font-size: 0.65rem; margin-left: 0.25rem;">Default</span>
+                                Accept Difference &amp; Proceed As-Is <span class="badge bg-secondary" style="font-size: 0.65rem; margin-left: 0.25rem;">Default</span>
                                 <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
-                                    Absorb the variance loss, maintain original contract terms, clear dispute flag, and proceed with the deal.
+                                    Absorb the weight difference, maintain original contract terms, clear the shortage alert, and proceed with the deal.
                                 </div>
                             </label>
                         </div>
@@ -725,9 +725,9 @@
                         <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
                             <input class="form-check-input" type="radio" name="resolution_type" id="resAdjustBill" value="BILLING_ADJUSTED">
                             <label class="form-check-label" for="resAdjustBill" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
-                                Adjust Billing to Received Volume
+                                Adjust Customer Bill to Actual Received Weight
                                 <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
-                                    Automatically adjust linked Sales Invoices to bill actual received MT instead of loaded MT.
+                                    Automatically adjust customer invoice to bill actual received weight (MT) instead of loaded MT.
                                 </div>
                             </label>
                         </div>
@@ -735,9 +735,9 @@
                         <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
                             <input class="form-check-input" type="radio" name="resolution_type" id="resPenalty" value="BARGE_PENALTY">
                             <label class="form-check-label" for="resPenalty" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
-                                Deduct Shortage Penalty from Logistics Partner
+                                Deduct Weight Shortage from Delivery / Shipping Fee
                                 <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
-                                    Deduct shortage value from barge freight fees (`barge_fees`) to penalize transit loss.
+                                    Deduct shortage value from boat or truck delivery fee to cover transit weight loss.
                                 </div>
                             </label>
                         </div>
@@ -745,23 +745,23 @@
                         <div class="form-check mb-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.75rem 0.75rem 0.75rem 2.25rem;">
                             <input class="form-check-input" type="radio" name="resolution_type" id="resWaiver" value="WAIVED">
                             <label class="form-check-label" for="resWaiver" style="font-weight: 600; color: var(--htc-text); cursor: pointer;">
-                                Management Waiver (Brix / Moisture Loss)
+                                Manager Waiver (Natural Moisture / Brix Shift)
                                 <div style="font-size: 0.75rem; color: var(--htc-text-muted); font-weight: normal; margin-top: 0.15rem;">
-                                    Approve natural moisture evaporation / brix density shift waiver and clear dispute flag.
+                                    Approve natural moisture evaporation or brix density shift waiver and clear the shortage alert.
                                 </div>
                             </label>
                         </div>
                     </div>
 
                     <div>
-                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted); margin-bottom: 0.25rem; display: block;">Resolution Audit Notes</label>
-                        <textarea name="resolution_notes" class="form-control-htc" rows="2" placeholder="e.g. Conceded 7 MT variance due to customer request, proceeding with deal as-is..."></textarea>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted); margin-bottom: 0.25rem; display: block;">Resolution Notes</label>
+                        <textarea name="resolution_notes" class="form-control-htc" rows="2" placeholder="e.g. Conceded weight difference due to customer agreement, proceeding as-is..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid var(--htc-border); padding: 1rem 1.5rem;">
                     <button type="button" class="btn-htc-outline" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn-htc" style="background: var(--htc-success); border-color: var(--htc-success);">
-                        <i class="bi bi-check-circle-fill"></i> Confirm Resolution
+                        <i class="bi bi-check-circle-fill"></i> Save Resolution
                     </button>
                 </div>
             </form>
