@@ -76,6 +76,27 @@
     }
 
     /**
+     * Determines whether a form is eligible for draft caching.
+     * Only POST data-entry / transaction forms are eligible.
+     * GET forms (search / filter toolbars), forms with data-no-cache,
+     * and authentication forms are NEVER cached.
+     */
+    function isEligibleForm(form) {
+        if (!form) return false;
+        const method = (form.getAttribute("method") || "get").toLowerCase();
+        if (method !== "post") {
+            return false;
+        }
+        if (form.hasAttribute("data-no-cache") || form.classList.contains("no-cache")) {
+            return false;
+        }
+        if (isAuthForm(form)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Determines whether an input is eligible for draft caching.
      */
     function isFieldCacheable(input, form) {
@@ -147,7 +168,7 @@
      */
     function saveFormDraft(form, index) {
         if (!form || form._isSubmitting) return;
-        if (isAuthForm(form)) return;
+        if (!isEligibleForm(form)) return;
 
         const storageKey = getFormStorageKey(form, index);
         const fields = {};
@@ -270,7 +291,7 @@
      * Restore cached draft into form inputs.
      */
     function restoreFormDraft(form, index) {
-        if (isAuthForm(form)) return;
+        if (!isEligibleForm(form)) return;
 
         const storageKey = getFormStorageKey(form, index);
         let raw = null;
@@ -390,6 +411,10 @@
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key && key.startsWith(STORAGE_PREFIX)) {
+                    if (key.includes("/finance/loans") || key.includes(":form_") || key.includes("?")) {
+                        keysToRemove.push(key);
+                        continue;
+                    }
                     try {
                         const item = JSON.parse(localStorage.getItem(key));
                         if (item && item.timestamp && (Date.now() - item.timestamp > DRAFT_MAX_AGE_MS)) {
@@ -412,7 +437,7 @@
 
         const forms = document.querySelectorAll("form");
         forms.forEach((form, index) => {
-            if (isAuthForm(form)) return;
+            if (!isEligibleForm(form)) return;
 
             // Restore in-progress inputs on load
             restoreFormDraft(form, index);
@@ -451,7 +476,7 @@
         // Flush save before page unload / navigation swap (only for unsubmitted drafts)
         window.addEventListener("beforeunload", function () {
             forms.forEach((form, index) => {
-                if (!isAuthForm(form) && !form._isSubmitting) {
+                if (isEligibleForm(form) && !form._isSubmitting) {
                     saveFormDraft(form, index);
                 }
             });
@@ -459,7 +484,7 @@
 
         window.addEventListener("pagehide", function () {
             forms.forEach((form, index) => {
-                if (!isAuthForm(form) && !form._isSubmitting) {
+                if (isEligibleForm(form) && !form._isSubmitting) {
                     saveFormDraft(form, index);
                 }
             });

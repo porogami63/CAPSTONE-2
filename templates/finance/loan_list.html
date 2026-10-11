@@ -5,6 +5,18 @@
 {% block topbar_subtitle %}Multi-tiered financial lifecycle engine — loans, paper cheques, 50% deposits & settlement{% endblock %}
 
 {% block content %}
+<script>
+(function() {
+    try {
+        for (var i = localStorage.length - 1; i >= 0; i--) {
+            var k = localStorage.key(i);
+            if (k && (k.indexOf('htc_form_draft_v1:/finance/loans') !== -1 || k.indexOf('htc_form_draft_v1') !== -1 && k.indexOf('/loans') !== -1)) {
+                localStorage.removeItem(k);
+            }
+        }
+    } catch (e) {}
+})();
+</script>
 <style>
     /* Clocks badge */
     .clocks-badge {
@@ -273,15 +285,15 @@
 <!-- PO FILTER & WORKSPACE TOOLBAR -->
 <div class="card mb-4 border shadow-sm bg-white" style="border-radius: 10px;">
     <div class="card-body p-3">
-        <form method="get" class="row g-2.5 align-items-center m-0">
+        <form method="get" class="row g-2.5 align-items-center m-0" data-no-cache="true">
             <div class="col-lg-4 col-md-4">
                 <div class="search-input-wrap">
                     <i class="bi bi-search search-icon"></i>
-                    <input type="text" name="q" value="{{ q }}" class="form-control-htc search-field" placeholder="Search PO #, client, sugar mill, bank...">
+                    <input type="text" name="q" value="{{ q }}" class="form-control-htc search-field" placeholder="Search PO #, client, sugar mill, bank..." data-no-cache="true">
                 </div>
             </div>
             <div class="col-lg-4 col-md-4">
-                <select name="po" class="form-select-htc filter-control" onchange="if(this.value){ window.location.href=this.value; }">
+                <select name="po" class="form-select-htc filter-control" data-no-cache="true" onchange="if(this.value && (!window.event || window.event.isTrusted)){ window.location.href=this.value; }">
                     <option value="">-- All Deals (Select PO to Open Dedicated Workspace) --</option>
                     {% for p in all_open_pos %}
                     <option value="{% url 'finance:po_workspace' p.cluster.pk %}">
