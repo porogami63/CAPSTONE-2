@@ -240,10 +240,48 @@ class TransactionCluster(models.Model):
 
 
 class PurchaseOrder(models.Model):
+    class POStatus(models.TextChoices):
+        OPEN = "Open", "Open"
+        PARTIALLY_FULFILLED = "Partially Fulfilled", "Partially Fulfilled"
+        COMPLETED = "Completed", "Completed"
+
     cluster = models.OneToOneField(
         TransactionCluster,
         on_delete=models.CASCADE,
         related_name="purchase_order",
+    )
+    po_reference_number = models.CharField(
+        "PO Reference Number",
+        max_length=50,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Standard customer PO reference number (e.g. PO-20261010-001)",
+    )
+    total_contracted_mt = models.DecimalField(
+        "Total Contracted Quantity (MT)",
+        max_digits=14,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Total contracted volume in Metric Tons (e.g. 10000.000 MT)",
+    )
+    customer = models.ForeignKey(
+        Client,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="purchase_orders",
+        help_text="Primary purchasing client / customer",
+    )
+    po_status = models.CharField(
+        "PO Status",
+        max_length=30,
+        choices=POStatus.choices,
+        default=POStatus.OPEN,
+        db_index=True,
+        help_text="Incremental fulfillment lifecycle status",
     )
     volume_mt = models.DecimalField(max_digits=14, decimal_places=3)
     unit_price = models.DecimalField("Supplier Sourcing Price (₱/MT)", max_digits=12, decimal_places=2)
@@ -259,6 +297,52 @@ class PurchaseOrder(models.Model):
     history = HistoricalRecords()
 
     @property
+    def total_delivered_mt(self):
+        """Dynamic sum of delivered quantities across all incremental delivery records."""
+        total = self.deliveries.aggregate(total=models.Sum("delivered_mt"))["total"]
+        return total if total is not None else Decimal("0")
+
+    @property
+    def remaining_mt(self):
+        """Dynamic remaining contracted quantity: remaining_mt = total_contracted_mt - SUM(delivered_mt)"""
+        contracted = self.total_contracted_mt if self.total_contracted_mt is not None else (self.volume_mt or Decimal("0"))
+        remaining = contracted - self.total_delivered_mt
+        return max(remaining, Decimal("0"))
+
+    def update_status(self):
+        """Automatically updates po_status based on remaining_mt: Completed when 0, Partially Fulfilled when >0, Open when 0 delivered."""
+        contracted = self.total_contracted_mt if self.total_contracted_mt is not None else (self.volume_mt or Decimal("0"))
+        delivered = self.total_delivered_mt
+        remaining = contracted - delivered
+
+        if delivered <= Decimal("0"):
+            self.po_status = self.POStatus.OPEN
+        elif remaining <= Decimal("0"):
+            self.po_status = self.POStatus.COMPLETED
+        else:
+            self.po_status = self.POStatus.PARTIALLY_FULFILLED
+        
+        self.save(update_fields=["po_status"])
+
+        if self.po_status == self.POStatus.COMPLETED and self.cluster.status not in [TransactionCluster.Status.DELIVERED, TransactionCluster.Status.CLOSED]:
+            self.cluster.status = TransactionCluster.Status.DELIVERED
+            self.cluster.save(update_fields=["status", "updated_at"])
+        elif self.po_status == self.POStatus.PARTIALLY_FULFILLED and self.cluster.status == TransactionCluster.Status.APPROVED:
+            self.cluster.status = TransactionCluster.Status.ACTIVE
+            self.cluster.save(update_fields=["status", "updated_at"])
+
+    def save(self, *args, **kwargs):
+        if not self.po_reference_number and hasattr(self, "cluster") and self.cluster:
+            self.po_reference_number = self.cluster.reference_code
+        if self.total_contracted_mt is None and self.volume_mt is not None:
+            self.total_contracted_mt = self.volume_mt
+        elif self.volume_mt is None and self.total_contracted_mt is not None:
+            self.volume_mt = self.total_contracted_mt
+        if not self.customer_id and hasattr(self, "cluster") and self.cluster:
+            self.customer = self.cluster.client
+        super().save(*args, **kwargs)
+
+    @property
     def total_value(self):
         """Sourcing product cost paid to supplier."""
         return (self.volume_mt or Decimal("0")) * (self.unit_price or Decimal("0"))
@@ -271,7 +355,82 @@ class PurchaseOrder(models.Model):
         return Decimal("0")
 
     def __str__(self):
-        return f"PO for {self.cluster.reference_code}"
+        ref = self.po_reference_number or (self.cluster.reference_code if hasattr(self, "cluster") and self.cluster else str(self.id))
+        return f"PO {ref} ({self.total_contracted_mt or self.volume_mt} MT) - {self.po_status}"
+
+
+class DeliveryLedger(models.Model):
+    delivery_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="deliveries",
+        help_text="Parent Purchase Order Header FK",
+    )
+    supplier = models.ForeignKey(
+        SugarMill,
+        on_delete=models.PROTECT,
+        related_name="deliveries",
+        help_text="Dynamic Sugar Mill / Supplier sourcing this specific shipment batch",
+    )
+    delivered_mt = models.DecimalField("Delivered MT", max_digits=14, decimal_places=3)
+    receiving_location = models.CharField(
+        "Receiving Location",
+        max_length=200,
+        help_text="Customer delivery drop-off point (e.g. ADI, HTC Tank, Balayan)",
+    )
+    delivery_date = models.DateField("Delivery Date", default=timezone.localdate)
+    carrier = models.ForeignKey(
+        LogisticsPartner,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_shipments",
+        help_text="Logistics / Carrier Partner",
+    )
+    vessel_or_truck = models.CharField("Vessel ID / Truck Plate", max_length=100, blank=True)
+    dr_number = models.CharField("Delivery Receipt (DR) #", max_length=100, blank=True)
+    waybill_number = models.CharField("Waybill #", max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        ordering = ["-delivery_date", "-created_at"]
+        verbose_name = "Delivery Ledger Entry"
+        verbose_name_plural = "Delivery Ledger Entries"
+
+    def clean(self):
+        super().clean()
+        if self.delivered_mt is not None and self.delivered_mt <= Decimal("0"):
+            from django.core.exceptions import ValidationError
+            raise ValidationError({"delivered_mt": "Delivered quantity must be greater than 0 MT."})
+
+        if self.purchase_order_id and self.delivered_mt is not None:
+            po = self.purchase_order
+            contracted = po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or Decimal("0"))
+            
+            existing_deliveries = po.deliveries.all()
+            if self.pk:
+                existing_deliveries = existing_deliveries.exclude(pk=self.pk)
+            total_other = existing_deliveries.aggregate(t=models.Sum("delivered_mt"))["t"] or Decimal("0")
+            available_balance = max(contracted - total_other, Decimal("0"))
+
+            if self.delivered_mt > available_balance:
+                from django.core.exceptions import ValidationError
+                ref = po.po_reference_number or (po.cluster.reference_code if po.cluster else "PO")
+                raise ValidationError({
+                    "delivered_mt": f"Delivered quantity ({self.delivered_mt:,.3f} MT) exceeds the available remaining balance ({available_balance:,.3f} MT) for PO {ref}."
+                })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+        self.purchase_order.update_status()
+
+    def __str__(self):
+        po_ref = self.purchase_order.po_reference_number if self.purchase_order else "Unknown PO"
+        return f"Delivery {self.delivery_id} - {po_ref}: {self.delivered_mt} MT via {self.supplier.name} -> {self.receiving_location}"
 
 
 class LogisticsLedger(models.Model):

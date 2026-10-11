@@ -412,127 +412,271 @@
 
         <div class="panel">
 
-            <div class="panel-header">Deliveries, Weight Difference &amp; Supporting Documents</div>
-            <div class="panel-body">
-                {% if user|has_perm:"edit_logistics" %}
-                <form method="post" action="{% url 'operations:update_logistics' cluster.pk %}" enctype="multipart/form-data" class="form-stack">{% csrf_token %}
-                    {% for field in logistics_form %}
-                        {% if field.name not in 'vessel_id,partner,waybill_file,dr_file' %}
-                        <div class="form-field">
-                            <label for="{{ field.id_for_label }}" {% if field.errors %}class="text-danger fw-bold"{% endif %}>{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
-                            {% if field.errors %}
-                            <div class="field-error text-danger fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ field.errors|striptags }}</div>
-                            <style>
-                                #{{ field.id_for_label }} {
-                                    border: 2px solid #dc3545 !important;
-                                    background-color: #fff8f8 !important;
-                                }
-                            </style>
-                            {% endif %}
-                        </div>
-                        {% if field.name == 'barge_fees' %}
-                        <!-- Live Auto-Computed Logistics Outlay Summary placed immediately below Barging Freight Rate -->
-                        <div class="live-calc-box mt-2 mb-3" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 0.85rem 1rem;">
-                            <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted); margin-bottom: 0.5rem;">Estimated Delivery Cost Breakdown</div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 0.75rem; align-items: center;">
-                                <div>
-                                    <div style="font-size: 0.7rem; color: var(--htc-text-muted);">Truck Delivery</div>
-                                    <div id="liveTruckingDisplay" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱0.00</div>
-                                    <div id="liveTruckingRateDisplay" style="font-size: 0.72rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
-                                </div>
-                                <div>
-                                    <div style="font-size: 0.7rem; color: var(--htc-text-muted);">Boat / Barge Delivery</div>
-                                    <div id="liveBargingDisplay" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱0.00</div>
-                                    <div id="liveBargingRateDisplay" style="font-size: 0.72rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
-                                </div>
-                                <div style="border-left: 1px solid var(--htc-border); padding-left: 0.75rem;">
-                                    <div style="font-size: 0.7rem; font-weight: 700; color: var(--htc-gold);">Total Delivery Cost</div>
-                                    <div id="liveTotalLogisticsDisplay" style="font-size: 1.1rem; font-weight: 800; color: var(--htc-gold);">₱0.00</div>
-                                    <div id="liveTotalLogisticsRateDisplay" style="font-size: 0.75rem; color: var(--htc-text-muted); font-family: monospace;">₱0.00 / MT</div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% endif %}
-                    {% endfor %}
-
-                    <details class="w-100 mt-3 mb-2" style="border: 1px solid var(--htc-border); padding: 1rem; border-radius: 8px; background: var(--htc-surface);">
-                        <summary style="cursor: pointer; font-weight: 600; color: var(--htc-primary-light);">Show Extra Delivery Details &amp; Files</summary>
-                        <div class="advanced-fields mt-2">
-                        {% for field in logistics_form %}
-                            {% if field.name in 'vessel_id,partner,waybill_file,dr_file' %}
-                            <div class="form-field">
-                                <label for="{{ field.id_for_label }}" {% if field.errors %}class="text-danger fw-bold"{% endif %}>{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
-                                {% if field.errors %}
-                                <div class="field-error text-danger fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ field.errors|striptags }}</div>
-                                <style>
-                                    #{{ field.id_for_label }} {
-                                        border: 2px solid #dc3545 !important;
-                                        background-color: #fff8f8 !important;
-                                    }
-                                </style>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                        </div>
-                    </details>
-
-                    <button type="submit" class="btn-htc btn-htc-sm mt-3">Save Delivery Details</button>
-                </form>
-
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const trackingInput = document.getElementById('{{ logistics_form.tracking_fees.id_for_label }}');
-                    const bargeInput = document.getElementById('{{ logistics_form.barge_fees.id_for_label }}');
-                    const volInput = document.getElementById('{{ logistics_form.loaded_volume_mt.id_for_label }}');
-
-                    const liveTrucking = document.getElementById('liveTruckingDisplay');
-                    const liveTruckingRate = document.getElementById('liveTruckingRateDisplay');
-                    const liveBarging = document.getElementById('liveBargingDisplay');
-                    const liveBargingRate = document.getElementById('liveBargingRateDisplay');
-                    const liveTotal = document.getElementById('liveTotalLogisticsDisplay');
-                    const liveTotalRate = document.getElementById('liveTotalLogisticsRateDisplay');
-
-                    function updateLogisticsCalc() {
-                        const trackingFee = parseFloat(trackingInput ? trackingInput.value : 0) || 0;
-                        const bargeFee = parseFloat(bargeInput ? bargeInput.value : 0) || 0;
-                        const vol = parseFloat(volInput ? volInput.value : 0) || 0;
-
-                        const total = trackingFee + bargeFee;
-                        const trackingRate = vol > 0 ? trackingFee / vol : 0;
-                        const bargeRate = vol > 0 ? bargeFee / vol : 0;
-                        const combinedRate = vol > 0 ? total / vol : 0;
-
-                        if (liveTrucking) liveTrucking.textContent = `₱${trackingFee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                        if (liveTruckingRate) liveTruckingRate.textContent = vol > 0 ? `₱${trackingRate.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} / MT` : `₱0.00 / MT`;
-
-                        if (liveBarging) liveBarging.textContent = `₱${bargeFee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                        if (liveBargingRate) liveBargingRate.textContent = vol > 0 ? `₱${bargeRate.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} / MT` : `₱0.00 / MT`;
-
-                        if (liveTotal) liveTotal.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                        if (liveTotalRate) liveTotalRate.textContent = vol > 0 ? `Combined: ₱${combinedRate.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} / MT` : `₱0.00 / MT`;
-                    }
-
-                    if (trackingInput) trackingInput.addEventListener('input', updateLogisticsCalc);
-                    if (bargeInput) bargeInput.addEventListener('input', updateLogisticsCalc);
-                    if (volInput) volInput.addEventListener('input', updateLogisticsCalc);
-                    updateLogisticsCalc();
-                });
-                </script>
-                {% else %}
-                <div class="readonly-panel">
-                    <p><strong>Shipping Partner:</strong> {{ cluster.logistics.partner.name }}</p>
-                    <p><strong>Shipped Weight:</strong> {{ cluster.logistics.loaded_volume_mt|floatformat:3|intcomma }} MT</p>
-                    <p><strong>Received Weight:</strong> {{ cluster.logistics.received_volume_mt|floatformat:3|intcomma|default:"—" }} MT</p>
-                    <p><strong>Truck Delivery Fee:</strong> ₱{{ cluster.logistics.tracking_fees|floatformat:2|intcomma }}</p>
-                    <p><strong>Barge Delivery Fee:</strong> ₱{{ cluster.logistics.barge_fees|floatformat:2|intcomma }}</p>
-                    <p><strong>Total Delivery Cost:</strong> ₱{{ cluster.logistics.total_logistics_cost|floatformat:2|intcomma }}</p>
+            <div class="panel-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-truck text-primary"></i>
+                    <span>Incremental Delivery Ledger &amp; Fulfillment</span>
                 </div>
+                {% if po %}
+                    {% if po.po_status == 'Completed' %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
+                        <i class="bi bi-check-circle-fill me-1"></i>Completed
+                    </span>
+                    {% elif po.po_status == 'Partially Fulfilled' %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2.5 py-1">
+                        <i class="bi bi-pie-chart-fill me-1"></i>Partially Fulfilled
+                    </span>
+                    {% else %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1">
+                        <i class="bi bi-clock me-1"></i>Open
+                    </span>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <div class="panel-body">
+                <!-- Read-Only Status Panel -->
+                <div class="delivery-status-box mb-4 p-3 rounded" style="background: var(--htc-bg); border: 1px solid var(--htc-border);">
+                    <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted); margin-bottom: 0.6rem;">
+                        <i class="bi bi-speedometer2 me-1"></i> Contract Fulfillment Metrics (Read-Only)
+                    </div>
+                    <div class="row g-2 text-center">
+                        <div class="col-4">
+                            <div class="p-2 rounded bg-surface border">
+                                <div class="text-muted fs-8 fw-semibold text-uppercase">Total Contracted</div>
+                                <div class="fs-6 fw-bold text-dark mt-1">{{ po.total_contracted_mt|default:po.volume_mt|floatformat:3|intcomma }} MT</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 rounded bg-surface border border-success-subtle" style="background: rgba(16, 185, 129, 0.05);">
+                                <div class="text-success fs-8 fw-semibold text-uppercase">Delivered to Date</div>
+                                <div class="fs-6 fw-bold text-success mt-1">{{ po.total_delivered_mt|floatformat:3|intcomma }} MT</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 rounded bg-surface border border-primary-subtle" style="background: rgba(59, 130, 246, 0.05);">
+                                <div class="text-primary fs-8 fw-semibold text-uppercase">Remaining Available</div>
+                                <div class="fs-6 fw-bold text-primary mt-1">{{ po.remaining_mt|floatformat:3|intcomma }} MT</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if po.total_contracted_mt or po.volume_mt %}
+                    <div class="mt-2.5">
+                        {% with contracted=po.total_contracted_mt|default:po.volume_mt %}
+                        {% if contracted > 0 %}
+                        <div class="d-flex justify-content-between fs-8 text-muted mb-1">
+                            <span>Fulfillment Progress</span>
+                            <span class="fw-bold">{{ po.total_delivered_mt|floatformat:1 }} / {{ contracted|floatformat:1 }} MT</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar {% if po.po_status == 'Completed' %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {% widthratio po.total_delivered_mt contracted 100 %}%;"></div>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Incremental Delivery Ledger Table -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold fs-7 mb-0 text-dark">
+                            <i class="bi bi-list-check me-1"></i> Recorded Shipment Deliveries ({{ deliveries|length }})
+                        </h6>
+                        {% if po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
+                        <button type="button" class="btn-htc btn-sm py-1 px-2.5 fs-8" onclick="document.getElementById('logDeliverySection').scrollIntoView({behavior: 'smooth'})">
+                            <i class="bi bi-plus-lg me-1"></i> Log Delivery Batch
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    {% if deliveries %}
+                    <div class="table-responsive border rounded">
+                        <table class="table-htc fs-8 mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Source Supplier (Mill)</th>
+                                    <th>Receiving Location</th>
+                                    <th class="text-end">Delivered MT</th>
+                                    <th>Carrier / DR</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in deliveries %}
+                                <tr>
+                                    <td class="text-nowrap fw-semibold">{{ d.delivery_date|date:"M d, Y" }}</td>
+                                    <td><span class="badge bg-light text-dark border"><i class="bi bi-building me-1"></i>{{ d.supplier.name }}</span></td>
+                                    <td><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ d.receiving_location }}</td>
+                                    <td class="text-end fw-bold text-success text-nowrap">{{ d.delivered_mt|floatformat:3|intcomma }} MT</td>
+                                    <td>
+                                        {% if d.carrier %}<span class="text-muted">{{ d.carrier.name }}</span>{% endif %}
+                                        {% if d.dr_number %}<span class="badge bg-secondary-subtle text-secondary ms-1">DR: {{ d.dr_number }}</span>{% endif %}
+                                        {% if not d.carrier and not d.dr_number %}<span class="text-muted">—</span>{% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-light border py-2.5 px-3 fs-8 text-muted mb-0">
+                        <i class="bi bi-info-circle me-1"></i> No delivery records logged yet for this Purchase Order. Log the first batch below.
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Log Delivery Entry Form (Incremental Fulfillment) -->
+                {% if user|has_perm:"edit_logistics" %}
+                    {% if po.remaining_mt > 0 %}
+                    <div id="logDeliverySection" class="p-3 rounded border mb-3" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2.5">
+                            <h6 class="fw-bold fs-7 mb-0 text-primary">
+                                <i class="bi bi-plus-circle-fill me-1"></i> Log New Delivery Batch
+                            </h6>
+                            <span class="fs-8 text-muted">Available: <strong>{{ po.remaining_mt|floatformat:3|intcomma }} MT</strong></span>
+                        </div>
+
+                        <form method="post" action="{% url 'operations:log_delivery' %}" class="form-stack" id="clusterDeliveryForm">
+                            {% csrf_token %}
+                            <input type="hidden" name="purchase_order" value="{{ po.pk }}">
+                            <input type="hidden" name="next" value="{% url 'operations:cluster_detail' cluster.pk %}">
+
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">Source Supplier (Sugar Mill) <span class="text-danger">*</span></label>
+                                        {{ delivery_form.supplier }}
+                                        <div class="field-help fs-8 text-muted">Dynamic source mill for this batch (e.g. BUSCO, CASA)</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">Delivered Quantity (MT) <span class="text-danger">*</span></label>
+                                        <div class="input-group input-group-sm">
+                                            {{ delivery_form.delivered_mt }}
+                                            <span class="input-group-text bg-light text-muted fs-8">MT</span>
+                                        </div>
+                                        <div class="field-help fs-8 text-muted">Max deliverable: {{ po.remaining_mt|floatformat:3 }} MT</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mt-1">
+                                <div class="col-md-7">
+                                    <div class="form-field">
+                                        <div class="d-flex justify-content-between align-items-center mb-0.5">
+                                            <label class="fs-8 fw-bold mb-0">Receiving Destination <span class="text-danger">*</span></label>
+                                            <div class="d-flex gap-1">
+                                                <button type="button" class="btn btn-sm btn-light border py-0 px-1 fs-8" onclick="document.getElementById('id_delivery_location').value='ADI Nasugbu Mill Site'">ADI</button>
+                                                <button type="button" class="btn btn-sm btn-light border py-0 px-1 fs-8" onclick="document.getElementById('id_delivery_location').value='HTC Storage Tank - Balayan'">HTC Tank</button>
+                                                <button type="button" class="btn btn-sm btn-light border py-0 px-1 fs-8" onclick="document.getElementById('id_delivery_location').value='Balayan Distillery'">Balayan</button>
+                                            </div>
+                                        </div>
+                                        {{ delivery_form.receiving_location }}
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">Delivery Date <span class="text-danger">*</span></label>
+                                        {{ delivery_form.delivery_date }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="clusterOverDelivWarning" class="alert alert-danger py-1.5 px-2.5 fs-8 d-none mt-2 mb-1">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> Cannot deliver more than remaining balance of {{ po.remaining_mt|floatformat:3 }} MT.
+                            </div>
+
+                            <div class="d-flex justify-content-end mt-2.5 pt-2 border-top">
+                                <button type="submit" class="btn-htc btn-sm" id="btnCommitBatch">
+                                    <i class="bi bi-check2-circle me-1"></i> Record Shipment Delivery
+                                </button>
+                            </div>
+                        </form>
+
+                        <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const remMT = parseFloat("{{ po.remaining_mt }}") || 0;
+                            const mtInput = document.getElementById('id_delivery_mt');
+                            const warnBox = document.getElementById('clusterOverDelivWarning');
+                            const btnCommit = document.getElementById('btnCommitBatch');
+
+                            if (mtInput) {
+                                mtInput.addEventListener('input', function() {
+                                    const val = parseFloat(this.value) || 0;
+                                    if (remMT > 0 && val > remMT) {
+                                        warnBox.classList.remove('d-none');
+                                        this.style.borderColor = '#dc3545';
+                                        if (btnCommit) btnCommit.disabled = true;
+                                    } else {
+                                        warnBox.classList.add('d-none');
+                                        this.style.borderColor = '';
+                                        if (btnCommit) btnCommit.disabled = false;
+                                    }
+                                });
+                            }
+                        });
+                        </script>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 fs-8 mb-3">
+                        <i class="bi bi-check-circle-fill fs-6 text-success"></i>
+                        <div>
+                            <strong>100% Contract Fulfilled:</strong> All {{ po.total_contracted_mt|default:po.volume_mt|floatformat:3|intcomma }} MT contracted under this PO have been delivered and verified across all batches.
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Collapsible Logistics Freight Fees & Supporting Files -->
+                    <details class="w-100 p-3 rounded" style="border: 1px solid var(--htc-border); background: var(--htc-bg);">
+                        <summary style="cursor: pointer; font-weight: 600; font-size: 0.82rem; color: var(--htc-primary-light);">
+                            <i class="bi bi-calculator me-1"></i> Freight Cost Breakdown &amp; Supporting Document Scans
+                        </summary>
+                        <form method="post" action="{% url 'operations:update_logistics' cluster.pk %}" enctype="multipart/form-data" class="form-stack mt-2">
+                            {% csrf_token %}
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">{{ logistics_form.trucking_partner.label }}</label>
+                                        {{ logistics_form.trucking_partner }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">{{ logistics_form.tracking_fees.label }}</label>
+                                        {{ logistics_form.tracking_fees }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">{{ logistics_form.barge_partner.label }}</label>
+                                        {{ logistics_form.barge_partner }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">{{ logistics_form.barge_fees.label }}</label>
+                                        {{ logistics_form.barge_fees }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">{{ logistics_form.waybill_file.label }}</label>
+                                        {{ logistics_form.waybill_file }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">{{ logistics_form.dr_file.label }}</label>
+                                        {{ logistics_form.dr_file }}
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="loaded_volume_mt" value="{{ cluster.logistics.loaded_volume_mt|default:po.volume_mt|default:100 }}">
+                            <input type="hidden" name="received_volume_mt" value="{{ po.total_delivered_mt }}">
+                            <button type="submit" class="btn-htc-outline btn-sm mt-2">Update Freight &amp; Files</button>
+                        </form>
+                    </details>
                 {% endif %}
 
                 <div class="mt-3 pt-2 border-top">

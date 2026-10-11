@@ -5,7 +5,7 @@ from django import forms
 from django.utils import timezone
 
 from masters.models import Client, LogisticsPartner, SugarMill
-from operations.models import LogisticsLedger, PurchaseOrder, TransactionCluster
+from operations.models import DeliveryLedger, LogisticsLedger, PurchaseOrder, TransactionCluster
 
 
 class ExcelImportForm(forms.Form):
@@ -324,6 +324,100 @@ class LogisticsUpdateForm(forms.ModelForm):
                     self.add_error(field_name, e.message)
 
         return cleaned_data
+
+
+class DeliveryLedgerForm(forms.ModelForm):
+    po_reference_number = forms.CharField(
+        label="PO Reference Number",
+        required=False,
+        widget=forms.HiddenInput(),
+    )
+
+    class Meta:
+        model = DeliveryLedger
+        fields = [
+            "purchase_order",
+            "supplier",
+            "delivered_mt",
+            "receiving_location",
+            "delivery_date",
+            "carrier",
+            "vessel_or_truck",
+            "dr_number",
+            "notes",
+        ]
+        labels = {
+            "purchase_order": "Select Purchase Order (PO #)",
+            "supplier": "Source Supplier (Sugar Mill)",
+            "delivered_mt": "Quantity Delivered (MT)",
+            "receiving_location": "Customer Receiving Destination",
+            "delivery_date": "Delivery Date",
+            "carrier": "Logistics Carrier (Optional)",
+            "vessel_or_truck": "Vessel Name / Truck Plate #",
+            "dr_number": "Delivery Receipt (DR) #",
+            "notes": "Delivery Notes / Remarks",
+        }
+        widgets = {
+            "purchase_order": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_po"}),
+            "supplier": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_supplier"}),
+            "delivered_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "e.g. 2000.000", "id": "id_delivery_mt"}),
+            "receiving_location": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. ADI, HTC Tank, Balayan", "id": "id_delivery_location"}),
+            "delivery_date": forms.DateInput(attrs={"type": "date", "class": "form-control-htc"}),
+            "carrier": forms.Select(attrs={"class": "form-select-htc"}),
+            "vessel_or_truck": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. LCT LBC-1 / Plate NBD-1234"}),
+            "dr_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. DR-8890"}),
+            "notes": forms.Textarea(attrs={"class": "form-control-htc", "rows": 2, "placeholder": "Optional shipment notes..."}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        initial_po = kwargs.pop("initial_po", None)
+        super().__init__(*args, **kwargs)
+        
+        pos = PurchaseOrder.objects.select_related("cluster", "customer", "cluster__client").order_by("-cluster__created_at")
+        self.fields["purchase_order"].queryset = pos
+        self.fields["purchase_order"].empty_label = "-- Select Purchase Order (PO #) --"
+        self.fields["purchase_order"].label_from_instance = (
+            lambda obj: f"{obj.po_reference_number or obj.cluster.reference_code} — {obj.customer.name if obj.customer else (obj.cluster.client.name if obj.cluster else 'Unknown')} (Rem: {obj.remaining_mt:,.3f} MT | {obj.po_status})"
+        )
+        
+        self.fields["supplier"].queryset = SugarMill.objects.filter(is_active=True).order_by("name")
+        self.fields["supplier"].empty_label = "-- Select Source Sugar Mill --"
+        
+        self.fields["carrier"].queryset = LogisticsPartner.objects.filter(is_active=True).order_by("name")
+        self.fields["carrier"].required = False
+        self.fields["carrier"].empty_label = "-- Select Logistics Carrier (Optional) --"
+
+        if initial_po:
+            self.fields["purchase_order"].initial = initial_po
+            self.fields["po_reference_number"].initial = initial_po.po_reference_number or initial_po.cluster.reference_code
+            if not self.initial.get("receiving_location") and initial_po.customer:
+                self.fields["receiving_location"].initial = f"{initial_po.customer.name} Main Site"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        po = cleaned_data.get("purchase_order")
+        delivered_mt = cleaned_data.get("delivered_mt")
+
+        if delivered_mt is not None and delivered_mt <= 0:
+            self.add_error("delivered_mt", "Delivered quantity must be greater than 0 MT.")
+
+        if po and delivered_mt is not None:
+            contracted = po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or Decimal("0"))
+            existing = po.deliveries.all()
+            if self.instance and self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            total_other = existing.aggregate(t=models.Sum("delivered_mt"))["t"] or Decimal("0")
+            available = max(contracted - total_other, Decimal("0"))
+
+            if delivered_mt > available:
+                po_ref = po.po_reference_number or (po.cluster.reference_code if po.cluster else "PO")
+                self.add_error(
+                    "delivered_mt",
+                    f"Delivered quantity ({delivered_mt:,.3f} MT) exceeds the remaining available balance ({available:,.3f} MT) for PO {po_ref}."
+                )
+
+        return cleaned_data
+
 
 
 class MolassesReleaseOrderForm(forms.ModelForm):

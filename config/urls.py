@@ -30,6 +30,10 @@ urlpatterns = [
     path("finance/", include("finance.urls")),
     path("audit/", include("audit.urls")),
     path("chat/", include("chat.urls")),
+    # Direct /deliveries API endpoints as specified in core requirements
+    path("deliveries", __import__("operations.views", fromlist=["delivery_api_view"]).delivery_api_view, name="root_deliveries_api"),
+    path("deliveries/", __import__("operations.views", fromlist=["delivery_api_view"]).delivery_api_view, name="root_deliveries_slash_api"),
+    path("deliveries/api/po-status/<str:po_reference_number>/", __import__("operations.views", fromlist=["po_status_api"]).po_status_api, name="root_po_status_api"),
     # Uploaded documents are served through an authenticated view (never straight from disk/Nginx).
     re_path(r"^media/(?P<path>.+)$", protected_media, name="protected_media"),
 ]

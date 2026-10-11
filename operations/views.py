@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import HttpResponse, JsonResponse
@@ -16,10 +16,10 @@ from accounts.decorators import role_required
 from accounts.models import User
 from finance.forms import CapitalLoanForm, CashVoucherForm, InvoiceForm
 from finance.models import CapitalLoan, CashVoucher, FinancialReconciliation, Invoice
-from masters.models import LogisticsPartner, Planter
+from masters.models import LogisticsPartner, Planter, SugarMill
 
-from .forms import ExcelImportForm, LogisticsUpdateForm, TransactionClusterForm, MolassesReleaseOrderForm, MROExcelImportForm, CHAIRecordForm
-from .models import LogisticsLedger, PurchaseOrder, TransactionCluster, MolassesReleaseOrder, CHAIRecord, normalize_crop_year
+from .forms import ExcelImportForm, LogisticsUpdateForm, TransactionClusterForm, MolassesReleaseOrderForm, MROExcelImportForm, CHAIRecordForm, DeliveryLedgerForm
+from .models import LogisticsLedger, PurchaseOrder, TransactionCluster, MolassesReleaseOrder, CHAIRecord, DeliveryLedger, normalize_crop_year
 from .services.excel_import import (
     clear_operational_data,
     import_htc_summary,
@@ -719,6 +719,10 @@ def cluster_detail(request, pk):
     voucher_form = CashVoucherForm(cluster=cluster)
     loan_form = CapitalLoanForm(user=request.user, cluster=cluster)
 
+    po = getattr(cluster, "purchase_order", None)
+    deliveries = list(po.deliveries.select_related("supplier", "carrier").order_by("-delivery_date", "-created_at")) if po else []
+    delivery_form = DeliveryLedgerForm(initial_po=po) if po else None
+
     linked_mros = list(cluster.mro_releases.select_related("planter", "sugar_mill").all())
     available_mros = list(
         MolassesReleaseOrder.objects.filter(cluster__isnull=True)
@@ -767,6 +771,9 @@ def cluster_detail(request, pk):
         "operations/cluster_detail.html",
         {
             "cluster": cluster,
+            "po": po,
+            "deliveries": deliveries,
+            "delivery_form": delivery_form,
             "logistics_form": logistics_form,
             "invoice_form": invoice_form,
             "voucher_form": voucher_form,
@@ -1960,6 +1967,265 @@ def pending_tasks_view(request):
         "is_admin_or_mgr": is_admin_or_mgr,
     }
     return render(request, "operations/pending_tasks.html", context)
+
+
+@csrf_exempt
+def delivery_api_view(request):
+    """
+    API endpoint: POST /deliveries (or /operations/deliveries/api/)
+    Validates available MT balance before saving an incremental delivery record.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "METHOD_NOT_ALLOWED", "message": "Only POST requests are supported."}, status=405)
+
+    data = {}
+    if request.content_type == "application/json":
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            return JsonResponse({"error": "INVALID_JSON", "message": "Malformed JSON payload."}, status=400)
+    else:
+        data = request.POST.dict()
+
+    po_ref = data.get("po_reference_number") or data.get("po_ref") or data.get("po_id") or data.get("purchase_order")
+    supplier_id = data.get("supplier_id") or data.get("supplier")
+    delivered_mt_raw = data.get("delivered_mt") or data.get("quantity_mt") or data.get("volume_mt")
+    receiving_location = (data.get("receiving_location") or "").strip()
+    delivery_date_raw = data.get("delivery_date")
+    notes = data.get("notes", "").strip()
+    carrier_id = data.get("carrier_id") or data.get("carrier")
+    vessel_or_truck = data.get("vessel_or_truck", "").strip()
+    dr_number = data.get("dr_number", "").strip()
+
+    if not po_ref:
+        return JsonResponse({"error": "MISSING_FIELD", "message": "po_reference_number is required."}, status=400)
+
+    # Resolve PO by reference number or ID
+    po = None
+    if str(po_ref).isdigit():
+        po = PurchaseOrder.objects.filter(pk=int(po_ref)).first()
+    if not po:
+        po = PurchaseOrder.objects.filter(
+            Q(po_reference_number__iexact=str(po_ref).strip()) |
+            Q(cluster__reference_code__iexact=str(po_ref).strip())
+        ).first()
+
+    if not po:
+        return JsonResponse({"error": "PO_NOT_FOUND", "message": f"Purchase Order '{po_ref}' not found."}, status=404)
+
+    # Validate delivered_mt
+    if delivered_mt_raw is None or str(delivered_mt_raw).strip() == "":
+        return JsonResponse({"error": "MISSING_FIELD", "message": "delivered_mt is required."}, status=400)
+
+    try:
+        delivered_mt = Decimal(str(delivered_mt_raw).strip())
+    except Exception:
+        return JsonResponse({"error": "INVALID_QUANTITY", "message": "delivered_mt must be a valid number."}, status=400)
+
+    if delivered_mt <= Decimal("0"):
+        return JsonResponse({"error": "INVALID_QUANTITY", "message": "Delivered quantity must be greater than 0 MT."}, status=400)
+
+    # Validate available balance
+    remaining_balance = po.remaining_mt
+    if delivered_mt > remaining_balance:
+        po_code = po.po_reference_number or po.cluster.reference_code
+        return JsonResponse({
+            "error": "OVER_DELIVERY_NOT_PERMITTED",
+            "message": f"Delivered quantity ({delivered_mt:,.3f} MT) exceeds the remaining available balance ({remaining_balance:,.3f} MT) for PO {po_code}.",
+            "remaining_mt": f"{remaining_balance:.3f}",
+            "attempted_mt": f"{delivered_mt:.3f}",
+            "total_contracted_mt": f"{(po.total_contracted_mt or po.volume_mt):.3f}",
+            "total_delivered_mt": f"{po.total_delivered_mt:.3f}",
+        }, status=400)
+
+    # Resolve supplier
+    if not supplier_id:
+        return JsonResponse({"error": "MISSING_FIELD", "message": "supplier_id is required."}, status=400)
+
+    supplier = SugarMill.objects.filter(pk=supplier_id).first()
+    if not supplier:
+        return JsonResponse({"error": "SUPPLIER_NOT_FOUND", "message": f"Supplier sugar mill with ID {supplier_id} not found."}, status=404)
+
+    if not receiving_location:
+        customer_name = po.customer.name if po.customer else (po.cluster.client.name if po.cluster else "Customer Facility")
+        receiving_location = f"{customer_name} Main Facility"
+
+    from django.utils.dateparse import parse_date
+    delivery_date = parse_date(str(delivery_date_raw)) if delivery_date_raw else timezone.localdate()
+    if not delivery_date:
+        delivery_date = timezone.localdate()
+
+    with transaction.atomic():
+        carrier = LogisticsPartner.objects.filter(pk=carrier_id).first() if carrier_id else None
+        delivery = DeliveryLedger.objects.create(
+            purchase_order=po,
+            supplier=supplier,
+            delivered_mt=delivered_mt,
+            receiving_location=receiving_location,
+            delivery_date=delivery_date,
+            carrier=carrier,
+            vessel_or_truck=vessel_or_truck,
+            dr_number=dr_number,
+            notes=notes,
+        )
+        po.refresh_from_db()
+
+    return JsonResponse({
+        "success": True,
+        "delivery_id": str(delivery.delivery_id),
+        "po_reference_number": po.po_reference_number or po.cluster.reference_code,
+        "supplier_name": supplier.name,
+        "receiving_location": delivery.receiving_location,
+        "delivered_mt": f"{delivery.delivered_mt:.3f}",
+        "total_contracted_mt": f"{(po.total_contracted_mt or po.volume_mt):.3f}",
+        "total_delivered_mt": f"{po.total_delivered_mt:.3f}",
+        "remaining_mt": f"{po.remaining_mt:.3f}",
+        "po_status": po.po_status,
+        "message": f"Successfully logged delivery of {delivery.delivered_mt:,.3f} MT to {delivery.receiving_location} sourced from {supplier.name}.",
+    }, status=201)
+
+
+def po_status_api(request, po_reference_number):
+    """
+    Returns real-time status and balance for a Purchase Order by reference code.
+    """
+    po = PurchaseOrder.objects.filter(
+        Q(po_reference_number__iexact=po_reference_number) |
+        Q(cluster__reference_code__iexact=po_reference_number)
+    ).first()
+
+    if not po:
+        return JsonResponse({"error": "PO_NOT_FOUND", "message": f"Purchase order '{po_reference_number}' not found."}, status=404)
+
+    customer_name = po.customer.name if po.customer else (po.cluster.client.name if po.cluster else "Unknown")
+    contracted = po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or Decimal("0"))
+    delivered = po.total_delivered_mt
+    remaining = po.remaining_mt
+
+    return JsonResponse({
+        "po_reference_number": po.po_reference_number or po.cluster.reference_code,
+        "customer_id": po.customer_id or (po.cluster.client_id if po.cluster else None),
+        "customer_name": customer_name,
+        "total_contracted_mt": f"{contracted:.3f}",
+        "total_delivered_mt": f"{delivered:.3f}",
+        "remaining_mt": f"{remaining:.3f}",
+        "po_status": po.po_status,
+        "open_for_delivery": remaining > Decimal("0"),
+        "preferred_supplier_id": po.cluster.sugar_mill_id if po.cluster else None,
+        "preferred_supplier_name": po.cluster.sugar_mill.name if po.cluster and po.cluster.sugar_mill else "",
+    })
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def log_delivery_view(request):
+    """
+    Delivery logging screen & submission handler.
+    """
+    if request.method == "POST":
+        form = DeliveryLedgerForm(request.POST)
+        if form.is_valid():
+            delivery = form.save()
+            messages.success(
+                request,
+                f"Successfully logged {delivery.delivered_mt:,.3f} MT delivery for PO {delivery.purchase_order.po_reference_number or delivery.purchase_order.cluster.reference_code} sourced from {delivery.supplier.name} to {delivery.receiving_location}."
+            )
+            next_url = request.POST.get("next")
+            if next_url:
+                return redirect(next_url)
+            return redirect("operations:cluster_detail", pk=delivery.purchase_order.cluster.pk)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    label = form.fields[field].label if field in form.fields and form.fields[field].label else field
+                    messages.error(request, f"{label}: {error}")
+            next_url = request.POST.get("next")
+            if next_url:
+                return redirect(next_url)
+    else:
+        po_id = request.GET.get("po_id")
+        initial_po = get_object_or_404(PurchaseOrder, pk=po_id) if po_id else None
+        form = DeliveryLedgerForm(initial_po=initial_po)
+
+    recent_deliveries = DeliveryLedger.objects.select_related("purchase_order", "purchase_order__customer", "supplier", "carrier").order_by("-delivery_date", "-created_at")[:20]
+    pos = PurchaseOrder.objects.select_related("customer", "cluster", "cluster__client").order_by("-cluster__created_at")
+
+    return render(
+        request,
+        "operations/delivery_log.html",
+        {
+            "form": form,
+            "recent_deliveries": recent_deliveries,
+            "pos": pos,
+        },
+    )
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
+def deliveries_list_view(request):
+    """
+    Comprehensive Incremental Delivery Ledger List.
+    """
+    q = request.GET.get("q", "").strip()
+    supplier_id = request.GET.get("supplier", "").strip()
+    po_ref = request.GET.get("po", "").strip()
+
+    deliveries_qs = DeliveryLedger.objects.select_related(
+        "purchase_order",
+        "purchase_order__customer",
+        "purchase_order__cluster",
+        "purchase_order__cluster__client",
+        "supplier",
+        "carrier",
+    ).order_by("-delivery_date", "-created_at")
+
+    if q:
+        deliveries_qs = deliveries_qs.filter(
+            Q(purchase_order__po_reference_number__icontains=q) |
+            Q(purchase_order__cluster__reference_code__icontains=q) |
+            Q(receiving_location__icontains=q) |
+            Q(dr_number__icontains=q) |
+            Q(vessel_or_truck__icontains=q) |
+            Q(supplier__name__icontains=q)
+        )
+
+    if supplier_id:
+        deliveries_qs = deliveries_qs.filter(supplier_id=supplier_id)
+
+    if po_ref:
+        deliveries_qs = deliveries_qs.filter(
+            Q(purchase_order__po_reference_number__icontains=po_ref) |
+            Q(purchase_order__cluster__reference_code__icontains=po_ref)
+        )
+
+    total_delivered_mt = deliveries_qs.aggregate(total=Sum("delivered_mt"))["total"] or Decimal("0")
+    total_deliveries_count = deliveries_qs.count()
+
+    mills = SugarMill.objects.filter(is_active=True).order_by("name")
+    open_pos = PurchaseOrder.objects.filter(po_status__in=["Open", "Partially Fulfilled"]).select_related("customer", "cluster")
+
+    form = DeliveryLedgerForm()
+
+    return render(
+        request,
+        "operations/deliveries_list.html",
+        {
+            "deliveries": deliveries_qs,
+            "total_delivered_mt": total_delivered_mt,
+            "total_deliveries_count": total_deliveries_count,
+            "mills": mills,
+            "open_pos": open_pos,
+            "form": form,
+            "q": q,
+            "current_supplier": supplier_id,
+            "current_po": po_ref,
+        },
+    )
+
 
 
 

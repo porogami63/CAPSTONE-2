@@ -10,7 +10,7 @@ CORE_NAV_ITEMS = [
     ("operations:cluster_list", "Orders & Deals", "bi-receipt", ("operations:cluster", "operations:import_excel", "operations:clear_database")),
     ("operations:mro_summary", "Loading Permits (MRO)", "bi-file-earmark-ruled", ("operations:mro",)),
     ("finance:invoice_list", "Customer Invoices", "bi-file-earmark-spreadsheet", ("finance:invoice", "finance:reconciliation")),
-    ("operations:logistics_list", "Deliveries & Trucking", "bi-truck", ("operations:logistics",)),
+    ("operations:deliveries_list", "Deliveries & Trucking", "bi-truck", ("operations:deliveries", "operations:logistics")),
     ("finance:loan_list", "Bank Loans", "bi-bank", ("finance:loan",)),
     ("dashboard:analytics", "Analytics", "bi-graph-up-arrow", ("dashboard:analytics",)),
     ("masters:partners", "Suppliers & Customers", "bi-building", ("masters:",)),

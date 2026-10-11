@@ -1,0 +1,445 @@
+{% extends "app_base.html" %}
+{% load humanize role_tags static %}
+
+{% block title %}Log Incremental Delivery · HTC Core{% endblock %}
+{% block topbar_title %}Log Incremental Delivery{% endblock %}
+{% block topbar_subtitle %}Record incremental shipment fulfillment, assign source mill suppliers, and track remaining contracted volume per PO{% endblock %}
+
+{% block content %}
+<style>
+    .delivery-status-panel {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 2px 6px rgba(15, 45, 92, 0.04);
+    }
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+    @media (max-width: 768px) {
+        .status-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .status-metric {
+        background: var(--htc-bg);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius-sm);
+        padding: 0.85rem 1rem;
+    }
+    .status-metric .label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--htc-text-muted);
+        letter-spacing: 0.5px;
+    }
+    .status-metric .val {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: var(--htc-primary);
+        margin-top: 0.25rem;
+        line-height: 1.1;
+    }
+    .status-metric.highlight-rem {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.05);
+    }
+    .status-metric.highlight-rem .val {
+        color: #2563eb;
+    }
+    .status-metric.highlight-delivered {
+        border-color: #10b981;
+        background: rgba(16, 185, 129, 0.05);
+    }
+    .status-metric.highlight-delivered .val {
+        color: #059669;
+    }
+    .quick-loc-btn {
+        font-size: 0.72rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        border: 1px dashed var(--htc-border);
+        background: var(--htc-surface);
+        color: var(--htc-text-muted);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .quick-loc-btn:hover {
+        border-color: var(--htc-primary-light);
+        color: var(--htc-primary-light);
+        background: rgba(59, 130, 246, 0.05);
+    }
+</style>
+
+<div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-10">
+
+        <!-- Navigation Breadcrumb -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0 fs-7">
+                    <li class="breadcrumb-item"><a href="{% url 'operations:deliveries_list' %}">Deliveries &amp; Trucking</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Log Incremental Delivery</li>
+                </ol>
+            </nav>
+            <a href="{% url 'operations:deliveries_list' %}" class="btn-htc-outline btn-sm">
+                <i class="bi bi-arrow-left"></i> View All Deliveries
+            </a>
+        </div>
+
+        <!-- Real-Time Read-Only PO Status Panel -->
+        <div class="delivery-status-panel" id="poStatusPanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="fw-bold mb-0 text-primary d-flex align-items-center gap-2">
+                        <i class="bi bi-speedometer2"></i> PO Contract Fulfillment Status (Read-Only)
+                    </h5>
+                    <p class="text-muted fs-8 mb-0 mt-0.5" id="poCustomerSubtitle">Select a Purchase Order below to inspect live contracted balance.</p>
+                </div>
+                <span class="badge bg-secondary text-uppercase fs-8 px-2.5 py-1.5" id="poStatusBadge">No PO Selected</span>
+            </div>
+
+            <div class="status-grid">
+                <div class="status-metric">
+                    <div class="label">Total Contracted</div>
+                    <div class="val" id="dispContractedMT">0.000 <span class="fs-7 fw-normal text-muted">MT</span></div>
+                </div>
+                <div class="status-metric highlight-delivered">
+                    <div class="label">Total Delivered to Date</div>
+                    <div class="val" id="dispDeliveredMT">0.000 <span class="fs-7 fw-normal text-muted">MT</span></div>
+                </div>
+                <div class="status-metric highlight-rem">
+                    <div class="label">Remaining Available</div>
+                    <div class="val" id="dispRemainingMT">0.000 <span class="fs-7 fw-normal text-muted">MT</span></div>
+                </div>
+                <div class="status-metric">
+                    <div class="label">Fulfillment Progress</div>
+                    <div class="val" id="dispProgressPercent">0%</div>
+                    <div class="progress mt-1.5" style="height: 6px;">
+                        <div class="progress-bar bg-primary" id="progressBar" role="progressbar" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="overDeliveryAlert" class="alert alert-danger mt-3 mb-0 d-none align-items-center gap-2 py-2 fs-7" role="alert">
+                <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                <div>
+                    <strong>Validation Warning:</strong> Entered shipment quantity exceeds the remaining available balance of <span id="alertRemainingMT">0.000</span> MT.
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Delivery Entry Form Card -->
+        <div class="panel mb-4">
+            <div class="panel-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-truck text-primary"></i>
+                    <span>Shipment Delivery Parameters</span>
+                </div>
+                <span class="fs-8 text-muted">Multi-Supplier / Incremental Fulfillment</span>
+            </div>
+            <div class="panel-body">
+                <form method="post" action="{% url 'operations:log_delivery' %}" id="deliveryForm" class="form-stack">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}">
+
+                    <!-- Field 1: PO Reference Selector -->
+                    <div class="form-field">
+                        <label for="{{ form.purchase_order.id_for_label }}" class="fw-bold fs-7">
+                            {{ form.purchase_order.label }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.purchase_order }}
+                        <div class="field-help fs-8 text-muted mt-1">Select the customer contract to increment deliveries against.</div>
+                        {% if form.purchase_order.errors %}
+                        <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.purchase_order.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Field 2: Sourcing Mill (Dynamic per delivery) -->
+                        <div class="col-md-6">
+                            <div class="form-field">
+                                <label for="{{ form.supplier.id_for_label }}" class="fw-bold fs-7">
+                                    {{ form.supplier.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.supplier }}
+                                <div class="field-help fs-8 text-muted mt-1">Source mill for this batch (e.g. BUSCO, CASA, URC, Balayan).</div>
+                                {% if form.supplier.errors %}
+                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.supplier.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Field 3: Delivered MT Quantity -->
+                        <div class="col-md-6">
+                            <div class="form-field">
+                                <label for="{{ form.delivered_mt.id_for_label }}" class="fw-bold fs-7">
+                                    {{ form.delivered_mt.label }} <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    {{ form.delivered_mt }}
+                                    <span class="input-group-text bg-light text-muted fs-7">MT</span>
+                                </div>
+                                <div class="field-help fs-8 text-muted mt-1" id="maxHelpText">Cannot exceed the remaining balance.</div>
+                                {% if form.delivered_mt.errors %}
+                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.delivered_mt.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-0.5">
+                        <!-- Field 4: Receiving Location -->
+                        <div class="col-md-7">
+                            <div class="form-field">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="{{ form.receiving_location.id_for_label }}" class="fw-bold fs-7 mb-0">
+                                        {{ form.receiving_location.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="d-flex gap-1">
+                                        <span class="fs-8 text-muted me-1">Quick Fill:</span>
+                                        <button type="button" class="quick-loc-btn" onclick="setLoc('ADI Nasugbu Mill Site')">ADI</button>
+                                        <button type="button" class="quick-loc-btn" onclick="setLoc('HTC Storage Tank - Balayan')">HTC Tank</button>
+                                        <button type="button" class="quick-loc-btn" onclick="setLoc('Balayan Distillery')">Balayan</button>
+                                    </div>
+                                </div>
+                                {{ form.receiving_location }}
+                                <div class="field-help fs-8 text-muted mt-1">Destination depot, facility, or client storage site for this batch.</div>
+                                {% if form.receiving_location.errors %}
+                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.receiving_location.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Field 5: Delivery Date -->
+                        <div class="col-md-5">
+                            <div class="form-field">
+                                <label for="{{ form.delivery_date.id_for_label }}" class="fw-bold fs-7">
+                                    {{ form.delivery_date.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.delivery_date }}
+                                <div class="field-help fs-8 text-muted mt-1">Date shipment was received at location.</div>
+                                {% if form.delivery_date.errors %}
+                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.delivery_date.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Logistics Metadata -->
+                    <details class="w-100 mt-3 p-3 rounded" style="background: var(--htc-bg); border: 1px solid var(--htc-border);">
+                        <summary class="fw-bold text-primary fs-7" style="cursor: pointer;">
+                            <i class="bi bi-shield-check"></i> Additional Logistics Carrier &amp; DR Reference Details (Optional)
+                        </summary>
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-4">
+                                <div class="form-field">
+                                    <label for="{{ form.carrier.id_for_label }}" class="fs-8 fw-bold">{{ form.carrier.label }}</label>
+                                    {{ form.carrier }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-field">
+                                    <label for="{{ form.vessel_or_truck.id_for_label }}" class="fs-8 fw-bold">{{ form.vessel_or_truck.label }}</label>
+                                    {{ form.vessel_or_truck }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-field">
+                                    <label for="{{ form.dr_number.id_for_label }}" class="fs-8 fw-bold">{{ form.dr_number.label }}</label>
+                                    {{ form.dr_number }}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-field">
+                                    <label for="{{ form.notes.id_for_label }}" class="fs-8 fw-bold">{{ form.notes.label }}</label>
+                                    {{ form.notes }}
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a href="{% url 'operations:deliveries_list' %}" class="btn-htc-outline">Cancel</a>
+                        <button type="submit" class="btn-htc" id="submitBtn">
+                            <i class="bi bi-check2-circle"></i> Commit Delivery Record
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recent Deliveries Ledger Table -->
+        {% if recent_deliveries %}
+        <div class="panel">
+            <div class="panel-header d-flex justify-content-between align-items-center">
+                <span>Recent Incremental Delivery Records</span>
+                <span class="fs-8 text-muted">Last {{ recent_deliveries|length }} Shipments</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table-htc fs-7">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>PO Ref #</th>
+                            <th>Customer</th>
+                            <th>Source Supplier</th>
+                            <th>Receiving Destination</th>
+                            <th class="text-end">Delivered MT</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in recent_deliveries %}
+                        <tr>
+                            <td>{{ d.delivery_date|date:"M d, Y" }}</td>
+                            <td>
+                                <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="fw-bold text-primary">
+                                    {{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code }}
+                                </a>
+                            </td>
+                            <td>{{ d.purchase_order.customer.name|default:d.purchase_order.cluster.client.name }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ d.supplier.name }}</span></td>
+                            <td>{{ d.receiving_location }}</td>
+                            <td class="text-end fw-bold text-success">{{ d.delivered_mt|floatformat:3|intcomma }} MT</td>
+                            <td>
+                                <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="btn-htc-outline btn-sm py-0 px-2 fs-8">
+                                    View PO
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<script>
+let currentRemainingMT = 0;
+let currentContractedMT = 0;
+
+function setLoc(loc) {
+    const locInput = document.getElementById('id_delivery_location');
+    if (locInput) locInput.value = loc;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const poSelect = document.getElementById('id_delivery_po');
+    const mtInput = document.getElementById('id_delivery_mt');
+    const submitBtn = document.getElementById('submitBtn');
+    const alertBox = document.getElementById('overDeliveryAlert');
+    const alertRemSpan = document.getElementById('alertRemainingMT');
+
+    function checkOverDelivery() {
+        if (!mtInput) return;
+        const val = parseFloat(mtInput.value) || 0;
+        if (currentRemainingMT > 0 && val > currentRemainingMT) {
+            alertBox.classList.remove('d-none');
+            alertBox.classList.add('d-flex');
+            alertRemSpan.textContent = currentRemainingMT.toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3});
+            mtInput.classList.add('is-invalid');
+            mtInput.style.borderColor = '#dc3545';
+            submitBtn.disabled = true;
+        } else {
+            alertBox.classList.remove('d-flex');
+            alertBox.classList.add('d-none');
+            mtInput.classList.remove('is-invalid');
+            mtInput.style.borderColor = '';
+            submitBtn.disabled = false;
+        }
+    }
+
+    if (mtInput) {
+        mtInput.addEventListener('input', checkOverDelivery);
+    }
+
+    function fetchPOStatus(poId) {
+        if (!poId) {
+            resetStatusPanel();
+            return;
+        }
+
+        // Selected option text might contain the PO reference or we query API
+        const selectedOption = poSelect.options[poSelect.selectedIndex];
+        const poText = selectedOption ? selectedOption.text : '';
+        const poRefMatch = poText.split('—')[0].trim();
+
+        fetch(`/deliveries/api/po-status/${encodeURIComponent(poRefMatch)}/`)
+            .then(res => {
+                if (!res.ok) throw new Error('PO not found');
+                return res.json();
+            })
+            .then(data => {
+                currentContractedMT = parseFloat(data.total_contracted_mt) || 0;
+                const delivered = parseFloat(data.total_delivered_mt) || 0;
+                currentRemainingMT = parseFloat(data.remaining_mt) || 0;
+
+                document.getElementById('dispContractedMT').innerHTML = `${currentContractedMT.toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3})} <span class="fs-7 fw-normal text-muted">MT</span>`;
+                document.getElementById('dispDeliveredMT').innerHTML = `${delivered.toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3})} <span class="fs-7 fw-normal text-muted">MT</span>`;
+                document.getElementById('dispRemainingMT').innerHTML = `${currentRemainingMT.toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3})} <span class="fs-7 fw-normal text-muted">MT</span>`;
+
+                const pct = currentContractedMT > 0 ? Math.min(Math.round((delivered / currentContractedMT) * 100), 100) : 0;
+                document.getElementById('dispProgressPercent').textContent = `${pct}%`;
+                document.getElementById('progressBar').style.width = `${pct}%`;
+
+                document.getElementById('poCustomerSubtitle').textContent = `Customer: ${data.customer_name} | Contract PO Ref: ${data.po_reference_number}`;
+
+                const badge = document.getElementById('poStatusBadge');
+                badge.textContent = data.po_status;
+                badge.className = 'badge text-uppercase fs-8 px-2.5 py-1.5 ' + 
+                    (data.po_status === 'Completed' ? 'bg-success' : (data.po_status === 'Partially Fulfilled' ? 'bg-warning text-dark' : 'bg-primary'));
+
+                if (data.preferred_supplier_id) {
+                    const supSelect = document.getElementById('id_delivery_supplier');
+                    if (supSelect && !supSelect.value) {
+                        supSelect.value = data.preferred_supplier_id;
+                    }
+                }
+
+                const maxHelp = document.getElementById('maxHelpText');
+                if (maxHelp) {
+                    maxHelp.textContent = `Maximum deliverable balance: ${currentRemainingMT.toLocaleString('en-US', {minimumFractionDigits: 3})} MT.`;
+                }
+                if (mtInput) {
+                    mtInput.max = currentRemainingMT;
+                }
+
+                checkOverDelivery();
+            })
+            .catch(err => {
+                console.warn('Could not fetch PO status via API:', err);
+            });
+    }
+
+    function resetStatusPanel() {
+        currentRemainingMT = 0;
+        currentContractedMT = 0;
+        document.getElementById('dispContractedMT').innerHTML = `0.000 <span class="fs-7 fw-normal text-muted">MT</span>`;
+        document.getElementById('dispDeliveredMT').innerHTML = `0.000 <span class="fs-7 fw-normal text-muted">MT</span>`;
+        document.getElementById('dispRemainingMT').innerHTML = `0.000 <span class="fs-7 fw-normal text-muted">MT</span>`;
+        document.getElementById('dispProgressPercent').textContent = `0%`;
+        document.getElementById('progressBar').style.width = `0%`;
+        document.getElementById('poCustomerSubtitle').textContent = `Select a Purchase Order below to inspect live contracted balance.`;
+        const badge = document.getElementById('poStatusBadge');
+        badge.textContent = 'No PO Selected';
+        badge.className = 'badge bg-secondary text-uppercase fs-8 px-2.5 py-1.5';
+    }
+
+    if (poSelect) {
+        poSelect.addEventListener('change', function() {
+            fetchPOStatus(this.value);
+        });
+        if (poSelect.value) {
+            fetchPOStatus(poSelect.value);
+        }
+    }
+});
+</script>
+{% endblock %}

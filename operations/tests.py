@@ -689,6 +689,158 @@ class ApprovalWorkflowAndReminderTests(TestCase):
         self.assertGreaterEqual(count, 1)
 
 
+class IncrementalDeliveryLedgerTests(TestCase):
+    def setUp(self):
+        from decimal import Decimal
+        from masters.models import Client, SugarMill, LogisticsPartner
+        from operations.models import TransactionCluster, PurchaseOrder
+
+        self.client_adi = Client.objects.create(name="Absolute Distillers Inc. (ADI)")
+        self.mill_busco = SugarMill.objects.create(name="BUSCO Sugar Milling Co.")
+        self.mill_casa = SugarMill.objects.create(name="CASA Sugar Mill")
+        self.mill_balayan = SugarMill.objects.create(name="Balayan Sugar Mill")
+        self.logistics_partner = LogisticsPartner.objects.create(name="Manila Barge Logistics")
+
+        self.cluster = TransactionCluster.objects.create(
+            reference_code="PO-ADI-10000",
+            client=self.client_adi,
+            sugar_mill=self.mill_busco,
+            status=TransactionCluster.Status.APPROVED,
+        )
+
+        self.po = PurchaseOrder.objects.create(
+            cluster=self.cluster,
+            po_reference_number="PO-ADI-10000",
+            total_contracted_mt=Decimal("10000.000"),
+            volume_mt=Decimal("10000.000"),
+            customer=self.client_adi,
+            unit_price=Decimal("32000.00"),
+            selling_price=Decimal("41000.00"),
+        )
+
+        self.admin = User.objects.create_user(
+            username="ops_mgr",
+            password="testpass123",
+            role=User.Role.OPERATIONS_MANAGEMENT,
+        )
+
+    def test_dynamic_remaining_mt_and_status_progression(self):
+        from decimal import Decimal
+        from operations.models import DeliveryLedger
+
+        # 1. Initial State: 10,000 MT Contracted, 0 Delivered, Status: Open
+        self.assertEqual(self.po.total_delivered_mt, Decimal("0"))
+        self.assertEqual(self.po.remaining_mt, Decimal("10000.000"))
+        self.assertEqual(self.po.po_status, "Open")
+
+        # 2. First Shipment: 2,000 MT from BUSCO -> ADI Site
+        d1 = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill_busco,
+            delivered_mt=Decimal("2000.000"),
+            receiving_location="ADI Nasugbu Site",
+            carrier=self.logistics_partner,
+        )
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.total_delivered_mt, Decimal("2000.000"))
+        self.assertEqual(self.po.remaining_mt, Decimal("8000.000"))
+        self.assertEqual(self.po.po_status, "Partially Fulfilled")
+
+        # 3. Second Shipment: 5,000 MT from CASA -> HTC Tank
+        d2 = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill_casa,
+            delivered_mt=Decimal("5000.000"),
+            receiving_location="HTC Storage Tank",
+            carrier=self.logistics_partner,
+        )
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.total_delivered_mt, Decimal("7000.000"))
+        self.assertEqual(self.po.remaining_mt, Decimal("3000.000"))
+        self.assertEqual(self.po.po_status, "Partially Fulfilled")
+
+        # 4. Third Shipment: 3,000 MT from Balayan -> Balayan
+        d3 = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill_balayan,
+            delivered_mt=Decimal("3000.000"),
+            receiving_location="Balayan Distillery",
+            carrier=self.logistics_partner,
+        )
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.total_delivered_mt, Decimal("10000.000"))
+        self.assertEqual(self.po.remaining_mt, Decimal("0.000"))
+        self.assertEqual(self.po.po_status, "Completed")
+        self.cluster.refresh_from_db()
+        self.assertEqual(self.cluster.status, TransactionCluster.Status.DELIVERED)
+
+    def test_over_delivery_validation_prevented_in_model(self):
+        from decimal import Decimal
+        from django.core.exceptions import ValidationError
+        from operations.models import DeliveryLedger
+
+        # Attempt to deliver 12,000 MT when contracted is 10,000 MT
+        with self.assertRaises(ValidationError):
+            d = DeliveryLedger(
+                purchase_order=self.po,
+                supplier=self.mill_busco,
+                delivered_mt=Decimal("12000.000"),
+                receiving_location="ADI Nasugbu Site",
+            )
+            d.save()
+
+    def test_delivery_api_post_success_and_over_delivery_prevention(self):
+        import json
+
+        # 1. Valid API Delivery via POST /deliveries
+        payload1 = {
+            "po_reference_number": "PO-ADI-10000",
+            "supplier_id": self.mill_busco.id,
+            "delivered_mt": "4000.000",
+            "receiving_location": "ADI Nasugbu Site",
+            "delivery_date": "2026-10-11",
+            "notes": "First batch of 4000 MT",
+        }
+        res1 = self.client.post(
+            "/deliveries",
+            data=json.dumps(payload1),
+            content_type="application/json",
+        )
+        self.assertEqual(res1.status_code, 201)
+        res1_data = res1.json()
+        self.assertTrue(res1_data["success"])
+        self.assertEqual(res1_data["remaining_mt"], "6000.000")
+        self.assertEqual(res1_data["po_status"], "Partially Fulfilled")
+
+        # 2. Over-delivery attempt via POST /deliveries (7000 MT > 6000 MT remaining)
+        payload2 = {
+            "po_reference_number": "PO-ADI-10000",
+            "supplier_id": self.mill_casa.id,
+            "delivered_mt": "7000.000",
+            "receiving_location": "HTC Storage Tank",
+        }
+        res2 = self.client.post(
+            "/deliveries",
+            data=json.dumps(payload2),
+            content_type="application/json",
+        )
+        self.assertEqual(res2.status_code, 400)
+        res2_data = res2.json()
+        self.assertEqual(res2_data["error"], "OVER_DELIVERY_NOT_PERMITTED")
+        self.assertEqual(res2_data["remaining_mt"], "6000.000")
+
+    def test_po_status_api_endpoint(self):
+        res = self.client.get(f"/deliveries/api/po-status/{self.po.po_reference_number}/")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["po_reference_number"], "PO-ADI-10000")
+        self.assertEqual(data["customer_name"], "Absolute Distillers Inc. (ADI)")
+        self.assertEqual(data["total_contracted_mt"], "10000.000")
+        self.assertEqual(data["remaining_mt"], "10000.000")
+        self.assertEqual(data["po_status"], "Open")
+
+
+
 
 
 

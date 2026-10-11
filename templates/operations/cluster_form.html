@@ -53,20 +53,21 @@
                 {% if form.client.errors %}<div class="text-danger text-xs mt-1">{{ form.client.errors|striptags }}</div>{% endif %}
             </div>
             <div class="col-md-6">
-                <label for="{{ form.sugar_mill.id_for_label }}" class="form-label font-semibold text-sm">Supplier (Sugar Mill) <span class="text-danger">*</span></label>
+                <label for="{{ form.sugar_mill.id_for_label }}" class="form-label font-semibold text-sm">Primary / Preferred Supplier (Sugar Mill) <span class="text-danger">*</span></label>
                 {{ form.sugar_mill }}
+                <div class="form-text text-xs text-muted mt-1">Initial or preferred mill. Individual shipments can be dynamically sourced from different suppliers (e.g. BUSCO, CASA) in the Delivery Ledger.</div>
                 {% if form.sugar_mill.errors %}<div class="text-danger text-xs mt-1">{{ form.sugar_mill.errors|striptags }}</div>{% endif %}
             </div>
         </div>
     </div>
 
     <!-- Card 2: Order Quantity & Pricing -->
-    <div class="form-section-card" data-step="2" data-intro="Order Pricing: Set order weight in tons, supplier buying price, and customer selling price.">
+    <div class="form-section-card" data-step="2" data-intro="Order Pricing: Set total contracted order weight in tons, supplier buying price, and customer selling price.">
         <div class="form-section-header">
             <i class="bi bi-calculator-fill"></i>
             <div>
-                <h3>2. Order Quantity &amp; Pricing</h3>
-                <p>Enter order weight (MT), buying price from supplier, and selling price to customer.</p>
+                <h3>2. Contracted Quantity &amp; Pricing</h3>
+                <p>Enter total contracted order weight (MT), buying price from supplier, and selling price to customer.</p>
             </div>
         </div>
 
@@ -80,12 +81,12 @@
 
         <div class="row g-3">
             <div class="col-md-4">
-                <label for="{{ form.volume_mt.id_for_label }}" class="form-label font-semibold text-sm">Order Quantity <span class="text-danger">*</span></label>
+                <label for="{{ form.volume_mt.id_for_label }}" class="form-label font-semibold text-sm">Total Contracted Quantity <span class="text-danger">*</span></label>
                 <div class="input-addon-group">
                     {{ form.volume_mt }}
                     <span class="addon addon-suffix">MT</span>
                 </div>
-                <div class="form-text text-xs text-muted mt-1">Total order weight in Metric Tons (1 MT = 1,000 kg).</div>
+                <div class="form-text text-xs text-muted mt-1">Total PO contracted volume in Metric Tons (e.g. 10,000 MT).</div>
                 {% if form.volume_mt.errors %}<div class="text-danger text-xs mt-1">{{ form.volume_mt.errors|striptags }}</div>{% endif %}
             </div>
 

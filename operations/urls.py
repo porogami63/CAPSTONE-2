@@ -52,6 +52,10 @@ urlpatterns = [
     path("pending-tasks/", views.pending_tasks_view, name="pending_tasks"),
     path("stats-monitoring/", views.stats_monitoring_view, name="stats_monitoring"),
     path("api/stats-check/", views.stats_check_api, name="stats_check_api"),
+    path("deliveries/", views.deliveries_list_view, name="deliveries_list"),
+    path("deliveries/log/", views.log_delivery_view, name="log_delivery"),
+    path("deliveries/api/", views.delivery_api_view, name="delivery_api"),
+    path("deliveries/api/po-status/<str:po_reference_number>/", views.po_status_api, name="po_status_api"),
 ]
 
 

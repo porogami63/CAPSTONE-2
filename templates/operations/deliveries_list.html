@@ -1,0 +1,200 @@
+{% extends "app_base.html" %}
+{% load humanize role_tags static %}
+
+{% block title %}Incremental Delivery Ledger · HTC Core{% endblock %}
+{% block topbar_title %}Deliveries &amp; Trucking{% endblock %}
+{% block topbar_subtitle %}Incremental delivery ledger tracking dynamic mill sourcing, multi-destination fulfillment, and remaining MT balances per PO{% endblock %}
+
+{% block content %}
+<style>
+    .metric-grid-deliv {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 992px) {
+        .metric-grid-deliv { grid-template-columns: repeat(2, 1fr); }
+    }
+    .metric-box-deliv {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-top: 3px solid var(--htc-primary-light);
+        border-radius: var(--htc-radius-sm);
+        padding: 1rem 1.25rem;
+        box-shadow: 0 2px 4px rgba(15, 45, 92, 0.04);
+    }
+    .metric-box-deliv .label {
+        font-size: 0.68rem;
+        color: var(--htc-text-muted);
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .metric-box-deliv .value {
+        font-size: 1.55rem;
+        font-weight: 800;
+        color: var(--htc-primary);
+        margin-top: 0.25rem;
+        line-height: 1.1;
+    }
+</style>
+
+<!-- Metric Cards Deck -->
+<div class="metric-grid-deliv">
+    <div class="metric-box-deliv" style="border-top-color: #3b82f6;">
+        <div class="label">Total Shipments Logged</div>
+        <div class="value">{{ total_deliveries_count }} <span class="fs-7 fw-normal text-muted">batches</span></div>
+    </div>
+    <div class="metric-box-deliv" style="border-top-color: #10b981;">
+        <div class="label">Total Cumulative Delivered</div>
+        <div class="value text-success">{{ total_delivered_mt|floatformat:3|intcomma }} <span class="fs-7 fw-normal text-muted">MT</span></div>
+    </div>
+    <div class="metric-box-deliv" style="border-top-color: #f59e0b;">
+        <div class="label">Active Open / Partial POs</div>
+        <div class="value text-warning">{{ open_pos|length }} <span class="fs-7 fw-normal text-muted">contracts</span></div>
+    </div>
+    <div class="metric-box-deliv" style="border-top-color: #6366f1;">
+        <div class="label">Quick Actions</div>
+        <div class="mt-2">
+            <a href="{% url 'operations:log_delivery' %}" class="btn-htc btn-sm w-100 text-center py-1.5">
+                <i class="bi bi-plus-circle me-1"></i> Log Incremental Delivery
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Toolbar -->
+<div class="panel mb-3">
+    <div class="panel-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" value="{{ q }}" class="form-control-htc border-start-0" placeholder="Search PO #, location, supplier, DR #...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="supplier" class="form-select-htc form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- All Source Suppliers (Sugar Mills) --</option>
+                    {% for mill in mills %}
+                    <option value="{{ mill.id }}" {% if current_supplier == mill.id|stringformat:"s" %}selected{% endif %}>{{ mill.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="text" name="po" value="{{ current_po }}" class="form-control-htc form-control-sm" placeholder="Filter by PO Ref # (e.g. HTC-2026-001)">
+            </div>
+            <div class="col-md-2 d-flex gap-1">
+                <button type="submit" class="btn-htc btn-sm w-100">Filter</button>
+                {% if q or current_supplier or current_po %}
+                <a href="{% url 'operations:deliveries_list' %}" class="btn-htc-outline btn-sm" title="Clear filters"><i class="bi bi-x-lg"></i></a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Main Delivery Ledger Table -->
+<div class="panel">
+    <div class="panel-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-journal-text text-primary"></i>
+            <span>Incremental Shipment Delivery Records</span>
+            <span class="badge bg-light text-muted border fs-8 ms-1">{{ deliveries|length }} records</span>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'operations:log_delivery' %}" class="btn-htc btn-sm">
+                <i class="bi bi-plus-lg me-1"></i> Log Delivery Batch
+            </a>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table-htc fs-7">
+            <thead>
+                <tr>
+                    <th>Delivery Date</th>
+                    <th>PO Ref #</th>
+                    <th>Customer (Buyer)</th>
+                    <th>Source Supplier (Mill)</th>
+                    <th>Receiving Destination</th>
+                    <th class="text-end">Delivered MT</th>
+                    <th>Carrier / Vessel / DR</th>
+                    <th>PO Fulfillment Status</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in deliveries %}
+                <tr>
+                    <td class="text-nowrap fw-semibold">{{ d.delivery_date|date:"M d, Y" }}</td>
+                    <td>
+                        <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="fw-bold text-primary text-decoration-none">
+                            {{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code }}
+                        </a>
+                    </td>
+                    <td>{{ d.purchase_order.customer.name|default:d.purchase_order.cluster.client.name }}</td>
+                    <td>
+                        <span class="badge bg-light text-dark border">
+                            <i class="bi bi-building me-1"></i>{{ d.supplier.name }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="fw-medium text-dark"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ d.receiving_location }}</span>
+                    </td>
+                    <td class="text-end fw-bold text-success text-nowrap">
+                        {{ d.delivered_mt|floatformat:3|intcomma }} MT
+                    </td>
+                    <td>
+                        {% if d.carrier %}
+                        <div class="fs-8 text-muted"><i class="bi bi-truck me-1"></i>{{ d.carrier.name }}</div>
+                        {% endif %}
+                        {% if d.vessel_or_truck %}
+                        <div class="fs-8 text-muted font-monospace">{{ d.vessel_or_truck }}</div>
+                        {% endif %}
+                        {% if d.dr_number %}
+                        <span class="badge bg-secondary-subtle text-secondary fs-8">DR: {{ d.dr_number }}</span>
+                        {% endif %}
+                        {% if not d.carrier and not d.vessel_or_truck and not d.dr_number %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.purchase_order.po_status == 'Completed' %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                            <i class="bi bi-check-circle-fill me-1"></i>Completed
+                        </span>
+                        {% elif d.purchase_order.po_status == 'Partially Fulfilled' %}
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                            <i class="bi bi-pie-chart-fill me-1"></i>Partially Fulfilled (Rem: {{ d.purchase_order.remaining_mt|floatformat:1 }} MT)
+                        </span>
+                        {% else %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                            <i class="bi bi-clock me-1"></i>Open
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center text-nowrap">
+                        <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="btn-htc-outline btn-sm py-0 px-2 fs-8" title="View Transaction Contract">
+                            <i class="bi bi-eye"></i> View PO
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-2 d-block mb-2 text-muted"></i>
+                        No incremental delivery records found matching criteria.
+                        <div class="mt-2">
+                            <a href="{% url 'operations:log_delivery' %}" class="btn-htc btn-sm">
+                                <i class="bi bi-plus-lg me-1"></i> Log First Delivery
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
