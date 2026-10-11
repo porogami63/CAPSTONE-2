@@ -591,8 +591,8 @@
         </div>
     </div>
 
-
-
+    <!-- Column 2: Invoices & Bank Loans -->
+    <div>
         <!-- Sales Invoices Panel -->
         <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
             <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem; font-weight: 700; font-size: 1rem; color: var(--htc-primary-light); display: flex; align-items: center; gap: 0.5rem;">
@@ -858,39 +858,61 @@
     </div>
 </div>
 
-<div class="panel mt-4">
-    <div class="panel-header" style="background-color: var(--htc-surface);"><i class="bi bi-clock-history"></i> Comprehensive Audit Log (Simple History)</div>
-    <div class="panel-body">
-        <table class="table-htc">
-            <thead>
-                <tr>
-                    <th>Timestamp</th>
-                    <th>User</th>
-                    <th>Model</th>
-                    <th>Action</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for event in audit_events %}
-                <tr>
-                    <td>{{ event.date|date:"M d, Y H:i:s" }}</td>
-                    <td><strong>{{ event.user|default:"System" }}</strong></td>
-                    <td><span class="badge-status {{ event.model|lower }}">{{ event.model }}</span></td>
-                    <td>
-                        {% if event.type == '+' %}<span class="text-success"><i class="bi bi-plus-circle"></i> Created</span>
-                        {% elif event.type == '~' %}<span class="text-warning"><i class="bi bi-pencil-square"></i> Updated</span>
-                        {% elif event.type == '-' %}<span class="text-danger"><i class="bi bi-trash"></i> Deleted</span>
-                        {% else %}{{ event.type }}{% endif %}
-                    </td>
-                    <td>{{ event.desc }}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="5" class="text-muted text-center" style="padding: 2rem;">No audit logs available for this transaction.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<!-- Collapsible Comprehensive Audit Log (Simple History) -->
+<div class="panel mt-4 mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+    <div class="panel-header d-flex justify-content-between align-items-center py-3 px-4" 
+         role="button" 
+         data-bs-toggle="collapse" 
+         data-bs-target="#auditLogCollapse" 
+         aria-expanded="false" 
+         aria-controls="auditLogCollapse"
+         style="cursor: pointer; user-select: none; background: var(--htc-surface); border-bottom: 1px solid var(--htc-border);">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-primary fs-6"></i>
+            <span class="fw-bold text-dark" style="font-size: 0.95rem;">Comprehensive Audit Log (Simple History)</span>
+            <span class="badge bg-secondary-subtle text-secondary border fs-8 ms-1">{{ audit_events|length }} Events</span>
+        </div>
+        <div class="d-flex align-items-center gap-2 text-muted text-xs">
+            <span>Click to expand / collapse</span>
+            <i class="bi bi-chevron-down" id="auditLogChevron"></i>
+        </div>
     </div>
+    <div class="collapse" id="auditLogCollapse">
+        <div class="panel-body p-3">
+            <div class="table-responsive">
+                <table class="table-htc mb-0">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Model</th>
+                            <th>Action</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in audit_events %}
+                        <tr>
+                            <td>{{ event.date|date:"M d, Y H:i:s" }}</td>
+                            <td><strong>{{ event.user|default:"System" }}</strong></td>
+                            <td><span class="badge-status {{ event.model|lower }}">{{ event.model }}</span></td>
+                            <td>
+                                {% if event.type == '+' %}<span class="text-success"><i class="bi bi-plus-circle"></i> Created</span>
+                                {% elif event.type == '~' %}<span class="text-warning"><i class="bi bi-pencil-square"></i> Updated</span>
+                                {% elif event.type == '-' %}<span class="text-danger"><i class="bi bi-trash"></i> Deleted</span>
+                                {% else %}{{ event.type }}{% endif %}
+                            </td>
+                            <td>{{ event.desc }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-muted text-center py-4">No audit logs available for this transaction.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- Modal for uploading MRO scanned copy -->
 <div class="modal fade" id="uploadMroModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1099,5 +1121,20 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const auditCollapse = document.getElementById('auditLogCollapse');
+    const chevron = document.getElementById('auditLogChevron');
+    if (auditCollapse && chevron) {
+        auditCollapse.addEventListener('show.bs.collapse', function () {
+            chevron.classList.replace('bi-chevron-down', 'bi-chevron-up');
+        });
+        auditCollapse.addEventListener('hide.bs.collapse', function () {
+            chevron.classList.replace('bi-chevron-up', 'bi-chevron-down');
+        });
+    }
+});
+</script>
 
 {% endblock %}
