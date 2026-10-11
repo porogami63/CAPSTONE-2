@@ -18,7 +18,7 @@
     .status-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
+        gap: 1.25rem;
     }
     @media (max-width: 768px) {
         .status-grid { grid-template-columns: repeat(2, 1fr); }
@@ -27,20 +27,20 @@
         background: var(--htc-bg);
         border: 1px solid var(--htc-border);
         border-radius: var(--htc-radius-sm);
-        padding: 0.85rem 1rem;
+        padding: 0.95rem 1.15rem;
     }
     .status-metric .label {
-        font-size: 0.68rem;
+        font-size: 0.72rem;
         font-weight: 700;
         text-transform: uppercase;
         color: var(--htc-text-muted);
         letter-spacing: 0.5px;
     }
     .status-metric .val {
-        font-size: 1.35rem;
+        font-size: 1.4rem;
         font-weight: 800;
         color: var(--htc-primary);
-        margin-top: 0.25rem;
+        margin-top: 0.35rem;
         line-height: 1.1;
     }
     .status-metric.highlight-rem {
@@ -71,6 +71,93 @@
         border-color: var(--htc-primary-light);
         color: var(--htc-primary-light);
         background: rgba(59, 130, 246, 0.05);
+    }
+
+    /* Form Fields Alignment & Symmetry */
+    .form-field-symmetric {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        margin-bottom: 0.25rem;
+    }
+    .form-field-symmetric label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--htc-text, #1e293b);
+        margin-bottom: 0.4rem;
+        line-height: 1.25;
+        min-height: 18px;
+        display: flex;
+        align-items: center;
+    }
+    .form-field-symmetric .form-control-htc,
+    .form-field-symmetric .form-select-htc {
+        height: 42px !important;
+        border-radius: 8px !important;
+        padding: 0.55rem 0.85rem !important;
+        font-size: 0.88rem !important;
+    }
+    .form-field-symmetric textarea.form-control-htc {
+        height: auto !important;
+        min-height: 60px;
+    }
+    .form-field-symmetric .field-help {
+        font-size: 0.74rem;
+        color: var(--htc-text-muted, #64748b);
+        margin-top: 0.35rem;
+        line-height: 1.2;
+        min-height: 16px;
+    }
+
+    /* Input Addon Groups - Inline Horizontal Unit / Currency */
+    .input-addon-group {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        width: 100% !important;
+    }
+    .input-addon-group .form-control-htc,
+    .input-addon-group input {
+        flex: 1 1 auto !important;
+        width: 1% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        height: 42px !important;
+    }
+    .input-addon-group .addon {
+        background: var(--htc-sidebar-hover, #f1f5f9) !important;
+        border: 1px solid var(--htc-border, #cbd5e1) !important;
+        color: var(--htc-text-muted, #64748b) !important;
+        padding: 0 0.85rem !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        height: 42px !important;
+        flex-shrink: 0 !important;
+    }
+    .input-addon-group .addon-prefix {
+        border-top-left-radius: 8px !important;
+        border-bottom-left-radius: 8px !important;
+        border-right: none !important;
+    }
+    .input-addon-group .addon-suffix {
+        border-top-right-radius: 8px !important;
+        border-bottom-right-radius: 8px !important;
+        border-left: none !important;
+    }
+    .input-addon-group .addon-prefix + .form-control-htc,
+    .input-addon-group .addon-prefix + input {
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+    }
+    .input-addon-group .form-control-htc:first-child,
+    .input-addon-group input:first-child {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
     }
 </style>
 
@@ -147,26 +234,26 @@
                     <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}">
 
                     <!-- Field 1: PO Reference Selector -->
-                    <div class="form-field">
-                        <label for="{{ form.purchase_order.id_for_label }}" class="fw-bold fs-7">
+                    <div class="form-field-symmetric mb-3">
+                        <label for="{{ form.purchase_order.id_for_label }}">
                             {{ form.purchase_order.label }} <span class="text-danger">*</span>
                         </label>
                         {{ form.purchase_order }}
-                        <div class="field-help fs-8 text-muted mt-1">Select the customer contract to increment deliveries against.</div>
+                        <div class="field-help">Select the customer contract to increment deliveries against.</div>
                         {% if form.purchase_order.errors %}
                         <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.purchase_order.errors|striptags }}</div>
                         {% endif %}
                     </div>
 
-                    <div class="row g-3">
+                    <div class="row g-3 mb-3">
                         <!-- Field 2: Sourcing Mill (Dynamic per delivery) -->
                         <div class="col-md-6">
-                            <div class="form-field">
-                                <label for="{{ form.supplier.id_for_label }}" class="fw-bold fs-7">
+                            <div class="form-field-symmetric">
+                                <label for="{{ form.supplier.id_for_label }}">
                                     {{ form.supplier.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.supplier }}
-                                <div class="field-help fs-8 text-muted mt-1">Source mill for this batch (e.g. BUSCO, CASA, URC, Balayan).</div>
+                                <div class="field-help">Source mill for this batch (e.g. BUSCO, CASA, URC, Balayan).</div>
                                 {% if form.supplier.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.supplier.errors|striptags }}</div>
                                 {% endif %}
@@ -175,15 +262,15 @@
 
                         <!-- Field 3: Delivered MT Quantity -->
                         <div class="col-md-6">
-                            <div class="form-field">
-                                <label for="{{ form.delivered_mt.id_for_label }}" class="fw-bold fs-7">
+                            <div class="form-field-symmetric">
+                                <label for="{{ form.delivered_mt.id_for_label }}">
                                     {{ form.delivered_mt.label }} <span class="text-danger">*</span>
                                 </label>
-                                <div class="input-group">
+                                <div class="input-addon-group">
                                     {{ form.delivered_mt }}
-                                    <span class="input-group-text bg-light text-muted fs-7">MT</span>
+                                    <span class="addon addon-suffix">MT</span>
                                 </div>
-                                <div class="field-help fs-8 text-muted mt-1" id="maxHelpText">Cannot exceed the remaining balance.</div>
+                                <div class="field-help" id="maxHelpText">Cannot exceed the remaining balance.</div>
                                 {% if form.delivered_mt.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.delivered_mt.errors|striptags }}</div>
                                 {% endif %}
@@ -191,15 +278,15 @@
                         </div>
                     </div>
 
-                    <div class="row g-3 mt-0.5">
+                    <div class="row g-3 mb-3">
                         <!-- Field 4: Receiving Customer & Destination -->
                         <div class="col-md-6">
-                            <div class="form-field">
-                                <label for="{{ form.receiving_customer.id_for_label }}" class="fw-bold fs-7">
+                            <div class="form-field-symmetric">
+                                <label for="{{ form.receiving_customer.id_for_label }}">
                                     {{ form.receiving_customer.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.receiving_customer }}
-                                <div class="field-help fs-8 text-muted mt-1">Select recipient client (defaults to PO customer; dynamically reflects all clients).</div>
+                                <div class="field-help">Select recipient client (defaults to PO customer; dynamically reflects all clients).</div>
                                 {% if form.receiving_customer.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.receiving_customer.errors|striptags }}</div>
                                 {% endif %}
@@ -207,12 +294,12 @@
                         </div>
 
                         <div class="col-md-6">
-                            <div class="form-field">
-                                <label for="{{ form.receiving_location.id_for_label }}" class="fw-bold fs-7">
+                            <div class="form-field-symmetric">
+                                <label for="{{ form.receiving_location.id_for_label }}">
                                     {{ form.receiving_location.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.receiving_location }}
-                                <div class="field-help fs-8 text-muted mt-1">Specific plant, tank terminal, or warehouse receiving the batch.</div>
+                                <div class="field-help">Specific plant, tank terminal, or warehouse receiving the batch.</div>
                                 {% if form.receiving_location.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.receiving_location.errors|striptags }}</div>
                                 {% endif %}
@@ -220,39 +307,39 @@
                         </div>
                     </div>
 
-                    <div class="row g-3 mt-0.5">
+                    <div class="row g-3 mb-3">
                         <!-- Field 5: Delivery Date & Operational Timestamps -->
                         <div class="col-md-4">
-                            <div class="form-field">
-                                <label for="{{ form.delivery_date.id_for_label }}" class="fw-bold fs-7">
+                            <div class="form-field-symmetric">
+                                <label for="{{ form.delivery_date.id_for_label }}">
                                     {{ form.delivery_date.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.delivery_date }}
-                                <div class="field-help fs-8 text-muted mt-1">Date shipment was accepted.</div>
+                                <div class="field-help">Date shipment was accepted.</div>
                                 {% if form.delivery_date.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.delivery_date.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-field">
-                                <label for="{{ form.dispatched_at.id_for_label }}" class="fw-bold fs-7">
+                            <div class="form-field-symmetric">
+                                <label for="{{ form.dispatched_at.id_for_label }}">
                                     {{ form.dispatched_at.label }}
                                 </label>
                                 {{ form.dispatched_at }}
-                                <div class="field-help fs-8 text-muted mt-1">Mill departure timestamp.</div>
+                                <div class="field-help">Mill departure timestamp.</div>
                                 {% if form.dispatched_at.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.dispatched_at.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-field">
-                                <label for="{{ form.received_at.id_for_label }}" class="fw-bold fs-7">
+                            <div class="form-field-symmetric">
+                                <label for="{{ form.received_at.id_for_label }}">
                                     {{ form.received_at.label }}
                                 </label>
                                 {{ form.received_at }}
-                                <div class="field-help fs-8 text-muted mt-1">Plant arrival timestamp.</div>
+                                <div class="field-help">Plant arrival timestamp.</div>
                                 {% if form.received_at.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.received_at.errors|striptags }}</div>
                                 {% endif %}
@@ -261,78 +348,78 @@
                     </div>
 
                     <!-- Collapsible Logistics & Multi-Batch Freight Rates -->
-                    <details class="w-100 mt-3 p-3 rounded" style="background: var(--htc-bg); border: 1px solid var(--htc-border);" open>
-                        <summary class="fw-bold text-primary fs-7" style="cursor: pointer;">
+                    <details class="w-100 mt-2 p-3.5 rounded-3" style="background: var(--htc-bg); border: 1px solid var(--htc-border);" open>
+                        <summary class="fw-bold text-primary fs-7 mb-3 d-flex align-items-center gap-1.5" style="cursor: pointer; user-select: none;">
                             <i class="bi bi-truck"></i> Multi-Batch Land Trucking &amp; Marine Barging Logistics (Optional)
                         </summary>
-                        <div class="row g-3 mt-1">
+                        <div class="row g-3">
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label for="{{ form.trucking_partner.id_for_label }}" class="fs-8 fw-bold">{{ form.trucking_partner.label }}</label>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.trucking_partner.id_for_label }}">{{ form.trucking_partner.label }}</label>
                                     {{ form.trucking_partner }}
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label for="{{ form.trucking_rate_per_mt.id_for_label }}" class="fs-8 fw-bold">{{ form.trucking_rate_per_mt.label }}</label>
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text bg-light text-muted fs-8">₱</span>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.trucking_rate_per_mt.id_for_label }}">{{ form.trucking_rate_per_mt.label }}</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
                                         {{ form.trucking_rate_per_mt }}
                                     </div>
                                 </div>
                             </div>
 
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label for="{{ form.barge_partner.id_for_label }}" class="fs-8 fw-bold">{{ form.barge_partner.label }}</label>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.barge_partner.id_for_label }}">{{ form.barge_partner.label }}</label>
                                     {{ form.barge_partner }}
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label for="{{ form.barge_rate_per_mt.id_for_label }}" class="fs-8 fw-bold">{{ form.barge_rate_per_mt.label }}</label>
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text bg-light text-muted fs-8">₱</span>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.barge_rate_per_mt.id_for_label }}">{{ form.barge_rate_per_mt.label }}</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
                                         {{ form.barge_rate_per_mt }}
                                     </div>
                                 </div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="form-field">
-                                    <label for="{{ form.vessel_or_barge_name.id_for_label }}" class="fs-8 fw-bold">{{ form.vessel_or_barge_name.label }}</label>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.vessel_or_barge_name.id_for_label }}">{{ form.vessel_or_barge_name.label }}</label>
                                     {{ form.vessel_or_barge_name }}
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="form-field">
-                                    <label for="{{ form.vessel_or_truck.id_for_label }}" class="fs-8 fw-bold">{{ form.vessel_or_truck.label }}</label>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.vessel_or_truck.id_for_label }}">{{ form.vessel_or_truck.label }}</label>
                                     {{ form.vessel_or_truck }}
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="form-field">
-                                    <label for="{{ form.waybill_number.id_for_label }}" class="fs-8 fw-bold">{{ form.waybill_number.label }}</label>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.waybill_number.id_for_label }}">{{ form.waybill_number.label }}</label>
                                     {{ form.waybill_number }}
                                 </div>
                             </div>
 
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label for="{{ form.carrier.id_for_label }}" class="fs-8 fw-bold">{{ form.carrier.label }}</label>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.carrier.id_for_label }}">{{ form.carrier.label }}</label>
                                     {{ form.carrier }}
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label for="{{ form.dr_number.id_for_label }}" class="fs-8 fw-bold">{{ form.dr_number.label }}</label>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.dr_number.id_for_label }}">{{ form.dr_number.label }}</label>
                                     {{ form.dr_number }}
                                 </div>
                             </div>
 
                             <div class="col-12">
-                                <div class="form-field">
-                                    <label for="{{ form.notes.id_for_label }}" class="fs-8 fw-bold">{{ form.notes.label }}</label>
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
                                     {{ form.notes }}
                                 </div>
                             </div>

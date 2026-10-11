@@ -488,11 +488,6 @@
                         <h6 class="fw-bold fs-7 mb-0 text-dark">
                             <i class="bi bi-list-check me-1"></i> Recorded Shipment Deliveries ({{ deliveries|length }})
                         </h6>
-                        {% if po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
-                        <button type="button" class="btn-htc btn-sm py-1 px-2.5 fs-8" onclick="document.getElementById('logDeliverySection').scrollIntoView({behavior: 'smooth'})">
-                            <i class="bi bi-plus-lg me-1"></i> Log Delivery Batch
-                        </button>
-                        {% endif %}
                     </div>
 
                     {% if deliveries %}

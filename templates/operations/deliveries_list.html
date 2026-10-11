@@ -5,12 +5,11 @@
 {% block topbar_title %}Deliveries &amp; Trucking{% endblock %}
 {% block topbar_subtitle %}Incremental delivery ledger tracking dynamic mill sourcing, multi-destination fulfillment, and remaining MT balances per PO{% endblock %}
 
-{% block content %}
-<style>
+{% block content %}<style>
     .metric-grid-deliv {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
+        gap: 1.25rem;
         margin-bottom: 1.5rem;
     }
     @media (max-width: 992px) {
@@ -21,11 +20,11 @@
         border: 1px solid var(--htc-border);
         border-top: 3px solid var(--htc-primary-light);
         border-radius: var(--htc-radius-sm);
-        padding: 1rem 1.25rem;
+        padding: 1.15rem 1.25rem;
         box-shadow: 0 2px 4px rgba(15, 45, 92, 0.04);
     }
     .metric-box-deliv .label {
-        font-size: 0.68rem;
+        font-size: 0.72rem;
         color: var(--htc-text-muted);
         text-transform: uppercase;
         font-weight: 700;
@@ -38,11 +37,126 @@
         margin-top: 0.25rem;
         line-height: 1.1;
     }
+
+    /* Form Fields Alignment & Symmetry */
+    .form-field-symmetric {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        margin-bottom: 0.25rem;
+    }
+    .form-field-symmetric label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--htc-text, #1e293b);
+        margin-bottom: 0.4rem;
+        line-height: 1.2;
+        min-height: 18px;
+        display: flex;
+        align-items: center;
+    }
+    .form-field-symmetric .form-control-htc,
+    .form-field-symmetric .form-select-htc {
+        height: 42px !important;
+        border-radius: 8px !important;
+        padding: 0.55rem 0.85rem !important;
+        font-size: 0.88rem !important;
+    }
+    .form-field-symmetric .field-help {
+        font-size: 0.74rem;
+        color: var(--htc-text-muted, #64748b);
+        margin-top: 0.35rem;
+        line-height: 1.2;
+        min-height: 16px;
+    }
+
+    /* Input Addon Groups - Horizontal Inlined Unit / Currency Badges */
+    .input-addon-group {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        width: 100% !important;
+    }
+    .input-addon-group .form-control-htc,
+    .input-addon-group input {
+        flex: 1 1 auto !important;
+        width: 1% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        height: 42px !important;
+    }
+    .input-addon-group .addon {
+        background: var(--htc-sidebar-hover, #f1f5f9) !important;
+        border: 1px solid var(--htc-border, #cbd5e1) !important;
+        color: var(--htc-text-muted, #64748b) !important;
+        padding: 0 0.85rem !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        height: 42px !important;
+        flex-shrink: 0 !important;
+    }
+    .input-addon-group .addon-prefix {
+        border-top-left-radius: 8px !important;
+        border-bottom-left-radius: 8px !important;
+        border-right: none !important;
+    }
+    .input-addon-group .addon-suffix {
+        border-top-right-radius: 8px !important;
+        border-bottom-right-radius: 8px !important;
+        border-left: none !important;
+    }
+    .input-addon-group .addon-prefix + .form-control-htc,
+    .input-addon-group .addon-prefix + input {
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+    }
+    .input-addon-group .form-control-htc:first-child,
+    .input-addon-group input:first-child {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+
+    /* Filter Toolbar Controls */
+    .search-input-wrap {
+        position: relative;
+        width: 100%;
+    }
+    .search-input-wrap .search-icon {
+        position: absolute;
+        left: 0.95rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--htc-text-muted);
+        font-size: 0.85rem;
+        pointer-events: none;
+        z-index: 2;
+    }
+    .search-input-wrap .search-field {
+        height: 40px !important;
+        padding-left: 2.45rem !important;
+        border-radius: 8px !important;
+    }
+    .filter-control {
+        height: 40px !important;
+        border-radius: 8px !important;
+    }
+    .filter-btn {
+        height: 40px !important;
+        border-radius: 8px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
 </style>
 
 {% if focused_po %}
 <!-- Focused PO Logistics Header Deck -->
-<div class="card p-3.5 mb-3 border shadow-sm" style="background: linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(30,58,138,0.1) 100%); border-color: rgba(37,99,235,0.3) !important; border-radius: 12px;">
+<div class="card p-3.5 mb-3.5 border shadow-sm" style="background: linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(30,58,138,0.09) 100%); border-color: rgba(37,99,235,0.25) !important; border-radius: 12px;">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
@@ -65,7 +179,7 @@
                 <i class="bi bi-plus-circle me-1"></i> Log Batch for this PO
             </button>
             {% else %}
-            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1.5 fs-8 d-inline-flex align-items-center">
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 fs-8 d-inline-flex align-items-center">
                 <i class="bi bi-check-circle-fill me-1"></i> Contract Fulfilled
             </span>
             {% endif %}
@@ -75,42 +189,66 @@
         </div>
     </div>
 
-    <!-- PO Logistics Metrics -->
-    <div class="row g-2">
-        <div class="col-md-2 col-sm-4">
-            <div class="p-2.5 rounded bg-white border">
-                <div class="fs-8 text-muted text-uppercase fw-bold">Contracted MT</div>
-                <div class="fs-6 fw-bold text-dark mt-0.5">{{ focused_po.total_contracted_mt|floatformat:3|intcomma }} MT</div>
+    <!-- PO Logistics Metrics - 2 Symmetrical Spacious Cards -->
+    <div class="row g-3">
+        <!-- Card 1: Volume Fulfillment -->
+        <div class="col-lg-6">
+            <div class="p-3.5 rounded-3 bg-white border h-100 shadow-xs">
+                <div class="d-flex justify-content-between align-items-center mb-2.5">
+                    <span class="fs-8 text-uppercase fw-bold text-muted"><i class="bi bi-bar-chart-steps me-1 text-primary"></i>Contract Fulfillment Status</span>
+                    {% if focused_po.total_contracted_mt and focused_po.total_contracted_mt > 0 %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">
+                        {% widthratio focused_po.total_delivered_mt focused_po.total_contracted_mt 100 %}% Fulfilled
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="row g-2 text-center text-sm-start">
+                    <div class="col-4">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Contracted</div>
+                        <div class="fs-6 fw-bold text-dark mt-1">{{ focused_po.total_contracted_mt|floatformat:3|intcomma }} <span class="fs-8 fw-normal text-muted">MT</span></div>
+                    </div>
+                    <div class="col-4 border-start ps-3">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Delivered</div>
+                        <div class="fs-6 fw-bold text-success mt-1">{{ focused_po.total_delivered_mt|floatformat:3|intcomma }} <span class="fs-8 fw-normal text-muted">MT</span></div>
+                    </div>
+                    <div class="col-4 border-start ps-3">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Remaining</div>
+                        <div class="fs-6 fw-bold text-primary mt-1">{{ focused_po.remaining_mt|floatformat:3|intcomma }} <span class="fs-8 fw-normal text-muted">MT</span></div>
+                    </div>
+                </div>
+                {% if focused_po.total_contracted_mt and focused_po.total_contracted_mt > 0 %}
+                <div class="progress mt-3" style="height: 6px;">
+                    <div class="progress-bar {% if focused_po.po_status == 'Completed' %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {% widthratio focused_po.total_delivered_mt focused_po.total_contracted_mt 100 %}%;"></div>
+                </div>
+                {% endif %}
             </div>
         </div>
-        <div class="col-md-2 col-sm-4">
-            <div class="p-2.5 rounded bg-white border">
-                <div class="fs-8 text-muted text-uppercase fw-bold">Delivered to Date</div>
-                <div class="fs-6 fw-bold text-success mt-0.5">{{ focused_po.total_delivered_mt|floatformat:3|intcomma }} MT</div>
-            </div>
-        </div>
-        <div class="col-md-2 col-sm-4">
-            <div class="p-2.5 rounded bg-white border">
-                <div class="fs-8 text-muted text-uppercase fw-bold">Remaining Balance</div>
-                <div class="fs-6 fw-bold text-primary mt-0.5">{{ focused_po.remaining_mt|floatformat:3|intcomma }} MT</div>
-            </div>
-        </div>
-        <div class="col-md-2 col-sm-4">
-            <div class="p-2.5 rounded bg-white border">
-                <div class="fs-8 text-muted text-uppercase fw-bold">Land Trucking Total</div>
-                <div class="fs-6 fw-bold text-dark mt-0.5">₱{{ po_trucking_cost|floatformat:2|intcomma }}</div>
-            </div>
-        </div>
-        <div class="col-md-2 col-sm-4">
-            <div class="p-2.5 rounded bg-white border">
-                <div class="fs-8 text-muted text-uppercase fw-bold">Marine Barging Total</div>
-                <div class="fs-6 fw-bold text-dark mt-0.5">₱{{ po_barge_cost|floatformat:2|intcomma }}</div>
-            </div>
-        </div>
-        <div class="col-md-2 col-sm-4">
-            <div class="p-2.5 rounded bg-white border" style="border-left: 3px solid #2563eb !important;">
-                <div class="fs-8 text-muted text-uppercase fw-bold">Total Freight Cost</div>
-                <div class="fs-6 fw-bold text-primary mt-0.5">₱{{ po_freight_cost|floatformat:2|intcomma }}</div>
+
+        <!-- Card 2: Freight Economics -->
+        <div class="col-lg-6">
+            <div class="p-3.5 rounded-3 bg-white border h-100 shadow-xs" style="border-left: 4px solid #2563eb !important;">
+                <div class="d-flex justify-content-between align-items-center mb-2.5">
+                    <span class="fs-8 text-uppercase fw-bold text-muted"><i class="bi bi-currency-dollar me-1 text-primary"></i>Logistics &amp; Freight Economics</span>
+                    <span class="badge bg-light text-secondary border fs-8">Multi-Batch Total</span>
+                </div>
+                <div class="row g-2 text-center text-sm-start">
+                    <div class="col-4">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Land Trucking</div>
+                        <div class="fs-6 fw-bold text-dark mt-1">₱{{ po_trucking_cost|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="col-4 border-start ps-3">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Marine Barging</div>
+                        <div class="fs-6 fw-bold text-dark mt-1">₱{{ po_barge_cost|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="col-4 border-start ps-3">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Total Freight</div>
+                        <div class="fs-6 fw-bold text-primary mt-1">₱{{ po_freight_cost|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
+                <div class="fs-8 text-muted mt-3 pt-1 border-top d-flex justify-content-between align-items-center">
+                    <span>Cumulative land &amp; marine freight outlay</span>
+                    <span class="fw-semibold text-primary">₱{{ po_freight_cost|floatformat:2|intcomma }}</span>
+                </div>
             </div>
         </div>
     </div>
@@ -142,30 +280,30 @@
 {% endif %}
 
 <!-- Filter Toolbar -->
-<div class="panel mb-3">
+<div class="panel mb-3.5">
     <div class="panel-body p-3">
-        <form method="get" class="row g-2 align-items-center">
-            <div class="col-md-4">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                    <input type="text" name="q" value="{{ q }}" class="form-control-htc border-start-0" placeholder="Search PO #, location, supplier, DR #...">
+        <form method="get" class="row g-2.5 align-items-center">
+            <div class="col-lg-4 col-md-4">
+                <div class="search-input-wrap">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" name="q" value="{{ q }}" class="form-control-htc search-field" placeholder="Search PO #, location, supplier, DR #...">
                 </div>
             </div>
-            <div class="col-md-3">
-                <select name="supplier" class="form-select-htc form-select-sm" onchange="this.form.submit()">
+            <div class="col-lg-3 col-md-3">
+                <select name="supplier" class="form-select-htc filter-control" onchange="this.form.submit()">
                     <option value="">-- All Source Suppliers (Sugar Mills) --</option>
                     {% for mill in mills %}
                     <option value="{{ mill.id }}" {% if current_supplier == mill.id|stringformat:"s" %}selected{% endif %}>{{ mill.name }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
-                <input type="text" name="po" value="{{ current_po }}" class="form-control-htc form-control-sm" placeholder="Filter by PO Ref # (e.g. HTC-2026-001)">
+            <div class="col-lg-3 col-md-3">
+                <input type="text" name="po" value="{{ current_po }}" class="form-control-htc filter-control" placeholder="Filter by PO Ref # (e.g. HTC-2026-001)">
             </div>
-            <div class="col-md-2 d-flex gap-1">
-                <button type="submit" class="btn-htc btn-sm w-100">Filter</button>
+            <div class="col-lg-2 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn-htc filter-btn flex-grow-1">Filter</button>
                 {% if q or current_supplier or current_po %}
-                <a href="{% url 'operations:deliveries_list' %}" class="btn-htc-outline btn-sm" title="Clear filters"><i class="bi bi-x-lg"></i></a>
+                <a href="{% url 'operations:deliveries_list' %}" class="btn-htc-outline filter-btn px-2.5" title="Clear filters"><i class="bi bi-x-lg"></i></a>
                 {% endif %}
             </div>
         </form>
@@ -314,17 +452,19 @@
 <!-- Modal: Log Delivery Batch for Focused PO -->
 <div class="modal fade" id="logBatchModal" tabindex="-1" aria-labelledby="logBatchModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white py-2.5 px-3">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-truck fs-5"></i>
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header bg-primary text-white py-3 px-4">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="p-2 bg-white bg-opacity-20 rounded-circle text-white d-flex align-items-center justify-content-center">
+                        <i class="bi bi-truck fs-5"></i>
+                    </div>
                     <div>
                         <h6 class="modal-title fw-bold mb-0 text-white" id="logBatchModalLabel">Log Delivery Batch</h6>
-                        <div class="fs-8 text-white-50">PO #{{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }} — {{ focused_po.customer.name|default:focused_po.cluster.client.name }}</div>
+                        <div class="fs-8 text-white-75">PO #{{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }} — {{ focused_po.customer.name|default:focused_po.cluster.client.name }}</div>
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-white text-primary fs-8 fw-bold">Available: {{ focused_po.remaining_mt|floatformat:3|intcomma }} MT</span>
+                    <span class="badge bg-white text-primary fs-8 fw-bold px-2.5 py-1.5 shadow-xs">Available: {{ focused_po.remaining_mt|floatformat:3|intcomma }} MT</span>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
             </div>
@@ -333,128 +473,136 @@
                 <input type="hidden" name="purchase_order" value="{{ focused_po.pk }}">
                 <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}?po={{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }}">
 
-                <div class="modal-body p-3">
-                    <div class="row g-2">
+                <div class="modal-body p-4">
+                    <!-- Row 1: Source Mill & Delivered Quantity -->
+                    <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <div class="form-field">
-                                <label class="fs-8 fw-bold">Source Supplier (Sugar Mill) <span class="text-danger">*</span></label>
+                            <div class="form-field-symmetric">
+                                <label>Source Supplier (Sugar Mill) <span class="text-danger">*</span></label>
                                 {{ form.supplier }}
-                                <div class="field-help fs-8 text-muted">Dynamic source mill for this batch (e.g. BUSCO, CASA)</div>
+                                <div class="field-help">Dynamic source mill for this batch (e.g. BUSCO, CASA)</div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-field">
-                                <label class="fs-8 fw-bold">Delivered Quantity (MT) <span class="text-danger">*</span></label>
-                                <div class="input-group input-group-sm">
+                            <div class="form-field-symmetric">
+                                <label>Delivered Quantity (MT) <span class="text-danger">*</span></label>
+                                <div class="input-addon-group">
                                     {{ form.delivered_mt }}
-                                    <span class="input-group-text bg-light text-muted fs-8">MT</span>
+                                    <span class="addon addon-suffix">MT</span>
                                 </div>
-                                <div class="field-help fs-8 text-muted">Max deliverable: {{ focused_po.remaining_mt|floatformat:3 }} MT</div>
+                                <div class="field-help">Max deliverable: {{ focused_po.remaining_mt|floatformat:3 }} MT</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row g-2 mt-1">
+                    <!-- Row 2: Receiving Customer & Facility Site -->
+                    <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <div class="form-field">
-                                <label class="fs-8 fw-bold">Receiving Customer Destination <span class="text-danger">*</span></label>
+                            <div class="form-field-symmetric">
+                                <label>Receiving Customer Destination <span class="text-danger">*</span></label>
                                 {{ form.receiving_customer }}
-                                <div class="field-help fs-8 text-muted">Defaults to PO customer (reflects all active clients)</div>
+                                <div class="field-help">Defaults to PO customer (reflects all active clients)</div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-field">
-                                <label class="fs-8 fw-bold">Facility / Plant Site Detail</label>
+                            <div class="form-field-symmetric">
+                                <label>Facility / Plant Site Detail</label>
                                 {{ form.receiving_location }}
+                                <div class="field-help">Specific destination terminal, silo, or plant facility</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row g-2 mt-1">
+                    <!-- Row 3: Timestamps -->
+                    <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <div class="form-field">
-                                <label class="fs-8 fw-bold">Delivery Date <span class="text-danger">*</span></label>
+                            <div class="form-field-symmetric">
+                                <label>Delivery Date <span class="text-danger">*</span></label>
                                 {{ form.delivery_date }}
+                                <div class="field-help">Date shipment was accepted</div>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-field">
-                                <label class="fs-8 fw-bold">Dispatch Date &amp; Time</label>
+                            <div class="form-field-symmetric">
+                                <label>Dispatch Date &amp; Time</label>
                                 {{ form.dispatched_at }}
+                                <div class="field-help">Mill departure timestamp</div>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-field">
-                                <label class="fs-8 fw-bold">Received / Arrival Date &amp; Time</label>
+                            <div class="form-field-symmetric">
+                                <label>Received / Arrival Date &amp; Time</label>
                                 {{ form.received_at }}
+                                <div class="field-help">Plant arrival timestamp</div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Multi-Batch Freight Rates & Logistics Allocation -->
-                    <details class="p-2.5 rounded border mt-2" style="background: var(--htc-bg);" open>
-                        <summary style="cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--htc-primary-light);">
-                            <i class="bi bi-truck me-1"></i> Multi-Batch Freight Rates &amp; Logistics Allocation
+                    <details class="p-3 rounded-3 border bg-light mt-1" open>
+                        <summary class="fw-bold text-primary fs-7 mb-3 d-flex align-items-center gap-1.5" style="cursor: pointer; user-select: none;">
+                            <i class="bi bi-truck"></i> Multi-Batch Freight Rates &amp; Logistics Allocation
                         </summary>
-                        <div class="row g-2 mt-1">
+                        <div class="row g-3">
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label class="fs-8 fw-bold">Trucking Partner (Land)</label>
+                                <div class="form-field-symmetric">
+                                    <label>Trucking Partner (Land)</label>
                                     {{ form.trucking_partner }}
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label class="fs-8 fw-bold">Trucking Rate (₱/MT)</label>
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text bg-light text-muted fs-8">₱</span>
+                                <div class="form-field-symmetric">
+                                    <label>Trucking Rate (₱/MT)</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
                                         {{ form.trucking_rate_per_mt }}
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label class="fs-8 fw-bold">Barging Partner (Marine)</label>
+                                <div class="form-field-symmetric">
+                                    <label>Barging Partner (Marine)</label>
                                     {{ form.barge_partner }}
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-field">
-                                    <label class="fs-8 fw-bold">Barging Rate (₱/MT)</label>
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text bg-light text-muted fs-8">₱</span>
+                                <div class="form-field-symmetric">
+                                    <label>Barging Rate (₱/MT)</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
                                         {{ form.barge_rate_per_mt }}
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="form-field">
-                                    <label class="fs-8 fw-bold">Vessel / Barge Name</label>
+                                <div class="form-field-symmetric">
+                                    <label>Vessel / Barge Name</label>
                                     {{ form.vessel_or_barge_name }}
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="form-field">
-                                    <label class="fs-8 fw-bold">Truck Plate #</label>
+                                <div class="form-field-symmetric">
+                                    <label>Truck Plate #</label>
                                     {{ form.vessel_or_truck }}
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="form-field">
-                                    <label class="fs-8 fw-bold">Waybill / MDR #</label>
+                                <div class="form-field-symmetric">
+                                    <label>Waybill / MDR #</label>
                                     {{ form.waybill_number }}
                                 </div>
                             </div>
                         </div>
                     </details>
 
-                    <div id="modalOverDelivWarning" class="alert alert-danger py-1.5 px-2.5 fs-8 d-none mt-2 mb-0">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Cannot deliver more than remaining balance of {{ focused_po.remaining_mt|floatformat:3 }} MT.
+                    <div id="modalOverDelivWarning" class="alert alert-danger py-2 px-3 fs-8 d-none mt-3 mb-0 align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-6"></i>
+                        <span>Cannot deliver more than remaining balance of {{ focused_po.remaining_mt|floatformat:3 }} MT.</span>
                     </div>
                 </div>
-                <div class="modal-footer bg-light py-2 px-3">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-primary fw-bold" id="btnModalSubmit">
+                <div class="modal-footer bg-light py-3 px-4 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary px-3 py-2 fs-7 fw-semibold" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 py-2 fs-7 fw-bold shadow-xs" id="btnModalSubmit">
                         <i class="bi bi-check2-circle me-1"></i> Record Shipment Delivery
                     </button>
                 </div>
