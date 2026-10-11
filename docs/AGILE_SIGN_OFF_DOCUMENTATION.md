@@ -97,6 +97,19 @@ Following discovery interviews and subsequent operational clarifications with tr
 
 ---
 
+### User Story 7 (US-SEC-107): Strict Isolation of Loan / Finance Matching & Non-Blocking Operations
+> **As an** Operations Coordinator,  
+> **I want** financial loan management and payment matching to be strictly isolated to Finance & Administrator accounts,  
+> **So that** my PO workspace remains uncluttered by debt liabilities, and operations (MRO releases, deliveries) are never blocked if Finance has not yet cleared a facility.
+
+* **AC 7.1:** Non-Finance accounts cannot access `/finance/loans/` or `/finance/reconciliation/` (enforcing HTTP 403 Forbidden).
+* **AC 7.2:** "Bank Loans" and "Payment Matching Workspace" banners/forms are hidden from Operations in `cluster_detail.html` and the sidebar.
+* **AC 7.3:** The Order overview presents a soft status indicator (`Financing: Cleared` or `Financing: Pending Clearance`) with a non-blocking informational notice when financing has not yet moved.
+* **AC 7.4:** Operations forms (`LogisticsUpdateForm`, `MolassesReleaseOrderForm`) remove hard validation gating so operational dispatches and MRO assignments proceed smoothly.
+* **Status:** **PASSED**
+
+---
+
 ## 3. Test Coverage & Verification Matrix
 
 | Test Suite / Case | Target Component | Verifications Performed | Result |
@@ -107,7 +120,11 @@ Following discovery interviews and subsequent operational clarifications with tr
 | `test_po_status_lifecycle_progression` | Status Engine | Open $\to$ Partially Fulfilled $\to$ Completed progression | **PASS** |
 | `test_multi_batch_logistics_rates_and_invoice_suggestion` | Multi-batch freight & Invoicing | 2,000 MT $\times$ ₱450 trucking + ₱1,200 barging $\to$ ₱3.3M freight, ₱70M invoice suggestion | **PASS** |
 | `SuggestiveInvoicePricingTests` | Full Finance Suite | Backward-compatible suggestion calculation and partial invoice billing | **PASS** |
-| **All Operations & Finance Tests (45 Tests)** | Core Platform | System regression check across all workflows, loans, and accounting | **PASS (45/45)** |
+| `test_ops_manager_cannot_access_finance_loan_list` | RBAC Endpoints | Operations role accessing `/finance/loans/` is denied with HTTP 403 | **PASS** |
+| `test_ops_manager_cannot_access_reconciliation` | RBAC Endpoints | Operations role accessing `/finance/reconciliation/` is denied with HTTP 403 | **PASS** |
+| `test_ops_manager_cannot_verify_loan_creation` | RBAC Governance | Operations role cannot approve/verify loan creation (HTTP 403) | **PASS** |
+| `test_admin_approves_loan_creation` | Executive Dual Auth | Administrator successfully approves loan facility creation | **PASS** |
+| **All Operations & Finance Tests (48 Tests)** | Core Platform | System regression check across all workflows, loans, and accounting | **PASS (48/48)** |
 
 ---
 
@@ -115,6 +132,7 @@ Following discovery interviews and subsequent operational clarifications with tr
 
 | Role | Name | Status | Timestamp |
 | :--- | :--- | :---: | :--- |
-| **Product Owner & Operations Lead** | Capstone Team | **APPROVED** | 2026-10-11 12:30:00 UTC |
-| **Lead Software Engineer** | AI Pair Programmer | **APPROVED** | 2026-10-11 12:30:00 UTC |
-| **Quality Assurance / Test Lead** | Automated CI/CD Suite | **PASSED** | 2026-10-11 12:28:04 UTC |
+| **Product Owner & Operations Lead** | Capstone Team | **APPROVED** | 2026-10-11 13:45:00 UTC |
+| **Lead Software Engineer** | AI Pair Programmer | **APPROVED** | 2026-10-11 13:45:00 UTC |
+| **Quality Assurance / Test Lead** | Automated CI/CD Suite | **PASSED** | 2026-10-11 13:43:00 UTC |
+
