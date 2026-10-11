@@ -526,42 +526,42 @@
                     {% endif %}
                 </div>
 
-                <!-- Logistics Operations & Batch Trucking Details Navigation Hub -->
-                <div class="card p-3.5 border mb-3 shadow-xs" style="background: linear-gradient(135deg, rgba(37,99,235,0.04) 0%, rgba(30,58,138,0.08) 100%); border-color: rgba(37,99,235,0.25) !important; border-radius: 12px;">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2.5">
-                        <div>
-                            <div class="d-flex align-items-center gap-1.5 mb-1">
-                                <span class="badge bg-primary text-white fs-8"><i class="bi bi-truck me-1"></i>Deliveries &amp; Trucking Tab</span>
+                <!-- Logistics Operations Navigation Hub -->
+                <div class="card p-4 border mb-4 shadow-sm" style="background: #f8fafc; border-color: #e2e8f0 !important; border-radius: 12px;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div style="max-width: 650px;">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge bg-primary text-white fs-8">Deliveries &amp; Trucking</span>
                                 <span class="badge {% if po.po_status == 'Completed' %}bg-success{% elif po.po_status == 'Partially Fulfilled' %}bg-warning text-dark{% else %}bg-primary{% endif %} fs-8">
                                     {{ po.po_status }}
                                 </span>
                                 {% if po.remaining_mt > 0 %}
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">
+                                <span class="badge bg-light text-primary border fs-8">
                                     Available: {{ po.remaining_mt|floatformat:3|intcomma }} MT
                                 </span>
                                 {% else %}
                                 <span class="badge bg-success-subtle text-success border border-success-subtle fs-8">
-                                    100% Contract Fulfilled
+                                    Contract Fulfilled
                                 </span>
                                 {% endif %}
                             </div>
-                            <h6 class="fw-bold mb-0 text-dark fs-7">Logistics Operations &amp; Batch Trucking Details</h6>
-                            <div class="text-muted fs-8 mt-1" style="max-width: 600px;">
+                            <h5 class="fw-bold mb-1 text-dark">Logistics &amp; Deliveries</h5>
+                            <div class="text-muted fs-7">
                                 {% if po.remaining_mt > 0 %}
-                                Record incremental delivery batches, dynamic sugar mill sourcing, land trucking rates (₱/MT), marine barging contracts, departure &amp; arrival timelines, and carrier assignments in the dedicated Logistics workspace.
+                                Log delivery batches, source mills, and freight rates for this PO in Deliveries &amp; Trucking.
                                 {% else %}
-                                All {{ po.total_contracted_mt|floatformat:3|intcomma }} MT contracted under this PO have been delivered and verified across all batches. View full shipment details, transit timelines, and freight breakdown in the Logistics tab.
+                                All contracted volume has been delivered. View shipment records and freight costs in Deliveries &amp; Trucking.
                                 {% endif %}
                             </div>
                         </div>
-                        <div class="d-flex flex-column align-items-end gap-1.5">
+                        <div>
                             {% if po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
-                            <a href="{% url 'operations:deliveries_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}&open_log=1" class="btn btn-primary btn-sm fw-bold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-2">
-                                <i class="bi bi-plus-circle-fill"></i> Log Delivery Batch in Logistics <i class="bi bi-arrow-right"></i>
+                            <a href="{% url 'operations:deliveries_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}&open_log=1" class="btn btn-primary fw-bold px-3.5 py-2 shadow-xs">
+                                Log Delivery Batch &rarr;
                             </a>
                             {% else %}
-                            <a href="{% url 'operations:deliveries_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}" class="btn btn-primary btn-sm fw-bold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-2">
-                                <i class="bi bi-truck"></i> View PO Logistics Workspace <i class="bi bi-arrow-right"></i>
+                            <a href="{% url 'operations:deliveries_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}" class="btn btn-primary fw-bold px-3.5 py-2 shadow-xs">
+                                View Deliveries &rarr;
                             </a>
                             {% endif %}
                         </div>

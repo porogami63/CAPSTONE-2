@@ -156,31 +156,31 @@
 
 {% if focused_po %}
 <!-- Focused PO Logistics Header Deck -->
-<div class="card p-3.5 mb-3.5 border shadow-sm" style="background: linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(30,58,138,0.09) 100%); border-color: rgba(37,99,235,0.25) !important; border-radius: 12px;">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+<div class="card p-4 mb-4 border shadow-sm" style="background: #f8fafc; border-color: #e2e8f0 !important; border-radius: 12px;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge bg-primary text-white fs-8 text-uppercase"><i class="bi bi-truck me-1"></i>Focused PO Logistics Workspace</span>
+                <span class="badge bg-primary text-white fs-8 text-uppercase">Focused PO Workspace</span>
                 <span class="badge {% if focused_po.po_status == 'Completed' %}bg-success{% elif focused_po.po_status == 'Partially Fulfilled' %}bg-warning text-dark{% else %}bg-primary{% endif %} fs-8">
                     {{ focused_po.po_status }}
                 </span>
             </div>
-            <h4 class="fw-bold mb-0 text-primary">
+            <h4 class="fw-bold mb-0 text-dark">
                 {{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }}
                 <span class="fs-6 fw-normal text-muted">— {{ focused_po.customer.name|default:focused_po.cluster.client.name }}</span>
             </h4>
         </div>
         <div class="d-flex gap-2">
-            <a href="{% url 'operations:cluster_detail' focused_po.cluster.pk %}" class="btn btn-outline-primary btn-sm fw-bold">
-                <i class="bi bi-arrow-left me-1"></i> Return to PO View
+            <a href="{% url 'operations:cluster_detail' focused_po.cluster.pk %}" class="btn btn-outline-secondary btn-sm fw-semibold">
+                &larr; Return to PO View
             </a>
             {% if focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
-            <button type="button" class="btn btn-primary btn-sm fw-bold shadow-xs" data-bs-toggle="modal" data-bs-target="#logBatchModal">
-                <i class="bi bi-plus-circle me-1"></i> Log Batch for this PO
+            <button type="button" class="btn btn-primary btn-sm fw-bold shadow-xs px-3" data-bs-toggle="modal" data-bs-target="#logBatchModal">
+                Log Delivery Batch
             </button>
             {% else %}
             <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 fs-8 d-inline-flex align-items-center">
-                <i class="bi bi-check-circle-fill me-1"></i> Contract Fulfilled
+                Contract Fulfilled
             </span>
             {% endif %}
             <a href="{% url 'operations:deliveries_list' %}" class="btn btn-light border btn-sm text-muted">
@@ -195,7 +195,7 @@
         <div class="col-lg-6">
             <div class="p-3.5 rounded-3 bg-white border h-100 shadow-xs">
                 <div class="d-flex justify-content-between align-items-center mb-2.5">
-                    <span class="fs-8 text-uppercase fw-bold text-muted"><i class="bi bi-bar-chart-steps me-1 text-primary"></i>Contract Fulfillment Status</span>
+                    <span class="fs-8 text-uppercase fw-bold text-muted">Contract Fulfillment</span>
                     {% if focused_po.total_contracted_mt and focused_po.total_contracted_mt > 0 %}
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">
                         {% widthratio focused_po.total_delivered_mt focused_po.total_contracted_mt 100 %}% Fulfilled
@@ -228,8 +228,8 @@
         <div class="col-lg-6">
             <div class="p-3.5 rounded-3 bg-white border h-100 shadow-xs" style="border-left: 4px solid #2563eb !important;">
                 <div class="d-flex justify-content-between align-items-center mb-2.5">
-                    <span class="fs-8 text-uppercase fw-bold text-muted"><i class="bi bi-currency-dollar me-1 text-primary"></i>Logistics &amp; Freight Economics</span>
-                    <span class="badge bg-light text-secondary border fs-8">Multi-Batch Total</span>
+                    <span class="fs-8 text-uppercase fw-bold text-muted">Freight &amp; Logistics Costs</span>
+                    <span class="badge bg-light text-secondary border fs-8">Total Outlay</span>
                 </div>
                 <div class="row g-2 text-center text-sm-start">
                     <div class="col-4">
@@ -246,7 +246,7 @@
                     </div>
                 </div>
                 <div class="fs-8 text-muted mt-3 pt-1 border-top d-flex justify-content-between align-items-center">
-                    <span>Cumulative land &amp; marine freight outlay</span>
+                    <span>Combined land &amp; marine freight expenses</span>
                     <span class="fw-semibold text-primary">₱{{ po_freight_cost|floatformat:2|intcomma }}</span>
                 </div>
             </div>
@@ -454,14 +454,9 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
             <div class="modal-header bg-primary text-white py-3 px-4">
-                <div class="d-flex align-items-center gap-2.5">
-                    <div class="p-2 bg-white bg-opacity-20 rounded-circle text-white d-flex align-items-center justify-content-center">
-                        <i class="bi bi-truck fs-5"></i>
-                    </div>
-                    <div>
-                        <h6 class="modal-title fw-bold mb-0 text-white" id="logBatchModalLabel">Log Delivery Batch</h6>
-                        <div class="fs-8 text-white-75">PO #{{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }} — {{ focused_po.customer.name|default:focused_po.cluster.client.name }}</div>
-                    </div>
+                <div>
+                    <h6 class="modal-title fw-bold mb-0 text-white" id="logBatchModalLabel">Log Delivery Batch</h6>
+                    <div class="fs-8 text-white-75">PO #{{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }} — {{ focused_po.customer.name|default:focused_po.cluster.client.name }}</div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge bg-white text-primary fs-8 fw-bold px-2.5 py-1.5 shadow-xs">Available: {{ focused_po.remaining_mt|floatformat:3|intcomma }} MT</span>
@@ -478,9 +473,9 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <div class="form-field-symmetric">
-                                <label>Source Supplier (Sugar Mill) <span class="text-danger">*</span></label>
+                                <label>Source Sugar Mill <span class="text-danger">*</span></label>
                                 {{ form.supplier }}
-                                <div class="field-help">Dynamic source mill for this batch (e.g. BUSCO, CASA)</div>
+                                <div class="field-help">Source sugar mill (e.g. BUSCO, CASA).</div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -499,16 +494,16 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <div class="form-field-symmetric">
-                                <label>Receiving Customer Destination <span class="text-danger">*</span></label>
+                                <label>Receiving Customer <span class="text-danger">*</span></label>
                                 {{ form.receiving_customer }}
-                                <div class="field-help">Defaults to PO customer (reflects all active clients)</div>
+                                <div class="field-help">Customer receiving delivery.</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-field-symmetric">
-                                <label>Facility / Plant Site Detail</label>
+                                <label>Delivery Location / Site</label>
                                 {{ form.receiving_location }}
-                                <div class="field-help">Specific destination terminal, silo, or plant facility</div>
+                                <div class="field-help">Destination plant, terminal, or warehouse.</div>
                             </div>
                         </div>
                     </div>
@@ -519,30 +514,30 @@
                             <div class="form-field-symmetric">
                                 <label>Delivery Date <span class="text-danger">*</span></label>
                                 {{ form.delivery_date }}
-                                <div class="field-help">Date shipment was accepted</div>
+                                <div class="field-help">Date of delivery.</div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="form-field-symmetric">
                                 <label>Dispatch Date &amp; Time</label>
                                 {{ form.dispatched_at }}
-                                <div class="field-help">Mill departure timestamp</div>
+                                <div class="field-help">Departure date and time.</div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="form-field-symmetric">
-                                <label>Received / Arrival Date &amp; Time</label>
+                                <label>Arrival Date &amp; Time</label>
                                 {{ form.received_at }}
-                                <div class="field-help">Plant arrival timestamp</div>
+                                <div class="field-help">Arrival date and time.</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Multi-Batch Freight Rates & Logistics Allocation -->
-                    <details class="p-3 rounded-3 border bg-light mt-1" open>
-                        <summary class="fw-bold text-primary fs-7 mb-3 d-flex align-items-center gap-1.5" style="cursor: pointer; user-select: none;">
-                            <i class="bi bi-truck"></i> Multi-Batch Freight Rates &amp; Logistics Allocation
-                        </summary>
+                    <!-- Freight & Logistics Allocation -->
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-dark fs-7 mb-0">Freight &amp; Carrier Details <span class="fw-normal text-muted fs-8">(Optional)</span></h6>
+                        </div>
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <div class="form-field-symmetric">
@@ -588,22 +583,21 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="form-field-symmetric">
-                                    <label>Waybill / MDR #</label>
+                                    <label>Waybill Number</label>
                                     {{ form.waybill_number }}
                                 </div>
                             </div>
                         </div>
-                    </details>
+                    </div>
 
                     <div id="modalOverDelivWarning" class="alert alert-danger py-2 px-3 fs-8 d-none mt-3 mb-0 align-items-center gap-2">
-                        <i class="bi bi-exclamation-triangle-fill fs-6"></i>
                         <span>Cannot deliver more than remaining balance of {{ focused_po.remaining_mt|floatformat:3 }} MT.</span>
                     </div>
                 </div>
                 <div class="modal-footer bg-light py-3 px-4 d-flex justify-content-end gap-2">
                     <button type="button" class="btn btn-outline-secondary px-3 py-2 fs-7 fw-semibold" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary px-4 py-2 fs-7 fw-bold shadow-xs" id="btnModalSubmit">
-                        <i class="bi bi-check2-circle me-1"></i> Record Shipment Delivery
+                        Record Delivery
                     </button>
                 </div>
             </form>

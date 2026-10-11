@@ -357,23 +357,23 @@ class DeliveryLedgerForm(forms.ModelForm):
             "notes",
         ]
         labels = {
-            "purchase_order": "Select Purchase Order (PO #)",
-            "supplier": "Source Supplier (Sugar Mill)",
-            "delivered_mt": "Quantity Delivered (MT)",
-            "receiving_location": "Receiving Destination Detail",
+            "purchase_order": "Purchase Order (PO #)",
+            "supplier": "Source Sugar Mill",
+            "delivered_mt": "Delivered Quantity (MT)",
+            "receiving_location": "Delivery Location / Site",
             "delivery_date": "Delivery Date",
             "dispatched_at": "Dispatch Date & Time",
-            "received_at": "Received / Arrival Date & Time",
-            "carrier": "Primary Logistics Carrier (Optional)",
-            "trucking_partner": "Trucking Partner (Land Transport)",
+            "received_at": "Arrival Date & Time",
+            "carrier": "Carrier (Optional)",
+            "trucking_partner": "Trucking Partner (Land)",
             "trucking_rate_per_mt": "Trucking Rate (₱/MT)",
-            "barge_partner": "Barging Partner (Marine Transport)",
+            "barge_partner": "Barging Partner (Marine)",
             "vessel_or_barge_name": "Vessel / Barge Name",
             "barge_rate_per_mt": "Barging Rate (₱/MT)",
-            "vessel_or_truck": "Truck Plate / Vehicle ID",
-            "dr_number": "Delivery Receipt (DR) #",
-            "waybill_number": "Waybill / MDR #",
-            "notes": "Delivery Notes / Remarks",
+            "vessel_or_truck": "Truck Plate #",
+            "dr_number": "DR Number",
+            "waybill_number": "Waybill Number",
+            "notes": "Notes / Remarks",
         }
         widgets = {
             "purchase_order": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_po"}),
@@ -398,8 +398,8 @@ class DeliveryLedgerForm(forms.ModelForm):
     receiving_customer = forms.ModelChoiceField(
         queryset=Client.objects.filter(is_active=True).order_by("name"),
         required=False,
-        label="Receiving Destination (Customer / Site)",
-        empty_label="-- Select Receiving Customer --",
+        label="Receiving Customer",
+        empty_label="-- Select Customer --",
         widget=forms.Select(attrs={"class": "form-select-htc", "id": "id_receiving_customer_select"}),
     )
 
@@ -409,26 +409,26 @@ class DeliveryLedgerForm(forms.ModelForm):
         
         pos = PurchaseOrder.objects.select_related("cluster", "customer", "cluster__client").order_by("-cluster__created_at")
         self.fields["purchase_order"].queryset = pos
-        self.fields["purchase_order"].empty_label = "-- Select Purchase Order (PO #) --"
+        self.fields["purchase_order"].empty_label = "-- Select Purchase Order --"
         self.fields["purchase_order"].label_from_instance = (
             lambda obj: f"{obj.po_reference_number or obj.cluster.reference_code} — {obj.customer.name if obj.customer else (obj.cluster.client.name if obj.cluster else 'Unknown')} (Rem: {obj.remaining_mt:,.3f} MT | {obj.po_status})"
         )
         
         self.fields["supplier"].queryset = SugarMill.objects.filter(is_active=True).order_by("name")
-        self.fields["supplier"].empty_label = "-- Select Source Sugar Mill --"
+        self.fields["supplier"].empty_label = "-- Select Sugar Mill --"
         
         logistics_qs = LogisticsPartner.objects.filter(is_active=True).order_by("name")
         self.fields["carrier"].queryset = logistics_qs
         self.fields["carrier"].required = False
-        self.fields["carrier"].empty_label = "-- Select Logistics Carrier (Optional) --"
+        self.fields["carrier"].empty_label = "-- Select Carrier (Optional) --"
 
         self.fields["trucking_partner"].queryset = logistics_qs
         self.fields["trucking_partner"].required = False
-        self.fields["trucking_partner"].empty_label = "-- Select Trucking Partner (Land) --"
+        self.fields["trucking_partner"].empty_label = "-- Select Trucking Partner --"
 
         self.fields["barge_partner"].queryset = logistics_qs
         self.fields["barge_partner"].required = False
-        self.fields["barge_partner"].empty_label = "-- Select Barging Partner (Marine) --"
+        self.fields["barge_partner"].empty_label = "-- Select Barging Partner --"
 
         clients_qs = Client.objects.filter(is_active=True).order_by("name")
         self.fields["receiving_customer"].queryset = clients_qs

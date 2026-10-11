@@ -181,10 +181,8 @@
         <div class="delivery-status-panel" id="poStatusPanel">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                    <h5 class="fw-bold mb-0 text-primary d-flex align-items-center gap-2">
-                        <i class="bi bi-speedometer2"></i> PO Contract Fulfillment Status (Read-Only)
-                    </h5>
-                    <p class="text-muted fs-8 mb-0 mt-0.5" id="poCustomerSubtitle">Select a Purchase Order below to inspect live contracted balance.</p>
+                    <h5 class="fw-bold mb-0 text-dark">PO Contract Fulfillment</h5>
+                    <p class="text-muted fs-8 mb-0 mt-0.5" id="poCustomerSubtitle">Select a PO below to view live balance.</p>
                 </div>
                 <span class="badge bg-secondary text-uppercase fs-8 px-2.5 py-1.5" id="poStatusBadge">No PO Selected</span>
             </div>
@@ -212,9 +210,8 @@
             </div>
 
             <div id="overDeliveryAlert" class="alert alert-danger mt-3 mb-0 d-none align-items-center gap-2 py-2 fs-7" role="alert">
-                <i class="bi bi-exclamation-triangle-fill fs-5"></i>
                 <div>
-                    <strong>Validation Warning:</strong> Entered shipment quantity exceeds the remaining available balance of <span id="alertRemainingMT">0.000</span> MT.
+                    Entered shipment quantity exceeds remaining available balance of <span id="alertRemainingMT">0.000</span> MT.
                 </div>
             </div>
         </div>
@@ -222,13 +219,10 @@
         <!-- Log Delivery Entry Form Card -->
         <div class="panel mb-4">
             <div class="panel-header d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-truck text-primary"></i>
-                    <span>Shipment Delivery Parameters</span>
-                </div>
-                <span class="fs-8 text-muted">Multi-Supplier / Incremental Fulfillment</span>
+                <span class="fw-bold">Delivery Batch Details</span>
+                <span class="fs-8 text-muted">Incremental Fulfillment</span>
             </div>
-            <div class="panel-body">
+            <div class="panel-body p-4">
                 <form method="post" action="{% url 'operations:log_delivery' %}" id="deliveryForm" class="form-stack">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}">
@@ -239,9 +233,9 @@
                             {{ form.purchase_order.label }} <span class="text-danger">*</span>
                         </label>
                         {{ form.purchase_order }}
-                        <div class="field-help">Select the customer contract to increment deliveries against.</div>
+                        <div class="field-help">Select PO contract.</div>
                         {% if form.purchase_order.errors %}
-                        <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.purchase_order.errors|striptags }}</div>
+                        <div class="text-danger fs-8 fw-bold mt-1">{{ form.purchase_order.errors|striptags }}</div>
                         {% endif %}
                     </div>
 
@@ -253,9 +247,9 @@
                                     {{ form.supplier.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.supplier }}
-                                <div class="field-help">Source mill for this batch (e.g. BUSCO, CASA, URC, Balayan).</div>
+                                <div class="field-help">Source sugar mill (e.g. BUSCO, CASA).</div>
                                 {% if form.supplier.errors %}
-                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.supplier.errors|striptags }}</div>
+                                <div class="text-danger fs-8 fw-bold mt-1">{{ form.supplier.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -270,9 +264,9 @@
                                     {{ form.delivered_mt }}
                                     <span class="addon addon-suffix">MT</span>
                                 </div>
-                                <div class="field-help" id="maxHelpText">Cannot exceed the remaining balance.</div>
+                                <div class="field-help" id="maxHelpText">Max deliverable: remaining contract balance.</div>
                                 {% if form.delivered_mt.errors %}
-                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.delivered_mt.errors|striptags }}</div>
+                                <div class="text-danger fs-8 fw-bold mt-1">{{ form.delivered_mt.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -286,9 +280,9 @@
                                     {{ form.receiving_customer.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.receiving_customer }}
-                                <div class="field-help">Select recipient client (defaults to PO customer; dynamically reflects all clients).</div>
+                                <div class="field-help">Customer receiving delivery.</div>
                                 {% if form.receiving_customer.errors %}
-                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.receiving_customer.errors|striptags }}</div>
+                                <div class="text-danger fs-8 fw-bold mt-1">{{ form.receiving_customer.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -299,9 +293,9 @@
                                     {{ form.receiving_location.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.receiving_location }}
-                                <div class="field-help">Specific plant, tank terminal, or warehouse receiving the batch.</div>
+                                <div class="field-help">Destination plant, terminal, or warehouse.</div>
                                 {% if form.receiving_location.errors %}
-                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.receiving_location.errors|striptags }}</div>
+                                <div class="text-danger fs-8 fw-bold mt-1">{{ form.receiving_location.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -315,9 +309,9 @@
                                     {{ form.delivery_date.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.delivery_date }}
-                                <div class="field-help">Date shipment was accepted.</div>
+                                <div class="field-help">Date of delivery.</div>
                                 {% if form.delivery_date.errors %}
-                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.delivery_date.errors|striptags }}</div>
+                                <div class="text-danger fs-8 fw-bold mt-1">{{ form.delivery_date.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -327,9 +321,9 @@
                                     {{ form.dispatched_at.label }}
                                 </label>
                                 {{ form.dispatched_at }}
-                                <div class="field-help">Mill departure timestamp.</div>
+                                <div class="field-help">Departure date and time.</div>
                                 {% if form.dispatched_at.errors %}
-                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.dispatched_at.errors|striptags }}</div>
+                                <div class="text-danger fs-8 fw-bold mt-1">{{ form.dispatched_at.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -339,19 +333,19 @@
                                     {{ form.received_at.label }}
                                 </label>
                                 {{ form.received_at }}
-                                <div class="field-help">Plant arrival timestamp.</div>
+                                <div class="field-help">Arrival date and time.</div>
                                 {% if form.received_at.errors %}
-                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.received_at.errors|striptags }}</div>
+                                <div class="text-danger fs-8 fw-bold mt-1">{{ form.received_at.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Collapsible Logistics & Multi-Batch Freight Rates -->
-                    <details class="w-100 mt-2 p-3.5 rounded-3" style="background: var(--htc-bg); border: 1px solid var(--htc-border);" open>
-                        <summary class="fw-bold text-primary fs-7 mb-3 d-flex align-items-center gap-1.5" style="cursor: pointer; user-select: none;">
-                            <i class="bi bi-truck"></i> Multi-Batch Land Trucking &amp; Marine Barging Logistics (Optional)
-                        </summary>
+                    <!-- Freight & Carrier Details -->
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-dark fs-7 mb-0">Freight &amp; Carrier Details <span class="fw-normal text-muted fs-8">(Optional)</span></h6>
+                        </div>
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <div class="form-field-symmetric">
@@ -424,12 +418,12 @@
                                 </div>
                             </div>
                         </div>
-                    </details>
+                    </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
                         <a href="{% url 'operations:deliveries_list' %}" class="btn-htc-outline">Cancel</a>
                         <button type="submit" class="btn-htc" id="submitBtn">
-                            <i class="bi bi-check2-circle"></i> Commit Delivery Record
+                            Save Delivery Record
                         </button>
                     </div>
                 </form>
