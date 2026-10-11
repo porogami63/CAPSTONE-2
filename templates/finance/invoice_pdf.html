@@ -53,15 +53,36 @@
             </tr>
         </thead>
         <tbody>
+            {% if deliveries %}
+                {% for d in deliveries %}
+                <tr>
+                    <td>Delivery Batch #{{ d.delivery_id|slice:":8"|upper }} ({{ d.delivery_date|default:invoice.issued_at }}) — {{ invoice.cluster.client.name }}</td>
+                    <td>{{ d.delivered_mt|floatformat:3 }}</td>
+                    <td>{{ po.selling_price|default:po.unit_price|floatformat:2 }}</td>
+                    <td>{% widthratio d.delivered_mt 1 po.selling_price as line_val %}PHP {{ d.delivered_mt|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td>Sugar Deliveries for {{ invoice.cluster.client.name }} ({{ invoice.cluster.sugar_mill.name }})</td>
+                    <td>{{ invoice.cluster.purchase_order.volume_mt|floatformat:3 }}</td>
+                    <td>{{ invoice.cluster.purchase_order.selling_price|default:invoice.cluster.purchase_order.unit_price|floatformat:2 }}</td>
+                    <td>PHP {{ invoice.product_amount|default:invoice.amount|floatformat:2 }}</td>
+                </tr>
+            {% endif %}
+
+            {% if invoice.logistics_fee and invoice.logistics_fee > 0 %}
             <tr>
-                <td>Sugar Deliveries for {{ invoice.cluster.client.name }} ({{ invoice.cluster.sugar_mill.name }})</td>
-                <td>{{ invoice.cluster.purchase_order.volume_mt }}</td>
-                <td>{{ invoice.cluster.purchase_order.unit_price }}</td>
-                <td>{{ invoice.amount }}</td>
+                <td>Billable Delivery &amp; Logistics Services (Land Trucking &amp; Marine Barging)</td>
+                <td>—</td>
+                <td>—</td>
+                <td>PHP {{ invoice.logistics_fee|floatformat:2 }}</td>
             </tr>
+            {% endif %}
+
             <tr class="total-row">
                 <td colspan="3" style="text-align:right;">TOTAL AMOUNT DUE:</td>
-                <td>PHP {{ invoice.amount }}</td>
+                <td>PHP {{ invoice.amount|floatformat:2 }}</td>
             </tr>
         </tbody>
     </table>

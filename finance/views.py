@@ -813,6 +813,13 @@ def verify_loan_creation(request, pk):
         from chat.views import send_system_notification
 
         if action == "approve":
+            from finance.services import check_loan_capital_cap
+            allowed, err_msg = check_loan_capital_cap(loan.cluster, exclude_loan_id=loan.pk)
+            if not allowed:
+                messages.error(request, err_msg)
+                next_url = request.POST.get("next") or request.GET.get("next")
+                return redirect(next_url or "finance:loan_list")
+
             loan.status = CapitalLoan.Status.ACTIVE
             loan.save()
             send_system_notification(
@@ -1048,8 +1055,15 @@ def download_invoice_pdf(request, pk):
         Invoice.objects.select_related("cluster", "cluster__client", "cluster__sugar_mill", "cluster__purchase_order"),
         pk=pk,
     )
+    po = getattr(invoice.cluster, "purchase_order", None)
+    deliveries = list(po.deliveries.all().order_by("delivery_date", "created_at")) if po else []
+
     template_path = "finance/invoice_pdf.html"
-    context = {"invoice": invoice}
+    context = {
+        "invoice": invoice,
+        "po": po,
+        "deliveries": deliveries,
+    }
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="Invoice_{invoice.invoice_number}.pdf"'

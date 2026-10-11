@@ -586,6 +586,202 @@ class DeliveryExpenseMatchingLinkTests(TestCase):
 		self.assertContains(res, "Comprehensive Audit Log (Simple History)")
 
 
+class DeferredLogisticsAndBatchAccountingTests(TestCase):
+	def setUp(self):
+		self.admin_user = User.objects.create_superuser(
+			username="admin_ops",
+			password="password123",
+			email="admin@htc.corp",
+			role=User.Role.ADMINISTRATOR,
+		)
+		self.client.login(username="admin_ops", password="password123")
+		self.client_entity = Client.objects.create(name="Universal Robina")
+		self.mill = SugarMill.objects.create(name="First Sugar Mill")
+		self.logistics_partner = LogisticsPartner.objects.create(name="TransLogistics Corp")
+
+		# Create cluster via form / view without logistics upfront
+		res = self.client.post(
+			reverse("operations:cluster_create"),
+			{
+				"reference_code": "PO-TEST-DEF-01",
+				"client": self.client_entity.pk,
+				"sugar_mill": self.mill.pk,
+				"volume_mt": "500.000",
+				"unit_price": "30000.00",
+				"selling_price": "34000.00",
+				"confirmed_outlier": "true",
+			},
+			follow=True,
+		)
+		self.assertEqual(res.status_code, 200)
+		self.cluster = TransactionCluster.objects.get(reference_code="PO-TEST-DEF-01")
+		self.po = self.cluster.purchase_order
+
+	def test_initial_creation_defers_logistics(self):
+		# Logistics ledger is created with 0.00 fees and partner=None
+		self.assertTrue(hasattr(self.cluster, "logistics"))
+		log = self.cluster.logistics
+		self.assertEqual(log.tracking_fees, Decimal("0.00"))
+		self.assertEqual(log.barge_fees, Decimal("0.00"))
+		self.assertIsNone(log.partner)
+
+	def test_batch_based_logistics_calculation_with_flat_fees(self):
+		from operations.models import DeliveryLedger
+		from operations.services.pricing import get_po_logistics_summary
+
+		# Log batch 1: 200 MT @ 300/MT trucking + 1,000 flat trucking fee, 400/MT barge + 2,000 flat barge fee
+		d1 = DeliveryLedger.objects.create(
+			purchase_order=self.po,
+			supplier=self.mill,
+			delivered_mt=Decimal("200.000"),
+			receiving_location="Warehouse A",
+			trucking_partner=self.logistics_partner,
+			trucking_rate_per_mt=Decimal("300.00"),
+			flat_trucking_fee=Decimal("1000.00"),
+			barge_partner=self.logistics_partner,
+			barge_rate_per_mt=Decimal("400.00"),
+			flat_barge_fee=Decimal("2000.00"),
+		)
+		# Trucking cost = (200 * 300) + 1,000 = 61,000
+		self.assertEqual(d1.trucking_cost, Decimal("61000.00"))
+		# Barge cost = (200 * 400) + 2,000 = 82,000
+		self.assertEqual(d1.barge_cost, Decimal("82000.00"))
+		# Total freight = 61,000 + 82,000 = 143,000
+		self.assertEqual(d1.total_freight_cost, Decimal("143000.00"))
+
+		# Sync vouchers
+		d1.sync_delivery_expense_vouchers()
+		vouchers = self.cluster.cash_vouchers.all()
+		short_id = str(d1.delivery_id)[:8].upper()
+		self.assertTrue(vouchers.filter(voucher_number=f"CV-DEL-{short_id}-TRK", amount=Decimal("61000.00")).exists())
+		self.assertTrue(vouchers.filter(voucher_number=f"CV-DEL-{short_id}-BRG", amount=Decimal("82000.00")).exists())
+
+		# PO Logistics Summary check
+		summary = get_po_logistics_summary(self.cluster)
+		self.assertEqual(summary["total_incurred"], Decimal("143000.00"))
+		self.assertEqual(summary["status_indicator"], "In Progress / Ongoing")
+		self.assertEqual(summary["total_delivered_mt"], Decimal("200.000"))
+		self.assertEqual(summary["remaining_undelivered_mt"], Decimal("300.000"))
+		# Avg rate = 143,000 / 200 = 715.00/MT
+		self.assertEqual(summary["avg_rate_per_mt"], Decimal("715.00"))
+		# Projected = 143,000 + (300 * 715) = 143,000 + 214,500 = 357,500
+		self.assertEqual(summary["projected_total"], Decimal("357500.00"))
+
+		# Check cluster_detail rendering
+		res = self.client.get(reverse("operations:cluster_detail", args=[self.cluster.pk]))
+		self.assertEqual(res.status_code, 200)
+		self.assertContains(res, "Logistics Summary")
+		self.assertContains(res, "Total Incurred Logistics Expense")
+		self.assertContains(res, "143,000.00")
+		self.assertContains(res, "Projected Total Logistics Expense")
+		self.assertContains(res, "357,500.00")
+		self.assertContains(res, "In Progress / Ongoing")
+
+
+class LoanValidationCap100PercentTests(TestCase):
+	def setUp(self):
+		self.admin_user = User.objects.create_superuser(
+			username="admin_loan",
+			password="password123",
+			email="admin_loan@htc.corp",
+			role=User.Role.ADMINISTRATOR,
+		)
+		self.client.login(username="admin_loan", password="password123")
+		self.client_entity = Client.objects.create(name="Monde Nissin")
+		self.mill = SugarMill.objects.create(name="Central Azucarera")
+		self.cluster = TransactionCluster.objects.create(
+			reference_code="PO-CAP-100",
+			client=self.client_entity,
+			sugar_mill=self.mill,
+		)
+		self.po = PurchaseOrder.objects.create(
+			cluster=self.cluster,
+			volume_mt=100.0,
+			unit_price=10000.0, # Sourcing = 1,000,000
+		)
+		self.logistics = LogisticsLedger.objects.create(
+			cluster=self.cluster,
+			loaded_volume_mt=100.0,
+			tracking_fees=100000.0, # Trucking DP = 50,000
+			barge_fees=100000.0, # Freight DP = 50,000
+		)
+		# Capital requirement = 1,000,000 + 50,000 + 50,000 = 1,100,000.00
+
+	def test_100_percent_cap_blocks_creation_with_exact_message(self):
+		from finance.services import check_loan_capital_cap
+
+		# Initially, allowed
+		allowed, _ = check_loan_capital_cap(self.cluster)
+		self.assertTrue(allowed)
+
+		# Create an active loan that funds 100% of the requirement
+		CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="BDO Unibank",
+			principal=Decimal("1100000.00"),
+			interest_rate_annual=Decimal("10.00"),
+			start_date=date.today(),
+			due_date=date.today() + timedelta(days=90),
+			status=CapitalLoan.Status.ACTIVE,
+		)
+
+		# Now check_loan_capital_cap must block
+		allowed, msg = check_loan_capital_cap(self.cluster)
+		self.assertFalse(allowed)
+		self.assertEqual(
+			msg,
+			"Capital requirement for this order has already been 100% funded. Additional loans cannot be created.",
+		)
+
+		# Submitting via operations:add_loan is blocked
+		res = self.client.post(
+			reverse("operations:add_loan", args=[self.cluster.pk]),
+			{
+				"bank_name": "BPI",
+				"principal": "500000.00",
+				"interest_rate_annual": "10.00",
+				"start_date": str(date.today()),
+				"due_date": str(date.today() + timedelta(days=90)),
+			},
+			follow=True,
+		)
+		self.assertContains(res, "Capital requirement for this order has already been 100% funded. Additional loans cannot be created.")
+
+	def test_100_percent_cap_blocks_approval_when_already_funded(self):
+		# Create an approved active loan funding 100%
+		CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="BDO Unibank",
+			principal=Decimal("1100000.00"),
+			interest_rate_annual=Decimal("10.00"),
+			start_date=date.today(),
+			due_date=date.today() + timedelta(days=90),
+			status=CapitalLoan.Status.ACTIVE,
+		)
+
+		# Create a pending loan
+		pending_loan = CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="Metrobank",
+			principal=Decimal("300000.00"),
+			interest_rate_annual=Decimal("9.50"),
+			start_date=date.today(),
+			due_date=date.today() + timedelta(days=90),
+			status=CapitalLoan.Status.PENDING_CREATION,
+		)
+
+		# Attempt to verify/approve pending loan
+		res = self.client.post(
+			reverse("finance:verify_loan_creation", args=[pending_loan.pk]),
+			{"action": "approve", "verification_notes": "Trying to approve"},
+			follow=True,
+		)
+		pending_loan.refresh_from_db()
+		self.assertEqual(pending_loan.status, CapitalLoan.Status.PENDING_CREATION)
+		self.assertContains(res, "Capital requirement for this order has already been 100% funded. Additional loans cannot be created.")
+
+
+
 
 
 

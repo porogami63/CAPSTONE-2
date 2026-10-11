@@ -45,7 +45,24 @@ def cluster_financials(cluster) -> dict:
         purchase_price = Decimal(str(po.unit_price)) if po.unit_price is not None else Decimal("0")
         selling_price = Decimal(str(po.selling_price)) if po.selling_price is not None else (_parse_selling_from_terms(po.terms) or Decimal("0"))
 
-    if logistics:
+    # Batch-based logistics accounting: calculate per delivery batch rather than static upfront blanket
+    has_batches = bool(po and hasattr(po, "deliveries") and po.deliveries.exists())
+    if has_batches:
+        batch_deliveries = list(po.deliveries.all())
+        loaded_vol = po.total_delivered_mt
+        received_vol = po.total_delivered_mt
+        tracking_fees = sum((d.trucking_cost for d in batch_deliveries), Decimal("0.00"))
+        barge_fees = sum((d.barge_cost for d in batch_deliveries), Decimal("0.00"))
+        logistics_cost = tracking_fees + barge_fees
+
+        # Partner names from latest recorded delivery batch
+        latest_delivery = batch_deliveries[0] if batch_deliveries else None
+        if latest_delivery:
+            if latest_delivery.trucking_partner:
+                trucking_partner_name = latest_delivery.trucking_partner.name
+            if latest_delivery.barge_partner:
+                barge_partner_name = latest_delivery.barge_partner.name
+    elif logistics:
         loaded_vol = Decimal(str(logistics.loaded_volume_mt)) if logistics.loaded_volume_mt is not None else Decimal("0")
         received_vol = Decimal(str(logistics.received_volume_mt)) if logistics.received_volume_mt is not None else loaded_vol
         tracking_fees = Decimal(str(logistics.tracking_fees)) if logistics.tracking_fees is not None else Decimal("0")
@@ -166,9 +183,15 @@ def loan_requirement_data(cluster) -> dict:
     already_loaned = Decimal("0")
     loans_count = 0
     if hasattr(cluster, "loans"):
-        non_rejected = cluster.loans.exclude(status=CapitalLoan.Status.REJECTED)
-        loans_count = non_rejected.count()
-        agg = non_rejected.aggregate(total=Sum("principal"))["total"]
+        active_approved_statuses = [
+            CapitalLoan.Status.ACTIVE,
+            CapitalLoan.Status.OVERDUE,
+            CapitalLoan.Status.PENDING_SETTLEMENT,
+            CapitalLoan.Status.CLOSED,
+        ]
+        active_loans = cluster.loans.filter(status__in=active_approved_statuses)
+        loans_count = active_loans.count()
+        agg = active_loans.aggregate(total=Sum("principal"))["total"]
         if agg:
             already_loaned = Decimal(str(agg)).quantize(two)
 
@@ -245,6 +268,33 @@ def get_invoice_suggestion_data(cluster) -> dict:
     completion_pct = round(min(100.0, (already_invoiced / contract_total * 100)), 1) if contract_total > 0 else (100.0 if invoices_count > 0 else 0.0)
     remaining_pct = round(max(0.0, 100.0 - completion_pct), 1)
 
+    # Parse batch delivery costs and billable logistics fees into generated invoices
+    batch_deliveries = list(po.deliveries.all()) if (po and hasattr(po, "deliveries")) else []
+    total_batch_logistics = sum((d.total_freight_cost for d in batch_deliveries), Decimal("0.00"))
+    total_batch_trucking = sum((d.trucking_cost for d in batch_deliveries), Decimal("0.00"))
+    total_batch_barge = sum((d.barge_cost for d in batch_deliveries), Decimal("0.00"))
+
+    already_billed_logistics = sum((inv.logistics_fee for inv in invoices if hasattr(inv, "logistics_fee") and inv.logistics_fee), Decimal("0.00"))
+    remaining_batch_logistics = max(Decimal("0.00"), total_batch_logistics - already_billed_logistics)
+
+    batch_breakdown = []
+    for d in batch_deliveries:
+        short_id = str(d.delivery_id)[:8].upper()
+        batch_sugar = (d.delivered_mt * Decimal(str(selling_price))).quantize(Decimal("0.01"))
+        batch_breakdown.append({
+            "delivery_id": str(d.delivery_id),
+            "short_id": short_id,
+            "delivered_mt": float(d.delivered_mt),
+            "delivery_date": d.delivery_date.strftime("%b %d, %Y") if d.delivery_date else "—",
+            "sugar_amount": float(batch_sugar),
+            "trucking_cost": float(d.trucking_cost),
+            "barge_cost": float(d.barge_cost),
+            "total_freight_cost": float(d.total_freight_cost),
+            "total_billable": float(batch_sugar + d.total_freight_cost),
+            "supplier_name": d.supplier.name if d.supplier else "",
+            "receiving_location": d.receiving_location,
+        })
+
     return {
         "cluster_id": str(cluster.id) if hasattr(cluster, "id") else None,
         "ref": cluster.reference_code,
@@ -268,7 +318,72 @@ def get_invoice_suggestion_data(cluster) -> dict:
         "suggested_full": suggested_full,
         "suggested_delivered": remaining_received_balance if remaining_received_balance > 0 else received_total,
         "has_deliveries_to_bill": received_vol > 0 and remaining_received_balance > 0,
+        "total_batch_logistics": float(total_batch_logistics),
+        "total_batch_trucking": float(total_batch_trucking),
+        "total_batch_barge": float(total_batch_barge),
+        "already_billed_logistics": float(already_billed_logistics),
+        "remaining_batch_logistics": float(remaining_batch_logistics),
+        "batch_breakdown": batch_breakdown,
+        "suggested_with_logistics": round(suggested_full + float(remaining_batch_logistics), 2),
+        "has_batch_logistics_to_bill": float(remaining_batch_logistics) > 0,
         "suggested_50_pct": round(suggested_full * 0.5, 2),
         "suggested_25_pct": round(suggested_full * 0.25, 2),
+    }
+
+
+def get_po_logistics_summary(cluster) -> dict:
+    """
+    Computes key logistics metrics for the PO View Order Details screen:
+    - Total Incurred Logistics Expense: Sum of all recorded logistics expenses from dispatched/completed batches to date.
+    - Status Indicator: 'Completed' or 'In Progress / Ongoing'.
+    - Projected Total Logistics Expense:
+      If ongoing: [Total Incurred Logistics Expense] + (Remaining Undelivered PO Items * Average Batch Rate)
+      If completed: Total Incurred Logistics Expense.
+    """
+    from operations.models import PurchaseOrder
+
+    po = getattr(cluster, "purchase_order", None)
+    deliveries = list(po.deliveries.all()) if po and hasattr(po, "deliveries") else []
+
+    total_incurred = sum((d.total_freight_cost for d in deliveries), Decimal("0.00"))
+    total_trucking_incurred = sum((d.trucking_cost for d in deliveries), Decimal("0.00"))
+    total_barge_incurred = sum((d.barge_cost for d in deliveries), Decimal("0.00"))
+
+    total_delivered_mt = po.total_delivered_mt if po else Decimal("0.000")
+    contracted = (po.total_contracted_mt or po.volume_mt or Decimal("0.000")) if po else Decimal("0.000")
+    remaining_undelivered_mt = po.remaining_mt if po else Decimal("0.000")
+
+    is_completed = (po.po_status == PurchaseOrder.POStatus.COMPLETED) if po else False
+    if not is_completed and remaining_undelivered_mt <= Decimal("0.000") and total_delivered_mt > Decimal("0.000"):
+        is_completed = True
+
+    status_indicator = "Completed" if is_completed else "In Progress / Ongoing"
+
+    # Average / Estimated Batch Rate per MT (across recorded delivery batches)
+    if total_delivered_mt > Decimal("0.000"):
+        avg_rate_per_mt = (total_incurred / total_delivered_mt).quantize(Decimal("0.01"))
+    else:
+        avg_rate_per_mt = Decimal("0.00")
+
+    if is_completed:
+        projected_remaining = Decimal("0.00")
+        projected_total = total_incurred
+    else:
+        projected_remaining = (remaining_undelivered_mt * avg_rate_per_mt).quantize(Decimal("0.01"))
+        projected_total = (total_incurred + projected_remaining).quantize(Decimal("0.01"))
+
+    return {
+        "total_incurred": total_incurred,
+        "total_trucking_incurred": total_trucking_incurred,
+        "total_barge_incurred": total_barge_incurred,
+        "status_indicator": status_indicator,
+        "is_completed": is_completed,
+        "total_delivered_mt": total_delivered_mt,
+        "total_contracted_mt": contracted,
+        "remaining_undelivered_mt": remaining_undelivered_mt,
+        "avg_rate_per_mt": avg_rate_per_mt,
+        "projected_remaining": projected_remaining,
+        "projected_total": projected_total,
+        "batch_count": len(deliveries),
     }
 

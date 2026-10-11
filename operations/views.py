@@ -494,19 +494,13 @@ def cluster_create(request):
                         )
                     except Exception:
                         pass
-                logistics_partner = form.cleaned_data.get("logistics_partner")
-                vol = form.cleaned_data["volume_mt"]
-                est_trucking_rate = form.cleaned_data.get("est_trucking_rate") or Decimal("0")
-                est_barge_rate = form.cleaned_data.get("est_barge_rate") or Decimal("0")
-                tracking_fee = vol * est_trucking_rate
-                barge_fee = vol * est_barge_rate
-                
+                # Logistics partner and fees are deferred to Deliveries & Trucking
                 LogisticsLedger.objects.create(
                     cluster=cluster,
-                    partner=logistics_partner,
-                    loaded_volume_mt=vol,
-                    tracking_fees=tracking_fee,
-                    barge_fees=barge_fee,
+                    partner=None,
+                    loaded_volume_mt=Decimal("0.000"),
+                    tracking_fees=Decimal("0.00"),
+                    barge_fees=Decimal("0.00"),
                 )
                 FinancialReconciliation.objects.create(cluster=cluster)
 
@@ -579,17 +573,6 @@ def cluster_edit(request, pk):
                             )
                         except Exception:
                             pass
-                log = getattr(cluster, "logistics", None)
-                if log:
-                    vol = form.cleaned_data["volume_mt"]
-                    est_trucking_rate = form.cleaned_data.get("est_trucking_rate")
-                    est_barge_rate = form.cleaned_data.get("est_barge_rate")
-                    if est_trucking_rate is not None:
-                        log.tracking_fees = vol * est_trucking_rate
-                    if est_barge_rate is not None:
-                        log.barge_fees = vol * est_barge_rate
-                    log.loaded_volume_mt = vol
-                    log.save()
             messages.success(request, f"Updated contract parameters for {cluster.reference_code}.")
             return redirect("operations:cluster_detail", pk=cluster.pk)
     else:
@@ -755,10 +738,11 @@ def cluster_detail(request, pk):
 
     audit_events.sort(key=lambda x: x["date"], reverse=True)
     debrief = cluster_financials(cluster)
-    from operations.services.pricing import get_invoice_suggestion_data, loan_requirement_data
+    from operations.services.pricing import get_invoice_suggestion_data, get_po_logistics_summary, loan_requirement_data
     invoice_suggestion_data = get_invoice_suggestion_data(cluster)
     cluster_suggestions_json = json.dumps({str(cluster.id): invoice_suggestion_data})
     loan_requirement = loan_requirement_data(cluster)
+    logistics_summary = get_po_logistics_summary(cluster)
     loan_requirement_json = json.dumps(
         {k: (float(v) if isinstance(v, Decimal) else v) for k, v in loan_requirement.items()}
     )
@@ -786,6 +770,7 @@ def cluster_detail(request, pk):
             "cluster_suggestions_json": cluster_suggestions_json,
             "loan_requirement": loan_requirement,
             "loan_requirement_json": loan_requirement_json,
+            "logistics_summary": logistics_summary,
             "linked_mros": linked_mros,
             "available_mros": available_mros,
             "total_mro_tons": total_mro_tons,
@@ -962,13 +947,10 @@ def add_voucher(request, pk):
 def add_loan(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     if request.method == "POST":
-        from operations.services.pricing import loan_requirement_data
-        req = loan_requirement_data(cluster)
-        if req["is_complete"]:
-            messages.error(
-                request,
-                f"Cannot link additional loan: Capital requirement for {cluster.reference_code} is already 100% funded (₱{req['already_loaned']:,.2f} of ₱{req['required']:,.2f})."
-            )
+        from finance.services import check_loan_capital_cap
+        allowed, err_msg = check_loan_capital_cap(cluster)
+        if not allowed:
+            messages.error(request, err_msg)
             return redirect("operations:cluster_detail", pk=pk)
 
         form = CapitalLoanForm(request.POST, user=request.user, cluster=cluster)
@@ -2064,11 +2046,13 @@ def delivery_api_view(request):
     trucking_partner_id = data.get("trucking_partner_id") or data.get("trucking_partner")
     trucking_partner = LogisticsPartner.objects.filter(pk=trucking_partner_id).first() if trucking_partner_id else None
     trucking_rate = Decimal(str(data.get("trucking_rate_per_mt", "0.00")).strip() or "0.00")
+    flat_trucking_fee = Decimal(str(data.get("flat_trucking_fee", "0.00")).strip() or "0.00")
 
     barge_partner_id = data.get("barge_partner_id") or data.get("barge_partner")
     barge_partner = LogisticsPartner.objects.filter(pk=barge_partner_id).first() if barge_partner_id else None
     vessel_or_barge_name = (data.get("vessel_or_barge_name") or data.get("vessel_id") or "").strip()
     barge_rate = Decimal(str(data.get("barge_rate_per_mt", "0.00")).strip() or "0.00")
+    flat_barge_fee = Decimal(str(data.get("flat_barge_fee", "0.00")).strip() or "0.00")
 
     waybill_number = (data.get("waybill_number") or "").strip()
 
@@ -2085,9 +2069,11 @@ def delivery_api_view(request):
             carrier=carrier,
             trucking_partner=trucking_partner,
             trucking_rate_per_mt=trucking_rate,
+            flat_trucking_fee=flat_trucking_fee,
             barge_partner=barge_partner,
             vessel_or_barge_name=vessel_or_barge_name,
             barge_rate_per_mt=barge_rate,
+            flat_barge_fee=flat_barge_fee,
             vessel_or_truck=vessel_or_truck,
             dr_number=dr_number,
             waybill_number=waybill_number,

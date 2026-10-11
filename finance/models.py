@@ -42,6 +42,14 @@ class Invoice(models.Model):
         blank=True,
         help_text="Specified incremental billing percentage (e.g., 50.00, 25.00)",
     )
+    logistics_fee = models.DecimalField(
+        "Billable Logistics Fee (₱)",
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        blank=True,
+        help_text="Billable freight and delivery logistics fee parsed from delivery batches",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
@@ -49,6 +57,14 @@ class Invoice(models.Model):
 
     class Meta:
         ordering = ["-issued_at"]
+
+    @property
+    def product_amount(self):
+        """Sugar / product revenue component excluding billable logistics fee."""
+        if not self.amount:
+            return Decimal("0.00")
+        logistics = self.logistics_fee or Decimal("0.00")
+        return max(Decimal("0.00"), self.amount - logistics)
 
     @property
     def net_vat_base(self):

@@ -415,6 +415,14 @@ class DeliveryLedger(models.Model):
         default=Decimal("0.00"),
         blank=True,
     )
+    flat_trucking_fee = models.DecimalField(
+        "Flat Trucking Fee (₱)",
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        blank=True,
+        help_text="Flat batch land transport fee if not charged per MT",
+    )
     barge_partner = models.ForeignKey(
         LogisticsPartner,
         on_delete=models.SET_NULL,
@@ -431,6 +439,14 @@ class DeliveryLedger(models.Model):
         default=Decimal("0.00"),
         blank=True,
     )
+    flat_barge_fee = models.DecimalField(
+        "Flat Barging Fee (₱)",
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        blank=True,
+        help_text="Flat batch marine transport fee if not charged per MT",
+    )
     vessel_or_truck = models.CharField("Vessel ID / Truck Plate", max_length=100, blank=True)
     dr_number = models.CharField("Delivery Receipt (DR) #", max_length=100, blank=True)
     waybill_number = models.CharField("Waybill #", max_length=100, blank=True)
@@ -445,17 +461,21 @@ class DeliveryLedger(models.Model):
 
     @property
     def trucking_cost(self):
-        """Calculated land freight cost for this batch."""
+        """Calculated land freight cost for this batch (rate per MT + flat fee)."""
+        rate_cost = Decimal("0.00")
         if self.delivered_mt and self.trucking_rate_per_mt:
-            return (Decimal(str(self.delivered_mt)) * Decimal(str(self.trucking_rate_per_mt))).quantize(Decimal("0.01"))
-        return Decimal("0.00")
+            rate_cost = (Decimal(str(self.delivered_mt)) * Decimal(str(self.trucking_rate_per_mt))).quantize(Decimal("0.01"))
+        flat = Decimal(str(self.flat_trucking_fee or "0.00"))
+        return (rate_cost + flat).quantize(Decimal("0.01"))
 
     @property
     def barge_cost(self):
-        """Calculated marine freight cost for this batch."""
+        """Calculated marine freight cost for this batch (rate per MT + flat fee)."""
+        rate_cost = Decimal("0.00")
         if self.delivered_mt and self.barge_rate_per_mt:
-            return (Decimal(str(self.delivered_mt)) * Decimal(str(self.barge_rate_per_mt))).quantize(Decimal("0.01"))
-        return Decimal("0.00")
+            rate_cost = (Decimal(str(self.delivered_mt)) * Decimal(str(self.barge_rate_per_mt))).quantize(Decimal("0.01"))
+        flat = Decimal(str(self.flat_barge_fee or "0.00"))
+        return (rate_cost + flat).quantize(Decimal("0.01"))
 
     @property
     def total_freight_cost(self):
@@ -513,10 +533,8 @@ class DeliveryLedger(models.Model):
         total_trucking = sum((d.trucking_cost for d in deliveries), Decimal("0.00"))
         total_barge = sum((d.barge_cost for d in deliveries), Decimal("0.00"))
 
-        if total_trucking > Decimal("0"):
-            logistics.tracking_fees = total_trucking
-        if total_barge > Decimal("0"):
-            logistics.barge_fees = total_barge
+        logistics.tracking_fees = total_trucking
+        logistics.barge_fees = total_barge
 
         if self.trucking_partner:
             logistics.trucking_partner = self.trucking_partner
@@ -559,7 +577,16 @@ class DeliveryLedger(models.Model):
         trk_ref = f"CV-DEL-{short_id}-TRK"
         if self.trucking_cost > Decimal("0.00"):
             trk_partner = self.trucking_partner.name if self.trucking_partner else "Land Freight"
-            trk_purpose = f"Truck Delivery Batch #{short_id} ({self.delivered_mt:,.3f} MT @ ₱{self.trucking_rate_per_mt:,.2f}/MT) — {trk_partner}"[:200]
+            if self.flat_trucking_fee and self.flat_trucking_fee > Decimal("0.00") and (not self.trucking_rate_per_mt or self.trucking_rate_per_mt <= Decimal("0.00")):
+                trk_rate_info = f"Flat ₱{self.flat_trucking_fee:,.2f}"
+            elif self.flat_trucking_fee and self.flat_trucking_fee > Decimal("0.00"):
+                trk_rate_info = f"₱{self.trucking_rate_per_mt:,.2f}/MT + Flat ₱{self.flat_trucking_fee:,.2f}"
+            else:
+                trk_rate_info = f"₱{self.trucking_rate_per_mt:,.2f}/MT"
+            trk_purpose = f"Truck Delivery Batch #{short_id} ({self.delivered_mt:,.3f} MT @ {trk_rate_info}) — {trk_partner}"[:200]
+
+            existing_trk_voucher = CashVoucher.objects.filter(voucher_number=trk_ref).first()
+            trk_status = existing_trk_voucher.status if existing_trk_voucher and existing_trk_voucher.cheque_number else CashVoucher.Status.PENDING
 
             CashVoucher.objects.update_or_create(
                 voucher_number=trk_ref,
@@ -568,7 +595,7 @@ class DeliveryLedger(models.Model):
                     "loan": linked_loan,
                     "amount": self.trucking_cost,
                     "purpose": trk_purpose,
-                    "status": CashVoucher.Status.PENDING,
+                    "status": trk_status,
                     "issued_at": self.delivery_date or timezone.localdate(),
                 },
             )
@@ -585,7 +612,16 @@ class DeliveryLedger(models.Model):
         brg_ref = f"CV-DEL-{short_id}-BRG"
         if self.barge_cost > Decimal("0.00"):
             brg_partner = self.barge_partner.name if self.barge_partner else (self.vessel_or_barge_name or "Sea Freight")
-            brg_purpose = f"Marine Barging Batch #{short_id} ({self.delivered_mt:,.3f} MT @ ₱{self.barge_rate_per_mt:,.2f}/MT) — {brg_partner}"[:200]
+            if self.flat_barge_fee and self.flat_barge_fee > Decimal("0.00") and (not self.barge_rate_per_mt or self.barge_rate_per_mt <= Decimal("0.00")):
+                brg_rate_info = f"Flat ₱{self.flat_barge_fee:,.2f}"
+            elif self.flat_barge_fee and self.flat_barge_fee > Decimal("0.00"):
+                brg_rate_info = f"₱{self.barge_rate_per_mt:,.2f}/MT + Flat ₱{self.flat_barge_fee:,.2f}"
+            else:
+                brg_rate_info = f"₱{self.barge_rate_per_mt:,.2f}/MT"
+            brg_purpose = f"Marine Barging Batch #{short_id} ({self.delivered_mt:,.3f} MT @ {brg_rate_info}) — {brg_partner}"[:200]
+
+            existing_brg_voucher = CashVoucher.objects.filter(voucher_number=brg_ref).first()
+            brg_status = existing_brg_voucher.status if existing_brg_voucher and existing_brg_voucher.cheque_number else CashVoucher.Status.PENDING
 
             CashVoucher.objects.update_or_create(
                 voucher_number=brg_ref,
@@ -594,7 +630,7 @@ class DeliveryLedger(models.Model):
                     "loan": linked_loan,
                     "amount": self.barge_cost,
                     "purpose": brg_purpose,
-                    "status": CashVoucher.Status.PENDING,
+                    "status": brg_status,
                     "issued_at": self.delivery_date or timezone.localdate(),
                 },
             )

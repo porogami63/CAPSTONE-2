@@ -379,6 +379,26 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-6">
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.flat_trucking_fee.id_for_label }}">{{ form.flat_trucking_fee.label }}</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
+                                        {{ form.flat_trucking_fee }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.flat_barge_fee.id_for_label }}">{{ form.flat_barge_fee.label }}</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
+                                        {{ form.flat_barge_fee }}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="col-md-4">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.vessel_or_barge_name.id_for_label }}">{{ form.vessel_or_barge_name.label }}</label>

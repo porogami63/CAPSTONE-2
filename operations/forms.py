@@ -48,22 +48,6 @@ class TransactionClusterForm(forms.ModelForm):
         help_text="Price we bill to the customer per MT",
         widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 43500.00", "step": "0.01"}),
     )
-    est_trucking_rate = forms.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        required=False,
-        label="Estimated Truck Delivery Cost (₱/MT)",
-        help_text="Estimated land delivery cost per MT",
-        widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 150.00", "step": "0.01"}),
-    )
-    est_barge_rate = forms.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        required=False,
-        label="Estimated Boat / Barge Delivery Cost (₱/MT)",
-        help_text="Estimated water transport cost per MT",
-        widget=forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 350.00", "step": "0.01"}),
-    )
     terms = forms.CharField(
         max_length=200,
         required=False,
@@ -96,14 +80,6 @@ class TransactionClusterForm(forms.ModelForm):
         required=False,
         label="Quality Rating (CHAI Grade)",
         help_text="Standard quality rating grade for molasses",
-        widget=forms.Select(attrs={"class": "form-select-htc"}),
-    )
-
-    logistics_partner = forms.ModelChoiceField(
-        queryset=LogisticsPartner.objects.filter(is_active=True),
-        required=False,
-        label="Delivery Company (Shipping / Trucking)",
-        empty_label="-- Select delivery partner --",
         widget=forms.Select(attrs={"class": "form-select-htc"}),
     )
 
@@ -147,15 +123,6 @@ class TransactionClusterForm(forms.ModelForm):
                     self.fields["chai_specs"].initial = match.group(1)
                 else:
                     self.fields["chai_specs"].initial = specs_val
-            if hasattr(self.instance, "logistics") and self.instance.logistics:
-                log = self.instance.logistics
-                self.fields["logistics_partner"].initial = log.partner
-                vol = float(log.loaded_volume_mt or 0)
-                if vol > 0:
-                    if log.tracking_fees:
-                        self.fields["est_trucking_rate"].initial = round(float(log.tracking_fees) / vol, 2)
-                    if log.barge_fees:
-                        self.fields["est_barge_rate"].initial = round(float(log.barge_fees) / vol, 2)
 
     def clean_reference_code(self):
         ref = self.cleaned_data.get("reference_code", "").strip()
@@ -169,8 +136,6 @@ class TransactionClusterForm(forms.ModelForm):
         vol = cleaned_data.get("volume_mt")
         unit_price = cleaned_data.get("unit_price")
         selling_price = cleaned_data.get("selling_price")
-        est_trucking_rate = cleaned_data.get("est_trucking_rate")
-        est_barge_rate = cleaned_data.get("est_barge_rate")
 
         if vol is not None and vol <= 0:
             self.add_error("volume_mt", "Contract volume must be a positive number greater than 0 MT.")
@@ -183,12 +148,6 @@ class TransactionClusterForm(forms.ModelForm):
                 self.add_error("selling_price", "Customer selling price must be a positive amount in ₱/MT.")
             elif unit_price is not None and selling_price < unit_price:
                 self.add_error("selling_price", "Customer selling price cannot be lower than supplier sourcing price (selling below cost).")
-
-        if est_trucking_rate is not None and est_trucking_rate < 0:
-            self.add_error("est_trucking_rate", "Land trucking rate cannot be negative.")
-
-        if est_barge_rate is not None and est_barge_rate < 0:
-            self.add_error("est_barge_rate", "Marine barging rate cannot be negative.")
 
         brix_level = cleaned_data.get("brix_level")
         if brix_level is not None and (brix_level < 0 or brix_level > 100):
@@ -339,9 +298,11 @@ class DeliveryLedgerForm(forms.ModelForm):
             "carrier",
             "trucking_partner",
             "trucking_rate_per_mt",
+            "flat_trucking_fee",
             "barge_partner",
             "vessel_or_barge_name",
             "barge_rate_per_mt",
+            "flat_barge_fee",
             "vessel_or_truck",
             "dr_number",
             "waybill_number",
@@ -358,9 +319,11 @@ class DeliveryLedgerForm(forms.ModelForm):
             "carrier": "Carrier (Optional)",
             "trucking_partner": "Trucking Partner (Land)",
             "trucking_rate_per_mt": "Trucking Rate (₱/MT)",
+            "flat_trucking_fee": "Flat Trucking Fee (₱)",
             "barge_partner": "Barging Partner (Marine)",
             "vessel_or_barge_name": "Vessel / Barge Name",
             "barge_rate_per_mt": "Barging Rate (₱/MT)",
+            "flat_barge_fee": "Flat Barging Fee (₱)",
             "vessel_or_truck": "Truck Plate #",
             "dr_number": "DR Number",
             "waybill_number": "Waybill Number",
@@ -377,9 +340,11 @@ class DeliveryLedgerForm(forms.ModelForm):
             "carrier": forms.Select(attrs={"class": "form-select-htc"}),
             "trucking_partner": forms.Select(attrs={"class": "form-select-htc"}),
             "trucking_rate_per_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 450.00"}),
+            "flat_trucking_fee": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 5000.00"}),
             "barge_partner": forms.Select(attrs={"class": "form-select-htc"}),
             "vessel_or_barge_name": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. LCT LBC-1 / Barge 08"}),
             "barge_rate_per_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 1200.00"}),
+            "flat_barge_fee": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 15000.00"}),
             "vessel_or_truck": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Plate NBD-1234"}),
             "dr_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. DR-8890"}),
             "waybill_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. WB-9921"}),

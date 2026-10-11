@@ -27,10 +27,11 @@ class StandaloneInvoiceForm(forms.ModelForm):
 
     class Meta:
         model = Invoice
-        fields = ["cluster", "invoice_number", "amount", "issued_at", "status", "notes"]
+        fields = ["cluster", "invoice_number", "amount", "logistics_fee", "issued_at", "status", "notes"]
         widgets = {
             "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated based on PO (e.g. SI-20260925-001)"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 1500000.00", "step": "0.01"}),
+            "logistics_fee": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 45000.00", "step": "0.01"}),
             "issued_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
             "status": forms.Select(attrs={"class": "form-select-htc"}),
             "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional invoice notes..."}),
@@ -39,6 +40,7 @@ class StandaloneInvoiceForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["invoice_number"].required = False
+        self.fields["logistics_fee"].required = False
         from operations.services.pricing import get_invoice_suggestion_data
         all_clusters = (
             TransactionCluster.objects.filter(is_archived=False)
@@ -93,10 +95,11 @@ class StandaloneInvoiceForm(forms.ModelForm):
 class InvoiceForm(forms.ModelForm):
     class Meta:
         model = Invoice
-        fields = ["invoice_number", "amount", "issued_at", "status", "notes"]
+        fields = ["invoice_number", "amount", "logistics_fee", "issued_at", "status", "notes"]
         widgets = {
             "invoice_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Auto-generated based on PO (e.g. SI-20260925-001)"}),
             "amount": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 1500000.00", "step": "0.01"}),
+            "logistics_fee": forms.NumberInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 45000.00", "step": "0.01"}),
             "issued_at": forms.DateInput(attrs={"class": "form-control-htc", "type": "date"}),
             "status": forms.Select(attrs={"class": "form-select-htc"}),
             "notes": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "Optional invoice notes..."}),
@@ -106,6 +109,7 @@ class InvoiceForm(forms.ModelForm):
         self.cluster = cluster
         super().__init__(*args, **kwargs)
         self.fields["invoice_number"].required = False
+        self.fields["logistics_fee"].required = False
         if self.cluster and not self.initial.get("invoice_number"):
             from operations.services.reference_generators import generate_si_reference
             self.initial["invoice_number"] = generate_si_reference(self.cluster.reference_code)
@@ -114,6 +118,8 @@ class InvoiceForm(forms.ModelForm):
             sugg = get_invoice_suggestion_data(self.cluster)
             if sugg.get("suggested_full") and sugg["suggested_full"] > 0:
                 self.initial["amount"] = Decimal(str(sugg["suggested_full"]))
+            if sugg.get("remaining_batch_logistics") and sugg["remaining_batch_logistics"] > 0:
+                self.initial["logistics_fee"] = Decimal(str(sugg["remaining_batch_logistics"]))
 
     def clean_invoice_number(self):
         num = self.cleaned_data.get("invoice_number", "").strip()
@@ -211,26 +217,14 @@ class LoanRulesMixin:
             if principal <= 0:
                 self.add_error("principal", "Loan principal amount must be a positive number greater than ₱0.00.")
             elif cluster is not None:
-                from operations.services.pricing import loan_requirement_data
+                from finance.services import check_loan_capital_cap
 
-                req = loan_requirement_data(cluster)
-                existing_loans = cluster.loans.exclude(status=CapitalLoan.Status.REJECTED)
-                if self.instance and self.instance.pk:
-                    existing_loans = existing_loans.exclude(pk=self.instance.pk)
-
-                already_loaned = Decimal("0")
-                agg = existing_loans.aggregate(total=Sum("principal"))["total"]
-                if agg:
-                    already_loaned = Decimal(str(agg)).quantize(Decimal("0.01"))
-
-                rem_req = max(Decimal("0"), req["required"] - already_loaned)
-
-                if is_new and existing_loans.exists() and rem_req <= Decimal("0.01"):
-                    self.add_error(
-                        "principal",
-                        f"Capital loan requirement (₱{req['required']:,.2f}) for {cluster.reference_code} is already 100% funded across existing facilities. "
-                        "Additional loan creation is restricted.",
-                    )
+                allowed, err_msg = check_loan_capital_cap(
+                    cluster,
+                    exclude_loan_id=self.instance.pk if (self.instance and self.instance.pk) else None,
+                )
+                if not allowed:
+                    self.add_error("principal", err_msg)
 
         if interest_rate is not None:
             if interest_rate < 0:
