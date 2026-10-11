@@ -434,6 +434,7 @@
                 {% endif %}
             </div>
             <div class="panel-body">
+                {% if po %}
                 <!-- Read-Only Status Panel -->
                 <div class="delivery-status-box mb-4 p-3 rounded" style="background: var(--htc-bg); border: 1px solid var(--htc-border);">
                     <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--htc-text-muted); margin-bottom: 0.6rem;">
@@ -443,7 +444,7 @@
                         <div class="col-4">
                             <div class="p-2 rounded bg-surface border">
                                 <div class="text-muted fs-8 fw-semibold text-uppercase">Total Contracted</div>
-                                <div class="fs-6 fw-bold text-dark mt-1">{{ po.total_contracted_mt|default:po.volume_mt|floatformat:3|intcomma }} MT</div>
+                                <div class="fs-6 fw-bold text-dark mt-1">{{ po.total_contracted_mt|floatformat:3|intcomma }} MT</div>
                             </div>
                         </div>
                         <div class="col-4">
@@ -459,9 +460,9 @@
                             </div>
                         </div>
                     </div>
-                    {% if po.total_contracted_mt or po.volume_mt %}
+                    {% if po.total_contracted_mt %}
                     <div class="mt-2.5">
-                        {% with contracted=po.total_contracted_mt|default:po.volume_mt %}
+                        {% with contracted=po.total_contracted_mt %}
                         {% if contracted > 0 %}
                         <div class="d-flex justify-content-between fs-8 text-muted mb-1">
                             <span>Fulfillment Progress</span>
@@ -475,6 +476,11 @@
                     </div>
                     {% endif %}
                 </div>
+                {% else %}
+                <div class="alert alert-light border py-2.5 px-3 fs-8 text-muted mb-4">
+                    <i class="bi bi-info-circle me-1"></i> No Purchase Order recorded yet for this transaction.
+                </div>
+                {% endif %}
 
                 <!-- Incremental Delivery Ledger Table -->
                 <div class="mb-4">
@@ -622,7 +628,7 @@
                     <div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 fs-8 mb-3">
                         <i class="bi bi-check-circle-fill fs-6 text-success"></i>
                         <div>
-                            <strong>100% Contract Fulfilled:</strong> All {{ po.total_contracted_mt|default:po.volume_mt|floatformat:3|intcomma }} MT contracted under this PO have been delivered and verified across all batches.
+                            <strong>100% Contract Fulfilled:</strong> All {{ po.total_contracted_mt|floatformat:3|intcomma }} MT contracted under this PO have been delivered and verified across all batches.
                         </div>
                     </div>
                     {% endif %}
@@ -672,8 +678,8 @@
                                     </div>
                                 </div>
                             </div>
-                            <input type="hidden" name="loaded_volume_mt" value="{{ cluster.logistics.loaded_volume_mt|default:po.volume_mt|default:100 }}">
-                            <input type="hidden" name="received_volume_mt" value="{{ po.total_delivered_mt }}">
+                            <input type="hidden" name="loaded_volume_mt" value="{{ cluster.logistics.loaded_volume_mt|default:100 }}">
+                            <input type="hidden" name="received_volume_mt" value="{{ po.total_delivered_mt|default:0 }}">
                             <button type="submit" class="btn-htc-outline btn-sm mt-2">Update Freight &amp; Files</button>
                         </form>
                     </details>
