@@ -380,13 +380,56 @@ class DeliveryLedger(models.Model):
         help_text="Customer delivery drop-off point (e.g. ADI, HTC Tank, Balayan)",
     )
     delivery_date = models.DateField("Delivery Date", default=timezone.localdate)
+    dispatched_at = models.DateTimeField(
+        "Dispatch Date & Time",
+        null=True,
+        blank=True,
+        help_text="Timestamp when shipment departed origin sugar mill",
+    )
+    received_at = models.DateTimeField(
+        "Received Date & Time",
+        null=True,
+        blank=True,
+        help_text="Timestamp when shipment arrived and was accepted at customer destination",
+    )
     carrier = models.ForeignKey(
         LogisticsPartner,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="delivery_shipments",
-        help_text="Logistics / Carrier Partner",
+        help_text="Logistics / Carrier Partner (Primary)",
+    )
+    trucking_partner = models.ForeignKey(
+        LogisticsPartner,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_trucking_batches",
+        verbose_name="Trucking Partner (Land Transport)",
+    )
+    trucking_rate_per_mt = models.DecimalField(
+        "Trucking Rate (₱/MT)",
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        blank=True,
+    )
+    barge_partner = models.ForeignKey(
+        LogisticsPartner,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="delivery_barge_batches",
+        verbose_name="Barging Partner (Marine Transport)",
+    )
+    vessel_or_barge_name = models.CharField("Vessel / Barge Name", max_length=100, blank=True, default="")
+    barge_rate_per_mt = models.DecimalField(
+        "Barging Rate (₱/MT)",
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        blank=True,
     )
     vessel_or_truck = models.CharField("Vessel ID / Truck Plate", max_length=100, blank=True)
     dr_number = models.CharField("Delivery Receipt (DR) #", max_length=100, blank=True)
@@ -399,6 +442,25 @@ class DeliveryLedger(models.Model):
         ordering = ["-delivery_date", "-created_at"]
         verbose_name = "Delivery Ledger Entry"
         verbose_name_plural = "Delivery Ledger Entries"
+
+    @property
+    def trucking_cost(self):
+        """Calculated land freight cost for this batch."""
+        if self.delivered_mt and self.trucking_rate_per_mt:
+            return (Decimal(str(self.delivered_mt)) * Decimal(str(self.trucking_rate_per_mt))).quantize(Decimal("0.01"))
+        return Decimal("0.00")
+
+    @property
+    def barge_cost(self):
+        """Calculated marine freight cost for this batch."""
+        if self.delivered_mt and self.barge_rate_per_mt:
+            return (Decimal(str(self.delivered_mt)) * Decimal(str(self.barge_rate_per_mt))).quantize(Decimal("0.01"))
+        return Decimal("0.00")
+
+    @property
+    def total_freight_cost(self):
+        """Total combined logistics cost for this batch."""
+        return self.trucking_cost + self.barge_cost
 
     def clean(self):
         super().clean()
@@ -423,10 +485,61 @@ class DeliveryLedger(models.Model):
                     "delivered_mt": f"Delivered quantity ({self.delivered_mt:,.3f} MT) exceeds the available remaining balance ({available_balance:,.3f} MT) for PO {ref}."
                 })
 
+    def sync_cluster_logistics(self):
+        """Sync delivery batch logistics timestamps and rates into the cluster's LogisticsLedger."""
+        if not self.purchase_order:
+            return
+        cluster = getattr(self.purchase_order, "cluster", None)
+        if not cluster:
+            return
+        try:
+            logistics = cluster.logistics
+        except Exception:
+            from django.apps import apps
+            LogisticsModel = apps.get_model("operations", "LogisticsLedger")
+            logistics = LogisticsModel.objects.create(
+                cluster=cluster,
+                loaded_volume_mt=self.purchase_order.total_delivered_mt or self.delivered_mt or Decimal("0.000"),
+            )
+        if not logistics:
+            return
+
+        po = self.purchase_order
+        logistics.received_volume_mt = po.total_delivered_mt
+        if not logistics.loaded_volume_mt or logistics.loaded_volume_mt < po.total_delivered_mt:
+            logistics.loaded_volume_mt = po.total_delivered_mt
+
+        deliveries = po.deliveries.all()
+        total_trucking = sum((d.trucking_cost for d in deliveries), Decimal("0.00"))
+        total_barge = sum((d.barge_cost for d in deliveries), Decimal("0.00"))
+
+        if total_trucking > Decimal("0"):
+            logistics.tracking_fees = total_trucking
+        if total_barge > Decimal("0"):
+            logistics.barge_fees = total_barge
+
+        if self.trucking_partner:
+            logistics.trucking_partner = self.trucking_partner
+        if self.barge_partner:
+            logistics.barge_partner = self.barge_partner
+        if self.vessel_or_barge_name:
+            logistics.vessel_id = self.vessel_or_barge_name
+
+        earliest_dispatch = deliveries.filter(dispatched_at__isnull=False).order_by("dispatched_at").first()
+        if earliest_dispatch and earliest_dispatch.dispatched_at:
+            logistics.loaded_at = earliest_dispatch.dispatched_at
+
+        latest_received = deliveries.filter(received_at__isnull=False).order_by("-received_at").first()
+        if latest_received and latest_received.received_at:
+            logistics.received_at = latest_received.received_at
+
+        logistics.save()
+
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
         self.purchase_order.update_status()
+        self.sync_cluster_logistics()
 
     def __str__(self):
         po_ref = self.purchase_order.po_reference_number if self.purchase_order else "Unknown PO"

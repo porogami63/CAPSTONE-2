@@ -192,53 +192,116 @@
                     </div>
 
                     <div class="row g-3 mt-0.5">
-                        <!-- Field 4: Receiving Location -->
-                        <div class="col-md-7">
+                        <!-- Field 4: Receiving Customer & Destination -->
+                        <div class="col-md-6">
                             <div class="form-field">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label for="{{ form.receiving_location.id_for_label }}" class="fw-bold fs-7 mb-0">
-                                        {{ form.receiving_location.label }} <span class="text-danger">*</span>
-                                    </label>
-                                    <div class="d-flex gap-1">
-                                        <span class="fs-8 text-muted me-1">Quick Fill:</span>
-                                        <button type="button" class="quick-loc-btn" onclick="setLoc('ADI Nasugbu Mill Site')">ADI</button>
-                                        <button type="button" class="quick-loc-btn" onclick="setLoc('HTC Storage Tank - Balayan')">HTC Tank</button>
-                                        <button type="button" class="quick-loc-btn" onclick="setLoc('Balayan Distillery')">Balayan</button>
-                                    </div>
-                                </div>
+                                <label for="{{ form.receiving_customer.id_for_label }}" class="fw-bold fs-7">
+                                    {{ form.receiving_customer.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.receiving_customer }}
+                                <div class="field-help fs-8 text-muted mt-1">Select recipient client (defaults to PO customer; dynamically reflects all clients).</div>
+                                {% if form.receiving_customer.errors %}
+                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.receiving_customer.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-field">
+                                <label for="{{ form.receiving_location.id_for_label }}" class="fw-bold fs-7">
+                                    {{ form.receiving_location.label }} <span class="text-danger">*</span>
+                                </label>
                                 {{ form.receiving_location }}
-                                <div class="field-help fs-8 text-muted mt-1">Destination depot, facility, or client storage site for this batch.</div>
+                                <div class="field-help fs-8 text-muted mt-1">Specific plant, tank terminal, or warehouse receiving the batch.</div>
                                 {% if form.receiving_location.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.receiving_location.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Field 5: Delivery Date -->
-                        <div class="col-md-5">
+                    <div class="row g-3 mt-0.5">
+                        <!-- Field 5: Delivery Date & Operational Timestamps -->
+                        <div class="col-md-4">
                             <div class="form-field">
                                 <label for="{{ form.delivery_date.id_for_label }}" class="fw-bold fs-7">
                                     {{ form.delivery_date.label }} <span class="text-danger">*</span>
                                 </label>
                                 {{ form.delivery_date }}
-                                <div class="field-help fs-8 text-muted mt-1">Date shipment was received at location.</div>
+                                <div class="field-help fs-8 text-muted mt-1">Date shipment was accepted.</div>
                                 {% if form.delivery_date.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.delivery_date.errors|striptags }}</div>
                                 {% endif %}
                             </div>
                         </div>
+                        <div class="col-md-4">
+                            <div class="form-field">
+                                <label for="{{ form.dispatched_at.id_for_label }}" class="fw-bold fs-7">
+                                    {{ form.dispatched_at.label }}
+                                </label>
+                                {{ form.dispatched_at }}
+                                <div class="field-help fs-8 text-muted mt-1">Mill departure timestamp.</div>
+                                {% if form.dispatched_at.errors %}
+                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.dispatched_at.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-field">
+                                <label for="{{ form.received_at.id_for_label }}" class="fw-bold fs-7">
+                                    {{ form.received_at.label }}
+                                </label>
+                                {{ form.received_at }}
+                                <div class="field-help fs-8 text-muted mt-1">Plant arrival timestamp.</div>
+                                {% if form.received_at.errors %}
+                                <div class="text-danger fs-8 fw-bold mt-1"><i class="bi bi-exclamation-circle-fill"></i> {{ form.received_at.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Collapsible Logistics Metadata -->
-                    <details class="w-100 mt-3 p-3 rounded" style="background: var(--htc-bg); border: 1px solid var(--htc-border);">
+                    <!-- Collapsible Logistics & Multi-Batch Freight Rates -->
+                    <details class="w-100 mt-3 p-3 rounded" style="background: var(--htc-bg); border: 1px solid var(--htc-border);" open>
                         <summary class="fw-bold text-primary fs-7" style="cursor: pointer;">
-                            <i class="bi bi-shield-check"></i> Additional Logistics Carrier &amp; DR Reference Details (Optional)
+                            <i class="bi bi-truck"></i> Multi-Batch Land Trucking &amp; Marine Barging Logistics (Optional)
                         </summary>
                         <div class="row g-3 mt-1">
+                            <div class="col-md-6">
+                                <div class="form-field">
+                                    <label for="{{ form.trucking_partner.id_for_label }}" class="fs-8 fw-bold">{{ form.trucking_partner.label }}</label>
+                                    {{ form.trucking_partner }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-field">
+                                    <label for="{{ form.trucking_rate_per_mt.id_for_label }}" class="fs-8 fw-bold">{{ form.trucking_rate_per_mt.label }}</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-light text-muted fs-8">₱</span>
+                                        {{ form.trucking_rate_per_mt }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-field">
+                                    <label for="{{ form.barge_partner.id_for_label }}" class="fs-8 fw-bold">{{ form.barge_partner.label }}</label>
+                                    {{ form.barge_partner }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-field">
+                                    <label for="{{ form.barge_rate_per_mt.id_for_label }}" class="fs-8 fw-bold">{{ form.barge_rate_per_mt.label }}</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-light text-muted fs-8">₱</span>
+                                        {{ form.barge_rate_per_mt }}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="col-md-4">
                                 <div class="form-field">
-                                    <label for="{{ form.carrier.id_for_label }}" class="fs-8 fw-bold">{{ form.carrier.label }}</label>
-                                    {{ form.carrier }}
+                                    <label for="{{ form.vessel_or_barge_name.id_for_label }}" class="fs-8 fw-bold">{{ form.vessel_or_barge_name.label }}</label>
+                                    {{ form.vessel_or_barge_name }}
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -249,10 +312,24 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="form-field">
+                                    <label for="{{ form.waybill_number.id_for_label }}" class="fs-8 fw-bold">{{ form.waybill_number.label }}</label>
+                                    {{ form.waybill_number }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-field">
+                                    <label for="{{ form.carrier.id_for_label }}" class="fs-8 fw-bold">{{ form.carrier.label }}</label>
+                                    {{ form.carrier }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-field">
                                     <label for="{{ form.dr_number.id_for_label }}" class="fs-8 fw-bold">{{ form.dr_number.label }}</label>
                                     {{ form.dr_number }}
                                 </div>
                             </div>
+
                             <div class="col-12">
                                 <div class="form-field">
                                     <label for="{{ form.notes.id_for_label }}" class="fs-8 fw-bold">{{ form.notes.label }}</label>
@@ -360,6 +437,16 @@ document.addEventListener('DOMContentLoaded', function() {
         mtInput.addEventListener('input', checkOverDelivery);
     }
 
+    const custSelect = document.getElementById('id_receiving_customer_select');
+    if (custSelect) {
+        custSelect.addEventListener('change', function() {
+            const locInput = document.getElementById('id_delivery_location');
+            if (locInput && this.value && this.options[this.selectedIndex]) {
+                locInput.value = this.options[this.selectedIndex].text.replace(/\s*\(.*\)/, '').trim() + ' Main Facility';
+            }
+        });
+    }
+
     function fetchPOStatus(poId) {
         if (!poId) {
             resetStatusPanel();
@@ -395,6 +482,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 badge.textContent = data.po_status;
                 badge.className = 'badge text-uppercase fs-8 px-2.5 py-1.5 ' + 
                     (data.po_status === 'Completed' ? 'bg-success' : (data.po_status === 'Partially Fulfilled' ? 'bg-warning text-dark' : 'bg-primary'));
+
+                if (data.customer_id) {
+                    const custSelect = document.getElementById('id_receiving_customer_select');
+                    if (custSelect) {
+                        custSelect.value = data.customer_id;
+                    }
+                    const locInput = document.getElementById('id_delivery_location');
+                    if (locInput && (!locInput.value || locInput.value.includes('Main Site') || locInput.value.includes('Main Facility'))) {
+                        locInput.value = data.customer_name + ' Main Facility';
+                    }
+                }
 
                 if (data.preferred_supplier_id) {
                     const supSelect = document.getElementById('id_delivery_supplier');

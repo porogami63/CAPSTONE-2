@@ -839,6 +839,44 @@ class IncrementalDeliveryLedgerTests(TestCase):
         self.assertEqual(data["remaining_mt"], "10000.000")
         self.assertEqual(data["po_status"], "Open")
 
+    def test_multi_batch_logistics_rates_and_invoice_suggestion(self):
+        from decimal import Decimal
+        from operations.models import DeliveryLedger
+        from operations.services.pricing import get_invoice_suggestion_data
+
+        # Set cluster PO selling price
+        self.po.selling_price = Decimal("35000.00")
+        self.po.save()
+
+        # Log batch 1: 2,000 MT with ₱450/MT trucking and ₱1,200/MT barging
+        d1 = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill_busco,
+            delivered_mt=Decimal("2000.000"),
+            receiving_location="ADI Nasugbu Site",
+            trucking_partner=self.logistics_partner,
+            trucking_rate_per_mt=Decimal("450.00"),
+            barge_partner=self.logistics_partner,
+            barge_rate_per_mt=Decimal("1200.00"),
+            vessel_or_barge_name="LCT LBC-1",
+        )
+
+        self.assertEqual(d1.trucking_cost, Decimal("900000.00"))   # 2,000 MT * ₱450
+        self.assertEqual(d1.barge_cost, Decimal("2400000.00"))    # 2,000 MT * ₱1,200
+        self.assertEqual(d1.total_freight_cost, Decimal("3300000.00"))
+
+        # Check cluster logistics synchronization
+        self.cluster.logistics.refresh_from_db()
+        self.assertEqual(self.cluster.logistics.tracking_fees, Decimal("900000.00"))
+        self.assertEqual(self.cluster.logistics.barge_fees, Decimal("2400000.00"))
+
+        # Verify Invoice suggestion is based on delivered MT * selling price (2,000 MT * ₱35,000 = ₱70,000,000)
+        sugg = get_invoice_suggestion_data(self.cluster)
+        self.assertEqual(sugg["total_delivered_mt"], 2000.0)
+        self.assertEqual(sugg["delivered_total"], 70000000.0)
+        self.assertEqual(sugg["suggested_full"], 70000000.0)
+        self.assertTrue(sugg["has_deliveries_to_bill"])
+
 
 
 

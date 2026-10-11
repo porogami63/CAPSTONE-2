@@ -343,33 +343,65 @@ class DeliveryLedgerForm(forms.ModelForm):
             "delivered_mt",
             "receiving_location",
             "delivery_date",
+            "dispatched_at",
+            "received_at",
             "carrier",
+            "trucking_partner",
+            "trucking_rate_per_mt",
+            "barge_partner",
+            "vessel_or_barge_name",
+            "barge_rate_per_mt",
             "vessel_or_truck",
             "dr_number",
+            "waybill_number",
             "notes",
         ]
         labels = {
             "purchase_order": "Select Purchase Order (PO #)",
             "supplier": "Source Supplier (Sugar Mill)",
             "delivered_mt": "Quantity Delivered (MT)",
-            "receiving_location": "Customer Receiving Destination",
+            "receiving_location": "Receiving Destination Detail",
             "delivery_date": "Delivery Date",
-            "carrier": "Logistics Carrier (Optional)",
-            "vessel_or_truck": "Vessel Name / Truck Plate #",
+            "dispatched_at": "Dispatch Date & Time",
+            "received_at": "Received / Arrival Date & Time",
+            "carrier": "Primary Logistics Carrier (Optional)",
+            "trucking_partner": "Trucking Partner (Land Transport)",
+            "trucking_rate_per_mt": "Trucking Rate (₱/MT)",
+            "barge_partner": "Barging Partner (Marine Transport)",
+            "vessel_or_barge_name": "Vessel / Barge Name",
+            "barge_rate_per_mt": "Barging Rate (₱/MT)",
+            "vessel_or_truck": "Truck Plate / Vehicle ID",
             "dr_number": "Delivery Receipt (DR) #",
+            "waybill_number": "Waybill / MDR #",
             "notes": "Delivery Notes / Remarks",
         }
         widgets = {
             "purchase_order": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_po"}),
             "supplier": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_supplier"}),
             "delivered_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "e.g. 2000.000", "id": "id_delivery_mt"}),
-            "receiving_location": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. ADI, HTC Tank, Balayan", "id": "id_delivery_location"}),
+            "receiving_location": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Main Plant, Warehouse 2, Silo A", "id": "id_delivery_location"}),
             "delivery_date": forms.DateInput(attrs={"type": "date", "class": "form-control-htc"}),
+            "dispatched_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control-htc"}),
+            "received_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control-htc"}),
             "carrier": forms.Select(attrs={"class": "form-select-htc"}),
-            "vessel_or_truck": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. LCT LBC-1 / Plate NBD-1234"}),
+            "trucking_partner": forms.Select(attrs={"class": "form-select-htc"}),
+            "trucking_rate_per_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 450.00"}),
+            "barge_partner": forms.Select(attrs={"class": "form-select-htc"}),
+            "vessel_or_barge_name": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. LCT LBC-1 / Barge 08"}),
+            "barge_rate_per_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 1200.00"}),
+            "vessel_or_truck": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Plate NBD-1234"}),
             "dr_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. DR-8890"}),
+            "waybill_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. WB-9921"}),
             "notes": forms.Textarea(attrs={"class": "form-control-htc", "rows": 2, "placeholder": "Optional shipment notes..."}),
         }
+
+    receiving_customer = forms.ModelChoiceField(
+        queryset=Client.objects.filter(is_active=True).order_by("name"),
+        required=False,
+        label="Receiving Destination (Customer / Site)",
+        empty_label="-- Select Receiving Customer --",
+        widget=forms.Select(attrs={"class": "form-select-htc", "id": "id_receiving_customer_select"}),
+    )
 
     def __init__(self, *args, **kwargs):
         initial_po = kwargs.pop("initial_po", None)
@@ -385,20 +417,39 @@ class DeliveryLedgerForm(forms.ModelForm):
         self.fields["supplier"].queryset = SugarMill.objects.filter(is_active=True).order_by("name")
         self.fields["supplier"].empty_label = "-- Select Source Sugar Mill --"
         
-        self.fields["carrier"].queryset = LogisticsPartner.objects.filter(is_active=True).order_by("name")
+        logistics_qs = LogisticsPartner.objects.filter(is_active=True).order_by("name")
+        self.fields["carrier"].queryset = logistics_qs
         self.fields["carrier"].required = False
         self.fields["carrier"].empty_label = "-- Select Logistics Carrier (Optional) --"
 
+        self.fields["trucking_partner"].queryset = logistics_qs
+        self.fields["trucking_partner"].required = False
+        self.fields["trucking_partner"].empty_label = "-- Select Trucking Partner (Land) --"
+
+        self.fields["barge_partner"].queryset = logistics_qs
+        self.fields["barge_partner"].required = False
+        self.fields["barge_partner"].empty_label = "-- Select Barging Partner (Marine) --"
+
+        clients_qs = Client.objects.filter(is_active=True).order_by("name")
+        self.fields["receiving_customer"].queryset = clients_qs
+
         if initial_po:
             self.fields["purchase_order"].initial = initial_po
-            self.fields["po_reference_number"].initial = initial_po.po_reference_number or initial_po.cluster.reference_code
-            if not self.initial.get("receiving_location") and initial_po.customer:
-                self.fields["receiving_location"].initial = f"{initial_po.customer.name} Main Site"
+            cust = initial_po.customer or (initial_po.cluster.client if hasattr(initial_po, "cluster") and initial_po.cluster else None)
+            if cust:
+                self.fields["receiving_customer"].initial = cust
+                if not self.initial.get("receiving_location"):
+                    self.fields["receiving_location"].initial = f"{cust.name} Main Site"
 
     def clean(self):
         cleaned_data = super().clean()
         po = cleaned_data.get("purchase_order")
         delivered_mt = cleaned_data.get("delivered_mt")
+        rec_cust = cleaned_data.get("receiving_customer")
+        rec_loc = cleaned_data.get("receiving_location")
+
+        if rec_cust and not rec_loc:
+            cleaned_data["receiving_location"] = f"{rec_cust.name} Main Facility"
 
         if delivered_mt is not None and delivered_mt <= 0:
             self.add_error("delivered_mt", "Delivered quantity must be greater than 0 MT.")

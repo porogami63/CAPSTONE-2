@@ -109,6 +109,11 @@ class InvoiceForm(forms.ModelForm):
         if self.cluster and not self.initial.get("invoice_number"):
             from operations.services.reference_generators import generate_si_reference
             self.initial["invoice_number"] = generate_si_reference(self.cluster.reference_code)
+        if self.cluster and not self.initial.get("amount"):
+            from operations.services.pricing import get_invoice_suggestion_data
+            sugg = get_invoice_suggestion_data(self.cluster)
+            if sugg.get("suggested_full") and sugg["suggested_full"] > 0:
+                self.initial["amount"] = Decimal(str(sugg["suggested_full"]))
 
     def clean_invoice_number(self):
         num = self.cleaned_data.get("invoice_number", "").strip()

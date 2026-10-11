@@ -2050,22 +2050,44 @@ def delivery_api_view(request):
         customer_name = po.customer.name if po.customer else (po.cluster.client.name if po.cluster else "Customer Facility")
         receiving_location = f"{customer_name} Main Facility"
 
-    from django.utils.dateparse import parse_date
+    from django.utils.dateparse import parse_date, parse_datetime
     delivery_date = parse_date(str(delivery_date_raw)) if delivery_date_raw else timezone.localdate()
     if not delivery_date:
         delivery_date = timezone.localdate()
 
+    dispatched_at = parse_datetime(str(data.get("dispatched_at"))) if data.get("dispatched_at") else None
+    received_at = parse_datetime(str(data.get("received_at"))) if data.get("received_at") else None
+
+    trucking_partner_id = data.get("trucking_partner_id") or data.get("trucking_partner")
+    trucking_partner = LogisticsPartner.objects.filter(pk=trucking_partner_id).first() if trucking_partner_id else None
+    trucking_rate = Decimal(str(data.get("trucking_rate_per_mt", "0.00")).strip() or "0.00")
+
+    barge_partner_id = data.get("barge_partner_id") or data.get("barge_partner")
+    barge_partner = LogisticsPartner.objects.filter(pk=barge_partner_id).first() if barge_partner_id else None
+    vessel_or_barge_name = (data.get("vessel_or_barge_name") or data.get("vessel_id") or "").strip()
+    barge_rate = Decimal(str(data.get("barge_rate_per_mt", "0.00")).strip() or "0.00")
+
+    waybill_number = (data.get("waybill_number") or "").strip()
+
     with transaction.atomic():
-        carrier = LogisticsPartner.objects.filter(pk=carrier_id).first() if carrier_id else None
+        carrier = LogisticsPartner.objects.filter(pk=carrier_id).first() if carrier_id else (trucking_partner or barge_partner)
         delivery = DeliveryLedger.objects.create(
             purchase_order=po,
             supplier=supplier,
             delivered_mt=delivered_mt,
             receiving_location=receiving_location,
             delivery_date=delivery_date,
+            dispatched_at=dispatched_at,
+            received_at=received_at,
             carrier=carrier,
+            trucking_partner=trucking_partner,
+            trucking_rate_per_mt=trucking_rate,
+            barge_partner=barge_partner,
+            vessel_or_barge_name=vessel_or_barge_name,
+            barge_rate_per_mt=barge_rate,
             vessel_or_truck=vessel_or_truck,
             dr_number=dr_number,
+            waybill_number=waybill_number,
             notes=notes,
         )
         po.refresh_from_db()
@@ -2081,6 +2103,9 @@ def delivery_api_view(request):
         "total_delivered_mt": f"{po.total_delivered_mt:.3f}",
         "remaining_mt": f"{po.remaining_mt:.3f}",
         "po_status": po.po_status,
+        "trucking_cost": f"{delivery.trucking_cost:.2f}",
+        "barge_cost": f"{delivery.barge_cost:.2f}",
+        "total_freight_cost": f"{delivery.total_freight_cost:.2f}",
         "message": f"Successfully logged delivery of {delivery.delivered_mt:,.3f} MT to {delivery.receiving_location} sourced from {supplier.name}.",
     }, status=201)
 
@@ -2146,7 +2171,7 @@ def log_delivery_view(request):
         initial_po = get_object_or_404(PurchaseOrder, pk=po_id) if po_id else None
         form = DeliveryLedgerForm(initial_po=initial_po)
 
-    recent_deliveries = DeliveryLedger.objects.select_related("purchase_order", "purchase_order__customer", "supplier", "carrier").order_by("-delivery_date", "-created_at")[:20]
+    recent_deliveries = DeliveryLedger.objects.select_related("purchase_order", "purchase_order__customer", "supplier", "carrier", "trucking_partner", "barge_partner").order_by("-delivery_date", "-created_at")[:20]
     pos = PurchaseOrder.objects.select_related("customer", "cluster", "cluster__client").order_by("-cluster__created_at")
 
     return render(
@@ -2181,6 +2206,8 @@ def deliveries_list_view(request):
         "purchase_order__cluster__client",
         "supplier",
         "carrier",
+        "trucking_partner",
+        "barge_partner",
     ).order_by("-delivery_date", "-created_at")
 
     if q:
@@ -2190,25 +2217,42 @@ def deliveries_list_view(request):
             Q(receiving_location__icontains=q) |
             Q(dr_number__icontains=q) |
             Q(vessel_or_truck__icontains=q) |
+            Q(vessel_or_barge_name__icontains=q) |
             Q(supplier__name__icontains=q)
         )
 
     if supplier_id:
         deliveries_qs = deliveries_qs.filter(supplier_id=supplier_id)
 
+    focused_po = None
+    po_trucking_cost = Decimal("0.00")
+    po_barge_cost = Decimal("0.00")
+    po_freight_cost = Decimal("0.00")
+
     if po_ref:
         deliveries_qs = deliveries_qs.filter(
             Q(purchase_order__po_reference_number__icontains=po_ref) |
             Q(purchase_order__cluster__reference_code__icontains=po_ref)
         )
+        focused_po = PurchaseOrder.objects.filter(
+            Q(po_reference_number__iexact=po_ref) |
+            Q(cluster__reference_code__iexact=po_ref)
+        ).select_related("cluster", "customer", "cluster__client").first()
+        if not focused_po and str(po_ref).isdigit():
+            focused_po = PurchaseOrder.objects.filter(pk=int(po_ref)).select_related("cluster", "customer", "cluster__client").first()
 
     total_delivered_mt = deliveries_qs.aggregate(total=Sum("delivered_mt"))["total"] or Decimal("0")
     total_deliveries_count = deliveries_qs.count()
 
+    for d in deliveries_qs:
+        po_trucking_cost += d.trucking_cost
+        po_barge_cost += d.barge_cost
+    po_freight_cost = po_trucking_cost + po_barge_cost
+
     mills = SugarMill.objects.filter(is_active=True).order_by("name")
     open_pos = PurchaseOrder.objects.filter(po_status__in=["Open", "Partially Fulfilled"]).select_related("customer", "cluster")
 
-    form = DeliveryLedgerForm()
+    form = DeliveryLedgerForm(initial_po=focused_po)
 
     return render(
         request,
@@ -2223,6 +2267,10 @@ def deliveries_list_view(request):
             "q": q,
             "current_supplier": supplier_id,
             "current_po": po_ref,
+            "focused_po": focused_po,
+            "po_trucking_cost": po_trucking_cost,
+            "po_barge_cost": po_barge_cost,
+            "po_freight_cost": po_freight_cost,
         },
     )
 

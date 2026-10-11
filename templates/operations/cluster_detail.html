@@ -568,26 +568,98 @@
                             </div>
 
                             <div class="row g-2 mt-1">
-                                <div class="col-md-7">
+                                <div class="col-md-6">
                                     <div class="form-field">
-                                        <div class="d-flex justify-content-between align-items-center mb-0.5">
-                                            <label class="fs-8 fw-bold mb-0">Receiving Destination <span class="text-danger">*</span></label>
-                                            <div class="d-flex gap-1">
-                                                <button type="button" class="btn btn-sm btn-light border py-0 px-1 fs-8" onclick="document.getElementById('id_delivery_location').value='ADI Nasugbu Mill Site'">ADI</button>
-                                                <button type="button" class="btn btn-sm btn-light border py-0 px-1 fs-8" onclick="document.getElementById('id_delivery_location').value='HTC Storage Tank - Balayan'">HTC Tank</button>
-                                                <button type="button" class="btn btn-sm btn-light border py-0 px-1 fs-8" onclick="document.getElementById('id_delivery_location').value='Balayan Distillery'">Balayan</button>
-                                            </div>
-                                        </div>
+                                        <label class="fs-8 fw-bold">Receiving Customer Destination <span class="text-danger">*</span></label>
+                                        {{ delivery_form.receiving_customer }}
+                                        <div class="field-help fs-8 text-muted">Defaults to PO customer (reflects all active clients)</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">Facility / Plant Site Detail</label>
                                         {{ delivery_form.receiving_location }}
                                     </div>
                                 </div>
-                                <div class="col-md-5">
+                            </div>
+
+                            <div class="row g-2 mt-1">
+                                <div class="col-md-4">
                                     <div class="form-field">
                                         <label class="fs-8 fw-bold">Delivery Date <span class="text-danger">*</span></label>
                                         {{ delivery_form.delivery_date }}
                                     </div>
                                 </div>
+                                <div class="col-md-4">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">Dispatch Date &amp; Time</label>
+                                        {{ delivery_form.dispatched_at }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-field">
+                                        <label class="fs-8 fw-bold">Received / Arrival Date &amp; Time</label>
+                                        {{ delivery_form.received_at }}
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- Optional Multi-Batch Freight Rates & Logistics Allocation -->
+                            <details class="p-2.5 rounded border mt-2" style="background: var(--htc-bg);">
+                                <summary style="cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--htc-primary-light);">
+                                    <i class="bi bi-truck me-1"></i> Multi-Batch Freight Rates &amp; Logistics Allocation (Optional)
+                                </summary>
+                                <div class="row g-2 mt-1">
+                                    <div class="col-md-6">
+                                        <div class="form-field">
+                                            <label class="fs-8 fw-bold">Trucking Partner (Land)</label>
+                                            {{ delivery_form.trucking_partner }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-field">
+                                            <label class="fs-8 fw-bold">Trucking Rate (₱/MT)</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-light text-muted fs-8">₱</span>
+                                                {{ delivery_form.trucking_rate_per_mt }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-field">
+                                            <label class="fs-8 fw-bold">Barging Partner (Marine)</label>
+                                            {{ delivery_form.barge_partner }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-field">
+                                            <label class="fs-8 fw-bold">Barging Rate (₱/MT)</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-light text-muted fs-8">₱</span>
+                                                {{ delivery_form.barge_rate_per_mt }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-field">
+                                            <label class="fs-8 fw-bold">Vessel / Barge Name</label>
+                                            {{ delivery_form.vessel_or_barge_name }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-field">
+                                            <label class="fs-8 fw-bold">Truck Plate #</label>
+                                            {{ delivery_form.vessel_or_truck }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-field">
+                                            <label class="fs-8 fw-bold">Waybill / MDR #</label>
+                                            {{ delivery_form.waybill_number }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
 
                             <div id="clusterOverDelivWarning" class="alert alert-danger py-1.5 px-2.5 fs-8 d-none mt-2 mb-1">
                                 <i class="bi bi-exclamation-triangle-fill me-1"></i> Cannot deliver more than remaining balance of {{ po.remaining_mt|floatformat:3 }} MT.
@@ -606,6 +678,16 @@
                             const mtInput = document.getElementById('id_delivery_mt');
                             const warnBox = document.getElementById('clusterOverDelivWarning');
                             const btnCommit = document.getElementById('btnCommitBatch');
+                            const custSelect = document.getElementById('id_receiving_customer_select');
+                            const locInput = document.getElementById('id_delivery_location');
+
+                            if (custSelect && locInput) {
+                                custSelect.addEventListener('change', function() {
+                                    if (this.value && this.options[this.selectedIndex]) {
+                                        locInput.value = this.options[this.selectedIndex].text.replace(/\s*\(.*\)/, '').trim() + ' Main Facility';
+                                    }
+                                });
+                            }
 
                             if (mtInput) {
                                 mtInput.addEventListener('input', function() {
@@ -632,88 +714,26 @@
                         </div>
                     </div>
                     {% endif %}
+                {% endif %}
 
-                    <!-- Collapsible Logistics Freight Fees & Supporting Files -->
-                    <details class="w-100 p-3 rounded" style="border: 1px solid var(--htc-border); background: var(--htc-bg);">
-                        <summary style="cursor: pointer; font-weight: 600; font-size: 0.82rem; color: var(--htc-primary-light);">
-                            <i class="bi bi-calculator me-1"></i> Freight Cost Breakdown &amp; Supporting Document Scans
-                        </summary>
-                        <form method="post" action="{% url 'operations:update_logistics' cluster.pk %}" enctype="multipart/form-data" class="form-stack mt-2">
-                            {% csrf_token %}
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">{{ logistics_form.trucking_partner.label }}</label>
-                                        {{ logistics_form.trucking_partner }}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">{{ logistics_form.tracking_fees.label }}</label>
-                                        {{ logistics_form.tracking_fees }}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">{{ logistics_form.barge_partner.label }}</label>
-                                        {{ logistics_form.barge_partner }}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">{{ logistics_form.barge_fees.label }}</label>
-                                        {{ logistics_form.barge_fees }}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">{{ logistics_form.waybill_file.label }}</label>
-                                        {{ logistics_form.waybill_file }}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">{{ logistics_form.dr_file.label }}</label>
-                                        {{ logistics_form.dr_file }}
-                                    </div>
-                                </div>
+                <!-- Dedicated Link to Deliveries & Trucking Module -->
+                <div class="card p-3 border mb-2 shadow-xs" style="background: linear-gradient(135deg, rgba(37,99,235,0.04) 0%, rgba(30,58,138,0.07) 100%); border-color: rgba(37,99,235,0.2) !important; border-radius: 10px;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <div class="d-flex align-items-center gap-1.5 mb-1">
+                                <span class="badge bg-primary text-white fs-8"><i class="bi bi-truck me-1"></i>Deliveries &amp; Trucking Tab</span>
+                                <span class="fs-8 text-muted fw-semibold">PO #{{ po.po_reference_number|default:cluster.reference_code }}</span>
                             </div>
-                            <input type="hidden" name="loaded_volume_mt" value="{{ cluster.logistics.loaded_volume_mt|default:100 }}">
-                            <input type="hidden" name="received_volume_mt" value="{{ po.total_delivered_mt|default:0 }}">
-                            <button type="submit" class="btn-htc-outline btn-sm mt-2">Update Freight &amp; Files</button>
-                        </form>
-                    </details>
-                {% endif %}
-
-                <div class="mt-3 pt-2 border-top">
-                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Delivery Receipts &amp; Files</div>
-                    <p class="mb-1" style="font-size: 0.85rem;"><strong>Shipping Waybill:</strong> {% if cluster.logistics.waybill_file %}<a href="{{ cluster.logistics.waybill_file.url }}" target="_blank" class="text-decoration-none fw-semibold"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>View Waybill</a>{% else %}<span class="text-muted">Not uploaded</span>{% endif %}</p>
-                    <p class="mb-0" style="font-size: 0.85rem;"><strong>Delivery Receipt (DR):</strong> {% if cluster.logistics.dr_file %}<a href="{{ cluster.logistics.dr_file.url }}" target="_blank" class="text-decoration-none fw-semibold"><i class="bi bi-file-earmark-check-fill text-primary me-1"></i>View DR Scan</a>{% else %}<span class="text-muted">Not uploaded</span>{% endif %}</p>
-                </div>
-
-                <div class="mt-3 pt-3 border-top" style="border-color: var(--htc-border) !important;">
-                    <div style="font-size: 0.75rem; font-weight: 700; color: var(--htc-text-muted); text-transform: uppercase; margin-bottom: 0.6rem;">
-                        <i class="bi bi-clock-history me-1"></i> Delivery Timeline &amp; Timestamps
-                    </div>
-                    <div class="d-flex flex-column gap-1.5" style="font-size: 0.82rem;">
-                        <div class="d-flex justify-content-between align-items-center p-2 rounded border" style="background: var(--htc-bg); border-color: var(--htc-border) !important;">
-                            <span class="text-muted"><i class="bi bi-box-arrow-up text-primary me-1.5"></i> Shipped / Dispatch Date &amp; Time:</span>
-                            <span class="fw-bold font-monospace">{% if cluster.logistics.loaded_at %}{{ cluster.logistics.loaded_at|date:"M d, Y at H:i" }}{% else %}<span class="text-muted fw-normal">Not recorded</span>{% endif %}</span>
+                            <h6 class="fw-bold mb-0 text-dark">Logistics Operations &amp; Batch Trucking Details</h6>
+                            <div class="text-muted fs-8 mt-0.5">Manage comprehensive land trucking rates, marine barging contracts, departure &amp; arrival timelines, and carrier assignments for this Purchase Order.</div>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center p-2 rounded border" style="background: var(--htc-bg); border-color: var(--htc-border) !important;">
-                            <span class="text-muted"><i class="bi bi-truck text-success me-1.5"></i> Arrival / Received Date &amp; Time:</span>
-                            <span class="fw-bold font-monospace">{% if cluster.logistics.received_at %}{{ cluster.logistics.received_at|date:"M d, Y at H:i" }}{% else %}<span class="text-warning fw-medium"><i class="bi bi-clock me-1"></i>Pending Delivery / ETA</span>{% endif %}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center p-2 rounded border" style="background: var(--htc-bg); border-color: var(--htc-border) !important;">
-                            <span class="text-muted"><i class="bi bi-arrow-repeat text-secondary me-1.5"></i> Last Updated:</span>
-                            <span class="font-monospace text-secondary">{{ cluster.logistics.updated_at|date:"M d, Y at H:i" }}</span>
+                        <div>
+                            <a href="{% url 'operations:deliveries_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}" class="btn btn-primary btn-sm fw-bold px-3 py-1.5 shadow-sm d-inline-flex align-items-center gap-1.5">
+                                <i class="bi bi-truck"></i> Open Deliveries &amp; Trucking Tab <i class="bi bi-arrow-right"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
-
-                {% if cluster.logistics.variance_percent is not None %}
-                <p class="small mt-3 mb-0">Weight Difference (Loss): <strong>{{ cluster.logistics.variance_percent|floatformat:4 }}%</strong></p>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -815,6 +835,25 @@
                     <span class="badge bg-warning text-dark">{{ invoice_suggestion_data.remaining_pct }}% Remaining</span>
                 </div>
                 {% endif %}
+                {% if invoice_suggestion_data.total_delivered_mt > 0 and invoice_suggestion_data.selling_price > 0 %}
+                <div class="alert alert-info py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-sm" style="background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.25);">
+                    <div>
+                        <i class="bi bi-box-seam-fill text-primary me-1.5"></i>
+                        <strong>Auto-Suggested from Recorded Deliveries:</strong>
+                        {{ invoice_suggestion_data.total_delivered_mt|floatformat:3|intcomma }} MT delivered &times; ₱{{ invoice_suggestion_data.selling_price|floatformat:2|intcomma }}/MT =
+                        <span class="fw-bold text-primary">₱{{ invoice_suggestion_data.delivered_total|floatformat:2|intcomma }}</span>
+                        {% if invoice_suggestion_data.already_invoiced > 0 %}
+                        <span class="text-muted">(Unbilled Delivered: <strong>₱{{ invoice_suggestion_data.remaining_received_balance|floatformat:2|intcomma }}</strong>)</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-sm btn-primary py-0.5 px-2 fs-8 fw-semibold" onclick="const inp = document.querySelector('#addInvoiceForm input[name=\'amount\']'); if(inp){ inp.value='{{ invoice_suggestion_data.suggested_delivered|floatformat:2 }}'; inp.dispatchEvent(new Event('input')); }">
+                            Apply Delivered (₱{{ invoice_suggestion_data.suggested_delivered|floatformat:2|intcomma }})
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+
                 <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1rem 1.15rem;" open>
                     <summary style="cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
                         <i class="bi bi-plus-circle-fill text-primary"></i> Issue New Invoice
@@ -883,8 +922,8 @@
 
                     function getDetailInput() {
                         return document.querySelector('#addInvoiceForm input[name="amount"]') ||
-                               document.getElementById('id_amount') ||
-                               document.querySelector('input[name="amount"]');
+                                document.getElementById('id_amount') ||
+                                document.querySelector('input[name="amount"]');
                     }
                     const feedback = document.getElementById('detailAmountFeedback');
 
@@ -894,11 +933,13 @@
 
                     const amtInput = getDetailInput();
                     if (amtInput && data && data.selling_price > 0) {
-                        const tipText = (data.already_invoiced > 0)
-                            ? ('Remaining PO Balance: ' + fmt(data.remaining_balance) + ' (' + data.remaining_pct + '% of Target ' + fmt(data.contract_total) + ')')
-                            : ('Suggested Contract Target: ' + fmt(data.suggested_full));
+                        const tipText = (data.has_deliveries_to_bill)
+                            ? ('Suggested from Deliveries (' + data.total_delivered_mt.toLocaleString() + ' MT): ' + fmt(data.suggested_delivered))
+                            : ((data.already_invoiced > 0)
+                                ? ('Remaining PO Balance: ' + fmt(data.remaining_balance) + ' (' + data.remaining_pct + '% of Target ' + fmt(data.contract_total) + ')')
+                                : ('Suggested Contract Target: ' + fmt(data.suggested_full)));
                         amtInput.setAttribute('title', tipText);
-                        amtInput.setAttribute('placeholder', (data.already_invoiced > 0 ? 'Remaining: ' : 'Suggested: ') + fmt(data.suggested_full));
+                        amtInput.setAttribute('placeholder', (data.has_deliveries_to_bill ? 'From Deliveries: ' : (data.already_invoiced > 0 ? 'Remaining: ' : 'Suggested: ')) + fmt(data.suggested_full));
                         if (!amtInput.value || parseFloat(amtInput.value) <= 0) {
                             amtInput.value = data.suggested_full.toFixed(2);
                         }

@@ -40,6 +40,76 @@
     }
 </style>
 
+{% if focused_po %}
+<!-- Focused PO Logistics Header Deck -->
+<div class="card p-3.5 mb-3 border shadow-sm" style="background: linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(30,58,138,0.1) 100%); border-color: rgba(37,99,235,0.3) !important; border-radius: 12px;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary text-white fs-8 text-uppercase"><i class="bi bi-truck me-1"></i>Focused PO Logistics Workspace</span>
+                <span class="badge {% if focused_po.po_status == 'Completed' %}bg-success{% elif focused_po.po_status == 'Partially Fulfilled' %}bg-warning text-dark{% else %}bg-primary{% endif %} fs-8">
+                    {{ focused_po.po_status }}
+                </span>
+            </div>
+            <h4 class="fw-bold mb-0 text-primary">
+                {{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }}
+                <span class="fs-6 fw-normal text-muted">— {{ focused_po.customer.name|default:focused_po.cluster.client.name }}</span>
+            </h4>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'operations:cluster_detail' focused_po.cluster.pk %}" class="btn btn-outline-primary btn-sm fw-bold">
+                <i class="bi bi-arrow-left me-1"></i> Return to PO View
+            </a>
+            <a href="{% url 'operations:log_delivery' %}?po_id={{ focused_po.pk }}" class="btn btn-primary btn-sm fw-bold shadow-xs">
+                <i class="bi bi-plus-circle me-1"></i> Log Batch for this PO
+            </a>
+            <a href="{% url 'operations:deliveries_list' %}" class="btn btn-light border btn-sm text-muted">
+                Clear PO Filter
+            </a>
+        </div>
+    </div>
+
+    <!-- PO Logistics Metrics -->
+    <div class="row g-2">
+        <div class="col-md-2 col-sm-4">
+            <div class="p-2.5 rounded bg-white border">
+                <div class="fs-8 text-muted text-uppercase fw-bold">Contracted MT</div>
+                <div class="fs-6 fw-bold text-dark mt-0.5">{{ focused_po.total_contracted_mt|floatformat:3|intcomma }} MT</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4">
+            <div class="p-2.5 rounded bg-white border">
+                <div class="fs-8 text-muted text-uppercase fw-bold">Delivered to Date</div>
+                <div class="fs-6 fw-bold text-success mt-0.5">{{ focused_po.total_delivered_mt|floatformat:3|intcomma }} MT</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4">
+            <div class="p-2.5 rounded bg-white border">
+                <div class="fs-8 text-muted text-uppercase fw-bold">Remaining Balance</div>
+                <div class="fs-6 fw-bold text-primary mt-0.5">{{ focused_po.remaining_mt|floatformat:3|intcomma }} MT</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4">
+            <div class="p-2.5 rounded bg-white border">
+                <div class="fs-8 text-muted text-uppercase fw-bold">Land Trucking Total</div>
+                <div class="fs-6 fw-bold text-dark mt-0.5">₱{{ po_trucking_cost|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4">
+            <div class="p-2.5 rounded bg-white border">
+                <div class="fs-8 text-muted text-uppercase fw-bold">Marine Barging Total</div>
+                <div class="fs-6 fw-bold text-dark mt-0.5">₱{{ po_barge_cost|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4">
+            <div class="p-2.5 rounded bg-white border" style="border-left: 3px solid #2563eb !important;">
+                <div class="fs-8 text-muted text-uppercase fw-bold">Total Freight Cost</div>
+                <div class="fs-6 fw-bold text-primary mt-0.5">₱{{ po_freight_cost|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
 <!-- Metric Cards Deck -->
 <div class="metric-grid-deliv">
     <div class="metric-box-deliv" style="border-top-color: #3b82f6;">
@@ -63,6 +133,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Filter Toolbar -->
 <div class="panel mb-3">
@@ -104,7 +175,7 @@
             <span class="badge bg-light text-muted border fs-8 ms-1">{{ deliveries|length }} records</span>
         </div>
         <div class="d-flex gap-2">
-            <a href="{% url 'operations:log_delivery' %}" class="btn-htc btn-sm">
+            <a href="{% url 'operations:log_delivery' %}{% if focused_po %}?po_id={{ focused_po.pk }}{% endif %}" class="btn-htc btn-sm">
                 <i class="bi bi-plus-lg me-1"></i> Log Delivery Batch
             </a>
         </div>
@@ -113,21 +184,31 @@
         <table class="table-htc fs-7">
             <thead>
                 <tr>
-                    <th>Delivery Date</th>
+                    <th>Delivery Date &amp; Timestamps</th>
                     <th>PO Ref #</th>
                     <th>Customer (Buyer)</th>
-                    <th>Source Supplier (Mill)</th>
+                    <th>Source Mill</th>
                     <th>Receiving Destination</th>
                     <th class="text-end">Delivered MT</th>
-                    <th>Carrier / Vessel / DR</th>
-                    <th>PO Fulfillment Status</th>
+                    <th>Land Trucking</th>
+                    <th>Marine Barging</th>
+                    <th class="text-end">Freight Cost</th>
+                    <th>Waybill / DR</th>
                     <th class="text-center">Action</th>
                 </tr>
             </thead>
             <tbody>
                 {% for d in deliveries %}
                 <tr>
-                    <td class="text-nowrap fw-semibold">{{ d.delivery_date|date:"M d, Y" }}</td>
+                    <td class="text-nowrap">
+                        <div class="fw-semibold text-dark">{{ d.delivery_date|date:"M d, Y" }}</div>
+                        {% if d.dispatched_at %}
+                        <div class="fs-8 text-muted"><i class="bi bi-box-arrow-up text-primary me-1"></i>Dep: {{ d.dispatched_at|date:"M d, H:i" }}</div>
+                        {% endif %}
+                        {% if d.received_at %}
+                        <div class="fs-8 text-muted"><i class="bi bi-truck text-success me-1"></i>Arr: {{ d.received_at|date:"M d, H:i" }}</div>
+                        {% endif %}
+                    </td>
                     <td>
                         <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="fw-bold text-primary text-decoration-none">
                             {{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code }}
@@ -146,32 +227,45 @@
                         {{ d.delivered_mt|floatformat:3|intcomma }} MT
                     </td>
                     <td>
-                        {% if d.carrier %}
-                        <div class="fs-8 text-muted"><i class="bi bi-truck me-1"></i>{{ d.carrier.name }}</div>
-                        {% endif %}
+                        {% if d.trucking_partner or d.trucking_rate_per_mt > 0 %}
+                        <div class="fw-semibold text-dark fs-8">{{ d.trucking_partner.name|default:"Hauler" }}</div>
+                        <div class="fs-8 text-muted">₱{{ d.trucking_rate_per_mt|floatformat:2 }}/MT</div>
                         {% if d.vessel_or_truck %}
                         <div class="fs-8 text-muted font-monospace">{{ d.vessel_or_truck }}</div>
                         {% endif %}
-                        {% if d.dr_number %}
-                        <span class="badge bg-secondary-subtle text-secondary fs-8">DR: {{ d.dr_number }}</span>
-                        {% endif %}
-                        {% if not d.carrier and not d.vessel_or_truck and not d.dr_number %}
-                        <span class="text-muted">—</span>
+                        {% elif d.carrier %}
+                        <div class="fs-8 text-muted">{{ d.carrier.name }}</div>
+                        {% else %}
+                        <span class="text-muted fs-8">—</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if d.purchase_order.po_status == 'Completed' %}
-                        <span class="badge bg-success-subtle text-success border border-success-subtle">
-                            <i class="bi bi-check-circle-fill me-1"></i>Completed
-                        </span>
-                        {% elif d.purchase_order.po_status == 'Partially Fulfilled' %}
-                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
-                            <i class="bi bi-pie-chart-fill me-1"></i>Partially Fulfilled (Rem: {{ d.purchase_order.remaining_mt|floatformat:1 }} MT)
-                        </span>
+                        {% if d.barge_partner or d.barge_rate_per_mt > 0 %}
+                        <div class="fw-semibold text-dark fs-8">{{ d.barge_partner.name|default:"Barge Carrier" }}</div>
+                        <div class="fs-8 text-muted">₱{{ d.barge_rate_per_mt|floatformat:2 }}/MT</div>
+                        {% if d.vessel_or_barge_name %}
+                        <div class="fs-8 text-muted font-monospace">{{ d.vessel_or_barge_name }}</div>
+                        {% endif %}
                         {% else %}
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                            <i class="bi bi-clock me-1"></i>Open
-                        </span>
+                        <span class="text-muted fs-8">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        {% if d.total_freight_cost > 0 %}
+                        <span class="fw-bold text-primary">₱{{ d.total_freight_cost|floatformat:2|intcomma }}</span>
+                        {% else %}
+                        <span class="text-muted fs-8">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.dr_number %}
+                        <span class="badge bg-secondary-subtle text-secondary fs-8 d-block mb-0.5">DR: {{ d.dr_number }}</span>
+                        {% endif %}
+                        {% if d.waybill_number %}
+                        <span class="badge bg-light text-muted border fs-8 d-block">WB: {{ d.waybill_number }}</span>
+                        {% endif %}
+                        {% if not d.dr_number and not d.waybill_number %}
+                        <span class="text-muted fs-8">—</span>
                         {% endif %}
                     </td>
                     <td class="text-center text-nowrap">
@@ -182,11 +276,11 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="9" class="text-center py-5 text-muted">
+                    <td colspan="11" class="text-center py-5 text-muted">
                         <i class="bi bi-inbox fs-2 d-block mb-2 text-muted"></i>
                         No incremental delivery records found matching criteria.
                         <div class="mt-2">
-                            <a href="{% url 'operations:log_delivery' %}" class="btn-htc btn-sm">
+                            <a href="{% url 'operations:log_delivery' %}{% if focused_po %}?po_id={{ focused_po.pk }}{% endif %}" class="btn-htc btn-sm">
                                 <i class="bi bi-plus-lg me-1"></i> Log First Delivery
                             </a>
                         </div>

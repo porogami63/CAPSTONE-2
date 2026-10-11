@@ -214,18 +214,31 @@ def get_invoice_suggestion_data(cluster) -> dict:
         if parsed:
             selling_price = float(parsed)
 
-    contract_vol = float(po.volume_mt) if po and po.volume_mt else 0.0
+    contract_vol = float(po.total_contracted_mt or po.volume_mt) if po else 0.0
     contract_total = round(selling_price * contract_vol, 2)
 
     already_invoiced = round(sum(float(inv.amount) for inv in invoices), 2)
     invoices_count = len(invoices)
     remaining_balance = max(0.0, round(contract_total - already_invoiced, 2))
 
-    received_vol = float(logistics.received_volume_mt) if logistics and logistics.received_volume_mt is not None else 0.0
+    # Calculate actual recorded shipment deliveries
+    has_actual_deliveries = bool(po and hasattr(po, "deliveries") and po.deliveries.exists() and po.total_delivered_mt > 0)
+    delivered_mt = float(po.total_delivered_mt) if has_actual_deliveries else 0.0
+
+    legacy_received_vol = float(logistics.received_volume_mt) if logistics and logistics.received_volume_mt is not None else 0.0
+    received_vol = delivered_mt if has_actual_deliveries else legacy_received_vol
     received_total = round(selling_price * received_vol, 2) if received_vol > 0 else 0.0
     remaining_received_balance = max(0.0, round(received_total - already_invoiced, 2)) if received_vol > 0 else 0.0
 
-    suggested_full = remaining_balance if (already_invoiced > 0 or remaining_balance > 0) else contract_total
+    # Auto-suggestion logic:
+    # If shipment deliveries have been recorded and are not yet fully billed, automatically suggest the delivered batch value!
+    if has_actual_deliveries and remaining_received_balance > 0:
+        suggested_full = remaining_received_balance
+    elif remaining_balance > 0:
+        suggested_full = remaining_balance
+    else:
+        suggested_full = contract_total
+
     has_existing_invoice = invoices_count > 0
 
     is_complete = (invoices_count > 0 and (remaining_balance <= 0.01 or already_invoiced >= contract_total - 0.01)) if contract_total > 0 else (invoices_count > 0)
@@ -248,10 +261,13 @@ def get_invoice_suggestion_data(cluster) -> dict:
         "completion_pct": completion_pct,
         "remaining_pct": remaining_pct,
         "received_volume": received_vol,
+        "total_delivered_mt": received_vol,
         "received_total": received_total,
+        "delivered_total": received_total,
         "remaining_received_balance": remaining_received_balance,
         "suggested_full": suggested_full,
-        "suggested_received": remaining_received_balance if remaining_received_balance > 0 else received_total,
+        "suggested_delivered": remaining_received_balance if remaining_received_balance > 0 else received_total,
+        "has_deliveries_to_bill": received_vol > 0 and remaining_received_balance > 0,
         "suggested_50_pct": round(suggested_full * 0.5, 2),
         "suggested_25_pct": round(suggested_full * 0.25, 2),
     }
