@@ -591,26 +591,7 @@
         </div>
     </div>
 
-    <div>
-        <!-- Prominent Payment & Expense Matching Banner -->
-        {% if user|has_perm:"add_match" or user|has_perm:"view_reconciliation" %}
-        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; border-radius: 12px;">
-            <div class="card-body p-3 d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="badge bg-warning text-dark font-weight-bold text-uppercase mb-1" style="font-size: 0.68rem; letter-spacing: 0.5px;">
-                        <i class="bi bi-patch-check-fill me-1"></i> Core Finance Workflow
-                    </span>
-                    <h5 class="fw-bold mb-0 text-white">Payment &amp; Expense Matching Workspace</h5>
-                    <small class="text-white-50">Match customer payments to supplier and delivery costs for this deal.</small>
-                </div>
-                <div>
-                    <a href="{% url 'finance:reconciliation' cluster.pk %}" class="btn btn-warning btn-md fw-bold text-dark shadow-sm px-3 py-2" data-bs-toggle="tooltip" title="Open 3-Step Guided Payment Matching Workspace">
-                        <i class="bi bi-arrow-repeat me-1"></i> Open Payment Matching
-                    </a>
-                </div>
-            </div>
-        </div>
-        {% endif %}
+
 
         <!-- Sales Invoices Panel -->
         <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
@@ -832,105 +813,42 @@
 
 
 
-        <!-- Capital Loans & Daily Interest Overview Card (Inputs Isolated to Finance Workspace) -->
+        <!-- Bank Loans & Finance Status (Spacious & Clean) -->
         {% if user|has_perm:"add_loan" or user|has_perm:"view_loans" or user|has_perm:"view_cluster" %}
-        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-            <div class="panel-header d-flex justify-content-between align-items-center" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem;">
-                <span class="d-flex align-items-center gap-2 fw-bold text-dark" style="font-size: 0.95rem;">
-                    <i class="bi bi-bank2 text-primary"></i> Bank Loans &amp; Financial Matching
-                </span>
-                <div class="d-flex align-items-center gap-2">
-                    {% if has_active_loan %}
-                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 fs-8 fw-bold">
-                        <i class="bi bi-shield-check me-1"></i> Financing: Active / Cleared
-                    </span>
-                    {% elif cluster.loans.exists %}
-                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2.5 py-1 fs-8 fw-bold">
-                        <i class="bi bi-hourglass-split me-1"></i> Financing: Pending Approval
-                    </span>
-                    {% else %}
-                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1 fs-8 fw-bold">
-                        <i class="bi bi-info-circle me-1"></i> Financing: Pending Allocation
-                    </span>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="panel-body p-3">
-                <!-- Symmetrical Financial Summary Metrics -->
-                <div class="row g-2 mb-3">
-                    <div class="col-md-3 col-6">
-                        <div class="p-2.5 rounded bg-light border text-start">
-                            <div class="text-xs text-muted text-uppercase fw-bold">Min Capital Required</div>
-                            <div class="fs-6 fw-bold text-dark mt-1">₱{{ loan_requirement.required|floatformat:2|intcomma }}</div>
-                            <div class="text-xs text-muted">100% Sourcing + 50% Freight</div>
-                        </div>
+        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div class="panel-body p-3.5 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle p-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; flex-shrink: 0;">
+                        <i class="bi bi-bank2 fs-5"></i>
                     </div>
-                    <div class="col-md-3 col-6">
-                        <div class="p-2.5 rounded bg-light border text-start">
-                            <div class="text-xs text-muted text-uppercase fw-bold">Funded Loan Principal</div>
-                            <div class="fs-6 fw-bold {% if loan_requirement.is_complete %}text-success{% else %}text-primary{% endif %} mt-1">
-                                ₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }}
-                            </div>
-                            <div class="text-xs text-muted">{{ loan_requirement.completion_pct }}% Funded</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <div class="p-2.5 rounded bg-light border text-start">
-                            <div class="text-xs text-muted text-uppercase fw-bold">Interest Incurred</div>
-                            <div class="fs-6 fw-bold text-danger mt-1">₱{{ cluster.accrued_interest|default:0|floatformat:2|intcomma }}</div>
-                            <div class="text-xs text-muted">Accrued daily clock</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <div class="p-2.5 rounded bg-light border text-start">
-                            <div class="text-xs text-muted text-uppercase fw-bold">Matched Expenses</div>
-                            <div class="fs-6 fw-bold text-success mt-1">₱{{ cluster.reconciliation.matched_payment_amount|default:"0.00"|floatformat:2|intcomma }}</div>
-                            <div class="text-xs text-muted">Vouched disbursements</div>
-                        </div>
-                    </div>
-                </div>
-
-                {% if cluster.loans.all %}
-                <div class="table-responsive mb-3 border rounded">
-                    <table class="table table-sm align-middle mb-0" style="font-size: 0.825rem;">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Lender / Bank</th>
-                                <th>Principal (₱)</th>
-                                <th>Rate p.a.</th>
-                                <th>Maturity Due</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for loan in cluster.loans.all %}
-                            <tr>
-                                <td><strong>{{ loan.bank_name }}</strong></td>
-                                <td class="fw-bold">₱{{ loan.principal|floatformat:2|intcomma }}</td>
-                                <td>{{ loan.interest_rate_annual }}%</td>
-                                <td>{{ loan.due_date|date:"M d, Y" }}</td>
-                                <td>
-                                    <span class="badge-status {{ loan.status }}">{{ loan.get_status_display }}</span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="alert alert-light border py-2.5 px-3 text-xs mb-3 d-flex align-items-center justify-content-between">
                     <div>
-                        <i class="bi bi-info-circle text-primary me-1"></i>
-                        <span>No bank loans linked yet. Operations workflows (deliveries, hauling, MROs) are unrestricted. All loan facilities, daily interest tracking, and expense matchmaking are managed in the Finance Workspace.</span>
+                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                            <span class="fw-bold text-dark" style="font-size: 0.95rem;">Bank Loans &amp; Financial Matching</span>
+                            {% if has_active_loan %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-8 fw-semibold">
+                                Active / Cleared
+                            </span>
+                            {% elif cluster.loans.exists %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-0.5 fs-8 fw-semibold">
+                                Pending Approval
+                            </span>
+                            {% else %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-0.5 fs-8 fw-semibold">
+                                Pending Allocation
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="text-muted mb-0 text-sm">
+                            {% if has_active_loan %}
+                            Bank loan facility is active for this PO.
+                            {% else %}
+                            Finance is currently pending for this PO. Operations workflows remain active.
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
-                {% endif %}
-
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
-                    <span class="text-xs text-muted">
-                        <i class="bi bi-shield-lock me-1"></i> Financing inputs and expense matchmaking are isolated strictly to Finance accounts.
-                    </span>
-                    <a href="{% url 'finance:loan_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}" class="btn btn-primary btn-sm fw-bold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-1.5">
+                <div>
+                    <a href="{% url 'finance:loan_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}" class="btn btn-primary btn-sm fw-semibold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-1.5">
                         <i class="bi bi-box-arrow-up-right"></i> Open Bank Loans &amp; Matching Panel &rarr;
                     </a>
                 </div>

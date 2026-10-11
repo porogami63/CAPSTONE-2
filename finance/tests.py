@@ -446,5 +446,114 @@ class POFocusedFinanceWorkspaceTests(TestCase):
 		self.assertContains(res, "Open Bank Loans &amp; Matching Panel")
 
 
+class DeliveryExpenseMatchingLinkTests(TestCase):
+	def setUp(self):
+		self.finance_user = User.objects.create_user(
+			username="finance_auditor",
+			password="password123",
+			role=User.Role.FINANCE,
+		)
+		self.client_entity = Client.objects.create(name="Universal Robina Corp")
+		self.mill = SugarMill.objects.create(name="Balayan Sugar Central")
+		self.trucking = LogisticsPartner.objects.create(name="Solid Ground Hauling")
+		self.barge = LogisticsPartner.objects.create(name="Pacific Barge Lines")
+		self.cluster = TransactionCluster.objects.create(
+			reference_code="PO-URC-8801",
+			client=self.client_entity,
+			sugar_mill=self.mill,
+		)
+		self.po = PurchaseOrder.objects.create(
+			cluster=self.cluster,
+			po_reference_number="PO-URC-8801",
+			total_contracted_mt=Decimal("1000.000"),
+			volume_mt=Decimal("1000.000"),
+			unit_price=Decimal("45000.00"),
+			selling_price=Decimal("49000.00"),
+		)
+		self.client.login(username="finance_auditor", password="password123")
+
+	def test_delivery_fulfillment_auto_generates_pending_cash_vouchers_and_matches(self):
+		from operations.models import DeliveryLedger
+		from finance.models import CashVoucher, PaymentExpenseMatch, FinancialReconciliation
+
+		delivery = DeliveryLedger.objects.create(
+			purchase_order=self.po,
+			supplier=self.mill,
+			delivered_mt=Decimal("250.000"),
+			receiving_location="URC Batangas Plant",
+			trucking_partner=self.trucking,
+			trucking_rate_per_mt=Decimal("600.00"),
+			barge_partner=self.barge,
+			barge_rate_per_mt=Decimal("400.00"),
+		)
+
+		short_id = str(delivery.delivery_id)[:8].upper()
+		trk_ref = f"CV-DEL-{short_id}-TRK"
+		brg_ref = f"CV-DEL-{short_id}-BRG"
+		src_ref = f"CV-DEL-{short_id}-SRC"
+
+		trk_cv = CashVoucher.objects.get(voucher_number=trk_ref)
+		self.assertEqual(trk_cv.amount, Decimal("150000.00"))
+		self.assertEqual(trk_cv.status, CashVoucher.Status.PENDING)
+		self.assertIn("Truck Delivery", trk_cv.purpose)
+
+		brg_cv = CashVoucher.objects.get(voucher_number=brg_ref)
+		self.assertEqual(brg_cv.amount, Decimal("100000.00"))
+		self.assertEqual(brg_cv.status, CashVoucher.Status.PENDING)
+		self.assertIn("Marine Barging", brg_cv.purpose)
+
+		src_cv = CashVoucher.objects.get(voucher_number=src_ref)
+		self.assertEqual(src_cv.amount, Decimal("11250000.00"))
+		self.assertEqual(src_cv.status, CashVoucher.Status.PENDING)
+		self.assertIn("Sugar Sourcing Outlay", src_cv.purpose)
+
+		recon = FinancialReconciliation.objects.get(cluster=self.cluster)
+		trk_match = recon.matches.get(payment_reference=trk_ref)
+		self.assertEqual(trk_match.expense_type, PaymentExpenseMatch.ExpenseType.TRUCKING)
+		self.assertEqual(trk_match.amount, Decimal("150000.00"))
+
+		brg_match = recon.matches.get(payment_reference=brg_ref)
+		self.assertEqual(brg_match.expense_type, PaymentExpenseMatch.ExpenseType.BARGE)
+		self.assertEqual(brg_match.amount, Decimal("100000.00"))
+
+		src_match = recon.matches.get(payment_reference=src_ref)
+		self.assertEqual(src_match.expense_type, PaymentExpenseMatch.ExpenseType.SOURCING)
+		self.assertEqual(src_match.amount, Decimal("11250000.00"))
+
+		total_expected = Decimal("150000.00") + Decimal("100000.00") + Decimal("11250000.00")
+		self.assertEqual(recon.matched_payment_amount, total_expected)
+
+	def test_bank_loan_tab_picks_up_delivery_vouchers(self):
+		from operations.models import DeliveryLedger
+		delivery = DeliveryLedger.objects.create(
+			purchase_order=self.po,
+			supplier=self.mill,
+			delivered_mt=Decimal("100.000"),
+			receiving_location="URC Balayan Terminal",
+			trucking_partner=self.trucking,
+			trucking_rate_per_mt=Decimal("500.00"),
+		)
+
+		res = self.client.get(reverse("finance:loan_list") + f"?po={self.cluster.reference_code}")
+		self.assertEqual(res.status_code, 200)
+
+		short_id = str(delivery.delivery_id)[:8].upper()
+		self.assertContains(res, f"CV-DEL-{short_id}-SRC")
+		self.assertContains(res, f"CV-DEL-{short_id}-TRK")
+		self.assertContains(res, "From Delivery Batch")
+		self.assertContains(res, "Pending Voucher:")
+
+	def test_cluster_detail_ui_decluttered(self):
+		res = self.client.get(reverse("operations:cluster_detail", args=[self.cluster.pk]))
+		self.assertEqual(res.status_code, 200)
+		self.assertNotContains(res, "Core Finance Workflow")
+		self.assertNotContains(res, "Payment &amp; Expense Matching Workspace")
+		self.assertNotContains(res, "Min Capital Required")
+		self.assertNotContains(res, "Funded Loan Principal")
+		self.assertContains(res, "Finance is currently pending for this PO.")
+		self.assertContains(res, "Open Bank Loans &amp; Matching Panel")
+
+
+
 
 

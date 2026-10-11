@@ -86,6 +86,11 @@ class Invoice(models.Model):
 
 
 class CashVoucher(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending Disbursement"
+        ISSUED = "issued", "Issued / Disbursed"
+        CANCELLED = "cancelled", "Cancelled"
+
     cluster = models.ForeignKey(TransactionCluster, on_delete=models.CASCADE, related_name="cash_vouchers")
     loan = models.ForeignKey(
         "CapitalLoan",
@@ -98,6 +103,12 @@ class CashVoucher(models.Model):
     voucher_number = models.CharField(max_length=50, unique=True)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     purpose = models.CharField(max_length=200)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        help_text="Lifecycle disbursement status of cash voucher",
+    )
     cheque_number = models.CharField(max_length=50, blank=True, help_text="Physical paper cheque reference number")
     cheque_date = models.DateField(null=True, blank=True, help_text="Issue date of physical cheque")
     issued_at = models.DateField(default=date.today)
@@ -106,6 +117,11 @@ class CashVoucher(models.Model):
 
     class Meta:
         ordering = ["-issued_at"]
+
+    def save(self, *args, **kwargs):
+        if self.cheque_number and self.status == self.Status.PENDING:
+            self.status = self.Status.ISSUED
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.voucher_number

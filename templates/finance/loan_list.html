@@ -547,12 +547,27 @@
                             <tbody>
                                 {% for match in focused_matches %}
                                 <tr>
-                                    <td><strong class="font-monospace text-dark">{{ match.payment_reference }}</strong></td>
+                                    <td>
+                                        <strong class="font-monospace text-dark">{{ match.payment_reference }}</strong>
+                                        {% if "CV-DEL-" in match.payment_reference %}
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 d-block mt-0.5" style="width: fit-content;">
+                                            <i class="bi bi-truck me-1"></i>From Delivery Batch
+                                        </span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <span class="badge bg-light text-dark border">{{ match.get_expense_type_display }}</span>
                                     </td>
                                     <td class="text-end fw-bold text-success font-monospace">₱{{ match.amount|floatformat:2|intcomma }}</td>
-                                    <td class="text-muted font-monospace">CV-M{{ match.pk }}</td>
+                                    <td>
+                                        {% if "CV-DEL-" in match.payment_reference %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning font-monospace fs-8">
+                                                <i class="bi bi-clock-history me-1"></i>Pending Voucher: {{ match.payment_reference }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted font-monospace fs-8">CV-M{{ match.pk }}</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="text-end">
                                         {% if user|has_perm:"delete_match" or user|has_perm:"reconcile_payments" %}
                                         <form method="post" action="{% url 'finance:delete_match' focused_cluster.pk match.pk %}" class="d-inline m-0" onsubmit="return confirm('Delete match {{ match.payment_reference }} (₱{{ match.amount|floatformat:2|intcomma }})?');">
@@ -1125,7 +1140,14 @@
                 <tbody>
                     {% for chq in cheques %}
                     <tr>
-                        <td><strong class="font-monospace text-primary"><i class="bi bi-file-earmark-text"></i> {{ chq.cheque_number }}</strong></td>
+                        <td>
+                            <strong class="font-monospace text-primary"><i class="bi bi-file-earmark-text"></i> {{ chq.cheque_number }}</strong>
+                            {% if "CV-DEL-" in chq.cheque_number or "CV-DEL-" in chq.voucher_number|default:"" %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle fs-8 d-block mt-0.5" style="width: fit-content;">
+                                <i class="bi bi-truck me-1"></i>Delivery Auto-Voucher
+                            </span>
+                            {% endif %}
+                        </td>
                         <td>{{ chq.issue_date|date:"M d, Y" }}</td>
                         <td><strong>{{ chq.bank_name }}</strong></td>
                         <td class="font-monospace text-muted">{{ chq.bank_account }}</td>
@@ -1138,7 +1160,11 @@
                         <td><span class="badge bg-secondary-subtle text-secondary border">{{ chq.type }}</span></td>
                         <td class="text-end font-monospace fw-bold fs-6">₱{{ chq.amount|floatformat:2|intcomma }}</td>
                         <td class="text-center">
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle"></i> {{ chq.status }}</span>
+                            {% if chq.status == "Issued" or chq.status == "Active Facility" or chq.status == "Settled & Closed" %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle me-1"></i> {{ chq.status }}</span>
+                            {% else %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1"><i class="bi bi-hourglass-split me-1"></i> {{ chq.status }}</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

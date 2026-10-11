@@ -24,6 +24,13 @@ def reconciliation_detail(request, pk):
         pk=pk,
     )
     reconciliation, _ = FinancialReconciliation.objects.get_or_create(cluster=cluster)
+    
+    # Pick up any logged deliveries and sync pending cash vouchers
+    po = getattr(cluster, "purchase_order", None)
+    if po:
+        for delivery in po.deliveries.all():
+            delivery.sync_delivery_expense_vouchers()
+
     form = PaymentExpenseMatchForm()
 
     from operations.services.pricing import cluster_financials
@@ -231,6 +238,7 @@ def delete_match(request, cluster_pk, match_pk):
         amt = match.amount
 
         # Delete linked auto-generated cash voucher if it exists
+        CashVoucher.objects.filter(voucher_number=ref).delete()
         clean_ref = "".join(c for c in ref if c.isalnum() or c in "-_")[:20]
         if not clean_ref:
             clean_ref = "REF"
@@ -381,6 +389,10 @@ def loan_list(request):
 
     if focused_cluster:
         focused_po = getattr(focused_cluster, "purchase_order", None)
+        if focused_po:
+            for delivery in focused_po.deliveries.all():
+                delivery.sync_delivery_expense_vouchers()
+
         focused_reconciliation, _ = FinancialReconciliation.objects.get_or_create(cluster=focused_cluster)
         from operations.services.pricing import cluster_financials, loan_requirement_data
         focused_financials = cluster_financials(focused_cluster)
@@ -538,8 +550,9 @@ def loan_list(request):
     from .models import CashVoucher
     vouchers = list(CashVoucher.objects.select_related("cluster"))
     for idx, v in enumerate(vouchers, 1):
+        v_status = v.get_status_display() if hasattr(v, "get_status_display") else ("Issued" if v.cheque_number else "Pending Disbursement")
         cheques.append({
-            "cheque_number": v.cheque_number or f"CV-CHQ-70{idx}",
+            "cheque_number": v.cheque_number or v.voucher_number or f"CV-CHQ-70{idx}",
             "issue_date": v.cheque_date or v.issued_at,
             "bank_name": "Operating Account",
             "bank_account": "0048-5512-0",
@@ -548,7 +561,8 @@ def loan_list(request):
             "cluster_ref": v.cluster.reference_code,
             "cluster_pk": v.cluster.pk,
             "type": "Cash Voucher",
-            "status": "Issued",
+            "status": v_status,
+            "voucher_number": v.voucher_number,
         })
 
     loan_form = bound_loan_form or StandaloneLoanForm(

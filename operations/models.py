@@ -535,11 +535,151 @@ class DeliveryLedger(models.Model):
 
         logistics.save()
 
+    def sync_delivery_expense_vouchers(self):
+        """
+        Synchronizes delivery batch fulfillment into Finance:
+        Automatically generates or updates pending Cash Vouchers and Payment Expense Matches
+        for Trucking, Barging, and Sourcing costs laid out based on costs inputted on the PO and delivery.
+        """
+        if not self.purchase_order:
+            return
+        cluster = getattr(self.purchase_order, "cluster", None)
+        if not cluster:
+            return
+
+        from finance.models import CapitalLoan, CashVoucher, FinancialReconciliation, PaymentExpenseMatch
+
+        reconciliation, _ = FinancialReconciliation.objects.get_or_create(cluster=cluster)
+        active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.CLOSED])
+        linked_loan = active_loans.first() if active_loans.exists() else None
+        po = self.purchase_order
+        short_id = str(self.delivery_id)[:8].upper()
+
+        # 1. Land Trucking Expense
+        trk_ref = f"CV-DEL-{short_id}-TRK"
+        if self.trucking_cost > Decimal("0.00"):
+            trk_partner = self.trucking_partner.name if self.trucking_partner else "Land Freight"
+            trk_purpose = f"Truck Delivery Batch #{short_id} ({self.delivered_mt:,.3f} MT @ ₱{self.trucking_rate_per_mt:,.2f}/MT) — {trk_partner}"[:200]
+
+            CashVoucher.objects.update_or_create(
+                voucher_number=trk_ref,
+                defaults={
+                    "cluster": cluster,
+                    "loan": linked_loan,
+                    "amount": self.trucking_cost,
+                    "purpose": trk_purpose,
+                    "status": CashVoucher.Status.PENDING,
+                    "issued_at": self.delivery_date or timezone.localdate(),
+                },
+            )
+            PaymentExpenseMatch.objects.update_or_create(
+                reconciliation=reconciliation,
+                payment_reference=trk_ref,
+                defaults={
+                    "expense_type": PaymentExpenseMatch.ExpenseType.TRUCKING,
+                    "amount": self.trucking_cost,
+                    "notes": f"Auto-generated Trucking Batch #{short_id} ({self.delivered_mt:,.3f} MT)"[:200],
+                },
+            )
+        else:
+            CashVoucher.objects.filter(voucher_number=trk_ref).delete()
+            PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=trk_ref).delete()
+
+        # 2. Marine Barging Expense
+        brg_ref = f"CV-DEL-{short_id}-BRG"
+        if self.barge_cost > Decimal("0.00"):
+            brg_partner = self.barge_partner.name if self.barge_partner else (self.vessel_or_barge_name or "Sea Freight")
+            brg_purpose = f"Marine Barging Batch #{short_id} ({self.delivered_mt:,.3f} MT @ ₱{self.barge_rate_per_mt:,.2f}/MT) — {brg_partner}"[:200]
+
+            CashVoucher.objects.update_or_create(
+                voucher_number=brg_ref,
+                defaults={
+                    "cluster": cluster,
+                    "loan": linked_loan,
+                    "amount": self.barge_cost,
+                    "purpose": brg_purpose,
+                    "status": CashVoucher.Status.PENDING,
+                    "issued_at": self.delivery_date or timezone.localdate(),
+                },
+            )
+            PaymentExpenseMatch.objects.update_or_create(
+                reconciliation=reconciliation,
+                payment_reference=brg_ref,
+                defaults={
+                    "expense_type": PaymentExpenseMatch.ExpenseType.BARGE,
+                    "amount": self.barge_cost,
+                    "notes": f"Auto-generated Barging Batch #{short_id} ({self.delivered_mt:,.3f} MT)"[:200],
+                },
+            )
+        else:
+            CashVoucher.objects.filter(voucher_number=brg_ref).delete()
+            PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=brg_ref).delete()
+
+        # 3. Sugar Sourcing Outlay (from PO unit_price)
+        src_ref = f"CV-DEL-{short_id}-SRC"
+        sourcing_cost = Decimal("0.00")
+        if po.unit_price and po.unit_price > Decimal("0.00") and self.delivered_mt and self.delivered_mt > Decimal("0.00"):
+            sourcing_cost = (Decimal(str(self.delivered_mt)) * Decimal(str(po.unit_price))).quantize(Decimal("0.01"))
+
+        if sourcing_cost > Decimal("0.00"):
+            supplier_name = self.supplier.name if self.supplier else "Sugar Mill"
+            src_purpose = f"Sugar Sourcing Outlay #{short_id} ({self.delivered_mt:,.3f} MT @ ₱{po.unit_price:,.2f}/MT) — {supplier_name}"[:200]
+            CashVoucher.objects.update_or_create(
+                voucher_number=src_ref,
+                defaults={
+                    "cluster": cluster,
+                    "loan": linked_loan,
+                    "amount": sourcing_cost,
+                    "purpose": src_purpose,
+                    "status": CashVoucher.Status.PENDING,
+                    "issued_at": self.delivery_date or timezone.localdate(),
+                },
+            )
+            PaymentExpenseMatch.objects.update_or_create(
+                reconciliation=reconciliation,
+                payment_reference=src_ref,
+                defaults={
+                    "expense_type": PaymentExpenseMatch.ExpenseType.SOURCING,
+                    "amount": sourcing_cost,
+                    "notes": f"Auto-generated Sourcing Batch #{short_id} ({self.delivered_mt:,.3f} MT)"[:200],
+                },
+            )
+        else:
+            CashVoucher.objects.filter(voucher_number=src_ref).delete()
+            PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=src_ref).delete()
+
+        # Update reconciliation total
+        reconciliation.matched_payment_amount = (
+            reconciliation.matches.aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+        )
+        reconciliation.save(update_fields=["matched_payment_amount", "updated_at"])
+
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
         self.purchase_order.update_status()
         self.sync_cluster_logistics()
+        self.sync_delivery_expense_vouchers()
+
+    def delete(self, *args, **kwargs):
+        short_id = str(self.delivery_id)[:8].upper()
+        del_prefix = f"CV-DEL-{short_id}-"
+        from finance.models import CashVoucher, FinancialReconciliation, PaymentExpenseMatch
+        CashVoucher.objects.filter(voucher_number__startswith=del_prefix).delete()
+        matches = PaymentExpenseMatch.objects.filter(payment_reference__startswith=del_prefix)
+        recon_ids = list(matches.values_list("reconciliation_id", flat=True))
+        matches.delete()
+        for r_id in set(recon_ids):
+            recon = FinancialReconciliation.objects.filter(pk=r_id).first()
+            if recon:
+                recon.matched_payment_amount = (
+                    recon.matches.aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+                )
+                recon.save(update_fields=["matched_payment_amount", "updated_at"])
+        po = self.purchase_order
+        super().delete(*args, **kwargs)
+        if po:
+            po.update_status()
 
     def __str__(self):
         po_ref = self.purchase_order.po_reference_number if self.purchase_order else "Unknown PO"
