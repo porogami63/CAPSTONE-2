@@ -603,7 +603,7 @@ class DeliveryLedger(models.Model):
             existing_trk_match = PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=trk_ref).first()
             if existing_trk_match:
                 existing_trk_match.amount = self.trucking_cost
-                existing_trk_match.save(update_fields=["amount", "updated_at"])
+                existing_trk_match.save(update_fields=["amount"])
         else:
             CashVoucher.objects.filter(voucher_number=trk_ref).delete()
             PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=trk_ref).delete()
@@ -637,7 +637,7 @@ class DeliveryLedger(models.Model):
             existing_brg_match = PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=brg_ref).first()
             if existing_brg_match:
                 existing_brg_match.amount = self.barge_cost
-                existing_brg_match.save(update_fields=["amount", "updated_at"])
+                existing_brg_match.save(update_fields=["amount"])
         else:
             CashVoucher.objects.filter(voucher_number=brg_ref).delete()
             PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=brg_ref).delete()
@@ -665,7 +665,7 @@ class DeliveryLedger(models.Model):
             existing_src_match = PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=src_ref).first()
             if existing_src_match:
                 existing_src_match.amount = sourcing_cost
-                existing_src_match.save(update_fields=["amount", "updated_at"])
+                existing_src_match.save(update_fields=["amount"])
         else:
             CashVoucher.objects.filter(voucher_number=src_ref).delete()
             PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=src_ref).delete()
