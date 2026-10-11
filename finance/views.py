@@ -414,6 +414,16 @@ def po_financial_workspace(request, pk):
                 "notes": "50% Advance Marine Barging Deposit",
             })
 
+    # Ensure robust numeric keys for template rendering
+    loan_req["logistics_down_payment"] = Decimal(str(loan_req.get("trucking_down_payment", 0))) + Decimal(str(loan_req.get("freight_down_payment", 0)))
+    loan_req["already_funded"] = loan_req.get("already_loaned", Decimal("0.00"))
+
+    # Sales & Margin Analytics
+    expected_sales = Decimal(str(po.total_selling_value or financials.get("revenue", 0)))
+    total_cost = Decimal(str(financials.get("purchase_total", 0)))
+    gross_margin = expected_sales - total_cost
+    gross_margin_pct = round(float(gross_margin / expected_sales * 100), 1) if expected_sales > 0 else 0.0
+
     match_form = PaymentExpenseMatchForm()
     loan_form = StandaloneLoanForm(user=request.user, initial={"cluster": cluster})
 
@@ -433,6 +443,9 @@ def po_financial_workspace(request, pk):
             "focused_cluster": cluster,
             "po": po,
             "financials": financials,
+            "expected_sales": expected_sales,
+            "gross_margin": gross_margin,
+            "gross_margin_pct": gross_margin_pct,
             "loan_req": loan_req,
             "loans": loans,
             "reconciliation": reconciliation,
