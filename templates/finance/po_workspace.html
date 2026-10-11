@@ -1,0 +1,592 @@
+{% extends "app_base.html" %}
+{% load role_tags humanize %}
+
+{% block title %}PO Financial Workspace · {{ po.po_reference_number|default:cluster.reference_code }} · HTC Core{% endblock %}
+{% block topbar_title %}PO Financial &amp; Matchmaking Workspace{% endblock %}
+{% block topbar_subtitle %}Dedicated capital financing, bank facility matching, and expense outlay reconciliation{% endblock %}
+
+{% block content %}
+<style>
+    @keyframes pulseDangerGlow {
+        0% { box-shadow: 0 0 10px rgba(220, 53, 69, 0.4); border-color: #dc3545; }
+        50% { box-shadow: 0 0 25px rgba(220, 53, 69, 0.75); border-color: #b02a37; }
+        100% { box-shadow: 0 0 10px rgba(220, 53, 69, 0.4); border-color: #dc3545; }
+    }
+    .glow-danger-box {
+        border: 2px solid #dc3545 !important;
+        box-shadow: 0 0 20px rgba(220, 53, 69, 0.45) !important;
+        animation: pulseDangerGlow 2.2s infinite ease-in-out;
+        background-color: #fffafa !important;
+    }
+</style>
+
+<!-- BREADCRUMBS & TOP NAVIGATION -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0 fs-8">
+            <li class="breadcrumb-item"><a href="{% url 'finance:loan_list' %}" class="text-decoration-none text-muted">Finance</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'finance:loan_list' %}" class="text-decoration-none text-muted">Bank Loans &amp; Facilities</a></li>
+            <li class="breadcrumb-item active fw-bold text-dark" aria-current="page">Workspace: {{ po.po_reference_number|default:cluster.reference_code }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <a href="{% url 'finance:loan_list' %}" class="btn btn-outline-secondary btn-sm py-1.5 px-3 fs-8 fw-semibold shadow-xs">
+            <i class="bi bi-arrow-left me-1"></i> Return to Loans Portfolio
+        </a>
+        <a href="{% url 'operations:cluster_detail' cluster.pk %}" class="btn btn-outline-secondary btn-sm py-1.5 px-3 fs-8 fw-semibold shadow-xs" target="_blank" title="View Full Purchase Order Details in Operations">
+            <i class="bi bi-box-arrow-up-right me-1"></i> View Operations PO
+        </a>
+        {% if user|has_perm:"add_loan" %}
+        <button type="button" class="btn btn-primary btn-sm py-1.5 px-3 fs-8 fw-bold shadow-xs" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+            <i class="bi bi-plus-circle me-1"></i> Issue Bank Loan
+        </button>
+        {% endif %}
+        {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
+        <button type="button" class="btn btn-success btn-sm py-1.5 px-3 fs-8 fw-bold shadow-xs" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
+            <i class="bi bi-wallet2 me-1"></i> Match Expense / Outlay
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- FOCUSED PO WORKSPACE HEADER CARD -->
+<div class="card p-4 mb-4 border shadow-sm" style="background: #ffffff; border-color: #cbd5e1 !important; border-radius: 12px;">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                <span class="badge bg-primary text-white fs-8 text-uppercase fw-bold">
+                    <i class="bi bi-kanban me-1"></i> Focused PO Workspace
+                </span>
+                <span class="badge {% if po.po_status == 'Completed' %}bg-success{% elif po.po_status == 'Partially Fulfilled' %}bg-warning text-dark{% else %}bg-primary{% endif %} fs-8">
+                    {{ po.po_status|default:"In Progress" }}
+                </span>
+                {% if loans %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle fs-8 fw-bold">
+                    <i class="bi bi-shield-check me-1"></i> Financing: Active / Cleared ({{ loan_req.completion_pct }}% Funded)
+                </span>
+                {% else %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning fs-8 fw-bold">
+                    <i class="bi bi-hourglass-split me-1"></i> Financing: Pending Allocation
+                </span>
+                {% endif %}
+
+                {% if is_over_target %}
+                <span class="badge bg-danger text-white border border-danger fs-8 fw-bold">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Exceeds Target ({{ recon_pct }}%)
+                </span>
+                {% else %}
+                <span class="badge {% if recon_pct >= 100 %}bg-success-subtle text-success border border-success{% elif recon_pct > 0 %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8">
+                    Reconciliation: {{ recon_pct }}% Reconciled
+                </span>
+                {% endif %}
+            </div>
+            <h3 class="fw-bold mb-1 text-dark">
+                {{ po.po_reference_number|default:cluster.reference_code }}
+                <span class="fs-5 fw-normal text-muted">— {{ po.customer.name|default:cluster.client.name }}</span>
+            </h3>
+            <div class="text-xs text-muted mt-1.5 d-flex gap-3 flex-wrap">
+                <span><i class="bi bi-building me-1"></i> Sugar Mill: <strong class="text-dark">{{ cluster.sugar_mill.name }}</strong></span>
+                <span>·</span>
+                <span><i class="bi bi-box-seam me-1"></i> Contract Volume: <strong class="text-dark">{{ po.volume_mt|floatformat:3|intcomma }} MT</strong></span>
+                <span>·</span>
+                <span><i class="bi bi-cash-stack me-1"></i> Total Purchase Cost: <strong class="text-dark">₱{{ financials.purchase_total|floatformat:2|intcomma }}</strong></span>
+                <span>·</span>
+                <span><i class="bi bi-receipt me-1"></i> Total Customer Sales: <strong class="text-dark">₱{{ po.total_selling_value|default:0|floatformat:2|intcomma }}</strong></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ANALYTICAL ROW: 2 BALANCED CARDS -->
+<div class="row g-3 mb-4">
+    <!-- Card 1: Capital Financing Requirements -->
+    <div class="col-lg-6">
+        <div class="p-3.5 rounded-3 bg-white border h-100 shadow-xs" style="border-left: 4px solid #2563eb !important;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold text-dark fs-7 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-cash-coin text-primary"></i> Capital Financing Requirements
+                </span>
+                <span class="badge {% if loans %}bg-success-subtle text-success border border-success{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8">
+                    {{ loan_req.completion_pct }}% Funded
+                </span>
+            </div>
+            <div class="row g-2 text-center text-sm-start">
+                <div class="col-4">
+                    <div class="fs-8 text-muted text-uppercase fw-bold">Sourcing (100%)</div>
+                    <div class="fs-6 fw-bold text-dark mt-1 font-monospace">₱{{ financials.purchase_total|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="col-4 border-start ps-3">
+                    <div class="fs-8 text-muted text-uppercase fw-bold">Freight (50%)</div>
+                    <div class="fs-6 fw-bold text-dark mt-1 font-monospace">₱{{ loan_req.logistics_down_payment|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="col-4 border-start ps-3">
+                    <div class="fs-8 text-muted text-uppercase fw-bold">Total Min Required</div>
+                    <div class="fs-6 fw-bold text-danger mt-1 font-monospace">₱{{ loan_req.required|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+            <div class="progress mt-3" style="height: 6px;">
+                <div class="progress-bar {% if loans %}bg-primary{% else %}bg-secondary{% endif %}" role="progressbar" style="width: {{ loan_req.completion_pct }}%;"></div>
+            </div>
+            <div class="fs-8 text-muted mt-2.5 pt-1.5 border-top d-flex justify-content-between">
+                <span>Funded Principal: <strong class="text-success font-monospace">₱{{ loan_req.already_funded|floatformat:2|intcomma }}</strong></span>
+                <span>Remaining Balance: <strong class="text-primary font-monospace">₱{{ loan_req.remaining_required|floatformat:2|intcomma }}</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Expense Outlays & Matchmaking (WITH OVER-TARGET GLOWING RED BOX) -->
+    <div class="col-lg-6">
+        <div class="p-3.5 rounded-3 border h-100 shadow-xs {% if is_over_target %}glow-danger-box{% else %}bg-white{% endif %}" style="{% if not is_over_target %}border-left: 4px solid #16a34a !important;{% endif %}">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold text-dark fs-7 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-receipt-cutoff {% if is_over_target %}text-danger{% else %}text-success{% endif %}"></i> Expense Outlays &amp; Matchmaking
+                </span>
+                {% if is_over_target %}
+                <span class="badge bg-danger text-white border border-danger fs-8 fw-bold">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Exceeds Target ({{ recon_pct }}%)
+                </span>
+                {% else %}
+                <span class="badge {% if recon_pct >= 100 %}bg-success-subtle text-success border border-success{% elif recon_pct > 0 %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8">
+                    {{ recon_pct }}% Reconciled
+                </span>
+                {% endif %}
+            </div>
+
+            {% if is_over_target %}
+            <!-- SPECIFIC WARNING BANNER FOR SURPASSING TARGET -->
+            <div class="alert alert-danger py-2 px-3 mb-2.5 d-flex align-items-center gap-2 border-danger shadow-xs">
+                <i class="bi bi-exclamation-octagon-fill text-danger fs-4 flex-shrink-0"></i>
+                <div class="fs-8">
+                    <strong class="text-danger d-block">Reconciliation Target Exceeded!</strong>
+                    Total matched expenses (<strong>₱{{ matched_amount|floatformat:2|intcomma }}</strong>) surpass the target funding (<strong>₱{{ recon_target|floatformat:2|intcomma }}</strong>) by <span class="font-monospace fw-bold text-danger">₱{{ excess_amount|floatformat:2|intcomma }}</span>. Review matches or adjust facility principal.
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="row g-2 text-center text-sm-start">
+                <div class="col-4">
+                    <div class="fs-8 text-muted text-uppercase fw-bold">Recon Target</div>
+                    <div class="fs-6 fw-bold text-dark mt-1 font-monospace">₱{{ recon_target|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="col-4 border-start ps-3">
+                    <div class="fs-8 text-muted text-uppercase fw-bold">Matched Outlays</div>
+                    <div class="fs-6 fw-bold {% if is_over_target %}text-danger{% else %}text-success{% endif %} mt-1 font-monospace">
+                        ₱{{ matched_amount|floatformat:2|intcomma }}
+                    </div>
+                </div>
+                <div class="col-4 border-start ps-3">
+                    {% if is_over_target %}
+                    <div class="fs-8 text-danger text-uppercase fw-bold"><i class="bi bi-arrow-up-right"></i> Excess Over Target</div>
+                    <div class="fs-6 fw-bold text-danger mt-1 font-monospace">+₱{{ excess_amount|floatformat:2|intcomma }}</div>
+                    {% else %}
+                    <div class="fs-8 text-muted text-uppercase fw-bold">Remaining Outlay</div>
+                    <div class="fs-6 fw-bold text-primary mt-1 font-monospace">₱{{ remaining_balance|floatformat:2|intcomma }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="progress mt-3" style="height: 6px;">
+                <div class="progress-bar {% if is_over_target %}bg-danger{% else %}bg-success{% endif %}" role="progressbar" style="width: {% if is_over_target %}100{% else %}{{ recon_pct }}{% endif %}%;"></div>
+            </div>
+            <div class="fs-8 text-muted mt-2.5 pt-1.5 border-top d-flex justify-content-between align-items-center">
+                <span>{{ matches|length }} matches recorded ({{ vouchers|length }} cash vouchers)</span>
+                <a href="{% url 'finance:reconciliation' cluster.pk %}" class="fw-bold text-primary text-decoration-none">
+                    Open Full 3-Step Guided Reconciler &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OPERATIONAL DATA ROW: 2 SUBPANELS -->
+<div class="row g-3">
+    <!-- Panel 1: Bank Loans Linked to this PO -->
+    <div class="col-lg-6">
+        <div class="panel border bg-white h-100 shadow-xs rounded-3 overflow-hidden">
+            <div class="panel-header d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
+                <span class="fw-bold text-dark fs-7 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-bank text-primary"></i> Bank Loan Facilities ({{ loans|length }})
+                </span>
+                {% if user|has_perm:"add_loan" %}
+                <button type="button" class="btn btn-outline-primary btn-sm py-1 px-2.5 fs-8 fw-bold" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+                    <i class="bi bi-plus-lg me-1"></i> Add Bank Loan
+                </button>
+                {% endif %}
+            </div>
+            <div class="panel-body p-3">
+                {% if loans %}
+                <div class="d-flex flex-column gap-2.5">
+                    {% for loan in loans %}
+                    <div class="p-3 rounded-2 border bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-1.5">
+                            <strong class="text-dark fs-7">{{ loan.bank_name }}</strong>
+                            <span class="badge-status {{ loan.status }}">{{ loan.get_status_display }}</span>
+                        </div>
+                        <div class="row g-2 fs-8 mb-2">
+                            <div class="col-6">Principal: <strong class="text-dark font-monospace">₱{{ loan.principal|floatformat:2|intcomma }}</strong></div>
+                            <div class="col-6">Rate: <strong>{{ loan.interest_rate_annual }}% p.a.</strong></div>
+                            <div class="col-6 text-muted">Maturity: {{ loan.due_date|date:"M d, Y" }} ({{ loan.days_remaining }}d left)</div>
+                            <div class="col-6">Daily Interest: <strong class="text-danger font-monospace">₱{{ loan.daily_interest|floatformat:2|intcomma }}/day</strong></div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top fs-8">
+                            <span class="text-danger fw-bold">Incurred to Date: ₱{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
+                            {% if user|has_perm:"reconcile_payments" and loan.status != "closed" %}
+                            <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 fs-8 fw-semibold" data-bs-toggle="modal" data-bs-target="#settleLoanModal{{ loan.pk }}">
+                                <i class="bi bi-shield-check me-1"></i> Settle Facility
+                            </button>
+                            {% elif loan.status == "closed" %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle fs-8">Settled &amp; Closed</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-bank fs-2 text-secondary mb-2 d-block"></i>
+                    <div class="fw-bold fs-7 text-dark mb-1">No Bank Loan Recorded</div>
+                    <div class="text-xs mb-3">This PO has no bank loan facility recorded yet. Minimum capital required is ₱{{ loan_req.required|floatformat:2|intcomma }}.</div>
+                    {% if user|has_perm:"add_loan" %}
+                    <button type="button" class="btn btn-primary btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+                        <i class="bi bi-plus-circle me-1"></i> Issue Bank Loan for this PO
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 2: Direct Expense Matchmaking & Cash Vouchers -->
+    <div class="col-lg-6">
+        <div class="panel border bg-white h-100 shadow-xs rounded-3 overflow-hidden">
+            <div class="panel-header d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
+                <span class="fw-bold text-dark fs-7 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-wallet2 text-success"></i> Matched Outlays &amp; Cash Vouchers ({{ matches|length }})
+                </span>
+                {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
+                <button type="button" class="btn btn-outline-success btn-sm py-1 px-2.5 fs-8 fw-bold" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
+                    <i class="bi bi-plus-lg me-1"></i> Match Expense / Outlay
+                </button>
+                {% endif %}
+            </div>
+            <div class="panel-body p-3">
+                <!-- Quick Match Suggestions STRICTLY FOR THIS PO -->
+                <div class="mb-3 p-2.5 rounded-2 border bg-light">
+                    <div class="d-flex align-items-center justify-content-between mb-1.5">
+                        <span class="text-xs fw-bold text-dark d-flex align-items-center gap-1">
+                            <i class="bi bi-lightning-charge-fill text-warning"></i> Quick Match Suggestions (This PO Only):
+                        </span>
+                        <span class="text-xs text-muted">Click to auto-match pending outlay</span>
+                    </div>
+                    <div class="d-flex gap-1.5 flex-wrap">
+                        {% for sug in quick_match_suggestions %}
+                        <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2 fs-8 fw-semibold"
+                                onclick="confirmAndQuickMatch('{{ sug.type }}', '{{ sug.amount }}', '{{ sug.ref }}', '{{ sug.notes }}')">
+                            {% if 'CV-DEL-' in sug.ref %}<i class="bi bi-truck me-1"></i>{% endif %}
+                            {{ sug.label }} (₱{{ sug.amount|floatformat:0|intcomma }})
+                        </button>
+                        {% empty %}
+                        <span class="text-xs text-muted fst-italic">All pending delivery batches and contract allocations for this PO are already matched.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if matches %}
+                <div class="table-responsive border rounded" style="max-height: 280px; overflow-y: auto;">
+                    <table class="table table-sm align-middle mb-0 fs-8">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Ref #</th>
+                                <th>Category</th>
+                                <th class="text-end">Amount (₱)</th>
+                                <th>Cash Voucher #</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for match in matches %}
+                            <tr>
+                                <td>
+                                    <strong class="font-monospace text-dark">{{ match.payment_reference }}</strong>
+                                    {% if "CV-DEL-" in match.payment_reference %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 d-block mt-0.5" style="width: fit-content;">
+                                        <i class="bi bi-truck me-1"></i>From Delivery Batch
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ match.get_expense_type_display }}</span>
+                                </td>
+                                <td class="text-end fw-bold text-success font-monospace">₱{{ match.amount|floatformat:2|intcomma }}</td>
+                                <td>
+                                    {% if "CV-DEL-" in match.payment_reference %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning font-monospace fs-8">
+                                            <i class="bi bi-clock-history me-1"></i>Pending Voucher: {{ match.payment_reference }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted font-monospace fs-8">CV-M{{ match.pk }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if user|has_perm:"delete_match" or user|has_perm:"reconcile_payments" %}
+                                    <form method="post" action="{% url 'finance:delete_match' cluster.pk match.pk %}" class="d-inline m-0" onsubmit="return confirm('Remove match {{ match.payment_reference }} (₱{{ match.amount|floatformat:2|intcomma }})?');">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button type="submit" class="btn btn-link text-danger p-0 fs-8" title="Remove Match"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-wallet2 fs-2 text-secondary mb-2 d-block"></i>
+                    <div class="fw-bold fs-7 text-dark mb-1">No Payment Matches Yet</div>
+                    <div class="text-xs mb-3">Match delivery batches or supplier sourcing outlays to reconcile this purchase order.</div>
+                    {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
+                    <button type="button" class="btn btn-success btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
+                        <i class="bi bi-plus-circle me-1"></i> Match Outlay Expense Now
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: MATCH EXPENSE / OUTLAY -->
+<div class="modal fade" id="matchExpenseModal" tabindex="-1" aria-labelledby="matchExpenseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold" id="matchExpenseModalLabel">
+                    <i class="bi bi-wallet2 text-warning me-2"></i>Match Outlay &amp; Issue Cash Voucher
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'finance:add_match' cluster.pk %}" id="matchExpenseForm">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 text-xs mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        Recording an expense match for <strong>{{ po.po_reference_number|default:cluster.reference_code }}</strong> updates reconciliation balances and prepares a Cash Voucher.
+                    </div>
+
+                    <!-- DYNAMIC BEFOREHAND WARNING BANNER IN MODAL -->
+                    <div id="modalTargetWarn" class="alert alert-warning py-2 px-3 text-xs mb-3 border-warning" style="display: none;">
+                        <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                        <strong class="text-warning-emphasis">Warning: Exceeds Target!</strong>
+                        Adding this amount will cause total matched outlays to exceed the funding target (₱{{ recon_target|floatformat:2|intcomma }}) by <span id="modalExcessDisplay" class="fw-bold font-monospace">₱0.00</span>.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Receipt / Voucher Reference # <span class="text-danger">*</span></label>
+                        <input type="text" name="payment_reference" id="id_match_ref" class="form-control-htc" placeholder="e.g. OR-99482 / CV-DEL-01" required>
+                        <div class="form-text text-xs text-muted">Official receipt, payment voucher, or delivery voucher reference.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Expense Category <span class="text-danger">*</span></label>
+                        <select name="expense_type" id="id_match_type" class="form-select-htc" required>
+                            <option value="sourcing">Supplier Purchase Cost (Sugar Mill)</option>
+                            <option value="trucking">Truck Delivery &amp; Hauling</option>
+                            <option value="barge">Boat / Barge Shipping</option>
+                            <option value="logistics_deposit">50% Delivery Advance Deposit</option>
+                            <option value="other">Other Operational Expense</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Payment Amount (₱) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" name="amount" id="id_match_amount" class="form-control-htc font-monospace" placeholder="e.g. 500000.00" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Notes / Description (Optional)</label>
+                        <input type="text" name="notes" id="id_match_notes" class="form-control-htc" placeholder="e.g. Delivery batch sourcing outlay">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light px-4">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="btnSubmitMatch" class="btn btn-primary fw-bold px-4">
+                        <i class="bi bi-check-circle me-1"></i> Save Match &amp; Issue Cash Voucher
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ADD BANK LOAN FACILITY -->
+{% if user|has_perm:"add_loan" %}
+<div class="modal fade" id="newLoanModal" tabindex="-1" aria-labelledby="newLoanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold" id="newLoanModalLabel"><i class="bi bi-bank me-2"></i>Add Bank Loan Facility</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'finance:loan_list' %}" id="newLoanForm">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 text-xs mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        Record a bank loan facility and link it directly to <strong>{{ po.po_reference_number|default:cluster.reference_code }}</strong>.
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12" style="display: none;">
+                            {{ loan_form.cluster }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Bank / Lender Name <span class="text-danger">*</span></label>
+                            {{ loan_form.bank_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Loan Amount (₱) <span class="text-danger">*</span></label>
+                            {{ loan_form.principal }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Yearly Interest Rate (%) <span class="text-danger">*</span></label>
+                            {{ loan_form.interest_rate_annual }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Loan Start Date <span class="text-danger">*</span></label>
+                            {{ loan_form.start_date }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Loan Due Date <span class="text-danger">*</span></label>
+                            {{ loan_form.due_date }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Approval Status Workflow</label>
+                            {{ loan_form.status }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Bank Account # (Optional)</label>
+                            {{ loan_form.bank_account_number }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label font-semibold text-sm">Cheque Reference # (Optional)</label>
+                            {{ loan_form.cheque_number }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light px-4">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Save Bank Loan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- MODAL: SETTLE LOAN FACILITY (FOR EACH LOAN) -->
+{% for loan in loans %}
+{% if loan.status != "closed" %}
+<div class="modal fade" id="settleLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-shield-check text-success me-2"></i>Settle Loan Facility — {{ loan.bank_name }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'finance:settle_loan' loan.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 text-xs mb-3">
+                        Principal: <strong>₱{{ loan.principal|floatformat:2|intcomma }}</strong> | Incurred Interest: <strong class="text-danger">₱{{ loan.accrued_interest|floatformat:2|intcomma }}</strong>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Settlement Receipt # <span class="text-danger">*</span></label>
+                        <input type="text" name="settlement_receipt_number" class="form-control-htc" required placeholder="e.g. BDO-CLR-99182">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Official Payoff Advice (PDF) <span class="text-danger">*</span></label>
+                        <input type="file" name="settlement_document" class="form-control-htc" accept="application/pdf" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light px-4">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Submit Settle Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<script>
+const reconTarget = parseFloat("{{ recon_target }}") || 0;
+const currentMatched = parseFloat("{{ matched_amount }}") || 0;
+
+function formatCurrency(val) {
+    return '₱' + Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Check live amount in modal and warn beforehand
+const amountInput = document.getElementById('id_match_amount');
+const modalWarn = document.getElementById('modalTargetWarn');
+const modalExcessDisplay = document.getElementById('modalExcessDisplay');
+
+if (amountInput) {
+    amountInput.addEventListener('input', function() {
+        const val = parseFloat(this.value) || 0;
+        const projectedTotal = currentMatched + val;
+        if (reconTarget > 0 && projectedTotal > reconTarget) {
+            const excess = projectedTotal - reconTarget;
+            modalExcessDisplay.textContent = formatCurrency(excess);
+            modalWarn.style.display = 'block';
+        } else {
+            modalWarn.style.display = 'none';
+        }
+    });
+}
+
+// Form submit check for modal
+const matchForm = document.getElementById('matchExpenseForm');
+if (matchForm) {
+    matchForm.addEventListener('submit', function(e) {
+        const val = parseFloat(amountInput.value) || 0;
+        const projectedTotal = currentMatched + val;
+        if (reconTarget > 0 && projectedTotal > reconTarget) {
+            const excess = projectedTotal - reconTarget;
+            const confirmMsg = `⚠️ WARNING: EXCEEDING RECONCILIATION TARGET\n\nAdding this outlay (${formatCurrency(val)}) will cause total matched expenses (${formatCurrency(projectedTotal)}) to exceed the funding target (${formatCurrency(reconTarget)}) by ${formatCurrency(excess)}!\n\nDo you want to proceed with matching this expense anyway?`;
+            if (!confirm(confirmMsg)) {
+                e.preventDefault();
+            }
+        }
+    });
+}
+
+// Quick Match with beforehand warning and auto-fill
+function confirmAndQuickMatch(type, amount, ref, notes) {
+    const val = parseFloat(amount) || 0;
+    const projectedTotal = currentMatched + val;
+
+    if (reconTarget > 0 && projectedTotal > reconTarget) {
+        const excess = projectedTotal - reconTarget;
+        const confirmMsg = `⚠️ WARNING: EXCEEDING RECONCILIATION TARGET\n\nAdding this suggested match:\nRef: ${ref}\nAmount: ${formatCurrency(val)}\n\nwill cause total matched outlays (${formatCurrency(projectedTotal)}) to EXCEED the target funding (${formatCurrency(reconTarget)}) by ${formatCurrency(excess)}!\n\nAre you sure you want to proceed with matching this outlay?`;
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+    }
+
+    // Populate and submit form
+    document.getElementById('id_match_ref').value = ref;
+    document.getElementById('id_match_type').value = type;
+    document.getElementById('id_match_amount').value = val.toFixed(2);
+    document.getElementById('id_match_notes').value = notes;
+    document.getElementById('matchExpenseForm').submit();
+}
+</script>
+{% endblock %}

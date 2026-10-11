@@ -572,15 +572,11 @@ class DeliveryLedger(models.Model):
                     "issued_at": self.delivery_date or timezone.localdate(),
                 },
             )
-            PaymentExpenseMatch.objects.update_or_create(
-                reconciliation=reconciliation,
-                payment_reference=trk_ref,
-                defaults={
-                    "expense_type": PaymentExpenseMatch.ExpenseType.TRUCKING,
-                    "amount": self.trucking_cost,
-                    "notes": f"Auto-generated Trucking Batch #{short_id} ({self.delivered_mt:,.3f} MT)"[:200],
-                },
-            )
+            # Only update amount if a match already exists for this voucher
+            existing_trk_match = PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=trk_ref).first()
+            if existing_trk_match:
+                existing_trk_match.amount = self.trucking_cost
+                existing_trk_match.save(update_fields=["amount", "updated_at"])
         else:
             CashVoucher.objects.filter(voucher_number=trk_ref).delete()
             PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=trk_ref).delete()
@@ -602,15 +598,10 @@ class DeliveryLedger(models.Model):
                     "issued_at": self.delivery_date or timezone.localdate(),
                 },
             )
-            PaymentExpenseMatch.objects.update_or_create(
-                reconciliation=reconciliation,
-                payment_reference=brg_ref,
-                defaults={
-                    "expense_type": PaymentExpenseMatch.ExpenseType.BARGE,
-                    "amount": self.barge_cost,
-                    "notes": f"Auto-generated Barging Batch #{short_id} ({self.delivered_mt:,.3f} MT)"[:200],
-                },
-            )
+            existing_brg_match = PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=brg_ref).first()
+            if existing_brg_match:
+                existing_brg_match.amount = self.barge_cost
+                existing_brg_match.save(update_fields=["amount", "updated_at"])
         else:
             CashVoucher.objects.filter(voucher_number=brg_ref).delete()
             PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=brg_ref).delete()
@@ -635,15 +626,10 @@ class DeliveryLedger(models.Model):
                     "issued_at": self.delivery_date or timezone.localdate(),
                 },
             )
-            PaymentExpenseMatch.objects.update_or_create(
-                reconciliation=reconciliation,
-                payment_reference=src_ref,
-                defaults={
-                    "expense_type": PaymentExpenseMatch.ExpenseType.SOURCING,
-                    "amount": sourcing_cost,
-                    "notes": f"Auto-generated Sourcing Batch #{short_id} ({self.delivered_mt:,.3f} MT)"[:200],
-                },
-            )
+            existing_src_match = PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=src_ref).first()
+            if existing_src_match:
+                existing_src_match.amount = sourcing_cost
+                existing_src_match.save(update_fields=["amount", "updated_at"])
         else:
             CashVoucher.objects.filter(voucher_number=src_ref).delete()
             PaymentExpenseMatch.objects.filter(reconciliation=reconciliation, payment_reference=src_ref).delete()

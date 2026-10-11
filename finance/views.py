@@ -190,33 +190,47 @@ def add_match(request, pk):
                 reconciliation._audit_user = request.user
                 reconciliation.save()
 
-                # Auto-generate corresponding Cash Voucher for payment outlay match
-                active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_CREATION])
-                linked_loan = active_loans.first() if active_loans.exists() else None
-
-                from operations.services.reference_generators import generate_cv_reference
-                voucher_num = generate_cv_reference(cluster.reference_code)
-                purpose_text = f"Auto-Voucher ({match.get_expense_type_display()}): {match.notes or match.payment_reference}"[:190]
-
-                # Avoid duplicate voucher creation if user edits match
-                if not CashVoucher.objects.filter(voucher_number=voucher_num).exists():
-                    try:
-                        CashVoucher.objects.create(
-                            cluster=cluster,
-                            loan=linked_loan,
-                            voucher_number=voucher_num,
-                            amount=match.amount,
-                            purpose=purpose_text,
-                            issued_at=timezone.localdate(),
-                        )
-                        messages.success(
-                            request,
-                            f"Payment matched (₱{match.amount:,.2f}) & Cash Voucher #{voucher_num} automatically generated!",
-                        )
-                    except Exception:
-                        messages.success(request, f"Payment match recorded (₱{match.amount:,.2f}).")
+                # Auto-generate corresponding Cash Voucher for payment outlay match if not an existing delivery voucher
+                if match.payment_reference.startswith("CV-DEL-"):
+                    CashVoucher.objects.filter(voucher_number=match.payment_reference).update(status=CashVoucher.Status.ISSUED)
                 else:
-                    messages.success(request, f"Payment match recorded (₱{match.amount:,.2f}).")
+                    active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_CREATION])
+                    linked_loan = active_loans.first() if active_loans.exists() else None
+
+                    from operations.services.reference_generators import generate_cv_reference
+                    voucher_num = generate_cv_reference(cluster.reference_code)
+                    purpose_text = f"Auto-Voucher ({match.get_expense_type_display()}): {match.notes or match.payment_reference}"[:190]
+
+                    if not CashVoucher.objects.filter(voucher_number=voucher_num).exists():
+                        try:
+                            CashVoucher.objects.create(
+                                cluster=cluster,
+                                loan=linked_loan,
+                                voucher_number=voucher_num,
+                                amount=match.amount,
+                                purpose=purpose_text,
+                                issued_at=timezone.localdate(),
+                            )
+                        except Exception:
+                            pass
+
+                # Check if total matches exceed reconciliation target
+                loans_qs = cluster.loans.all()
+                if loans_qs.exists():
+                    target = sum(l.principal for l in loans_qs)
+                else:
+                    c_po = getattr(cluster, "purchase_order", None)
+                    target = c_po.total_value if c_po else Decimal("0")
+
+                new_total = reconciliation.matched_payment_amount
+                if target > Decimal("0") and new_total > target:
+                    excess = new_total - target
+                    messages.warning(
+                        request,
+                        f"⚠️ Warning: Payment match recorded (₱{match.amount:,.2f}), but total matched outlays (₱{new_total:,.2f}) now EXCEED the target funding (₱{target:,.2f}) by ₱{excess:,.2f}!",
+                    )
+                else:
+                    messages.success(request, f"Payment match recorded (₱{match.amount:,.2f}) successfully.")
             except Exception as err:
                 messages.error(request, f"Error saving payment match: {str(err)}")
         else:
@@ -237,13 +251,16 @@ def delete_match(request, cluster_pk, match_pk):
         ref = match.payment_reference
         amt = match.amount
 
-        # Delete linked auto-generated cash voucher if it exists
-        CashVoucher.objects.filter(voucher_number=ref).delete()
-        clean_ref = "".join(c for c in ref if c.isalnum() or c in "-_")[:20]
-        if not clean_ref:
-            clean_ref = "REF"
-        voucher_num = f"CV-M{match.pk}-{clean_ref}"[:50]
-        CashVoucher.objects.filter(voucher_number=voucher_num).delete()
+        # If it was a delivery batch voucher, reset its status to pending; otherwise delete
+        if ref.startswith("CV-DEL-"):
+            CashVoucher.objects.filter(voucher_number=ref).update(status=CashVoucher.Status.PENDING)
+        else:
+            CashVoucher.objects.filter(voucher_number=ref).delete()
+            clean_ref = "".join(c for c in ref if c.isalnum() or c in "-_")[:20]
+            if not clean_ref:
+                clean_ref = "REF"
+            voucher_num = f"CV-M{match.pk}-{clean_ref}"[:50]
+            CashVoucher.objects.filter(voucher_number=voucher_num).delete()
 
         match.delete()
 
@@ -256,7 +273,7 @@ def delete_match(request, cluster_pk, match_pk):
 
         messages.warning(
             request,
-            f"Payment match ref '{ref}' (₱{amt:,.2f}) removed by {request.user.get_full_name() or request.user.username}. Reconciliation balances updated.",
+            f"Payment match ref '{ref}' (₱{amt:,.2f}) removed. Reconciliation balances updated.",
         )
 
     next_url = request.POST.get("next") or request.GET.get("next")
@@ -279,6 +296,159 @@ def loan_requirement(request, pk):
     payload = {k: (float(v) if isinstance(v, Decimal) else v) for k, v in data.items()}
     payload["cluster_created"] = timezone.localtime(cluster.created_at).date().isoformat()
     return JsonResponse(payload)
+
+
+@role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE)
+def po_financial_workspace(request, pk):
+    cluster = get_object_or_404(
+        TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics"),
+        pk=pk,
+    )
+    po = getattr(cluster, "purchase_order", None)
+    if not po:
+        messages.error(request, f"Purchase order for cluster {cluster.reference_code} not found.")
+        return redirect("finance:loan_list")
+
+    # Sync delivery vouchers (pending status) for all deliveries of this PO
+    for delivery in po.deliveries.all():
+        delivery.sync_delivery_expense_vouchers()
+
+    reconciliation, _ = FinancialReconciliation.objects.get_or_create(cluster=cluster)
+    from operations.services.pricing import cluster_financials, loan_requirement_data
+    financials = cluster_financials(cluster)
+    loan_req = loan_requirement_data(cluster)
+    loans = list(cluster.loans.select_related("verified_by").order_by("-created_at"))
+    matches = list(reconciliation.matches.all().order_by("-matched_at"))
+    vouchers = list(cluster.cash_vouchers.all().order_by("-issued_at"))
+
+    if loans:
+        recon_target = Decimal(str(sum(l.principal for l in loans)))
+    else:
+        recon_target = Decimal(str(financials["purchase_total"]))
+
+    matched_amount = reconciliation.matches.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    remaining_balance = max(recon_target - matched_amount, Decimal("0.00"))
+    excess_amount = max(matched_amount - recon_target, Decimal("0.00"))
+    is_over_target = matched_amount > recon_target if recon_target > 0 else False
+
+    if recon_target > 0:
+        recon_pct = round(float(matched_amount) / float(recon_target) * 100, 1)
+    else:
+        recon_pct = 100.0 if matched_amount > 0 else 0.0
+
+    # Build Quick Match suggestions STRICTLY for this PO and its deliveries
+    existing_match_refs = set(m.payment_reference for m in matches)
+    quick_match_suggestions = []
+
+    # 1. Delivery batches for THIS PO only
+    for d in po.deliveries.all().order_by("-delivery_date", "-created_at"):
+        short_id = str(d.delivery_id)[:8].upper()
+
+        # Delivery Sourcing Outlay
+        src_cost = (Decimal(str(d.delivered_mt)) * Decimal(str(po.unit_price))).quantize(Decimal("0.01")) if (po.unit_price and d.delivered_mt) else Decimal("0.00")
+        src_ref = f"CV-DEL-{short_id}-SRC"
+        if src_cost > Decimal("0.00") and src_ref not in existing_match_refs:
+            quick_match_suggestions.append({
+                "type": PaymentExpenseMatch.ExpenseType.SOURCING,
+                "amount": float(src_cost),
+                "ref": src_ref,
+                "label": f"Batch #{short_id} Sourcing",
+                "notes": f"Delivery Batch #{short_id} Sugar Sourcing ({d.delivered_mt:,.3f} MT @ ₱{po.unit_price:,.2f})",
+            })
+
+        # Delivery Land Trucking
+        if d.trucking_cost > Decimal("0.00"):
+            trk_ref = f"CV-DEL-{short_id}-TRK"
+            if trk_ref not in existing_match_refs:
+                quick_match_suggestions.append({
+                    "type": PaymentExpenseMatch.ExpenseType.TRUCKING,
+                    "amount": float(d.trucking_cost),
+                    "ref": trk_ref,
+                    "label": f"Batch #{short_id} Trucking",
+                    "notes": f"Delivery Batch #{short_id} Land Trucking ({d.delivered_mt:,.3f} MT @ ₱{d.trucking_rate_per_mt:,.2f})",
+                })
+
+        # Delivery Marine Barging
+        if d.barge_cost > Decimal("0.00"):
+            brg_ref = f"CV-DEL-{short_id}-BRG"
+            if brg_ref not in existing_match_refs:
+                quick_match_suggestions.append({
+                    "type": PaymentExpenseMatch.ExpenseType.BARGE,
+                    "amount": float(d.barge_cost),
+                    "ref": brg_ref,
+                    "label": f"Batch #{short_id} Barge",
+                    "notes": f"Delivery Batch #{short_id} Marine Barging ({d.delivered_mt:,.3f} MT @ ₱{d.barge_rate_per_mt:,.2f})",
+                })
+
+    # 2. General PO contract allocations (if remaining balance exists)
+    matched_sourcing = reconciliation.matches.filter(expense_type=PaymentExpenseMatch.ExpenseType.SOURCING).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+    contract_sourcing_rem = max(Decimal(str(financials["purchase_total"])) - matched_sourcing, Decimal("0.00"))
+    if contract_sourcing_rem > Decimal("0.00") and not any(s["type"] == PaymentExpenseMatch.ExpenseType.SOURCING for s in quick_match_suggestions):
+        quick_match_suggestions.append({
+            "type": PaymentExpenseMatch.ExpenseType.SOURCING,
+            "amount": float(contract_sourcing_rem),
+            "ref": f"PO-SRC-{po.po_reference_number or cluster.reference_code}",
+            "label": f"PO Sourcing Remainder",
+            "notes": f"Contract Sourcing Balance ({cluster.sugar_mill.name})",
+        })
+
+    if loan_req.get("trucking_down_payment", 0) > 0:
+        matched_trk = reconciliation.matches.filter(expense_type__in=["trucking", "tracking"]).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+        if matched_trk < Decimal(str(loan_req["trucking_down_payment"])):
+            quick_match_suggestions.append({
+                "type": PaymentExpenseMatch.ExpenseType.TRUCKING,
+                "amount": float(loan_req["trucking_down_payment"]),
+                "ref": f"DEP-TRK-{po.po_reference_number or cluster.reference_code}",
+                "label": "50% Trucking Advance",
+                "notes": "50% Advance Trucking Deposit",
+            })
+
+    if loan_req.get("freight_down_payment", 0) > 0:
+        matched_brg = reconciliation.matches.filter(expense_type=PaymentExpenseMatch.ExpenseType.BARGE).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+        if matched_brg < Decimal(str(loan_req["freight_down_payment"])):
+            quick_match_suggestions.append({
+                "type": PaymentExpenseMatch.ExpenseType.BARGE,
+                "amount": float(loan_req["freight_down_payment"]),
+                "ref": f"DEP-BRG-{po.po_reference_number or cluster.reference_code}",
+                "label": "50% Barge Advance",
+                "notes": "50% Advance Marine Barging Deposit",
+            })
+
+    match_form = PaymentExpenseMatchForm()
+    loan_form = StandaloneLoanForm(user=request.user, initial={"cluster": cluster})
+
+    # Annotate loans with timeline data
+    for loan in loans:
+        total_days = max((loan.due_date - loan.start_date).days, 1)
+        elapsed_days = max((timezone.localdate() - loan.start_date).days, 0)
+        loan.timeline_percent = min(max((elapsed_days / total_days) * 100, 8), 100)
+        loan.days_remaining = max((loan.due_date - timezone.localdate()).days, 0)
+        loan.daily_interest = loan.daily_interest_cost
+
+    return render(
+        request,
+        "finance/po_workspace.html",
+        {
+            "cluster": cluster,
+            "focused_cluster": cluster,
+            "po": po,
+            "financials": financials,
+            "loan_req": loan_req,
+            "loans": loans,
+            "reconciliation": reconciliation,
+            "matches": matches,
+            "vouchers": vouchers,
+            "recon_target": recon_target,
+            "matched_amount": matched_amount,
+            "remaining_balance": remaining_balance,
+            "excess_amount": excess_amount,
+            "is_over_target": is_over_target,
+            "recon_pct": recon_pct,
+            "match_form": match_form,
+            "loan_form": loan_form,
+            "quick_match_suggestions": quick_match_suggestions,
+        },
+    )
 
 
 @role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE)
@@ -342,79 +512,26 @@ def loan_list(request):
 
     q = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "all").strip().lower()
-    po_ref = request.GET.get("po", "").strip()
+    po_ref = request.GET.get("po", "").strip() or request.GET.get("focus_po", "").strip()
 
-    focused_cluster = None
-    focused_po = None
-    focused_reconciliation = None
-    focused_financials = None
-    focused_loan_req = None
-    focused_matches = []
-    focused_loans = []
-    focused_vouchers = []
-    focused_recon_target = Decimal("0.00")
-    focused_recon_matched = Decimal("0.00")
-    focused_remaining_balance = Decimal("0.00")
-    focused_recon_pct = 0.0
-    match_form = None
-
+    # If user selected a PO to focus workspace, redirect to the dedicated PO workspace view
     if po_ref:
-        focused_cluster = (
+        target_cluster = (
             TransactionCluster.objects.filter(
                 Q(reference_code__iexact=po_ref) |
                 Q(purchase_order__po_reference_number__iexact=po_ref)
-            )
-            .select_related("client", "sugar_mill", "purchase_order", "logistics")
-            .prefetch_related("loans", "cash_vouchers")
-            .first()
+            ).first()
         )
-        if not focused_cluster and str(po_ref).isdigit():
-            focused_cluster = (
-                TransactionCluster.objects.filter(pk=int(po_ref))
-                .select_related("client", "sugar_mill", "purchase_order", "logistics")
-                .prefetch_related("loans", "cash_vouchers")
-                .first()
-            )
-        if not focused_cluster:
+        if not target_cluster and str(po_ref).isdigit():
+            target_cluster = TransactionCluster.objects.filter(pk=int(po_ref)).first()
+        if not target_cluster:
             try:
                 import uuid
-                focused_cluster = (
-                    TransactionCluster.objects.filter(pk=uuid.UUID(po_ref))
-                    .select_related("client", "sugar_mill", "purchase_order", "logistics")
-                    .prefetch_related("loans", "cash_vouchers")
-                    .first()
-                )
+                target_cluster = TransactionCluster.objects.filter(pk=uuid.UUID(po_ref)).first()
             except (ValueError, TypeError):
                 pass
-
-    if focused_cluster:
-        focused_po = getattr(focused_cluster, "purchase_order", None)
-        if focused_po:
-            for delivery in focused_po.deliveries.all():
-                delivery.sync_delivery_expense_vouchers()
-
-        focused_reconciliation, _ = FinancialReconciliation.objects.get_or_create(cluster=focused_cluster)
-        from operations.services.pricing import cluster_financials, loan_requirement_data
-        focused_financials = cluster_financials(focused_cluster)
-        focused_loan_req = loan_requirement_data(focused_cluster)
-        focused_loans = list(focused_cluster.loans.select_related("verified_by").order_by("-created_at"))
-        focused_matches = list(focused_reconciliation.matches.all().order_by("-matched_at"))
-        focused_vouchers = list(focused_cluster.cash_vouchers.all().order_by("-issued_at"))
-
-        if focused_loans:
-            focused_recon_target = Decimal(str(sum(l.principal for l in focused_loans)))
-        else:
-            focused_recon_target = Decimal(str(focused_financials["purchase_total"]))
-
-        focused_recon_matched = focused_reconciliation.matches.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        focused_remaining_balance = max(focused_recon_target - focused_recon_matched, Decimal("0.00"))
-        if focused_recon_target > 0:
-            focused_recon_pct = round(float(focused_recon_matched) / float(focused_recon_target) * 100, 1)
-        else:
-            focused_recon_pct = 100.0 if focused_recon_matched > 0 else 0.0
-        focused_recon_pct = min(focused_recon_pct, 100.0)
-
-        match_form = PaymentExpenseMatchForm()
+        if target_cluster:
+            return redirect("finance:po_workspace", pk=target_cluster.pk)
 
     # Build PO-Sorted Financial Portfolio List
     all_clusters_qs = (
@@ -431,11 +548,12 @@ def loan_list(request):
         c_po = getattr(c, "purchase_order", None)
         c_po_ref = c_po.po_reference_number if (c_po and c_po.po_reference_number) else c.reference_code
         all_open_pos.append({
+            "cluster": c,
+            "cluster_pk": str(c.pk),
             "po_ref": c_po_ref,
             "cluster_ref": c.reference_code,
             "client_name": c.client.name,
             "mill_name": c.sugar_mill.name,
-            "is_focused": focused_cluster and c.id == focused_cluster.id,
         })
 
         if q:
@@ -457,6 +575,8 @@ def loan_list(request):
         c_matched = c_recon.matched_payment_amount if c_recon else Decimal("0.00")
         c_target = c_principal if c_principal > 0 else (c_po.total_value if c_po else Decimal("0.00"))
         c_pct = round(float(c_matched) / float(c_target) * 100, 1) if c_target > 0 else 0.0
+        c_is_over = c_matched > c_target if c_target > 0 else False
+        c_excess = max(c_matched - c_target, Decimal("0.00")) if c_target > 0 else Decimal("0.00")
 
         if status_filter == "active" and not any(l.status == CapitalLoan.Status.ACTIVE for l in c_loans):
             continue
@@ -480,8 +600,9 @@ def loan_list(request):
             "has_active_loan": c_active,
             "matched_amount": c_matched,
             "target_amount": c_target,
-            "match_pct": min(c_pct, 100.0),
-            "is_focused": focused_cluster and c.id == focused_cluster.id,
+            "match_pct": c_pct,
+            "is_over_target": c_is_over,
+            "excess_amount": c_excess,
         })
 
     loans = list(CapitalLoan.objects.select_related("cluster", "cluster__client", "verified_by").order_by("-created_at"))
@@ -565,10 +686,7 @@ def loan_list(request):
             "voucher_number": v.voucher_number,
         })
 
-    loan_form = bound_loan_form or StandaloneLoanForm(
-        user=request.user,
-        initial={"cluster": focused_cluster} if focused_cluster else None
-    )
+    loan_form = bound_loan_form or StandaloneLoanForm(user=request.user)
 
     return render(
         request,
@@ -585,19 +703,6 @@ def loan_list(request):
             "overdue_facilities": overdue_facilities,
             "loan_form": loan_form,
             "reopen_loan_modal": bound_loan_form is not None,
-            "focused_cluster": focused_cluster,
-            "focused_po": focused_po,
-            "focused_reconciliation": focused_reconciliation,
-            "focused_financials": focused_financials,
-            "focused_loan_req": focused_loan_req,
-            "focused_loans": focused_loans,
-            "focused_matches": focused_matches,
-            "focused_vouchers": focused_vouchers,
-            "focused_recon_target": focused_recon_target,
-            "focused_recon_matched": focused_recon_matched,
-            "focused_remaining_balance": focused_remaining_balance,
-            "focused_recon_pct": focused_recon_pct,
-            "match_form": match_form,
             "po_portfolio": po_portfolio,
             "all_open_pos": all_open_pos,
             "q": q,

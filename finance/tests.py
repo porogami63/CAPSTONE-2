@@ -407,12 +407,19 @@ class POFocusedFinanceWorkspaceTests(TestCase):
 
 	def test_loan_list_focus_by_po_param(self):
 		res = self.client.get(reverse("finance:loan_list") + f"?po={self.cluster.reference_code}")
+		self.assertEqual(res.status_code, 302)
+		self.assertRedirects(res, reverse("finance:po_workspace", args=[self.cluster.pk]))
+
+	def test_po_workspace_dedicated_view(self):
+		res = self.client.get(reverse("finance:po_workspace", args=[self.cluster.pk]))
 		self.assertEqual(res.status_code, 200)
 		self.assertEqual(res.context["focused_cluster"], self.cluster)
 		self.assertContains(res, "Focused PO Workspace")
 		self.assertContains(res, "Capital Financing Requirements")
 		self.assertContains(res, "Expense Outlays &amp; Matchmaking")
 		self.assertContains(res, "PO-SMF-2026")
+		self.assertContains(res, "Return to Loans Portfolio")
+		self.assertContains(res, "View Operations PO")
 
 	def test_po_portfolio_rendered(self):
 		res = self.client.get(reverse("finance:loan_list"))
@@ -422,9 +429,11 @@ class POFocusedFinanceWorkspaceTests(TestCase):
 		self.assertIn("PO-SMF-2026", portfolio_refs)
 		self.assertContains(res, "PO Financial &amp; Expense Matchmaking Portfolio")
 		self.assertContains(res, "PO-SMF-2026")
+		self.assertContains(res, "Focus Workspace")
+		self.assertContains(res, "Operations PO")
 
 	def test_direct_match_and_redirect_next(self):
-		target_next = f"/finance/loans/?po={self.cluster.reference_code}"
+		target_next = reverse("finance:po_workspace", args=[self.cluster.pk])
 		res = self.client.post(
 			reverse("finance:add_match", args=[self.cluster.pk]),
 			{
@@ -438,10 +447,29 @@ class POFocusedFinanceWorkspaceTests(TestCase):
 		self.assertRedirects(res, target_next)
 		self.assertTrue(PaymentExpenseMatch.objects.filter(payment_reference="OR-SMF-001").exists())
 
+	def test_over_target_warning_and_glow_red(self):
+		target_next = reverse("finance:po_workspace", args=[self.cluster.pk])
+		# Total required is 200 * 42000 = 8,400,000. Add match of 9,000,000
+		res = self.client.post(
+			reverse("finance:add_match", args=[self.cluster.pk]),
+			{
+				"payment_reference": "OR-OVER-001",
+				"expense_type": "sourcing",
+				"amount": "9000000.00",
+				"notes": "Over budget outlay test",
+				"next": target_next,
+			},
+			follow=True,
+		)
+		self.assertEqual(res.status_code, 200)
+		self.assertTrue(res.context["is_over_target"])
+		self.assertContains(res, "glow-danger-box")
+		self.assertContains(res, "Reconciliation Target Exceeded!")
+
 	def test_cluster_detail_has_link_and_no_inline_loan_form(self):
 		res = self.client.get(reverse("operations:cluster_detail", args=[self.cluster.pk]))
 		self.assertEqual(res.status_code, 200)
-		self.assertContains(res, f"/finance/loans/?po={self.cluster.reference_code}")
+		self.assertContains(res, reverse("finance:po_workspace", args=[self.cluster.pk]))
 		self.assertNotContains(res, 'id="clusterDetailLoanForm"')
 		self.assertContains(res, "Open Bank Loans &amp; Matching Panel")
 
@@ -507,21 +535,23 @@ class DeliveryExpenseMatchingLinkTests(TestCase):
 		self.assertEqual(src_cv.status, CashVoucher.Status.PENDING)
 		self.assertIn("Sugar Sourcing Outlay", src_cv.purpose)
 
+		# Vouchers are created as PENDING without force-matching to prevent automatic inflation
 		recon = FinancialReconciliation.objects.get(cluster=self.cluster)
-		trk_match = recon.matches.get(payment_reference=trk_ref)
-		self.assertEqual(trk_match.expense_type, PaymentExpenseMatch.ExpenseType.TRUCKING)
-		self.assertEqual(trk_match.amount, Decimal("150000.00"))
+		self.assertFalse(recon.matches.filter(payment_reference=trk_ref).exists())
 
-		brg_match = recon.matches.get(payment_reference=brg_ref)
-		self.assertEqual(brg_match.expense_type, PaymentExpenseMatch.ExpenseType.BARGE)
-		self.assertEqual(brg_match.amount, Decimal("100000.00"))
-
-		src_match = recon.matches.get(payment_reference=src_ref)
-		self.assertEqual(src_match.expense_type, PaymentExpenseMatch.ExpenseType.SOURCING)
-		self.assertEqual(src_match.amount, Decimal("11250000.00"))
-
-		total_expected = Decimal("150000.00") + Decimal("100000.00") + Decimal("11250000.00")
-		self.assertEqual(recon.matched_payment_amount, total_expected)
+		# Performing matching adds the match
+		self.client.post(
+			reverse("finance:add_match", args=[self.cluster.pk]),
+			{
+				"payment_reference": trk_ref,
+				"expense_type": "trucking",
+				"amount": "150000.00",
+				"voucher_number": trk_ref,
+			},
+		)
+		recon.refresh_from_db()
+		self.assertTrue(recon.matches.filter(payment_reference=trk_ref).exists())
+		self.assertEqual(recon.matched_payment_amount, Decimal("150000.00"))
 
 	def test_bank_loan_tab_picks_up_delivery_vouchers(self):
 		from operations.models import DeliveryLedger
@@ -534,14 +564,13 @@ class DeliveryExpenseMatchingLinkTests(TestCase):
 			trucking_rate_per_mt=Decimal("500.00"),
 		)
 
-		res = self.client.get(reverse("finance:loan_list") + f"?po={self.cluster.reference_code}")
+		res = self.client.get(reverse("finance:po_workspace", args=[self.cluster.pk]))
 		self.assertEqual(res.status_code, 200)
 
 		short_id = str(delivery.delivery_id)[:8].upper()
 		self.assertContains(res, f"CV-DEL-{short_id}-SRC")
 		self.assertContains(res, f"CV-DEL-{short_id}-TRK")
-		self.assertContains(res, "From Delivery Batch")
-		self.assertContains(res, "Pending Voucher:")
+		self.assertContains(res, "Quick Match Suggestions")
 
 	def test_cluster_detail_ui_decluttered(self):
 		res = self.client.get(reverse("operations:cluster_detail", args=[self.cluster.pk]))

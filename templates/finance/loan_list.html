@@ -281,10 +281,10 @@
                 </div>
             </div>
             <div class="col-lg-4 col-md-4">
-                <select name="po" class="form-select-htc filter-control" onchange="this.form.submit()">
-                    <option value="">-- All Deals (Select PO to Focus Workspace) --</option>
+                <select name="po" class="form-select-htc filter-control" onchange="if(this.value){ window.location.href=this.value; }">
+                    <option value="">-- All Deals (Select PO to Open Dedicated Workspace) --</option>
                     {% for p in all_open_pos %}
-                    <option value="{{ p.po_ref }}" {% if p.is_focused or po_ref == p.po_ref or po_ref == p.cluster_ref %}selected{% endif %}>
+                    <option value="{% url 'finance:po_workspace' p.cluster.pk %}">
                         {{ p.po_ref }} — {{ p.client_name }} [{{ p.mill_name }}]
                     </option>
                     {% endfor %}
@@ -308,298 +308,7 @@
     </div>
 </div>
 
-{% if focused_cluster %}
-<!-- FOCUSED PO FINANCE WORKSPACE DECK -->
-<div class="card p-4 mb-4 border shadow-sm" style="background: #f8fafc; border-color: #cbd5e1 !important; border-radius: 12px;">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-        <div>
-            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                <span class="badge bg-primary text-white fs-8 text-uppercase fw-bold"><i class="bi bi-crosshair me-1"></i> Focused PO Workspace</span>
-                <span class="badge {% if focused_po.po_status == 'Completed' %}bg-success{% elif focused_po.po_status == 'Partially Fulfilled' %}bg-warning text-dark{% else %}bg-primary{% endif %} fs-8">
-                    {{ focused_po.po_status|default:"In Progress" }}
-                </span>
-                {% if focused_loans %}
-                <span class="badge bg-success-subtle text-success border border-success-subtle fs-8 fw-bold">
-                    <i class="bi bi-shield-check me-1"></i> Financing: Active / Cleared ({{ focused_loan_req.completion_pct }}% Funded)
-                </span>
-                {% else %}
-                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning fs-8 fw-bold">
-                    <i class="bi bi-hourglass-split me-1"></i> Financing: Pending Allocation
-                </span>
-                {% endif %}
-                <span class="badge bg-light text-secondary border fs-8">
-                    Reconciliation: {{ focused_recon_pct }}% Reconciled
-                </span>
-            </div>
-            <h4 class="fw-bold mb-0 text-dark">
-                {{ focused_po.po_reference_number|default:focused_cluster.reference_code }}
-                <span class="fs-6 fw-normal text-muted">— {{ focused_po.customer.name|default:focused_cluster.client.name }}</span>
-            </h4>
-            <div class="text-xs text-muted mt-1">
-                <span class="me-2"><i class="bi bi-building"></i> Sugar Mill: <strong>{{ focused_cluster.sugar_mill.name }}</strong></span>
-                <span class="me-2">·</span>
-                <span class="me-2"><i class="bi bi-box-seam"></i> Contract Volume: <strong>{{ focused_po.volume_mt|default:focused_cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</strong></span>
-                <span class="me-2">·</span>
-                <span><i class="bi bi-cash-stack"></i> Total Purchase Value: <strong>₱{{ focused_financials.purchase_total|default:focused_cluster.purchase_order.total_value|floatformat:2|intcomma }}</strong></span>
-            </div>
-        </div>
-        <div class="d-flex gap-2 flex-wrap align-items-center">
-            <a href="{% url 'operations:cluster_detail' focused_cluster.pk %}" class="btn btn-outline-secondary btn-sm fw-semibold">
-                &larr; Return to PO View
-            </a>
-            {% if user|has_perm:"add_loan" %}
-            <button type="button" class="btn btn-primary btn-sm fw-bold shadow-xs px-3" data-bs-toggle="modal" data-bs-target="#newLoanModal">
-                <i class="bi bi-plus-circle me-1"></i> Issue Bank Loan
-            </button>
-            {% endif %}
-            {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
-            <button type="button" class="btn btn-success btn-sm fw-bold shadow-xs px-3" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
-                <i class="bi bi-wallet2 me-1"></i> Match Expense / Outlay
-            </button>
-            {% endif %}
-            <a href="{% url 'finance:loan_list' %}" class="btn btn-light border btn-sm text-muted">
-                Clear PO Filter
-            </a>
-        </div>
-    </div>
-
-    <!-- Symmetrical Spacious Metric Cards -->
-    <div class="row g-3 mb-4">
-        <!-- Card 1: Capital Requirements & Bank Financing -->
-        <div class="col-lg-6">
-            <div class="p-3.5 rounded-3 bg-white border h-100 shadow-xs" style="border-left: 4px solid #2563eb !important;">
-                <div class="d-flex justify-content-between align-items-center mb-2.5">
-                    <span class="fs-8 text-uppercase fw-bold text-muted"><i class="bi bi-bank text-primary me-1"></i> Capital Financing Requirements</span>
-                    <span class="badge {% if focused_loan_req.completion_pct >= 100 %}bg-success-subtle text-success border border-success{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} fs-8">
-                        {{ focused_loan_req.completion_pct }}% Funded
-                    </span>
-                </div>
-                <div class="row g-2 text-center text-sm-start">
-                    <div class="col-4">
-                        <div class="fs-8 text-muted text-uppercase fw-bold">Sourcing (100%)</div>
-                        <div class="fs-6 fw-bold text-dark mt-1">₱{{ focused_loan_req.sourcing|floatformat:2|intcomma }}</div>
-                    </div>
-                    <div class="col-4 border-start ps-3">
-                        <div class="fs-8 text-muted text-uppercase fw-bold">Freight (50%)</div>
-                        <div class="fs-6 fw-bold text-dark mt-1">₱{{ focused_loan_req.logistics_down_payment|floatformat:2|intcomma }}</div>
-                    </div>
-                    <div class="col-4 border-start ps-3">
-                        <div class="fs-8 text-muted text-uppercase fw-bold">Total Min Required</div>
-                        <div class="fs-6 fw-bold text-danger mt-1">₱{{ focused_loan_req.required|floatformat:2|intcomma }}</div>
-                    </div>
-                </div>
-                <div class="progress mt-3" style="height: 6px;">
-                    <div class="progress-bar {% if focused_loan_req.completion_pct >= 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ focused_loan_req.completion_pct }}%;"></div>
-                </div>
-                <div class="fs-8 text-muted mt-2.5 pt-1.5 border-top d-flex justify-content-between align-items-center">
-                    <span>Funded Principal: <strong class="text-success">₱{{ focused_loan_req.already_loaned|floatformat:2|intcomma }}</strong></span>
-                    <span>Remaining Balance: <strong class="text-primary">₱{{ focused_loan_req.remaining_required|floatformat:2|intcomma }}</strong></span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Card 2: Expense Matchmaking & Outlay Reconciliation -->
-        <div class="col-lg-6">
-            <div class="p-3.5 rounded-3 bg-white border h-100 shadow-xs" style="border-left: 4px solid #10b981 !important;">
-                <div class="d-flex justify-content-between align-items-center mb-2.5">
-                    <span class="fs-8 text-uppercase fw-bold text-muted"><i class="bi bi-wallet-fill text-success me-1"></i> Expense Outlays &amp; Matchmaking</span>
-                    <span class="badge {% if focused_recon_pct >= 100 %}bg-success-subtle text-success border border-success{% elif focused_recon_pct > 0 %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8">
-                        {{ focused_recon_pct }}% Reconciled
-                    </span>
-                </div>
-                <div class="row g-2 text-center text-sm-start">
-                    <div class="col-4">
-                        <div class="fs-8 text-muted text-uppercase fw-bold">Recon Target</div>
-                        <div class="fs-6 fw-bold text-dark mt-1">₱{{ focused_recon_target|floatformat:2|intcomma }}</div>
-                    </div>
-                    <div class="col-4 border-start ps-3">
-                        <div class="fs-8 text-muted text-uppercase fw-bold">Matched Outlays</div>
-                        <div class="fs-6 fw-bold text-success mt-1">₱{{ focused_recon_matched|floatformat:2|intcomma }}</div>
-                    </div>
-                    <div class="col-4 border-start ps-3">
-                        <div class="fs-8 text-muted text-uppercase fw-bold">Remaining Outlay</div>
-                        <div class="fs-6 fw-bold text-primary mt-1">₱{{ focused_remaining_balance|floatformat:2|intcomma }}</div>
-                    </div>
-                </div>
-                <div class="progress mt-3" style="height: 6px;">
-                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ focused_recon_pct }}%;"></div>
-                </div>
-                <div class="fs-8 text-muted mt-2.5 pt-1.5 border-top d-flex justify-content-between align-items-center">
-                    <span>{{ focused_matches|length }} matches recorded ({{ focused_vouchers|length }} cash vouchers)</span>
-                    <a href="{% url 'finance:reconciliation' focused_cluster.pk %}" class="fw-bold text-primary text-decoration-none">
-                        Open Full 3-Step Guided Reconciler &rarr;
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Workspace Subpanels for Focused PO -->
-    <div class="row g-3">
-        <!-- Panel 1: Bank Loans Linked to this PO -->
-        <div class="col-lg-6">
-            <div class="panel border bg-white h-100 shadow-xs rounded-3 overflow-hidden">
-                <div class="panel-header d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
-                    <span class="fw-bold text-dark fs-7 d-flex align-items-center gap-1.5">
-                        <i class="bi bi-bank text-primary"></i> Bank Loan Facilities ({{ focused_loans|length }})
-                    </span>
-                    {% if user|has_perm:"add_loan" %}
-                    <button type="button" class="btn btn-outline-primary btn-sm py-1 px-2.5 fs-8 fw-bold" data-bs-toggle="modal" data-bs-target="#newLoanModal">
-                        <i class="bi bi-plus-lg me-1"></i> Add Bank Loan
-                    </button>
-                    {% endif %}
-                </div>
-                <div class="panel-body p-3">
-                    {% if focused_loans %}
-                    <div class="d-flex flex-column gap-2.5">
-                        {% for loan in focused_loans %}
-                        <div class="p-3 rounded-2 border bg-light">
-                            <div class="d-flex justify-content-between align-items-center mb-1.5">
-                                <strong class="text-dark fs-7">{{ loan.bank_name }}</strong>
-                                <span class="badge-status {{ loan.status }}">{{ loan.get_status_display }}</span>
-                            </div>
-                            <div class="row g-2 fs-8 mb-2">
-                                <div class="col-6">Principal: <strong class="text-dark">₱{{ loan.principal|floatformat:2|intcomma }}</strong></div>
-                                <div class="col-6">Rate: <strong>{{ loan.interest_rate_annual }}% p.a.</strong></div>
-                                <div class="col-6 text-muted">Maturity: {{ loan.due_date|date:"M d, Y" }} ({{ loan.days_remaining }}d left)</div>
-                                <div class="col-6">Daily Interest: <strong class="text-danger">₱{{ loan.daily_interest|default:loan.daily_interest_cost|floatformat:2|intcomma }}/day</strong></div>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center pt-2 border-top fs-8">
-                                <span class="text-danger fw-bold">Incurred to Date: ₱{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
-                                {% if user|has_perm:"reconcile_payments" and loan.status != "closed" %}
-                                <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 fs-8 fw-semibold" data-bs-toggle="modal" data-bs-target="#settleLoanModal{{ loan.pk }}">
-                                    <i class="bi bi-shield-check me-1"></i> Settle Facility
-                                </button>
-                                {% elif loan.status == "closed" %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle fs-8">Settled &amp; Closed</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="text-center py-4 text-muted">
-                        <i class="bi bi-bank fs-2 text-secondary mb-2 d-block"></i>
-                        <div class="fw-bold fs-7 text-dark mb-1">No Bank Loan Recorded</div>
-                        <div class="text-xs mb-3">This PO has no loan facility recorded yet. Minimum capital required is ₱{{ focused_loan_req.required|floatformat:2|intcomma }}.</div>
-                        {% if user|has_perm:"add_loan" %}
-                        <button type="button" class="btn btn-primary btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#newLoanModal">
-                            <i class="bi bi-plus-circle me-1"></i> Issue Bank Loan for this PO
-                        </button>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Panel 2: Direct Expense Matchmaking & Cash Vouchers -->
-        <div class="col-lg-6">
-            <div class="panel border bg-white h-100 shadow-xs rounded-3 overflow-hidden">
-                <div class="panel-header d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
-                    <span class="fw-bold text-dark fs-7 d-flex align-items-center gap-1.5">
-                        <i class="bi bi-wallet2 text-success"></i> Matched Outlays &amp; Cash Vouchers ({{ focused_matches|length }})
-                    </span>
-                    {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
-                    <button type="button" class="btn btn-outline-success btn-sm py-1 px-2.5 fs-8 fw-bold" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
-                        <i class="bi bi-plus-lg me-1"></i> Match Expense / Outlay
-                    </button>
-                    {% endif %}
-                </div>
-                <div class="panel-body p-3">
-                    <!-- Quick Match Suggestions -->
-                    <div class="mb-2.5 d-flex gap-1.5 flex-wrap">
-                        <span class="text-xs text-muted align-self-center me-1">Quick Match:</span>
-                        {% if focused_financials.purchase_total > 0 %}
-                        <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2 fs-8" onclick="quickFillMatch('sourcing', '{{ focused_financials.purchase_total }}', 'Supplier Purchase Cost — {{ focused_cluster.sugar_mill.name }}')">
-                            Sourcing (₱{{ focused_financials.purchase_total|floatformat:0|intcomma }})
-                        </button>
-                        {% endif %}
-                        {% if focused_loan_req.trucking_down_payment > 0 %}
-                        <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2 fs-8" onclick="quickFillMatch('trucking', '{{ focused_loan_req.trucking_down_payment }}', '50% Trucking Advance Downpayment')">
-                            Trucking (₱{{ focused_loan_req.trucking_down_payment|floatformat:0|intcomma }})
-                        </button>
-                        {% endif %}
-                        {% if focused_loan_req.freight_down_payment > 0 %}
-                        <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2 fs-8" onclick="quickFillMatch('barge', '{{ focused_loan_req.freight_down_payment }}', '50% Marine Barging Advance Downpayment')">
-                            Barge (₱{{ focused_loan_req.freight_down_payment|floatformat:0|intcomma }})
-                        </button>
-                        {% endif %}
-                        {% if focused_loan_req.logistics_down_payment > 0 %}
-                        <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2 fs-8" onclick="quickFillMatch('logistics_deposit', '{{ focused_loan_req.logistics_down_payment }}', '50% Delivery Advance Deposit')">
-                            Freight Deposit (₱{{ focused_loan_req.logistics_down_payment|floatformat:0|intcomma }})
-                        </button>
-                        {% endif %}
-                    </div>
-
-                    {% if focused_matches %}
-                    <div class="table-responsive border rounded" style="max-height: 280px; overflow-y: auto;">
-                        <table class="table table-sm align-middle mb-0 fs-8">
-                            <thead class="table-light sticky-top">
-                                <tr>
-                                    <th>Ref #</th>
-                                    <th>Category</th>
-                                    <th class="text-end">Amount (₱)</th>
-                                    <th>Cash Voucher #</th>
-                                    <th class="text-end">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for match in focused_matches %}
-                                <tr>
-                                    <td>
-                                        <strong class="font-monospace text-dark">{{ match.payment_reference }}</strong>
-                                        {% if "CV-DEL-" in match.payment_reference %}
-                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 d-block mt-0.5" style="width: fit-content;">
-                                            <i class="bi bi-truck me-1"></i>From Delivery Batch
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-light text-dark border">{{ match.get_expense_type_display }}</span>
-                                    </td>
-                                    <td class="text-end fw-bold text-success font-monospace">₱{{ match.amount|floatformat:2|intcomma }}</td>
-                                    <td>
-                                        {% if "CV-DEL-" in match.payment_reference %}
-                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning font-monospace fs-8">
-                                                <i class="bi bi-clock-history me-1"></i>Pending Voucher: {{ match.payment_reference }}
-                                            </span>
-                                        {% else %}
-                                            <span class="text-muted font-monospace fs-8">CV-M{{ match.pk }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end">
-                                        {% if user|has_perm:"delete_match" or user|has_perm:"reconcile_payments" %}
-                                        <form method="post" action="{% url 'finance:delete_match' focused_cluster.pk match.pk %}" class="d-inline m-0" onsubmit="return confirm('Delete match {{ match.payment_reference }} (₱{{ match.amount|floatformat:2|intcomma }})?');">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                            <button type="submit" class="btn btn-link text-danger p-0 fs-8" title="Remove Match"><i class="bi bi-trash"></i></button>
-                                        </form>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-4 text-muted">
-                        <i class="bi bi-wallet2 fs-2 text-secondary mb-2 d-block"></i>
-                        <div class="fw-bold fs-7 text-dark mb-1">No Payment Matches Yet</div>
-                        <div class="text-xs mb-3">Match receipts and payment disbursements to supplier and delivery expenses to automatically issue Cash Vouchers.</div>
-                        {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
-                        <button type="button" class="btn btn-success btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
-                            <i class="bi bi-plus-circle me-1"></i> Match Outlay Expense Now
-                        </button>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
+<!-- TOP KPI CARDS -->
 
 <!-- TOP KPI CARDS -->
 <div class="metric-grid" data-step="1" data-intro="Financial KPI summary showing total Active Loans, real-time Incurred Interest liabilities, 50% Delivery Deposits, and Overdue Loans.">
@@ -880,23 +589,34 @@
                         </td>
                         <td style="min-width: 220px;">
                             <div class="d-flex justify-content-between align-items-center fs-8 mb-1">
-                                <span class="text-muted">Matched: <strong class="text-dark font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma }}</strong></span>
+                                <span class="text-muted">Matched: <strong class="{% if item.is_over_target %}text-danger{% else %}text-dark{% endif %} font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma }}</strong></span>
+                                {% if item.is_over_target %}
+                                <span class="badge bg-danger text-white border border-danger fs-8 fw-bold">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Exceeds Target ({{ item.match_pct }}%)
+                                </span>
+                                {% else %}
                                 <span class="badge {% if item.match_pct >= 100 %}bg-success-subtle text-success border border-success{% elif item.match_pct > 0 %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8">
                                     {{ item.match_pct }}%
                                 </span>
+                                {% endif %}
                             </div>
                             <div class="progress" style="height: 6px;">
-                                <div class="progress-bar {% if item.match_pct >= 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ item.match_pct }}%;"></div>
+                                <div class="progress-bar {% if item.is_over_target %}bg-danger{% elif item.match_pct >= 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {% if item.match_pct > 100 %}100{% else %}{{ item.match_pct }}{% endif %}%;"></div>
                             </div>
-                            <div class="text-xs text-muted mt-1">Target: ₱{{ item.target_amount|floatformat:2|intcomma }}</div>
+                            <div class="d-flex justify-content-between align-items-center text-xs text-muted mt-1">
+                                <span>Target: ₱{{ item.target_amount|floatformat:2|intcomma }}</span>
+                                {% if item.is_over_target %}
+                                <span class="text-danger fw-bold font-monospace">+₱{{ item.excess_amount|floatformat:2|intcomma }} Over</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td class="text-end">
-                            <div class="d-inline-flex gap-1.5 align-items-center">
-                                <a href="?po={{ item.po_ref }}" class="btn btn-sm btn-primary fw-bold py-1 px-2.5 fs-8 shadow-xs" title="Open Focused Workspace">
-                                    <i class="bi bi-box-arrow-in-right me-1"></i> Focus Workspace
+                            <div class="d-flex gap-2 align-items-center justify-content-end">
+                                <a href="{% url 'finance:po_workspace' item.cluster.pk %}" class="btn btn-sm btn-primary fw-bold py-1 px-2.5 fs-8 shadow-xs text-nowrap" title="Open Dedicated PO Finance Workspace">
+                                    <i class="bi bi-kanban me-1"></i> Focus Workspace
                                 </a>
-                                <a href="{% url 'operations:cluster_detail' item.cluster.pk %}" class="btn btn-sm btn-outline-secondary py-1 px-2 fs-8" title="View Purchase Order">
-                                    <i class="bi bi-eye"></i>
+                                <a href="{% url 'operations:cluster_detail' item.cluster.pk %}" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8 text-nowrap" title="View Full Purchase Order in Operations" target="_blank">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i> Operations PO
                                 </a>
                             </div>
                         </td>
