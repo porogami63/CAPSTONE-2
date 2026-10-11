@@ -104,7 +104,27 @@ class LoanVerificationTests(TestCase):
 		)
 		self.assertEqual(loan.status, CapitalLoan.Status.PENDING_CREATION)
 
-	def test_ops_manager_approves_loan_creation(self):
+	def test_admin_approves_loan_creation(self):
+		loan = CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="Security Bank",
+			principal=1000000,
+			interest_rate_annual=10,
+			start_date=date.today(),
+			due_date=date.today() + timedelta(days=60),
+		)
+		self.client.login(username="admin_user", password="password123")
+		response = self.client.post(
+			reverse("finance:verify_loan_creation", kwargs={"pk": loan.pk}),
+			{"action": "approve", "verification_notes": "Contract verified, approval granted."},
+		)
+		self.assertRedirects(response, reverse("finance:loan_list"))
+		loan.refresh_from_db()
+		self.assertEqual(loan.status, CapitalLoan.Status.ACTIVE)
+		self.assertEqual(loan.verified_by, self.admin_user)
+		self.assertEqual(loan.verification_notes, "Contract verified, approval granted.")
+
+	def test_ops_manager_cannot_verify_loan_creation(self):
 		loan = CapitalLoan.objects.create(
 			cluster=self.cluster,
 			bank_name="Security Bank",
@@ -116,13 +136,21 @@ class LoanVerificationTests(TestCase):
 		self.client.login(username="ops_manager", password="password123")
 		response = self.client.post(
 			reverse("finance:verify_loan_creation", kwargs={"pk": loan.pk}),
-			{"action": "approve", "verification_notes": "Contract verified, approval granted."},
+			{"action": "approve"},
 		)
-		self.assertRedirects(response, reverse("finance:loan_list"))
+		self.assertEqual(response.status_code, 403)
 		loan.refresh_from_db()
-		self.assertEqual(loan.status, CapitalLoan.Status.ACTIVE)
-		self.assertEqual(loan.verified_by, self.ops_manager)
-		self.assertEqual(loan.verification_notes, "Contract verified, approval granted.")
+		self.assertEqual(loan.status, CapitalLoan.Status.PENDING_CREATION)
+
+	def test_ops_manager_cannot_access_finance_loan_list(self):
+		self.client.login(username="ops_manager", password="password123")
+		response = self.client.get(reverse("finance:loan_list"))
+		self.assertEqual(response.status_code, 403)
+
+	def test_ops_manager_cannot_access_reconciliation(self):
+		self.client.login(username="ops_manager", password="password123")
+		response = self.client.get(reverse("finance:reconciliation", kwargs={"pk": self.cluster.pk}))
+		self.assertEqual(response.status_code, 403)
 
 	def test_finance_submits_loan_settlement(self):
 		loan = CapitalLoan.objects.create(

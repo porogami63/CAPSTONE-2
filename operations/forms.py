@@ -262,17 +262,8 @@ class LogisticsUpdateForm(forms.ModelForm):
         tracking_fees = cleaned_data.get("tracking_fees")
         barge_fees = cleaned_data.get("barge_fees")
 
-        # 1. Check for Active Capital Loan Prerequisite
-        cluster = self.instance.cluster if self.instance else None
-        if cluster:
-            has_active_loan = cluster.loans.filter(status__in=["active", "pending_settlement", "closed"]).exists()
-            if not has_active_loan and (
-                (loaded_vol is not None and loaded_vol > 0) or 
-                (received_vol is not None and received_vol > 0)
-            ):
-                raise forms.ValidationError(
-                    "A Capital Loan must be fulfilled (Active/Settled) for this transaction before logistics (loading/receiving) can commence."
-                )
+        # Operations is not gated by financing status to reduce friction.
+        # Soft indicator is presented on cluster overview.
 
         if loaded_vol is not None and loaded_vol <= 0:
             self.add_error("loaded_volume_mt", "Loaded volume must be a positive number greater than 0 MT.")
@@ -535,14 +526,8 @@ class MolassesReleaseOrderForm(forms.ModelForm):
             )
             cleaned_data["sugar_mill"] = mill_obj
 
-        cluster = cleaned_data.get("cluster")
-        if cluster:
-            has_active_loan = cluster.loans.filter(status__in=["active", "pending_settlement", "closed"]).exists()
-            if not has_active_loan:
-                self.add_error(
-                    "cluster",
-                    "Cannot link to this contract: A Capital Loan must be fulfilled (Active/Settled) before MROs can be assigned."
-                )
+        # Operations is not gated by financing status to reduce friction.
+        # Soft indicator is presented on cluster overview.
 
         if not planter and not planter_name:
             raise forms.ValidationError("Please select an existing planter or enter a new planter name.")

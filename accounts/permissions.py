@@ -23,7 +23,10 @@ CORE_NAV_ITEMS = [
 # Navigation items each role can see
 NAV_ITEMS = {
     Role.ADMINISTRATOR: CORE_NAV_ITEMS,
-    Role.OPERATIONS_MANAGEMENT: [i for i in CORE_NAV_ITEMS if i[0] != "accounts:user_list"],
+    Role.OPERATIONS_MANAGEMENT: [
+        i for i in CORE_NAV_ITEMS 
+        if i[0] not in ("accounts:user_list", "finance:loan_list", "finance:invoice_list")
+    ],
     Role.FINANCE: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "finance:loan_list", "dashboard:analytics", "dashboard:documents", "chat:room")],
     Role.INVOICING: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "dashboard:documents", "chat:room")],
 }
@@ -31,6 +34,7 @@ NAV_ITEMS = {
 ALL_ROLES = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.FINANCE, Role.INVOICING}
 EXEC_ROLES = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT}
 MGMT_FINANCE = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.FINANCE}
+FINANCE_ADMIN = {Role.ADMINISTRATOR, Role.FINANCE}
 MGMT_INVOICING = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.INVOICING, Role.FINANCE}
 
 # Fine-grained permissions
@@ -46,14 +50,16 @@ PERMISSIONS = {
     "view_chai": ALL_ROLES,
     "manage_chai": MGMT_FINANCE,
     "add_invoice": MGMT_INVOICING,
-    "add_voucher": MGMT_FINANCE,
-    "add_loan": MGMT_FINANCE,
-    "view_loans": MGMT_FINANCE,
-    "verify_loan": EXEC_ROLES,
-    "reconcile_payments": MGMT_FINANCE,
+    "add_voucher": FINANCE_ADMIN,
+    "add_loan": FINANCE_ADMIN,
+    "view_loans": FINANCE_ADMIN,
+    "verify_loan": {Role.ADMINISTRATOR},
+    "reconcile_payments": FINANCE_ADMIN,
+    "add_match": FINANCE_ADMIN,
+    "view_reconciliation": FINANCE_ADMIN,
     "view_audit": EXEC_ROLES,
     "view_masters": ALL_ROLES,
-    "view_financial_summary": MGMT_FINANCE,
+    "view_financial_summary": FINANCE_ADMIN,
     "view_operational_alerts": ALL_ROLES,
     "import_excel": EXEC_ROLES,
     "clear_database": {Role.ADMINISTRATOR},

@@ -17,13 +17,7 @@ from .forms import PaymentExpenseMatchForm, StandaloneInvoiceForm, StandaloneLoa
 from .models import CapitalLoan, CashVoucher, FinancialReconciliation, Invoice, PaymentExpenseMatch
 
 
-@role_required(
-    User.Role.ADMINISTRATOR,
-    User.Role.OPERATIONS_MANAGEMENT,
-    User.Role.FINANCE,
-    User.Role.INVOICING,
-    User.Role.OPERATIONS,
-)
+@role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE)
 def reconciliation_detail(request, pk):
     cluster = get_object_or_404(
         TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics"),
@@ -170,13 +164,7 @@ def reconciliation_detail(request, pk):
     )
 
 
-@role_required(
-    User.Role.ADMINISTRATOR,
-    User.Role.OPERATIONS_MANAGEMENT,
-    User.Role.FINANCE,
-    User.Role.INVOICING,
-    User.Role.OPERATIONS,
-)
+@role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE)
 def add_match(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     reconciliation, _ = FinancialReconciliation.objects.get_or_create(cluster=cluster)
@@ -229,7 +217,7 @@ def add_match(request, pk):
     return redirect("finance:reconciliation", pk=pk)
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+@role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE)
 def delete_match(request, cluster_pk, match_pk):
     cluster = get_object_or_404(TransactionCluster, pk=cluster_pk)
     reconciliation = get_object_or_404(FinancialReconciliation, cluster=cluster)
@@ -263,7 +251,7 @@ def delete_match(request, cluster_pk, match_pk):
     return redirect("finance:reconciliation", pk=cluster_pk)
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE)
+@role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE)
 def loan_requirement(request, pk):
     """JSON: minimum principal for a cluster = 50% (Trucking + Freight) + 100% Sourcing."""
     from django.http import JsonResponse
@@ -279,7 +267,7 @@ def loan_requirement(request, pk):
     return JsonResponse(payload)
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE)
+@role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE)
 def loan_list(request):
     bound_loan_form = None
     if request.method == "POST":
@@ -501,7 +489,7 @@ def settle_loan(request, pk):
     return redirect("finance:loan_list")
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+@role_required(User.Role.ADMINISTRATOR)
 def verify_loan_creation(request, pk):
     loan = get_object_or_404(CapitalLoan, pk=pk)
     if request.method == "POST":
@@ -540,7 +528,7 @@ def verify_loan_creation(request, pk):
     return redirect("finance:loan_list")
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+@role_required(User.Role.ADMINISTRATOR)
 def verify_loan_settlement(request, pk):
     loan = get_object_or_404(CapitalLoan, pk=pk)
     if request.method == "POST":

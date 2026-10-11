@@ -543,7 +543,7 @@
     {% endif %}
 
     <!-- Card 4: Pending Action / Verification Queue -->
-    <a href="{% url 'finance:loan_list' %}" class="status-card {% if overdue_loans > 0 %}stripe-alert{% else %}stripe-neutral{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="View Verification & Pending Action Items">
+    <a href="{% if user_role == 'operations_management' or is_operations %}{% url 'operations:pending_tasks' %}{% else %}{% url 'finance:loan_list' %}{% endif %}" class="status-card {% if overdue_loans > 0 and not is_operations %}stripe-alert{% else %}stripe-neutral{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="View Verification &amp; Pending Action Items">
         <div class="status-card-header">
             <i class="bi bi-clock-history {% if overdue_loans > 0 %}text-danger{% else %}text-muted{% endif %}"></i>
         </div>

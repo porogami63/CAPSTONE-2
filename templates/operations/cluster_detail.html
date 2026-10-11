@@ -269,9 +269,29 @@
         <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
             <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 0.9rem 1.25rem; font-weight: 700; font-size: 0.95rem; color: var(--htc-primary-light); display: flex; align-items: center; justify-content: space-between;">
                 <span class="d-flex align-items-center gap-2"><i class="bi bi-file-earmark-text-fill"></i> Order Details, Costs &amp; Pricing</span>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.72rem;">{{ cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</span>
+                <div class="d-flex align-items-center gap-2">
+                    {% if has_active_loan %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.72rem;">
+                        <i class="bi bi-shield-check me-1"></i> Financing: Cleared
+                    </span>
+                    {% else %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style="font-size: 0.72rem;" data-bs-toggle="tooltip" title="Finance Department has not cleared an active bank loan for this deal yet. Operations, deliveries, and MRO releases may proceed normally without restriction.">
+                        <i class="bi bi-hourglass-split me-1"></i> Financing: Pending Clearance
+                    </span>
+                    {% endif %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.72rem;">{{ cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</span>
+                </div>
             </div>
             <div class="panel-body p-3">
+                {% if not has_active_loan %}
+                <div class="alert alert-warning py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-xs" style="border-radius: 8px;">
+                    <span>
+                        <i class="bi bi-info-circle-fill text-warning me-1"></i>
+                        <strong>Finance Notice:</strong> Bank loan facility has not yet been cleared by Finance for this deal. Operations, delivery batches, and MRO releases can proceed normally without restriction.
+                    </span>
+                    <span class="badge bg-warning text-dark">Soft Notice</span>
+                </div>
+                {% endif %}
                 <div class="row g-3">
                     <div class="col-md-6 border-end" style="border-color: var(--htc-border) !important;">
                         <div class="text-xs text-muted fw-bold text-uppercase mb-2"><i class="bi bi-building me-1"></i> Purchase from Supplier (Cost)</div>

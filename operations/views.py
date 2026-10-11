@@ -766,6 +766,8 @@ def cluster_detail(request, pk):
     wf = cluster.get_workflow_steps_info()
     is_concluded = wf["step5"]["complete"]
 
+    has_active_loan = cluster.loans.filter(status__in=["active", "pending_settlement", "closed"]).exists()
+
     return render(
         request,
         "operations/cluster_detail.html",
@@ -789,6 +791,7 @@ def cluster_detail(request, pk):
             "total_mro_tons": total_mro_tons,
             "wf": wf,
             "is_concluded": is_concluded,
+            "has_active_loan": has_active_loan,
         },
     )
 
@@ -1931,8 +1934,8 @@ def pending_tasks_view(request):
     unpaid_invoices = Invoice.objects.filter(status__in=[Invoice.Status.ISSUED, Invoice.Status.DRAFT], is_archived=False).select_related("cluster", "cluster__client").order_by("-issued_at")
     open_loans = CapitalLoan.objects.filter(status__in=[CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.PENDING_SETTLEMENT, CapitalLoan.Status.ACTIVE, CapitalLoan.Status.OVERDUE]).select_related("cluster", "cluster__client").order_by("-created_at")
 
-    # Scope querysets per role if not Admin / Operations Manager
-    if not is_admin_or_mgr:
+    # Scope querysets per role (Loans are strictly isolated to Finance and Admin)
+    if not (user.is_superuser or role == User.Role.ADMINISTRATOR):
         if role == User.Role.FINANCE:
             unlinked_mros = MolassesReleaseOrder.objects.none()
             disputed_logistics = LogisticsLedger.objects.none()
@@ -1942,7 +1945,7 @@ def pending_tasks_view(request):
             disputed_logistics = LogisticsLedger.objects.none()
             offspec_chai = CHAIRecord.objects.none()
             open_loans = CapitalLoan.objects.none()
-        elif role == User.Role.OPERATIONS:
+        elif role in (User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGEMENT):
             unbilled_clusters = TransactionCluster.objects.none()
             unpaid_invoices = Invoice.objects.none()
             open_loans = CapitalLoan.objects.none()
