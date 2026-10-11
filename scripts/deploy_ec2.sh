@@ -17,6 +17,7 @@ docker compose build --no-cache
 
 echo "[3/5] Starting Docker Compose stack..."
 docker compose up -d
+docker compose restart nginx
 
 echo "[4/5] Executing database migrations..."
 docker compose exec -T web python manage.py migrate --noinput
