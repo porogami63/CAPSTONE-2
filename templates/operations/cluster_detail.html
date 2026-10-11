@@ -891,10 +891,10 @@
         <!-- Bank Loans & Finance Status (Spacious & Clean) -->
         {% if user|has_perm:"add_loan" or user|has_perm:"view_loans" or user|has_perm:"view_cluster" %}
         <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-            <div class="panel-body p-3.5 d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="panel-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle p-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; flex-shrink: 0;">
-                        <i class="bi bi-bank2 fs-5"></i>
+                    <div class="rounded p-2 bg-light text-secondary border d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; flex-shrink: 0; font-size: 0.85rem; font-weight: 700;">
+                        ₱
                     </div>
                     <div>
                         <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
@@ -923,8 +923,8 @@
                     </div>
                 </div>
                 <div>
-                    <a href="{% url 'finance:loan_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}" class="btn btn-primary btn-sm fw-semibold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-1.5">
-                        <i class="bi bi-box-arrow-up-right"></i> Open Bank Loans &amp; Matching Panel &rarr;
+                    <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-primary btn-sm fw-semibold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-1.5">
+                        Open Bank Loans &amp; Matching Panel &rarr;
                     </a>
                 </div>
             </div>
@@ -935,7 +935,7 @@
 
 <!-- Collapsible Comprehensive Audit Log (Simple History) -->
 <div class="panel mt-4 mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-    <div class="panel-header d-flex justify-content-between align-items-center py-3 px-4" 
+    <div class="panel-header d-flex justify-content-between align-items-center py-3.5 px-4" 
          role="button" 
          data-bs-toggle="collapse" 
          data-bs-target="#auditLogCollapse" 
@@ -943,7 +943,6 @@
          aria-controls="auditLogCollapse"
          style="cursor: pointer; user-select: none; background: var(--htc-surface); border-bottom: 1px solid var(--htc-border);">
         <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-clock-history text-primary fs-6"></i>
             <span class="fw-bold text-dark" style="font-size: 0.95rem;">Comprehensive Audit Log (Simple History)</span>
             <span class="badge bg-secondary-subtle text-secondary border fs-8 ms-1">{{ audit_events|length }} Events</span>
         </div>

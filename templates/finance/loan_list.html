@@ -263,11 +263,11 @@
     <div>
         {% if user|has_perm:"add_loan" %}
         <button type="button" class="btn btn-primary btn-sm rounded-pill font-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#newLoanModal">
-            <i class="bi bi-plus-circle me-1"></i> Add Bank Loan
+            + Add Bank Loan
         </button>
         {% endif %}
     </div>
-    <span class="clocks-badge"><i class="bi bi-clock-history"></i> Daily Aging Clocks Active</span>
+    <span class="clocks-badge">Aging Clocks Active</span>
 </div>
 
 <!-- PO FILTER & WORKSPACE TOOLBAR -->
@@ -542,19 +542,19 @@
             <table class="table table-hover align-middle mb-0 table-portfolio" style="font-size: 0.85rem;">
                 <thead class="table-light">
                     <tr>
-                        <th>PO # &amp; Reference</th>
-                        <th>Buyer (Customer) &amp; Mill</th>
-                        <th>Contract Volume &amp; Value</th>
-                        <th>Bank Loan Facility</th>
-                        <th>Expense Matchmaking Progress</th>
-                        <th class="text-end">Actions</th>
+                        <th class="py-3.5 ps-4 pe-3">PO # &amp; Reference</th>
+                        <th class="py-3.5 px-3">Buyer &amp; Mill</th>
+                        <th class="py-3.5 px-3">Volume &amp; Value</th>
+                        <th class="py-3.5 px-3">Bank Loan Facility</th>
+                        <th class="py-3.5 px-3">Expense Matching</th>
+                        <th class="text-end py-3.5 ps-3 pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in po_portfolio %}
                     <tr class="{% if item.is_focused %}table-primary-subtle{% endif %}">
-                        <td>
-                            <a href="?po={{ item.po_ref }}" class="fw-bold text-primary text-decoration-none fs-7">
+                        <td class="py-3.5 ps-4 pe-3">
+                            <a href="{% url 'finance:po_workspace' item.cluster.pk %}" class="fw-bold text-primary text-decoration-none fs-7">
                                 {{ item.po_ref }}
                             </a>
                             {% if item.cluster.reference_code != item.po_ref %}
@@ -562,16 +562,16 @@
                             {% endif %}
                             <div class="text-xs text-muted mt-0.5">{{ item.cluster.created_at|date:"M d, Y H:i:s" }} PST</div>
                         </td>
-                        <td>
+                        <td class="py-3.5 px-3">
                             <strong class="text-dark">{{ item.client_name }}</strong>
-                            <div class="text-xs text-muted"><i class="bi bi-building me-1"></i>{{ item.mill_name }}</div>
+                            <div class="text-xs text-muted">{{ item.mill_name }}</div>
                         </td>
-                        <td>
+                        <td class="py-3.5 px-3">
                             <div class="fw-bold text-dark">{{ item.volume_mt|floatformat:3|intcomma }} <span class="fs-8 fw-normal text-muted">MT</span></div>
                             <div class="text-xs text-muted">Cost: ₱{{ item.buying_total|floatformat:2|intcomma }}</div>
                             <div class="text-xs text-success">Income: ₱{{ item.selling_total|floatformat:2|intcomma }}</div>
                         </td>
-                        <td>
+                        <td class="py-3.5 px-3">
                             {% if item.loans %}
                                 <div class="fw-bold text-dark">₱{{ item.principal_total|floatformat:2|intcomma }}</div>
                                 <div class="d-flex gap-1 flex-wrap mt-1">
@@ -583,16 +583,16 @@
                                 </div>
                             {% else %}
                                 <span class="badge bg-secondary-subtle text-secondary border fs-8">
-                                    <i class="bi bi-dash-circle me-1"></i> No Loan Facility
+                                    No Loan Facility
                                 </span>
                             {% endif %}
                         </td>
-                        <td style="min-width: 220px;">
+                        <td class="py-3.5 px-3" style="min-width: 220px;">
                             <div class="d-flex justify-content-between align-items-center fs-8 mb-1">
                                 <span class="text-muted">Matched: <strong class="{% if item.is_over_target %}text-danger{% else %}text-dark{% endif %} font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma }}</strong></span>
                                 {% if item.is_over_target %}
                                 <span class="badge bg-danger text-white border border-danger fs-8 fw-bold">
-                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Exceeds Target ({{ item.match_pct }}%)
+                                    Exceeds Target ({{ item.match_pct }}%)
                                 </span>
                                 {% else %}
                                 <span class="badge {% if item.match_pct >= 100 %}bg-success-subtle text-success border border-success{% elif item.match_pct > 0 %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8">
@@ -610,13 +610,13 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td class="text-end">
+                        <td class="text-end py-3.5 ps-3 pe-4">
                             <div class="d-flex gap-2 align-items-center justify-content-end">
-                                <a href="{% url 'finance:po_workspace' item.cluster.pk %}" class="btn btn-sm btn-primary fw-bold py-1 px-2.5 fs-8 shadow-xs text-nowrap" title="Open Dedicated PO Finance Workspace">
-                                    <i class="bi bi-kanban me-1"></i> Focus Workspace
+                                <a href="{% url 'finance:po_workspace' item.cluster.pk %}" class="btn btn-sm btn-primary fw-bold py-1.5 px-3 fs-8 shadow-xs text-nowrap" title="Open Dedicated PO Finance Workspace">
+                                    Open Workspace &rarr;
                                 </a>
-                                <a href="{% url 'operations:cluster_detail' item.cluster.pk %}" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8 text-nowrap" title="View Full Purchase Order in Operations" target="_blank">
-                                    <i class="bi bi-box-arrow-up-right me-1"></i> Operations PO
+                                <a href="{% url 'operations:cluster_detail' item.cluster.pk %}" class="btn btn-sm btn-outline-secondary py-1.5 px-3 fs-8 text-nowrap" title="View Full Purchase Order in Operations" target="_blank">
+                                    Operations PO
                                 </a>
                             </div>
                         </td>
@@ -656,8 +656,9 @@
                     </span>
                 </div>
                 <div class="card-bank">{{ loan.bank_name }}</div>
-                <div class="card-subtext mb-2">
-                    PO #: <a href="{% url 'operations:cluster_detail' loan.cluster.pk %}" class="fw-bold text-decoration-none">{{ loan.cluster.reference_code }}</a>
+                <div class="card-subtext mb-2 d-flex align-items-center gap-2 flex-wrap">
+                    <span>PO #: <a href="{% url 'operations:cluster_detail' loan.cluster.pk %}" class="fw-bold text-decoration-none">{{ loan.cluster.reference_code }}</a></span>
+                    <a href="{% url 'finance:po_workspace' loan.cluster.pk %}?loan={{ loan.pk }}" class="btn btn-sm btn-outline-secondary py-0.5 px-2 fs-8 text-nowrap">Open Workspace &rarr;</a>
                 </div>
                 <div class="card-subtext">
                     {% if loan.status == 'pending_creation' %}

@@ -3666,3 +3666,101 @@ html:not([data-theme="light"]) {
 .htc-draft-restored-pill .draft-clear-btn:hover {
     color: var(--htc-accent, #dc2626) !important;
 }
+
+/* ==========================================================================
+   Site-Wide Spacing, Layout Symmetry & Breathing Room Enhancements
+   ========================================================================== */
+
+/* Tables: Increased padding, comfortable row heights & vertical symmetry */
+.table > :not(caption) > * > * {
+    padding: 0.85rem 1.15rem;
+    vertical-align: middle;
+}
+
+.table thead th {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding-top: 0.9rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--htc-border);
+}
+
+.table tbody tr td {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+    line-height: 1.5;
+}
+
+.table-portfolio tbody tr td {
+    padding-top: 0.95rem;
+    padding-bottom: 0.95rem;
+}
+
+/* Cards & Panels: Generous padding, soft elevation, neutral boundaries */
+.card {
+    border-radius: 10px;
+    border: 1px solid var(--htc-border);
+}
+
+.card-body {
+    padding: 1.35rem 1.5rem;
+}
+
+.panel {
+    border-radius: 10px;
+    border: 1px solid var(--htc-border);
+    margin-bottom: 1.5rem;
+}
+
+.panel-body {
+    padding: 1.35rem 1.5rem;
+}
+
+/* Forms: Adequate field height, padding and gaps */
+.form-control,
+.form-select,
+.form-control-htc,
+.form-select-htc {
+    padding: 0.6rem 0.9rem;
+    min-height: 2.5rem;
+    line-height: 1.5;
+    border-radius: 8px;
+}
+
+/* Modal Dialogs: Generous breathing room */
+.modal-content {
+    border-radius: 12px;
+    border: 1px solid var(--htc-border);
+}
+
+.modal-header {
+    padding: 1.25rem 1.5rem;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1.25rem 1.5rem;
+}
+
+/* Metric boxes & Stat widgets: Vertical symmetry & spacing */
+.metric-box,
+.stat-box {
+    padding: 1.35rem 1.5rem;
+    border-radius: 10px;
+}
+
+.metric-grid {
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+}
+
+/* Breadcrumbs & Page Header bars */
+.page-header-wrap,
+.workspace-header {
+    padding: 1.25rem 0;
+    margin-bottom: 1.5rem;
+}
+

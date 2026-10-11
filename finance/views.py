@@ -320,14 +320,71 @@ def loan_requirement(request, pk):
 
 @role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE)
 def po_financial_workspace(request, pk):
-    cluster = get_object_or_404(
-        TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics"),
-        pk=pk,
-    )
+    target_cluster = None
+    target_loan = None
+    pk_str = str(pk).strip()
+
+    # 1. If pk is integer digits, check CapitalLoan first, then PurchaseOrder, then TransactionCluster
+    if pk_str.isdigit():
+        loan_candidate = CapitalLoan.objects.select_related(
+            "cluster__client", "cluster__sugar_mill", "cluster__purchase_order", "cluster__logistics"
+        ).filter(pk=int(pk_str)).first()
+        if loan_candidate:
+            target_cluster = loan_candidate.cluster
+            target_loan = loan_candidate
+        else:
+            from operations.models import PurchaseOrder
+            po_candidate = PurchaseOrder.objects.select_related(
+                "cluster__client", "cluster__sugar_mill", "cluster__purchase_order", "cluster__logistics"
+            ).filter(pk=int(pk_str)).first()
+            if po_candidate and hasattr(po_candidate, "cluster"):
+                target_cluster = po_candidate.cluster
+
+    # 2. If pk is a UUID string, check TransactionCluster, then DeliveryLedger
+    if not target_cluster:
+        try:
+            import uuid
+            uuid_val = uuid.UUID(pk_str)
+            target_cluster = (
+                TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics")
+                .filter(pk=uuid_val)
+                .first()
+            )
+            if not target_cluster:
+                from operations.models import DeliveryLedger
+                deliv = DeliveryLedger.objects.select_related("purchase_order__cluster").filter(delivery_id=uuid_val).first()
+                if deliv and deliv.purchase_order:
+                    target_cluster = deliv.purchase_order.cluster
+        except (ValueError, TypeError, AttributeError):
+            pass
+
+    # 3. Check by reference code or PO reference number
+    if not target_cluster:
+        target_cluster = (
+            TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics")
+            .filter(
+                Q(reference_code__iexact=pk_str) |
+                Q(purchase_order__po_reference_number__iexact=pk_str)
+            )
+            .first()
+        )
+
+    if not target_cluster:
+        messages.error(request, f"Bank loan workspace for record '{pk}' could not be found.")
+        return redirect("finance:loan_list")
+
+    cluster = target_cluster
     po = getattr(cluster, "purchase_order", None)
     if not po:
         messages.error(request, f"Purchase order for cluster {cluster.reference_code} not found.")
         return redirect("finance:loan_list")
+
+    # Optional query param for specific loan
+    loan_param = request.GET.get("loan")
+    if loan_param and str(loan_param).isdigit():
+        param_loan = cluster.loans.filter(pk=int(loan_param)).first()
+        if param_loan:
+            target_loan = param_loan
 
     # Sync delivery vouchers (pending status) for all deliveries of this PO
     for delivery in po.deliveries.all():
@@ -457,7 +514,15 @@ def po_financial_workspace(request, pk):
     ).exists()
 
     match_form = PaymentExpenseMatchForm()
-    loan_form = StandaloneLoanForm(user=request.user, initial={"cluster": cluster, "principal": expected_sales})
+    loan_form = StandaloneLoanForm(
+        user=request.user,
+        initial={
+            "cluster": cluster,
+            "principal": target_loan.principal if target_loan else expected_sales,
+            "bank_name": target_loan.bank_name if target_loan else "",
+            "interest_rate_annual": target_loan.interest_rate_annual if target_loan else "",
+        },
+    )
 
     # Annotate loans with timeline data
     for loan in loans:
@@ -480,6 +545,7 @@ def po_financial_workspace(request, pk):
             "gross_margin_pct": gross_margin_pct,
             "loan_req": loan_req,
             "loans": loans,
+            "target_loan": target_loan,
             "has_valid_loan": has_valid_loan,
             "audit_events": audit_events,
             "reconciliation": reconciliation,
@@ -563,20 +629,33 @@ def loan_list(request):
 
     # If user selected a PO to focus workspace, redirect to the dedicated PO workspace view
     if po_ref:
-        target_cluster = (
-            TransactionCluster.objects.filter(
-                Q(reference_code__iexact=po_ref) |
-                Q(purchase_order__po_reference_number__iexact=po_ref)
-            ).first()
-        )
-        if not target_cluster and str(po_ref).isdigit():
-            target_cluster = TransactionCluster.objects.filter(pk=int(po_ref)).first()
-        if not target_cluster:
+        import re
+        target_cluster = None
+        uuid_match = re.search(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', po_ref, re.I)
+        if uuid_match:
             try:
                 import uuid
-                target_cluster = TransactionCluster.objects.filter(pk=uuid.UUID(po_ref)).first()
-            except (ValueError, TypeError):
+                target_cluster = TransactionCluster.objects.filter(pk=uuid.UUID(uuid_match.group(0))).first()
+            except Exception:
                 pass
+        if not target_cluster and str(po_ref).isdigit():
+            loan_candidate = CapitalLoan.objects.select_related("cluster").filter(pk=int(po_ref)).first()
+            if loan_candidate:
+                target_cluster = loan_candidate.cluster
+            else:
+                from operations.models import PurchaseOrder
+                po_candidate = PurchaseOrder.objects.select_related("cluster").filter(pk=int(po_ref)).first()
+                if po_candidate and hasattr(po_candidate, "cluster"):
+                    target_cluster = po_candidate.cluster
+                else:
+                    target_cluster = TransactionCluster.objects.filter(pk=int(po_ref)).first()
+        if not target_cluster:
+            target_cluster = (
+                TransactionCluster.objects.filter(
+                    Q(reference_code__iexact=po_ref) |
+                    Q(purchase_order__po_reference_number__iexact=po_ref)
+                ).first()
+            )
         if target_cluster:
             return redirect("finance:po_workspace", pk=target_cluster.pk)
 
