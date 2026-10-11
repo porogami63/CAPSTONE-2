@@ -526,211 +526,49 @@
                     </div>
                     {% else %}
                     <div class="alert alert-light border py-2.5 px-3 fs-8 text-muted mb-0">
-                        <i class="bi bi-info-circle me-1"></i> No delivery records logged yet for this Purchase Order. Log the first batch below.
+                        <i class="bi bi-info-circle me-1"></i> No delivery records logged yet for this Purchase Order. Click below to open Logistics and record the first batch.
                     </div>
                     {% endif %}
                 </div>
 
-                <!-- Log Delivery Entry Form (Incremental Fulfillment) -->
-                {% if user|has_perm:"edit_logistics" %}
-                    {% if po.remaining_mt > 0 %}
-                    <div id="logDeliverySection" class="p-3 rounded border mb-3" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
-                        <div class="d-flex justify-content-between align-items-center mb-2.5">
-                            <h6 class="fw-bold fs-7 mb-0 text-primary">
-                                <i class="bi bi-plus-circle-fill me-1"></i> Log New Delivery Batch
-                            </h6>
-                            <span class="fs-8 text-muted">Available: <strong>{{ po.remaining_mt|floatformat:3|intcomma }} MT</strong></span>
-                        </div>
-
-                        <form method="post" action="{% url 'operations:log_delivery' %}" class="form-stack" id="clusterDeliveryForm">
-                            {% csrf_token %}
-                            <input type="hidden" name="purchase_order" value="{{ po.pk }}">
-                            <input type="hidden" name="next" value="{% url 'operations:cluster_detail' cluster.pk %}">
-
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">Source Supplier (Sugar Mill) <span class="text-danger">*</span></label>
-                                        {{ delivery_form.supplier }}
-                                        <div class="field-help fs-8 text-muted">Dynamic source mill for this batch (e.g. BUSCO, CASA)</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">Delivered Quantity (MT) <span class="text-danger">*</span></label>
-                                        <div class="input-group input-group-sm">
-                                            {{ delivery_form.delivered_mt }}
-                                            <span class="input-group-text bg-light text-muted fs-8">MT</span>
-                                        </div>
-                                        <div class="field-help fs-8 text-muted">Max deliverable: {{ po.remaining_mt|floatformat:3 }} MT</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row g-2 mt-1">
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">Receiving Customer Destination <span class="text-danger">*</span></label>
-                                        {{ delivery_form.receiving_customer }}
-                                        <div class="field-help fs-8 text-muted">Defaults to PO customer (reflects all active clients)</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">Facility / Plant Site Detail</label>
-                                        {{ delivery_form.receiving_location }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row g-2 mt-1">
-                                <div class="col-md-4">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">Delivery Date <span class="text-danger">*</span></label>
-                                        {{ delivery_form.delivery_date }}
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">Dispatch Date &amp; Time</label>
-                                        {{ delivery_form.dispatched_at }}
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-field">
-                                        <label class="fs-8 fw-bold">Received / Arrival Date &amp; Time</label>
-                                        {{ delivery_form.received_at }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Optional Multi-Batch Freight Rates & Logistics Allocation -->
-                            <details class="p-2.5 rounded border mt-2" style="background: var(--htc-bg);">
-                                <summary style="cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--htc-primary-light);">
-                                    <i class="bi bi-truck me-1"></i> Multi-Batch Freight Rates &amp; Logistics Allocation (Optional)
-                                </summary>
-                                <div class="row g-2 mt-1">
-                                    <div class="col-md-6">
-                                        <div class="form-field">
-                                            <label class="fs-8 fw-bold">Trucking Partner (Land)</label>
-                                            {{ delivery_form.trucking_partner }}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-field">
-                                            <label class="fs-8 fw-bold">Trucking Rate (₱/MT)</label>
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-light text-muted fs-8">₱</span>
-                                                {{ delivery_form.trucking_rate_per_mt }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-field">
-                                            <label class="fs-8 fw-bold">Barging Partner (Marine)</label>
-                                            {{ delivery_form.barge_partner }}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-field">
-                                            <label class="fs-8 fw-bold">Barging Rate (₱/MT)</label>
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-light text-muted fs-8">₱</span>
-                                                {{ delivery_form.barge_rate_per_mt }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-field">
-                                            <label class="fs-8 fw-bold">Vessel / Barge Name</label>
-                                            {{ delivery_form.vessel_or_barge_name }}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-field">
-                                            <label class="fs-8 fw-bold">Truck Plate #</label>
-                                            {{ delivery_form.vessel_or_truck }}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-field">
-                                            <label class="fs-8 fw-bold">Waybill / MDR #</label>
-                                            {{ delivery_form.waybill_number }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </details>
-
-                            <div id="clusterOverDelivWarning" class="alert alert-danger py-1.5 px-2.5 fs-8 d-none mt-2 mb-1">
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i> Cannot deliver more than remaining balance of {{ po.remaining_mt|floatformat:3 }} MT.
-                            </div>
-
-                            <div class="d-flex justify-content-end mt-2.5 pt-2 border-top">
-                                <button type="submit" class="btn-htc btn-sm" id="btnCommitBatch">
-                                    <i class="bi bi-check2-circle me-1"></i> Record Shipment Delivery
-                                </button>
-                            </div>
-                        </form>
-
-                        <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const remMT = parseFloat("{{ po.remaining_mt }}") || 0;
-                            const mtInput = document.getElementById('id_delivery_mt');
-                            const warnBox = document.getElementById('clusterOverDelivWarning');
-                            const btnCommit = document.getElementById('btnCommitBatch');
-                            const custSelect = document.getElementById('id_receiving_customer_select');
-                            const locInput = document.getElementById('id_delivery_location');
-
-                            if (custSelect && locInput) {
-                                custSelect.addEventListener('change', function() {
-                                    if (this.value && this.options[this.selectedIndex]) {
-                                        locInput.value = this.options[this.selectedIndex].text.replace(/\s*\(.*\)/, '').trim() + ' Main Facility';
-                                    }
-                                });
-                            }
-
-                            if (mtInput) {
-                                mtInput.addEventListener('input', function() {
-                                    const val = parseFloat(this.value) || 0;
-                                    if (remMT > 0 && val > remMT) {
-                                        warnBox.classList.remove('d-none');
-                                        this.style.borderColor = '#dc3545';
-                                        if (btnCommit) btnCommit.disabled = true;
-                                    } else {
-                                        warnBox.classList.add('d-none');
-                                        this.style.borderColor = '';
-                                        if (btnCommit) btnCommit.disabled = false;
-                                    }
-                                });
-                            }
-                        });
-                        </script>
-                    </div>
-                    {% else %}
-                    <div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 fs-8 mb-3">
-                        <i class="bi bi-check-circle-fill fs-6 text-success"></i>
-                        <div>
-                            <strong>100% Contract Fulfilled:</strong> All {{ po.total_contracted_mt|floatformat:3|intcomma }} MT contracted under this PO have been delivered and verified across all batches.
-                        </div>
-                    </div>
-                    {% endif %}
-                {% endif %}
-
-                <!-- Dedicated Link to Deliveries & Trucking Module -->
-                <div class="card p-3 border mb-2 shadow-xs" style="background: linear-gradient(135deg, rgba(37,99,235,0.04) 0%, rgba(30,58,138,0.07) 100%); border-color: rgba(37,99,235,0.2) !important; border-radius: 10px;">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <!-- Logistics Operations & Batch Trucking Details Navigation Hub -->
+                <div class="card p-3.5 border mb-3 shadow-xs" style="background: linear-gradient(135deg, rgba(37,99,235,0.04) 0%, rgba(30,58,138,0.08) 100%); border-color: rgba(37,99,235,0.25) !important; border-radius: 12px;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2.5">
                         <div>
                             <div class="d-flex align-items-center gap-1.5 mb-1">
                                 <span class="badge bg-primary text-white fs-8"><i class="bi bi-truck me-1"></i>Deliveries &amp; Trucking Tab</span>
-                                <span class="fs-8 text-muted fw-semibold">PO #{{ po.po_reference_number|default:cluster.reference_code }}</span>
+                                <span class="badge {% if po.po_status == 'Completed' %}bg-success{% elif po.po_status == 'Partially Fulfilled' %}bg-warning text-dark{% else %}bg-primary{% endif %} fs-8">
+                                    {{ po.po_status }}
+                                </span>
+                                {% if po.remaining_mt > 0 %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">
+                                    Available: {{ po.remaining_mt|floatformat:3|intcomma }} MT
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle fs-8">
+                                    100% Contract Fulfilled
+                                </span>
+                                {% endif %}
                             </div>
-                            <h6 class="fw-bold mb-0 text-dark">Logistics Operations &amp; Batch Trucking Details</h6>
-                            <div class="text-muted fs-8 mt-0.5">Manage comprehensive land trucking rates, marine barging contracts, departure &amp; arrival timelines, and carrier assignments for this Purchase Order.</div>
+                            <h6 class="fw-bold mb-0 text-dark fs-7">Logistics Operations &amp; Batch Trucking Details</h6>
+                            <div class="text-muted fs-8 mt-1" style="max-width: 600px;">
+                                {% if po.remaining_mt > 0 %}
+                                Record incremental delivery batches, dynamic sugar mill sourcing, land trucking rates (₱/MT), marine barging contracts, departure &amp; arrival timelines, and carrier assignments in the dedicated Logistics workspace.
+                                {% else %}
+                                All {{ po.total_contracted_mt|floatformat:3|intcomma }} MT contracted under this PO have been delivered and verified across all batches. View full shipment details, transit timelines, and freight breakdown in the Logistics tab.
+                                {% endif %}
+                            </div>
                         </div>
-                        <div>
-                            <a href="{% url 'operations:deliveries_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}" class="btn btn-primary btn-sm fw-bold px-3 py-1.5 shadow-sm d-inline-flex align-items-center gap-1.5">
-                                <i class="bi bi-truck"></i> Open Deliveries &amp; Trucking Tab <i class="bi bi-arrow-right"></i>
+                        <div class="d-flex flex-column align-items-end gap-1.5">
+                            {% if po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
+                            <a href="{% url 'operations:deliveries_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}&open_log=1" class="btn btn-primary btn-sm fw-bold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-2">
+                                <i class="bi bi-plus-circle-fill"></i> Log Delivery Batch in Logistics <i class="bi bi-arrow-right"></i>
                             </a>
+                            {% else %}
+                            <a href="{% url 'operations:deliveries_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}" class="btn btn-primary btn-sm fw-bold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-2">
+                                <i class="bi bi-truck"></i> View PO Logistics Workspace <i class="bi bi-arrow-right"></i>
+                            </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
