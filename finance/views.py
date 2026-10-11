@@ -386,7 +386,7 @@ def loan_list(request):
         focused_financials = cluster_financials(focused_cluster)
         focused_loan_req = loan_requirement_data(focused_cluster)
         focused_loans = list(focused_cluster.loans.select_related("verified_by").order_by("-created_at"))
-        focused_matches = list(focused_reconciliation.matches.all().order_by("-created_at"))
+        focused_matches = list(focused_reconciliation.matches.all().order_by("-matched_at"))
         focused_vouchers = list(focused_cluster.cash_vouchers.all().order_by("-issued_at"))
 
         if focused_loans:
