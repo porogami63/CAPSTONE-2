@@ -2,7 +2,7 @@ import json
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import get_template
@@ -214,6 +214,9 @@ def add_match(request, pk):
                 messages.error(request, f"Error saving payment match: {str(err)}")
         else:
             messages.error(request, "Invalid input. Please check your payment reference and amount fields.")
+    next_url = request.POST.get("next") or request.GET.get("next")
+    if next_url:
+        return redirect(next_url)
     return redirect("finance:reconciliation", pk=pk)
 
 
@@ -248,6 +251,9 @@ def delete_match(request, cluster_pk, match_pk):
             f"Payment match ref '{ref}' (₱{amt:,.2f}) removed by {request.user.get_full_name() or request.user.username}. Reconciliation balances updated.",
         )
 
+    next_url = request.POST.get("next") or request.GET.get("next")
+    if next_url:
+        return redirect(next_url)
     return redirect("finance:reconciliation", pk=cluster_pk)
 
 
@@ -313,6 +319,9 @@ def loan_list(request):
                         request,
                         f"Capital Loan facility of ₱{loan.principal:,.2f} submitted for creation approval and linked to transaction {loan.cluster.reference_code}.",
                     )
+                next_url = request.POST.get("next")
+                if next_url:
+                    return redirect(next_url)
                 return redirect("finance:loan_list")
             else:
                 bound_loan_form = form
@@ -322,6 +331,146 @@ def loan_list(request):
                     )
                     for error in errors:
                         messages.error(request, f"{label}: {error}")
+
+    q = request.GET.get("q", "").strip()
+    status_filter = request.GET.get("status", "all").strip().lower()
+    po_ref = request.GET.get("po", "").strip()
+
+    focused_cluster = None
+    focused_po = None
+    focused_reconciliation = None
+    focused_financials = None
+    focused_loan_req = None
+    focused_matches = []
+    focused_loans = []
+    focused_vouchers = []
+    focused_recon_target = Decimal("0.00")
+    focused_recon_matched = Decimal("0.00")
+    focused_remaining_balance = Decimal("0.00")
+    focused_recon_pct = 0.0
+    match_form = None
+
+    if po_ref:
+        focused_cluster = (
+            TransactionCluster.objects.filter(
+                Q(reference_code__iexact=po_ref) |
+                Q(purchase_order__po_reference_number__iexact=po_ref)
+            )
+            .select_related("client", "sugar_mill", "purchase_order", "logistics")
+            .prefetch_related("loans", "cash_vouchers")
+            .first()
+        )
+        if not focused_cluster and str(po_ref).isdigit():
+            focused_cluster = (
+                TransactionCluster.objects.filter(pk=int(po_ref))
+                .select_related("client", "sugar_mill", "purchase_order", "logistics")
+                .prefetch_related("loans", "cash_vouchers")
+                .first()
+            )
+        if not focused_cluster:
+            try:
+                import uuid
+                focused_cluster = (
+                    TransactionCluster.objects.filter(pk=uuid.UUID(po_ref))
+                    .select_related("client", "sugar_mill", "purchase_order", "logistics")
+                    .prefetch_related("loans", "cash_vouchers")
+                    .first()
+                )
+            except (ValueError, TypeError):
+                pass
+
+    if focused_cluster:
+        focused_po = getattr(focused_cluster, "purchase_order", None)
+        focused_reconciliation, _ = FinancialReconciliation.objects.get_or_create(cluster=focused_cluster)
+        from operations.services.pricing import cluster_financials, loan_requirement_data
+        focused_financials = cluster_financials(focused_cluster)
+        focused_loan_req = loan_requirement_data(focused_cluster)
+        focused_loans = list(focused_cluster.loans.select_related("verified_by").order_by("-created_at"))
+        focused_matches = list(focused_reconciliation.matches.all().order_by("-created_at"))
+        focused_vouchers = list(focused_cluster.cash_vouchers.all().order_by("-issued_at"))
+
+        if focused_loans:
+            focused_recon_target = Decimal(str(sum(l.principal for l in focused_loans)))
+        else:
+            focused_recon_target = Decimal(str(focused_financials["purchase_total"]))
+
+        focused_recon_matched = focused_reconciliation.matches.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        focused_remaining_balance = max(focused_recon_target - focused_recon_matched, Decimal("0.00"))
+        if focused_recon_target > 0:
+            focused_recon_pct = round(float(focused_recon_matched) / float(focused_recon_target) * 100, 1)
+        else:
+            focused_recon_pct = 100.0 if focused_recon_matched > 0 else 0.0
+        focused_recon_pct = min(focused_recon_pct, 100.0)
+
+        match_form = PaymentExpenseMatchForm()
+
+    # Build PO-Sorted Financial Portfolio List
+    all_clusters_qs = (
+        TransactionCluster.objects.filter(is_archived=False)
+        .select_related("client", "sugar_mill", "purchase_order", "reconciliation")
+        .prefetch_related("loans", "reconciliation__matches")
+        .order_by("-created_at")
+    )
+
+    all_open_pos = []
+    po_portfolio = []
+
+    for c in all_clusters_qs:
+        c_po = getattr(c, "purchase_order", None)
+        c_po_ref = c_po.po_reference_number if (c_po and c_po.po_reference_number) else c.reference_code
+        all_open_pos.append({
+            "po_ref": c_po_ref,
+            "cluster_ref": c.reference_code,
+            "client_name": c.client.name,
+            "mill_name": c.sugar_mill.name,
+            "is_focused": focused_cluster and c.id == focused_cluster.id,
+        })
+
+        if q:
+            q_lower = q.lower()
+            match_q = (
+                q_lower in c.reference_code.lower() or
+                (c_po and q_lower in (c_po.po_reference_number or "").lower()) or
+                q_lower in c.client.name.lower() or
+                q_lower in c.sugar_mill.name.lower() or
+                any(q_lower in l.bank_name.lower() for l in c.loans.all())
+            )
+            if not match_q:
+                continue
+
+        c_loans = list(c.loans.all())
+        c_principal = sum(l.principal for l in c_loans)
+        c_active = any(l.status in [CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_SETTLEMENT] for l in c_loans)
+        c_recon = getattr(c, "reconciliation", None)
+        c_matched = c_recon.matched_payment_amount if c_recon else Decimal("0.00")
+        c_target = c_principal if c_principal > 0 else (c_po.total_value if c_po else Decimal("0.00"))
+        c_pct = round(float(c_matched) / float(c_target) * 100, 1) if c_target > 0 else 0.0
+
+        if status_filter == "active" and not any(l.status == CapitalLoan.Status.ACTIVE for l in c_loans):
+            continue
+        if status_filter == "pending" and not any(l.status in [CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.PENDING_SETTLEMENT] for l in c_loans):
+            continue
+        if status_filter == "unfunded" and c_loans:
+            continue
+
+        po_portfolio.append({
+            "cluster": c,
+            "po": c_po,
+            "po_ref": c_po_ref,
+            "client_name": c.client.name,
+            "mill_name": c.sugar_mill.name,
+            "volume_mt": c_po.volume_mt if c_po else 0,
+            "selling_total": c_po.total_selling_value if c_po else Decimal("0.00"),
+            "buying_total": c_po.total_value if c_po else Decimal("0.00"),
+            "loans": c_loans,
+            "loans_count": len(c_loans),
+            "principal_total": c_principal,
+            "has_active_loan": c_active,
+            "matched_amount": c_matched,
+            "target_amount": c_target,
+            "match_pct": min(c_pct, 100.0),
+            "is_focused": focused_cluster and c.id == focused_cluster.id,
+        })
 
     loans = list(CapitalLoan.objects.select_related("cluster", "cluster__client", "verified_by").order_by("-created_at"))
 
@@ -402,7 +551,10 @@ def loan_list(request):
             "status": "Issued",
         })
 
-    loan_form = bound_loan_form or StandaloneLoanForm(user=request.user)
+    loan_form = bound_loan_form or StandaloneLoanForm(
+        user=request.user,
+        initial={"cluster": focused_cluster} if focused_cluster else None
+    )
 
     return render(
         request,
@@ -419,6 +571,24 @@ def loan_list(request):
             "overdue_facilities": overdue_facilities,
             "loan_form": loan_form,
             "reopen_loan_modal": bound_loan_form is not None,
+            "focused_cluster": focused_cluster,
+            "focused_po": focused_po,
+            "focused_reconciliation": focused_reconciliation,
+            "focused_financials": focused_financials,
+            "focused_loan_req": focused_loan_req,
+            "focused_loans": focused_loans,
+            "focused_matches": focused_matches,
+            "focused_vouchers": focused_vouchers,
+            "focused_recon_target": focused_recon_target,
+            "focused_recon_matched": focused_recon_matched,
+            "focused_remaining_balance": focused_remaining_balance,
+            "focused_recon_pct": focused_recon_pct,
+            "match_form": match_form,
+            "po_portfolio": po_portfolio,
+            "all_open_pos": all_open_pos,
+            "q": q,
+            "status_filter": status_filter,
+            "po_ref": po_ref,
         },
     )
 
@@ -486,6 +656,9 @@ def settle_loan(request, pk):
             request,
             f"Bank loan facility for {loan.cluster.reference_code} submitted for SETTLEMENT VERIFICATION. Bank Clearance Advice #{receipt_num or 'Recorded'}.",
         )
+    next_url = request.POST.get("next") or request.GET.get("next")
+    if next_url:
+        return redirect(next_url)
     return redirect("finance:loan_list")
 
 
@@ -495,7 +668,8 @@ def verify_loan_creation(request, pk):
     if request.method == "POST":
         if loan.status != CapitalLoan.Status.PENDING_CREATION:
             messages.error(request, "Only loans pending creation verification can be processed.")
-            return redirect("finance:loan_list")
+            next_url = request.POST.get("next") or request.GET.get("next")
+            return redirect(next_url or "finance:loan_list")
 
         action = request.POST.get("action", "approve").lower()
         notes = request.POST.get("verification_notes", "").strip()
@@ -525,6 +699,9 @@ def verify_loan_creation(request, pk):
             )
             messages.warning(request, f"Rejected Capital Loan creation for {loan.cluster.reference_code}.")
 
+    next_url = request.POST.get("next") or request.GET.get("next")
+    if next_url:
+        return redirect(next_url)
     return redirect("finance:loan_list")
 
 
@@ -534,7 +711,8 @@ def verify_loan_settlement(request, pk):
     if request.method == "POST":
         if loan.status != CapitalLoan.Status.PENDING_SETTLEMENT:
             messages.error(request, "Only loans pending settlement verification can be processed.")
-            return redirect("finance:loan_list")
+            next_url = request.POST.get("next") or request.GET.get("next")
+            return redirect(next_url or "finance:loan_list")
 
         action = request.POST.get("action", "approve").lower()
         notes = request.POST.get("verification_notes", "").strip()
@@ -565,6 +743,9 @@ def verify_loan_settlement(request, pk):
             )
             messages.warning(request, f"Rejected settlement for {loan.cluster.reference_code}. Facility returned to Active status.")
 
+    next_url = request.POST.get("next") or request.GET.get("next")
+    if next_url:
+        return redirect(next_url)
     return redirect("finance:loan_list")
 
 

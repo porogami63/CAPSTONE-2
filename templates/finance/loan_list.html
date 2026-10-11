@@ -207,6 +207,56 @@
         color: #ef4444 !important;
         font-weight: 800 !important;
     }
+
+    /* Filter Toolbar Controls */
+    .search-input-wrap {
+        position: relative;
+        width: 100%;
+    }
+    .search-input-wrap .search-icon {
+        position: absolute;
+        left: 0.95rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--htc-text-muted);
+        font-size: 0.85rem;
+        pointer-events: none;
+        z-index: 2;
+    }
+    .search-input-wrap .search-field {
+        height: 40px !important;
+        padding-left: 2.45rem !important;
+        border-radius: 8px !important;
+    }
+    .filter-control {
+        height: 40px !important;
+        border-radius: 8px !important;
+    }
+    .filter-btn {
+        height: 40px !important;
+        border-radius: 8px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    .btn-xs {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.72rem;
+        border-radius: 4px;
+    }
+    .table-portfolio th {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: var(--htc-text-muted);
+        background: #f8fafc;
+        padding: 0.75rem 0.85rem;
+    }
+    .table-portfolio td {
+        padding: 0.85rem 0.85rem;
+        vertical-align: middle;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -219,6 +269,322 @@
     </div>
     <span class="clocks-badge"><i class="bi bi-clock-history"></i> Daily Aging Clocks Active</span>
 </div>
+
+<!-- PO FILTER & WORKSPACE TOOLBAR -->
+<div class="card mb-4 border shadow-sm bg-white" style="border-radius: 10px;">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2.5 align-items-center m-0">
+            <div class="col-lg-4 col-md-4">
+                <div class="search-input-wrap">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" name="q" value="{{ q }}" class="form-control-htc search-field" placeholder="Search PO #, client, sugar mill, bank...">
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-4">
+                <select name="po" class="form-select-htc filter-control" onchange="this.form.submit()">
+                    <option value="">-- All Deals (Select PO to Focus Workspace) --</option>
+                    {% for p in all_open_pos %}
+                    <option value="{{ p.po_ref }}" {% if p.is_focused or po_ref == p.po_ref or po_ref == p.cluster_ref %}selected{% endif %}>
+                        {{ p.po_ref }} — {{ p.client_name }} [{{ p.mill_name }}]
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-2">
+                <select name="status" class="form-select-htc filter-control" onchange="this.form.submit()">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Facilities</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Loans</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Approval</option>
+                    <option value="unfunded" {% if status_filter == 'unfunded' %}selected{% endif %}>Unfunded Deals</option>
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn-htc filter-btn flex-grow-1">Filter</button>
+                {% if q or status_filter != 'all' or po_ref %}
+                <a href="{% url 'finance:loan_list' %}" class="btn-htc-outline filter-btn px-2.5" title="Clear all filters"><i class="bi bi-x-lg"></i></a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if focused_cluster %}
+<!-- FOCUSED PO FINANCE WORKSPACE DECK -->
+<div class="card p-4 mb-4 border shadow-sm" style="background: #f8fafc; border-color: #cbd5e1 !important; border-radius: 12px;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <span class="badge bg-primary text-white fs-8 text-uppercase fw-bold"><i class="bi bi-crosshair me-1"></i> Focused PO Workspace</span>
+                <span class="badge {% if focused_po.po_status == 'Completed' %}bg-success{% elif focused_po.po_status == 'Partially Fulfilled' %}bg-warning text-dark{% else %}bg-primary{% endif %} fs-8">
+                    {{ focused_po.po_status|default:"In Progress" }}
+                </span>
+                {% if focused_loans %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle fs-8 fw-bold">
+                    <i class="bi bi-shield-check me-1"></i> Financing: Active / Cleared ({{ focused_loan_req.completion_pct }}% Funded)
+                </span>
+                {% else %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning fs-8 fw-bold">
+                    <i class="bi bi-hourglass-split me-1"></i> Financing: Pending Allocation
+                </span>
+                {% endif %}
+                <span class="badge bg-light text-secondary border fs-8">
+                    Reconciliation: {{ focused_recon_pct }}% Reconciled
+                </span>
+            </div>
+            <h4 class="fw-bold mb-0 text-dark">
+                {{ focused_po.po_reference_number|default:focused_cluster.reference_code }}
+                <span class="fs-6 fw-normal text-muted">— {{ focused_po.customer.name|default:focused_cluster.client.name }}</span>
+            </h4>
+            <div class="text-xs text-muted mt-1">
+                <span class="me-2"><i class="bi bi-building"></i> Sugar Mill: <strong>{{ focused_cluster.sugar_mill.name }}</strong></span>
+                <span class="me-2">·</span>
+                <span class="me-2"><i class="bi bi-box-seam"></i> Contract Volume: <strong>{{ focused_po.volume_mt|default:focused_cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</strong></span>
+                <span class="me-2">·</span>
+                <span><i class="bi bi-cash-stack"></i> Total Purchase Value: <strong>₱{{ focused_financials.purchase_total|default:focused_cluster.purchase_order.total_value|floatformat:2|intcomma }}</strong></span>
+            </div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <a href="{% url 'operations:cluster_detail' focused_cluster.pk %}" class="btn btn-outline-secondary btn-sm fw-semibold">
+                &larr; Return to PO View
+            </a>
+            {% if user|has_perm:"add_loan" %}
+            <button type="button" class="btn btn-primary btn-sm fw-bold shadow-xs px-3" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+                <i class="bi bi-plus-circle me-1"></i> Issue Bank Loan
+            </button>
+            {% endif %}
+            {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
+            <button type="button" class="btn btn-success btn-sm fw-bold shadow-xs px-3" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
+                <i class="bi bi-wallet2 me-1"></i> Match Expense / Outlay
+            </button>
+            {% endif %}
+            <a href="{% url 'finance:loan_list' %}" class="btn btn-light border btn-sm text-muted">
+                Clear PO Filter
+            </a>
+        </div>
+    </div>
+
+    <!-- Symmetrical Spacious Metric Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Card 1: Capital Requirements & Bank Financing -->
+        <div class="col-lg-6">
+            <div class="p-3.5 rounded-3 bg-white border h-100 shadow-xs" style="border-left: 4px solid #2563eb !important;">
+                <div class="d-flex justify-content-between align-items-center mb-2.5">
+                    <span class="fs-8 text-uppercase fw-bold text-muted"><i class="bi bi-bank text-primary me-1"></i> Capital Financing Requirements</span>
+                    <span class="badge {% if focused_loan_req.completion_pct >= 100 %}bg-success-subtle text-success border border-success{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} fs-8">
+                        {{ focused_loan_req.completion_pct }}% Funded
+                    </span>
+                </div>
+                <div class="row g-2 text-center text-sm-start">
+                    <div class="col-4">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Sourcing (100%)</div>
+                        <div class="fs-6 fw-bold text-dark mt-1">₱{{ focused_loan_req.sourcing|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="col-4 border-start ps-3">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Freight (50%)</div>
+                        <div class="fs-6 fw-bold text-dark mt-1">₱{{ focused_loan_req.logistics_down_payment|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="col-4 border-start ps-3">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Total Min Required</div>
+                        <div class="fs-6 fw-bold text-danger mt-1">₱{{ focused_loan_req.required|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
+                <div class="progress mt-3" style="height: 6px;">
+                    <div class="progress-bar {% if focused_loan_req.completion_pct >= 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ focused_loan_req.completion_pct }}%;"></div>
+                </div>
+                <div class="fs-8 text-muted mt-2.5 pt-1.5 border-top d-flex justify-content-between align-items-center">
+                    <span>Funded Principal: <strong class="text-success">₱{{ focused_loan_req.already_loaned|floatformat:2|intcomma }}</strong></span>
+                    <span>Remaining Balance: <strong class="text-primary">₱{{ focused_loan_req.remaining_required|floatformat:2|intcomma }}</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Expense Matchmaking & Outlay Reconciliation -->
+        <div class="col-lg-6">
+            <div class="p-3.5 rounded-3 bg-white border h-100 shadow-xs" style="border-left: 4px solid #10b981 !important;">
+                <div class="d-flex justify-content-between align-items-center mb-2.5">
+                    <span class="fs-8 text-uppercase fw-bold text-muted"><i class="bi bi-wallet-fill text-success me-1"></i> Expense Outlays &amp; Matchmaking</span>
+                    <span class="badge {% if focused_recon_pct >= 100 %}bg-success-subtle text-success border border-success{% elif focused_recon_pct > 0 %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8">
+                        {{ focused_recon_pct }}% Reconciled
+                    </span>
+                </div>
+                <div class="row g-2 text-center text-sm-start">
+                    <div class="col-4">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Recon Target</div>
+                        <div class="fs-6 fw-bold text-dark mt-1">₱{{ focused_recon_target|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="col-4 border-start ps-3">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Matched Outlays</div>
+                        <div class="fs-6 fw-bold text-success mt-1">₱{{ focused_recon_matched|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="col-4 border-start ps-3">
+                        <div class="fs-8 text-muted text-uppercase fw-bold">Remaining Outlay</div>
+                        <div class="fs-6 fw-bold text-primary mt-1">₱{{ focused_remaining_balance|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
+                <div class="progress mt-3" style="height: 6px;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ focused_recon_pct }}%;"></div>
+                </div>
+                <div class="fs-8 text-muted mt-2.5 pt-1.5 border-top d-flex justify-content-between align-items-center">
+                    <span>{{ focused_matches|length }} matches recorded ({{ focused_vouchers|length }} cash vouchers)</span>
+                    <a href="{% url 'finance:reconciliation' focused_cluster.pk %}" class="fw-bold text-primary text-decoration-none">
+                        Open Full 3-Step Guided Reconciler &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workspace Subpanels for Focused PO -->
+    <div class="row g-3">
+        <!-- Panel 1: Bank Loans Linked to this PO -->
+        <div class="col-lg-6">
+            <div class="panel border bg-white h-100 shadow-xs rounded-3 overflow-hidden">
+                <div class="panel-header d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
+                    <span class="fw-bold text-dark fs-7 d-flex align-items-center gap-1.5">
+                        <i class="bi bi-bank text-primary"></i> Bank Loan Facilities ({{ focused_loans|length }})
+                    </span>
+                    {% if user|has_perm:"add_loan" %}
+                    <button type="button" class="btn btn-outline-primary btn-sm py-1 px-2.5 fs-8 fw-bold" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+                        <i class="bi bi-plus-lg me-1"></i> Add Bank Loan
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="panel-body p-3">
+                    {% if focused_loans %}
+                    <div class="d-flex flex-column gap-2.5">
+                        {% for loan in focused_loans %}
+                        <div class="p-3 rounded-2 border bg-light">
+                            <div class="d-flex justify-content-between align-items-center mb-1.5">
+                                <strong class="text-dark fs-7">{{ loan.bank_name }}</strong>
+                                <span class="badge-status {{ loan.status }}">{{ loan.get_status_display }}</span>
+                            </div>
+                            <div class="row g-2 fs-8 mb-2">
+                                <div class="col-6">Principal: <strong class="text-dark">₱{{ loan.principal|floatformat:2|intcomma }}</strong></div>
+                                <div class="col-6">Rate: <strong>{{ loan.interest_rate_annual }}% p.a.</strong></div>
+                                <div class="col-6 text-muted">Maturity: {{ loan.due_date|date:"M d, Y" }} ({{ loan.days_remaining }}d left)</div>
+                                <div class="col-6">Daily Interest: <strong class="text-danger">₱{{ loan.daily_interest|default:loan.daily_interest_cost|floatformat:2|intcomma }}/day</strong></div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center pt-2 border-top fs-8">
+                                <span class="text-danger fw-bold">Incurred to Date: ₱{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
+                                {% if user|has_perm:"reconcile_payments" and loan.status != "closed" %}
+                                <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 fs-8 fw-semibold" data-bs-toggle="modal" data-bs-target="#settleLoanModal{{ loan.pk }}">
+                                    <i class="bi bi-shield-check me-1"></i> Settle Facility
+                                </button>
+                                {% elif loan.status == "closed" %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle fs-8">Settled &amp; Closed</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-bank fs-2 text-secondary mb-2 d-block"></i>
+                        <div class="fw-bold fs-7 text-dark mb-1">No Bank Loan Recorded</div>
+                        <div class="text-xs mb-3">This PO has no loan facility recorded yet. Minimum capital required is ₱{{ focused_loan_req.required|floatformat:2|intcomma }}.</div>
+                        {% if user|has_perm:"add_loan" %}
+                        <button type="button" class="btn btn-primary btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+                            <i class="bi bi-plus-circle me-1"></i> Issue Bank Loan for this PO
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 2: Direct Expense Matchmaking & Cash Vouchers -->
+        <div class="col-lg-6">
+            <div class="panel border bg-white h-100 shadow-xs rounded-3 overflow-hidden">
+                <div class="panel-header d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
+                    <span class="fw-bold text-dark fs-7 d-flex align-items-center gap-1.5">
+                        <i class="bi bi-wallet2 text-success"></i> Matched Outlays &amp; Cash Vouchers ({{ focused_matches|length }})
+                    </span>
+                    {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
+                    <button type="button" class="btn btn-outline-success btn-sm py-1 px-2.5 fs-8 fw-bold" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
+                        <i class="bi bi-plus-lg me-1"></i> Match Expense / Outlay
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="panel-body p-3">
+                    <!-- Quick Match Suggestions -->
+                    <div class="mb-2.5 d-flex gap-1.5 flex-wrap">
+                        <span class="text-xs text-muted align-self-center me-1">Quick Match:</span>
+                        {% if focused_financials.purchase_total > 0 %}
+                        <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2 fs-8" onclick="quickFillMatch('sourcing', '{{ focused_financials.purchase_total }}', 'Supplier Purchase Cost — {{ focused_cluster.sugar_mill.name }}')">
+                            Sourcing (₱{{ focused_financials.purchase_total|floatformat:0|intcomma }})
+                        </button>
+                        {% endif %}
+                        {% if focused_loan_req.trucking_down_payment > 0 %}
+                        <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2 fs-8" onclick="quickFillMatch('trucking', '{{ focused_loan_req.trucking_down_payment }}', '50% Trucking Advance Downpayment')">
+                            Trucking (₱{{ focused_loan_req.trucking_down_payment|floatformat:0|intcomma }})
+                        </button>
+                        {% endif %}
+                        {% if focused_loan_req.freight_down_payment > 0 %}
+                        <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2 fs-8" onclick="quickFillMatch('barge', '{{ focused_loan_req.freight_down_payment }}', '50% Marine Barging Advance Downpayment')">
+                            Barge (₱{{ focused_loan_req.freight_down_payment|floatformat:0|intcomma }})
+                        </button>
+                        {% endif %}
+                        {% if focused_loan_req.logistics_down_payment > 0 %}
+                        <button type="button" class="btn btn-xs btn-outline-primary py-0.5 px-2 fs-8" onclick="quickFillMatch('logistics_deposit', '{{ focused_loan_req.logistics_down_payment }}', '50% Delivery Advance Deposit')">
+                            Freight Deposit (₱{{ focused_loan_req.logistics_down_payment|floatformat:0|intcomma }})
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    {% if focused_matches %}
+                    <div class="table-responsive border rounded" style="max-height: 280px; overflow-y: auto;">
+                        <table class="table table-sm align-middle mb-0 fs-8">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Ref #</th>
+                                    <th>Category</th>
+                                    <th class="text-end">Amount (₱)</th>
+                                    <th>Cash Voucher #</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for match in focused_matches %}
+                                <tr>
+                                    <td><strong class="font-monospace text-dark">{{ match.payment_reference }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">{{ match.get_expense_type_display }}</span>
+                                    </td>
+                                    <td class="text-end fw-bold text-success font-monospace">₱{{ match.amount|floatformat:2|intcomma }}</td>
+                                    <td class="text-muted font-monospace">CV-M{{ match.pk }}</td>
+                                    <td class="text-end">
+                                        {% if user|has_perm:"delete_match" or user|has_perm:"reconcile_payments" %}
+                                        <form method="post" action="{% url 'finance:delete_match' focused_cluster.pk match.pk %}" class="d-inline m-0" onsubmit="return confirm('Delete match {{ match.payment_reference }} (₱{{ match.amount|floatformat:2|intcomma }})?');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="btn btn-link text-danger p-0 fs-8" title="Remove Match"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-wallet2 fs-2 text-secondary mb-2 d-block"></i>
+                        <div class="fw-bold fs-7 text-dark mb-1">No Payment Matches Yet</div>
+                        <div class="text-xs mb-3">Match receipts and payment disbursements to supplier and delivery expenses to automatically issue Cash Vouchers.</div>
+                        {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
+                        <button type="button" class="btn btn-success btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
+                            <i class="bi bi-plus-circle me-1"></i> Match Outlay Expense Now
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- TOP KPI CARDS -->
 <div class="metric-grid" data-step="1" data-intro="Financial KPI summary showing total Active Loans, real-time Incurred Interest liabilities, 50% Delivery Deposits, and Overdue Loans.">
@@ -247,9 +613,12 @@
 </div>
 
 <!-- TABS ROW -->
-<div class="tabs-row mb-4" style="display: flex; gap: 0.5rem;" data-step="2" data-intro="Switch between the Bank Loans view and the Physical Paper Cheque Register.">
-    <button type="button" class="tab-btn active" onclick="switchFinanceTab('loans', this)">
-        <i class="bi bi-bank me-1"></i> Bank Loans
+<div class="tabs-row mb-4" style="display: flex; gap: 0.5rem;" data-step="2" data-intro="Switch between the PO-Sorted Portfolio, individual Bank Loans view, and the Physical Paper Cheque Register.">
+    <button type="button" class="tab-btn active" onclick="switchFinanceTab('portfolio', this)">
+        <i class="bi bi-view-list me-1"></i> PO Financial &amp; Matching Portfolio ({{ po_portfolio|length }})
+    </button>
+    <button type="button" class="tab-btn" onclick="switchFinanceTab('loans', this)">
+        <i class="bi bi-bank me-1"></i> Bank Loans Registry ({{ loans|length }})
     </button>
     <button type="button" class="tab-btn" onclick="switchFinanceTab('cheques', this)">
         <i class="bi bi-wallet2 me-1"></i> Paper Cheque Register ({{ cheques|length }})
@@ -303,6 +672,7 @@
                                     <div class="modal-dialog modal-dialog-centered">
                                         <div class="modal-content text-start">
                                             <form method="post" action="{% url 'finance:verify_loan_creation' p_loan.pk %}">{% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                                 <div class="modal-header">
                                                     <h6 class="modal-title font-weight-bold"><i class="bi bi-shield-check text-primary me-2"></i>Verify Loan Facility — {{ p_loan.bank_name }}</h6>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -398,6 +768,7 @@
                                     <div class="modal-dialog modal-dialog-centered">
                                         <div class="modal-content text-start">
                                             <form method="post" action="{% url 'finance:verify_loan_settlement' s_loan.pk %}">{% csrf_token %}
+                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                                 <div class="modal-header">
                                                     <h6 class="modal-title font-weight-bold"><i class="bi bi-shield-check text-info me-2"></i>Verify Loan Settlement — {{ s_loan.cluster.reference_code }}</h6>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -431,14 +802,113 @@
 </div>
 {% endif %}
 
+<!-- TAB 1: PO FINANCIAL & MATCHMAKING PORTFOLIO -->
+<div id="tabPortfolio" class="card border shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center py-3 px-4">
+        <div>
+            <h5 class="mb-0 fs-6 fw-bold text-dark">
+                <i class="bi bi-view-list text-primary me-2"></i> PO Financial &amp; Expense Matchmaking Portfolio
+            </h5>
+            <div class="text-xs text-muted mt-0.5">All purchase orders sorted with linked credit facilities, loan principals, and outlay matchmaking reconciliation.</div>
+        </div>
+        <span class="badge bg-secondary rounded-pill">{{ po_portfolio|length }} Contracts Listed</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-portfolio" style="font-size: 0.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>PO # &amp; Reference</th>
+                        <th>Buyer (Customer) &amp; Mill</th>
+                        <th>Contract Volume &amp; Value</th>
+                        <th>Bank Loan Facility</th>
+                        <th>Expense Matchmaking Progress</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in po_portfolio %}
+                    <tr class="{% if item.is_focused %}table-primary-subtle{% endif %}">
+                        <td>
+                            <a href="?po={{ item.po_ref }}" class="fw-bold text-primary text-decoration-none fs-7">
+                                {{ item.po_ref }}
+                            </a>
+                            {% if item.cluster.reference_code != item.po_ref %}
+                            <div class="text-xs text-muted font-monospace">{{ item.cluster.reference_code }}</div>
+                            {% endif %}
+                            <div class="text-xs text-muted mt-0.5">{{ item.cluster.created_at|date:"M d, Y" }}</div>
+                        </td>
+                        <td>
+                            <strong class="text-dark">{{ item.client_name }}</strong>
+                            <div class="text-xs text-muted"><i class="bi bi-building me-1"></i>{{ item.mill_name }}</div>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ item.volume_mt|floatformat:3|intcomma }} <span class="fs-8 fw-normal text-muted">MT</span></div>
+                            <div class="text-xs text-muted">Cost: ₱{{ item.buying_total|floatformat:2|intcomma }}</div>
+                            <div class="text-xs text-success">Income: ₱{{ item.selling_total|floatformat:2|intcomma }}</div>
+                        </td>
+                        <td>
+                            {% if item.loans %}
+                                <div class="fw-bold text-dark">₱{{ item.principal_total|floatformat:2|intcomma }}</div>
+                                <div class="d-flex gap-1 flex-wrap mt-1">
+                                    {% for l in item.loans %}
+                                    <span class="badge {% if l.status == 'active' %}bg-primary-subtle text-primary border border-primary-subtle{% elif l.status == 'closed' %}bg-success-subtle text-success border border-success-subtle{% elif l.status == 'pending_creation' %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8" title="Rate: {{ l.interest_rate_annual }}% · Due: {{ l.due_date|date:'M d, Y' }}">
+                                        {{ l.bank_name }}: {{ l.get_status_display }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border fs-8">
+                                    <i class="bi bi-dash-circle me-1"></i> No Loan Facility
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="min-width: 220px;">
+                            <div class="d-flex justify-content-between align-items-center fs-8 mb-1">
+                                <span class="text-muted">Matched: <strong class="text-dark font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma }}</strong></span>
+                                <span class="badge {% if item.match_pct >= 100 %}bg-success-subtle text-success border border-success{% elif item.match_pct > 0 %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8">
+                                    {{ item.match_pct }}%
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar {% if item.match_pct >= 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ item.match_pct }}%;"></div>
+                            </div>
+                            <div class="text-xs text-muted mt-1">Target: ₱{{ item.target_amount|floatformat:2|intcomma }}</div>
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1.5 align-items-center">
+                                <a href="?po={{ item.po_ref }}" class="btn btn-sm btn-primary fw-bold py-1 px-2.5 fs-8 shadow-xs" title="Open Focused Workspace">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i> Focus Workspace
+                                </a>
+                                <a href="{% url 'operations:cluster_detail' item.cluster.pk %}" class="btn btn-sm btn-outline-secondary py-1 px-2 fs-8" title="View Purchase Order">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-2 text-secondary mb-2 d-block"></i>
+                            <div class="fw-bold">No purchase orders found matching your search.</div>
+                            <div class="text-xs mt-1">Try clearing filters or search terms.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- Timeline Info Banner -->
 <div class="info-bar" data-step="3" data-intro="Each bank facility card displays real-time interest accrual, maturity timeline bars, paper cheque numbers, and settlement authorization controls.">
     <i class="bi bi-info-circle-fill"></i>
     <span>Daily interest liabilities accrue in real time. Marking a bank loan as settled requires uploading official bank payoff documentation for verification.</span>
 </div>
 
-<!-- TAB 1: LOAN REGISTRY STACK -->
-<div id="tabLoanRegistry" class="loan-list-stack">
+<!-- TAB 2: LOAN REGISTRY STACK -->
+<div id="tabLoanRegistry" class="loan-list-stack" style="display: none;">
     {% for loan in loans %}
     <div class="loan-card-horizontal">
         <!-- Left half: Timeline representation -->
@@ -575,6 +1045,7 @@
                                 <div class="modal-content">
                                     <form method="post" action="{% url 'finance:settle_loan' loan.pk %}" enctype="multipart/form-data">
                                         {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                         <div class="modal-header">
                                             <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-bank text-success me-1"></i> Settle Bank Facility — {{ loan.bank_name }}</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -686,18 +1157,94 @@ function switchFinanceTab(tabKey, btn) {
     document.querySelectorAll('.tabs-row .tab-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
+    const portfolioTab = document.getElementById('tabPortfolio');
     const loansTab = document.getElementById('tabLoanRegistry');
     const chequesTab = document.getElementById('tabChequeLedger');
 
-    if (tabKey === 'loans') {
-        loansTab.style.display = 'flex';
-        chequesTab.style.display = 'none';
-    } else {
-        loansTab.style.display = 'none';
-        chequesTab.style.display = 'block';
+    if (portfolioTab) portfolioTab.style.display = (tabKey === 'portfolio') ? 'block' : 'none';
+    if (loansTab) loansTab.style.display = (tabKey === 'loans') ? 'flex' : 'none';
+    if (chequesTab) chequesTab.style.display = (tabKey === 'cheques') ? 'block' : 'none';
+}
+
+function quickFillMatch(expenseType, amount, notes) {
+    var modalEl = document.getElementById('matchExpenseModal');
+    if (!modalEl) return;
+    var typeSelect = document.getElementById('id_match_type');
+    var amountInput = document.getElementById('id_match_amount');
+    var notesInput = document.getElementById('id_match_notes');
+    var refInput = document.getElementById('id_match_ref');
+
+    if (typeSelect) typeSelect.value = expenseType;
+    if (amountInput) amountInput.value = parseFloat(amount || 0).toFixed(2);
+    if (notesInput) notesInput.value = notes || '';
+    if (refInput && !refInput.value) {
+        var today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        refInput.value = 'PM-' + today + '-' + Math.floor(1000 + Math.random() * 9000);
     }
+
+    var bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    bsModal.show();
 }
 </script>
+
+{% if focused_cluster and user|has_perm:"add_match" or focused_cluster and user|has_perm:"reconcile_payments" %}
+<!-- MATCH EXPENSE & ISSUE CASH VOUCHER MODAL -->
+<div class="modal fade" id="matchExpenseModal" tabindex="-1" aria-labelledby="matchExpenseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold" id="matchExpenseModalLabel">
+                    <i class="bi bi-wallet2 text-warning me-2"></i>Match Outlay &amp; Issue Cash Voucher
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'finance:add_match' focused_cluster.pk %}" id="matchExpenseForm">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 text-xs mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        Recording an expense match for <strong>{{ focused_po.po_reference_number|default:focused_cluster.reference_code }}</strong> will update reconciliation balances and automatically issue a numbered <strong>Cash Voucher</strong>.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Receipt / Voucher Reference # <span class="text-danger">*</span></label>
+                        <input type="text" name="payment_reference" id="id_match_ref" class="form-control-htc" placeholder="e.g. OR-99482 / DEP-2026-001" required>
+                        <div class="form-text text-xs text-muted">Official receipt, payment voucher, or bank transaction reference.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Expense Category <span class="text-danger">*</span></label>
+                        <select name="expense_type" id="id_match_type" class="form-select-htc" required>
+                            <option value="sourcing">Supplier Purchase Cost (Sugar Mill)</option>
+                            <option value="trucking">Truck Delivery &amp; Hauling</option>
+                            <option value="barge">Boat / Barge Shipping</option>
+                            <option value="logistics_deposit">50% Delivery Advance Deposit</option>
+                            <option value="other">Other Operational Expense</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Payment Amount (₱) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" name="amount" id="id_match_amount" class="form-control-htc" placeholder="e.g. 500000.00" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-semibold text-sm">Notes / Description (Optional)</label>
+                        <input type="text" name="notes" id="id_match_notes" class="form-control-htc" placeholder="e.g. 50% trucking advance to Batangas Port">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light px-4">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4">
+                        <i class="bi bi-check-circle me-1"></i> Save Match &amp; Issue Cash Voucher
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if user|has_perm:"add_loan" %}
 <!-- CREATE NEW LOAN MODAL -->
@@ -710,6 +1257,7 @@ function switchFinanceTab(tabKey, btn) {
             </div>
             <form method="post" action="{% url 'finance:loan_list' %}" id="newLoanForm">
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <div class="modal-body p-4">
                     {% if loan_form.errors %}
                     <div class="alert alert-danger mb-3 py-2 px-3 text-xs shadow-sm">

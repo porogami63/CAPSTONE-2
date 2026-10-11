@@ -314,6 +314,11 @@ class StandaloneLoanForm(LoanRulesMixin, forms.ModelForm):
             .order_by("-created_at")
         )
         valid_loan_cluster_ids = [c.id for c in all_clusters if not loan_requirement_data(c)["is_complete"]]
+        if self.initial.get("cluster"):
+            init_c = self.initial.get("cluster")
+            c_id = getattr(init_c, "id", init_c)
+            if c_id not in valid_loan_cluster_ids:
+                valid_loan_cluster_ids.append(c_id)
         self.fields["cluster"].queryset = (
             TransactionCluster.objects.filter(id__in=valid_loan_cluster_ids)
             .select_related("client", "sugar_mill", "purchase_order")

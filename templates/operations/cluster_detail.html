@@ -832,205 +832,108 @@
 
 
 
-        <!-- Capital Loans & Daily Interest Panel -->
-        {% if user|has_perm:"add_loan" or user|has_perm:"view_loans" %}
+        <!-- Capital Loans & Daily Interest Overview Card (Inputs Isolated to Finance Workspace) -->
+        {% if user|has_perm:"add_loan" or user|has_perm:"view_loans" or user|has_perm:"view_cluster" %}
         <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-            <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem; font-weight: 700; font-size: 1rem; color: var(--htc-primary-light); display: flex; align-items: center; gap: 0.5rem;">
-                <i class="bi bi-bank2"></i> Bank Loans &amp; Daily Interest
-            </div>
-            <div class="panel-body" style="padding: 1.25rem;">
-                {% for loan in cluster.loans.all %}
-                <div style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1.1rem; margin-bottom: 1rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
-                        <div>
-                            <strong style="font-size: 1rem; color: var(--htc-text);">{{ loan.bank_name }}</strong>
-                            <div style="font-size: 0.75rem; color: var(--htc-text-muted);">Linked Bank Loan · Term: {{ loan.start_date|date:"M d, Y" }} to {{ loan.due_date|date:"M d, Y" }}</div>
-                        </div>
-                        <span class="badge-status {{ loan.status }}">{{ loan.get_status_display }}</span>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem;">
-                        <div>
-                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Loan Amount</div>
-                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">₱{{ loan.principal|floatformat:2|intcomma }}</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Yearly Rate</div>
-                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text);">{{ loan.interest_rate_annual }}%</div>
-                        </div>
-                        <div>
-                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Interest Incurred</div>
-                            <div style="font-size: 0.95rem; font-weight: 700; color: var(--htc-accent);">₱{{ loan.accrued_interest|floatformat:2|intcomma }} <span style="font-size: 0.7rem; color: var(--htc-text-muted); font-weight: normal;">({{ loan.days_outstanding }}d)</span></div>
-                        </div>
-                        <div>
-                            <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--htc-text-muted); font-weight: 700;">Total to Repay</div>
-                            <div style="font-size: 0.95rem; font-weight: 800; color: var(--htc-primary-light);">₱{{ loan.total_liability|floatformat:2|intcomma }}</div>
-                        </div>
-                    </div>
-                </div>
-                {% empty %}
-                <p style="color: var(--htc-text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">No bank loans linked to this order.</p>
-                {% endfor %}
-
-                {% if loan_requirement.is_complete or loan_requirement.remaining_required <= 0.01 and loan_requirement.already_loaned > 0 %}
-                <div class="p-3 rounded-3 border d-flex align-items-center justify-content-between mb-2 shadow-sm" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3) !important;">
-                    <div>
-                        <div class="fw-bold text-success" style="font-size: 0.85rem;">100% Loan Funded (₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }})</div>
-                        <div class="text-muted" style="font-size: 0.75rem;">Required loan amount fully covered across {{ loan_requirement.loans_count }} loan{{ loan_requirement.loans_count|pluralize:"s" }}. Additional loan linking is restricted.</div>
-                    </div>
-                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1" style="font-size: 0.72rem;">Fully Covered</span>
-                </div>
-                {% elif user|has_perm:"add_loan" %}
-                {% if loan_requirement.already_loaned > 0 and loan_requirement.remaining_required > 0.01 %}
-                <div class="alert alert-warning py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-sm">
-                    <span>
-                        <i class="bi bi-info-circle-fill me-1"></i>
-                        <strong>Partial Loan Funding:</strong> ₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }} ({{ loan_requirement.completion_pct }}%) funded. Remaining required balance: <strong>₱{{ loan_requirement.remaining_required|floatformat:2|intcomma }}</strong> ({{ loan_requirement.remaining_pct }}%).
+            <div class="panel-header d-flex justify-content-between align-items-center" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem;">
+                <span class="d-flex align-items-center gap-2 fw-bold text-dark" style="font-size: 0.95rem;">
+                    <i class="bi bi-bank2 text-primary"></i> Bank Loans &amp; Financial Matching
+                </span>
+                <div class="d-flex align-items-center gap-2">
+                    {% if has_active_loan %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 fs-8 fw-bold">
+                        <i class="bi bi-shield-check me-1"></i> Financing: Active / Cleared
                     </span>
-                    <span class="badge bg-warning text-dark">{{ loan_requirement.remaining_pct }}% Remaining</span>
+                    {% elif cluster.loans.exists %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2.5 py-1 fs-8 fw-bold">
+                        <i class="bi bi-hourglass-split me-1"></i> Financing: Pending Approval
+                    </span>
+                    {% else %}
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1 fs-8 fw-bold">
+                        <i class="bi bi-info-circle me-1"></i> Financing: Pending Allocation
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="panel-body p-3">
+                <!-- Symmetrical Financial Summary Metrics -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3 col-6">
+                        <div class="p-2.5 rounded bg-light border text-start">
+                            <div class="text-xs text-muted text-uppercase fw-bold">Min Capital Required</div>
+                            <div class="fs-6 fw-bold text-dark mt-1">₱{{ loan_requirement.required|floatformat:2|intcomma }}</div>
+                            <div class="text-xs text-muted">100% Sourcing + 50% Freight</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="p-2.5 rounded bg-light border text-start">
+                            <div class="text-xs text-muted text-uppercase fw-bold">Funded Loan Principal</div>
+                            <div class="fs-6 fw-bold {% if loan_requirement.is_complete %}text-success{% else %}text-primary{% endif %} mt-1">
+                                ₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }}
+                            </div>
+                            <div class="text-xs text-muted">{{ loan_requirement.completion_pct }}% Funded</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="p-2.5 rounded bg-light border text-start">
+                            <div class="text-xs text-muted text-uppercase fw-bold">Interest Incurred</div>
+                            <div class="fs-6 fw-bold text-danger mt-1">₱{{ cluster.accrued_interest|default:0|floatformat:2|intcomma }}</div>
+                            <div class="text-xs text-muted">Accrued daily clock</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="p-2.5 rounded bg-light border text-start">
+                            <div class="text-xs text-muted text-uppercase fw-bold">Matched Expenses</div>
+                            <div class="fs-6 fw-bold text-success mt-1">₱{{ cluster.reconciliation.matched_payment_amount|default:"0.00"|floatformat:2|intcomma }}</div>
+                            <div class="text-xs text-muted">Vouched disbursements</div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if cluster.loans.all %}
+                <div class="table-responsive mb-3 border rounded">
+                    <table class="table table-sm align-middle mb-0" style="font-size: 0.825rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lender / Bank</th>
+                                <th>Principal (₱)</th>
+                                <th>Rate p.a.</th>
+                                <th>Maturity Due</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in cluster.loans.all %}
+                            <tr>
+                                <td><strong>{{ loan.bank_name }}</strong></td>
+                                <td class="fw-bold">₱{{ loan.principal|floatformat:2|intcomma }}</td>
+                                <td>{{ loan.interest_rate_annual }}%</td>
+                                <td>{{ loan.due_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <span class="badge-status {{ loan.status }}">{{ loan.get_status_display }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-light border py-2.5 px-3 text-xs mb-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="bi bi-info-circle text-primary me-1"></i>
+                        <span>No bank loans linked yet. Operations workflows (deliveries, hauling, MROs) are unrestricted. All loan facilities, daily interest tracking, and expense matchmaking are managed in the Finance Workspace.</span>
+                    </div>
                 </div>
                 {% endif %}
-                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 8px; padding: 0.85rem 1rem;" {% if loan_form.errors %}open{% endif %}>
-                    <summary style="cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
-                        <i class="bi bi-plus-circle-fill" style="color: var(--htc-primary-light);"></i> Add Bank Loan
-                    </summary>
-                    {% if loan_form.errors %}
-                    <div class="alert alert-danger mt-3 py-2 px-3 text-xs shadow-sm">
-                        <strong class="d-block mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Loan Validation Error:</strong>
-                        <ul class="mb-0 ps-3">
-                            {% for field, errors in loan_form.errors.items %}
-                                {% for error in errors %}
-                                <li><strong>{{ field|title }}:</strong> {{ error }}</li>
-                                {% endfor %}
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
 
-                    <!-- SUGGESTIVE CAPITAL REQUIREMENT DISPLAY -->
-                    <div class="p-3 my-3 border rounded-3 bg-primary-subtle border-primary-subtle" id="detailLoanSuggBox">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold text-primary text-uppercase fs-7"><i class="bi bi-lightbulb-fill text-warning me-1"></i> Suggested Bank Loan Amount</span>
-                            <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-7 font-bold" id="btnApplyDetailLoanSugg">
-                                <i class="bi bi-magic me-1"></i> Use Suggested Amount
-                            </button>
-                        </div>
-                        <div class="row g-2 fs-7 text-dark mb-1">
-                            <div class="col-md-3">Supplier Cost (100%): <strong>₱{{ loan_requirement.sourcing|floatformat:2|intcomma }}</strong></div>
-                            <div class="col-md-3">Truck Delivery (50%): <strong>₱{{ loan_requirement.trucking_down_payment|floatformat:2|intcomma }}</strong></div>
-                            <div class="col-md-3">Barge Delivery (50%): <strong>₱{{ loan_requirement.freight_down_payment|floatformat:2|intcomma }}</strong></div>
-                            <div class="col-md-3 text-md-end">Total Needed: <strong class="text-danger fs-6">₱{{ loan_requirement.required|floatformat:2|intcomma }}</strong></div>
-                        </div>
-                        {% if loan_requirement.already_loaned > 0 %}
-                        <div class="row g-2 fs-7 text-dark mt-1 pt-1 border-top border-primary-subtle">
-                            <div class="col-md-6">Already Loaned: <strong class="text-success">₱{{ loan_requirement.already_loaned|floatformat:2|intcomma }}</strong> ({{ loan_requirement.completion_pct }}%)</div>
-                            <div class="col-md-6 text-md-end">Remaining Needed: <strong class="text-primary fs-6">₱{{ loan_requirement.remaining_required|floatformat:2|intcomma }}</strong> ({{ loan_requirement.remaining_pct }}%)</div>
-                        </div>
-                        {% endif %}
-                        <div class="text-muted text-xs fst-italic mt-1">{{ loan_requirement.formula }}</div>
-                    </div>
-
-                    <form method="post" action="{% url 'operations:add_loan' cluster.pk %}" class="form-stack mt-3" id="clusterDetailLoanForm">{% csrf_token %}
-                        <div class="row g-2">
-                            <div class="col-md-6">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Bank / Lending Partner</label>
-                                {{ loan_form.bank_name }}
-                            </div>
-                            <div class="col-md-6">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Loan Amount (₱)</label>
-                                <div data-bs-toggle="tooltip" data-bs-placement="top" title="{% if loan_requirement.already_loaned > 0 %}Remaining Loan Balance Needed: ₱{{ loan_requirement.remaining_required|floatformat:2|intcomma }} (Total Needed: ₱{{ loan_requirement.required|floatformat:2|intcomma }}){% else %}Suggested Loan Amount: ₱{{ loan_requirement.required|floatformat:2|intcomma }}{% endif %}">
-                                    {{ loan_form.principal }}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Yearly Interest Rate (%)</label>
-                                {{ loan_form.interest_rate_annual }}
-                            </div>
-                            <div class="col-md-6">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">
-                                    Initial Status
-                                    {% if not user|has_perm:"verify_loan" %}
-                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning ms-1" style="font-size: 0.65rem;">Auto-Submitted as Pending</span>
-                                    {% endif %}
-                                </label>
-                                {{ loan_form.status }}
-                            </div>
-                            <div class="col-md-6">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Loan Start Date</label>
-                                {{ loan_form.start_date }}
-                            </div>
-                            <div class="col-md-6">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted); margin-bottom: 0;">Loan Due Date</label>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setDetailTenor(30)">+30d</button>
-                                        <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setDetailTenor(60)">+60d</button>
-                                        <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setDetailTenor(90)">+90d</button>
-                                    </div>
-                                </div>
-                                {{ loan_form.due_date }}
-                            </div>
-                            <div class="col-md-4">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Cheque # (Optional)</label>
-                                {{ loan_form.cheque_number }}
-                            </div>
-                            <div class="col-md-4">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Cheque Issue Date (Optional)</label>
-                                {{ loan_form.cheque_date }}
-                            </div>
-                            <div class="col-md-4">
-                                <label style="font-size: 0.75rem; font-weight: 600; color: var(--htc-text-muted);">Bank Account # (Optional)</label>
-                                {{ loan_form.bank_account_number }}
-                            </div>
-                        </div>
-                        <button type="submit" class="btn-htc btn-htc-sm mt-3"><i class="bi bi-plus-lg"></i> Add Bank Loan</button>
-                    </form>
-                </details>
-
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    var loanReqData = {{ loan_requirement_json|safe }};
-                    var form = document.getElementById('clusterDetailLoanForm');
-                    if (!form) return;
-                    var pInput = form.querySelector('[name="principal"]');
-                    var startInput = form.querySelector('[name="start_date"]');
-                    var dueInput = form.querySelector('[name="due_date"]');
-                    var chqInput = form.querySelector('[name="cheque_date"]');
-                    var btnApply = document.getElementById('btnApplyDetailLoanSugg');
-
-                    var targetAmt = (loanReqData && loanReqData.remaining_required > 0) ? loanReqData.remaining_required : (loanReqData ? loanReqData.required : 0);
-                    if (pInput && targetAmt && (!pInput.value || parseFloat(pInput.value) <= 0)) {
-                        pInput.value = targetAmt.toFixed(2);
-                    }
-
-                    if (btnApply) {
-                        btnApply.addEventListener('click', function() {
-                            if (loanReqData) {
-                                var amtToApply = (loanReqData.remaining_required > 0) ? loanReqData.remaining_required : loanReqData.required;
-                                if (amtToApply) pInput.value = amtToApply.toFixed(2);
-                                var todayStr = new Date().toISOString().split('T')[0];
-                                if (!startInput.value) startInput.value = todayStr;
-                                if (!chqInput.value) chqInput.value = startInput.value || todayStr;
-                                var b = new Date(startInput.value || todayStr);
-                                b.setDate(b.getDate() + 60);
-                                dueInput.value = b.toISOString().split('T')[0];
-                            }
-                        });
-                    }
-                });
-
-                function setDetailTenor(days) {
-                    var form = document.getElementById('clusterDetailLoanForm');
-                    if (!form) return;
-                    var startInput = form.querySelector('[name="start_date"]');
-                    var dueInput = form.querySelector('[name="due_date"]');
-                    var baseStr = startInput ? startInput.value : '';
-                    var baseDate = baseStr ? new Date(baseStr) : new Date();
-                    baseDate.setDate(baseDate.getDate() + days);
-                    if (dueInput) dueInput.value = baseDate.toISOString().split('T')[0];
-                }
-                </script>
-                {% endif %}
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
+                    <span class="text-xs text-muted">
+                        <i class="bi bi-shield-lock me-1"></i> Financing inputs and expense matchmaking are isolated strictly to Finance accounts.
+                    </span>
+                    <a href="{% url 'finance:loan_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}" class="btn btn-primary btn-sm fw-bold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-1.5">
+                        <i class="bi bi-box-arrow-up-right"></i> Open Bank Loans &amp; Matching Panel &rarr;
+                    </a>
+                </div>
             </div>
         </div>
         {% endif %}
