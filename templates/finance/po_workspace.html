@@ -180,7 +180,7 @@
                 <span class="text-secondary opacity-40">·</span>
                 <span>Destination: <strong class="text-dark">{{ po.delivery_destination|default:"Client Facilities" }}</strong></span>
                 <span class="text-secondary opacity-40">·</span>
-                <span>Created: <strong class="text-dark">{{ cluster.created_at|date:"M d, Y" }}</strong></span>
+                <span>Created: <strong class="text-dark">{{ cluster.created_at|date:"M d, Y H:i:s" }} PST</strong></span>
             </div>
         </div>
 
@@ -256,72 +256,84 @@
         </div>
     </div>
 
-    <!-- Card 2: Expense Outlays & Matchmaking (WITH OVER-TARGET GLOWING RED BOX) -->
+    <!-- Card 2: Expense Outlays & Matchmaking -->
     <div class="col-lg-6">
-        <div class="workspace-card h-100 mb-0 {% if is_over_target %}glow-danger-box{% endif %}">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <span class="fw-bold text-dark fs-6">
-                    Expense Outlays &amp; Matchmaking
-                </span>
-                {% if is_over_target %}
-                <span class="badge bg-danger text-white border border-danger fs-7 px-2.5 py-1.5 fw-semibold">
-                    Exceeds Target ({{ recon_pct }}%)
-                </span>
-                {% else %}
-                <span class="badge {% if recon_pct >= 100 %}bg-success-subtle text-success border border-success{% elif recon_pct > 0 %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-7 px-2.5 py-1.5 fw-semibold">
-                    {{ recon_pct }}% Reconciled
-                </span>
-                {% endif %}
-            </div>
-
-            {% if is_over_target %}
-            <!-- SPECIFIC WARNING BANNER FOR SURPASSING TARGET -->
-            <div class="alert alert-danger p-3 mb-3 border-danger shadow-xs" style="border-radius: 8px;">
-                <strong class="text-danger d-block mb-1 fs-7">Reconciliation Target Exceeded!</strong>
-                <div class="fs-7 text-dark">
-                    Total matched outlays (<strong>₱{{ matched_amount|floatformat:2|intcomma }}</strong>) exceed target funding (<strong>₱{{ recon_target|floatformat:2|intcomma }}</strong>) by <span class="font-monospace fw-bold text-danger">₱{{ excess_amount|floatformat:2|intcomma }}</span>. Review matches or adjust facility principal.
+        <div class="workspace-card h-100 mb-0 position-relative overflow-hidden {% if is_over_target %}glow-danger-box{% endif %}" {% if is_over_target %}style="border-color: rgba(220, 53, 69, 0.4);"{% endif %}>
+            {% if not has_valid_loan %}
+            <!-- Subtle Muted Gated Overlay -->
+            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-4" style="background: rgba(248, 250, 252, 0.82); z-index: 10; backdrop-filter: blur(1.5px);">
+                <div class="p-3.5 bg-white border rounded-3 text-center shadow-xs" style="max-width: 440px; border-color: #cbd5e1;">
+                    <div class="text-xs text-secondary text-uppercase fw-semibold mb-1">Access Restricted</div>
+                    <div class="fs-7 fw-medium text-dark">Bank Loan Issuance Required — Please issue a bank loan before matching expenses.</div>
                 </div>
             </div>
             {% endif %}
 
-            <!-- 3 Symmetrical Metric Tiles with Generous Margins -->
-            <div class="row g-3 mb-4">
-                <div class="col-4">
-                    <div class="metric-stat-box h-100">
-                        <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Recon Target</div>
-                        <div class="fs-5 fw-bold text-dark font-monospace">₱{{ recon_target|floatformat:2|intcomma }}</div>
+            <div style="{% if not has_valid_loan %}filter: blur(1.5px); opacity: 0.55; pointer-events: none; user-select: none;{% endif %}">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <span class="fw-bold text-dark fs-6">
+                        Expense Outlays &amp; Matchmaking
+                    </span>
+                    {% if is_over_target %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-7 px-2.5 py-1.5 fw-semibold">
+                        Exceeds Target ({{ recon_pct }}%)
+                    </span>
+                    {% else %}
+                    <span class="badge {% if recon_pct >= 100 %}bg-success-subtle text-success border border-success-subtle{% elif recon_pct > 0 %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-7 px-2.5 py-1.5 fw-semibold">
+                        {{ recon_pct }}% Reconciled
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if is_over_target %}
+                <!-- Subtle Reconciliation Target Exceeded Alert -->
+                <div class="p-3 mb-3 border rounded-3 bg-light" style="border-color: rgba(220, 53, 69, 0.25);">
+                    <strong class="text-danger d-block mb-1 fs-7">Reconciliation Target Exceeded!</strong>
+                    <div class="fs-7 text-dark">
+                        Total matched outlays (<strong>₱{{ matched_amount|floatformat:2|intcomma }}</strong>) exceed target funding (<strong>₱{{ recon_target|floatformat:2|intcomma }}</strong>) by <span class="font-monospace fw-bold text-danger">₱{{ excess_amount|floatformat:2|intcomma }}</span>. Review matches or adjust facility principal.
                     </div>
                 </div>
-                <div class="col-4">
-                    <div class="metric-stat-box h-100">
-                        <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Matched Outlays</div>
-                        <div class="fs-5 fw-bold {% if is_over_target %}text-danger{% else %}text-success{% endif %} font-monospace">
-                            ₱{{ matched_amount|floatformat:2|intcomma }}
+                {% endif %}
+
+                <!-- 3 Symmetrical Metric Tiles with Generous Margins -->
+                <div class="row g-3 mb-4">
+                    <div class="col-4">
+                        <div class="metric-stat-box h-100">
+                            <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Recon Target</div>
+                            <div class="fs-5 fw-bold text-dark font-monospace">₱{{ recon_target|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="metric-stat-box h-100">
+                            <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Matched Outlays</div>
+                            <div class="fs-5 fw-bold {% if is_over_target %}text-danger{% else %}text-success{% endif %} font-monospace">
+                                ₱{{ matched_amount|floatformat:2|intcomma }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="metric-stat-box h-100" style="{% if is_over_target %}border-color: rgba(220, 53, 69, 0.25); background: rgba(220, 53, 69, 0.03);{% endif %}">
+                            {% if is_over_target %}
+                            <div class="text-xs text-danger text-uppercase fw-semibold mb-1.5">Excess Outlay</div>
+                            <div class="fs-5 fw-bold text-danger font-monospace">+₱{{ excess_amount|floatformat:2|intcomma }}</div>
+                            {% else %}
+                            <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Remaining Outlay</div>
+                            <div class="fs-5 fw-bold text-primary font-monospace">₱{{ remaining_balance|floatformat:2|intcomma }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                <div class="col-4">
-                    <div class="metric-stat-box h-100" style="{% if is_over_target %}border-color: rgba(220, 53, 69, 0.25); background: rgba(220, 53, 69, 0.03);{% endif %}">
-                        {% if is_over_target %}
-                        <div class="text-xs text-danger text-uppercase fw-semibold mb-1.5">Excess Outlay</div>
-                        <div class="fs-5 fw-bold text-danger font-monospace">+₱{{ excess_amount|floatformat:2|intcomma }}</div>
-                        {% else %}
-                        <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Remaining Outlay</div>
-                        <div class="fs-5 fw-bold text-primary font-monospace">₱{{ remaining_balance|floatformat:2|intcomma }}</div>
-                        {% endif %}
-                    </div>
+
+                <div class="progress mb-3.5" style="height: 8px; border-radius: 4px; background: #e2e8f0;">
+                    <div class="progress-bar {% if is_over_target %}bg-danger{% else %}bg-success{% endif %}" role="progressbar" style="width: {% if is_over_target %}100{% else %}{{ recon_pct }}{% endif %}%;" aria-valuenow="{{ recon_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
-            </div>
 
-            <div class="progress mb-3.5" style="height: 8px; border-radius: 4px; background: #e2e8f0;">
-                <div class="progress-bar {% if is_over_target %}bg-danger{% else %}bg-success{% endif %}" role="progressbar" style="width: {% if is_over_target %}100{% else %}{{ recon_pct }}{% endif %}%;" aria-valuenow="{{ recon_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
-            </div>
-
-            <div class="fs-7 text-muted pt-3 border-top d-flex justify-content-between align-items-center">
-                <span>{{ matches|length }} matches recorded</span>
-                <a href="{% url 'finance:reconciliation' cluster.pk %}" class="fw-semibold text-primary text-decoration-none">
-                    Open Full 3-Step Guided Reconciler &rarr;
-                </a>
+                <div class="fs-7 text-muted pt-3 border-top d-flex justify-content-between align-items-center">
+                    <span>{{ matches|length }} matches recorded</span>
+                    <a href="{% url 'finance:reconciliation' cluster.pk %}" class="fw-semibold text-primary text-decoration-none">
+                        Open Full 3-Step Guided Reconciler &rarr;
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -414,18 +426,29 @@
 
     <!-- Panel 2: Direct Expense Matchmaking & Cash Vouchers -->
     <div class="col-lg-6">
-        <div class="workspace-card h-100 p-0 mb-0 overflow-hidden">
+        <div class="workspace-card h-100 p-0 mb-0 overflow-hidden position-relative">
+            {% if not has_valid_loan %}
+            <!-- Subtle Muted Gated Overlay -->
+            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-4" style="background: rgba(248, 250, 252, 0.82); z-index: 10; backdrop-filter: blur(1.5px);">
+                <div class="p-3.5 bg-white border rounded-3 text-center shadow-xs" style="max-width: 440px; border-color: #cbd5e1;">
+                    <div class="text-xs text-secondary text-uppercase fw-semibold mb-1">Access Restricted</div>
+                    <div class="fs-7 fw-medium text-dark">Bank Loan Issuance Required — Please issue a bank loan before matching expenses.</div>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="d-flex justify-content-between align-items-center p-4 border-bottom" style="background: var(--htc-surface-variant, #f8fafc);">
                 <span class="fw-bold text-dark fs-6">
                     Matched Outlays &amp; Cash Vouchers ({{ matches|length }})
                 </span>
                 {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
-                <button type="button" class="btn btn-outline-success btn-sm py-1.5 px-3 fs-7 fw-semibold" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
+                <button type="button" class="btn btn-outline-success btn-sm py-1.5 px-3 fs-7 fw-semibold"
+                        {% if not has_valid_loan %}disabled title="Bank Loan Issuance Required — Please issue a bank loan before matching expenses."{% else %}data-bs-toggle="modal" data-bs-target="#matchExpenseModal"{% endif %}>
                     Match Expense / Outlay
                 </button>
                 {% endif %}
             </div>
-            <div class="p-4">
+            <div class="p-4" style="{% if not has_valid_loan %}filter: blur(1.5px); opacity: 0.55; pointer-events: none; user-select: none; min-height: 280px;{% endif %}">
                 <!-- Quick Match Suggestions Tray - Spacious, Text-First -->
                 <div class="mb-4 p-3.5 rounded-3 border" style="background: var(--htc-surface-variant, #f8fafc);">
                     <div class="d-flex align-items-center justify-content-between mb-2.5 flex-wrap gap-2">
@@ -513,13 +536,75 @@
                     <div class="fw-bold fs-6 text-dark mb-1">No Payment Matches Yet</div>
                     <div class="text-sm mb-4">Match delivery batches or supplier sourcing outlays to reconcile this purchase order.</div>
                     {% if user|has_perm:"add_match" or user|has_perm:"reconcile_payments" %}
-                    <button type="button" class="btn btn-success py-2 px-3.5 fs-7 fw-semibold" data-bs-toggle="modal" data-bs-target="#matchExpenseModal">
+                    <button type="button" class="btn btn-success py-2 px-3.5 fs-7 fw-semibold"
+                            {% if not has_valid_loan %}disabled title="Bank Loan Issuance Required — Please issue a bank loan before matching expenses."{% else %}data-bs-toggle="modal" data-bs-target="#matchExpenseModal"{% endif %}>
                         Match Outlay Expense Now
                     </button>
                     {% endif %}
                 </div>
                 {% endif %}
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- COMPREHENSIVE AUDIT LOG SECTION (EMBEDDED BENEATH BANK LOANS & MATCHING) -->
+<div class="workspace-card p-0 mt-4 mb-4 overflow-hidden">
+    <div class="d-flex justify-content-between align-items-center p-4 border-bottom" style="background: var(--htc-surface-variant, #f8fafc);">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold text-dark fs-6">Comprehensive Audit Log</span>
+            <span class="badge bg-secondary-subtle text-secondary border fs-8 px-2 py-0.5">{{ audit_events|length }} Events</span>
+        </div>
+        <span class="text-xs text-muted">All timestamps standardized to Philippine Standard Time (PST / UTC+8)</span>
+    </div>
+    <div class="p-0">
+        <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+            <table class="table table-hover align-middle mb-0 fs-7">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th class="ps-4 py-2.5">Timestamp (PST)</th>
+                        <th class="py-2.5">User</th>
+                        <th class="py-2.5">Category / Record</th>
+                        <th class="py-2.5">Action</th>
+                        <th class="pe-4 py-2.5">Audit Summary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in audit_events %}
+                    <tr>
+                        <td class="ps-4 py-2.5 font-monospace text-nowrap text-muted fs-8">
+                            {{ event.date|date:"M d, Y H:i:s" }} PST
+                        </td>
+                        <td class="py-2.5 fw-semibold text-dark">
+                            {{ event.user|default:"System" }}
+                        </td>
+                        <td class="py-2.5">
+                            <span class="badge bg-light text-secondary border px-2 py-1 fs-8">{{ event.model }}</span>
+                        </td>
+                        <td class="py-2.5">
+                            {% if event.type == '+' %}
+                            <span class="text-success fw-semibold">Created</span>
+                            {% elif event.type == '~' %}
+                            <span class="text-secondary fw-semibold">Updated</span>
+                            {% elif event.type == '-' %}
+                            <span class="text-danger fw-semibold">Deleted</span>
+                            {% else %}
+                            <span class="text-secondary fw-semibold">{{ event.type }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="pe-4 py-2.5 text-secondary">
+                            {{ event.desc }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            No audit trail events recorded for this transaction cluster yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

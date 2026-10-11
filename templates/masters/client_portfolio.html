@@ -89,7 +89,7 @@
                             <td>{{ c.sugar_mill.name }}</td>
                             <td><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></td>
                             <td>{{ c.purchase_order.volume_mt|floatformat:3|default:"—" }} MT</td>
-                            <td>{{ c.created_at|date:"M d, Y" }}</td>
+                            <td>{{ c.created_at|date:"M d, Y H:i:s" }} PST</td>
                         </tr>
                         {% empty %}
                         <tr><td colspan="5" class="text-muted text-center py-3">No transaction history recorded yet.</td></tr>
@@ -131,7 +131,7 @@
                     <div class="p-2 mb-2 bg-light rounded border">
                         <div class="flex-between text-muted small mb-1">
                             <strong>{{ n.author.get_full_name|default:n.author.username }}</strong>
-                            <span>{{ n.created_at|date:"M d, Y H:i" }}</span>
+                            <span>{{ n.created_at|date:"M d, Y H:i:s" }} PST</span>
                         </div>
                         <div style="font-size:0.85rem;">{{ n.content }}</div>
                     </div>

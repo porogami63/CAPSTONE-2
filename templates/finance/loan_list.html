@@ -381,7 +381,7 @@
                             <td>{{ p_loan.bank_name }} <small class="text-muted d-block">Acct: {{ p_loan.bank_account_number|default:"—" }}</small></td>
                             <td class="fw-bold">₱{{ p_loan.principal|floatformat:2|intcomma }}</td>
                             <td>{{ p_loan.logistics_deposit_percentage }}% (₱{{ p_loan.funded_logistics_deposit|floatformat:2|intcomma }})</td>
-                            <td class="text-muted">{{ p_loan.created_at|date:"M d, Y, h:i A" }}</td>
+                            <td class="text-muted">{{ p_loan.created_at|date:"M d, Y H:i:s" }} PST</td>
                             <td class="text-end">
                                 {% if user|has_perm:"verify_loan" %}
                                 <button type="button" class="btn btn-sm btn-success px-3" data-bs-toggle="modal" data-bs-target="#verifyCreationModal{{ p_loan.pk }}">
@@ -560,7 +560,7 @@
                             {% if item.cluster.reference_code != item.po_ref %}
                             <div class="text-xs text-muted font-monospace">{{ item.cluster.reference_code }}</div>
                             {% endif %}
-                            <div class="text-xs text-muted mt-0.5">{{ item.cluster.created_at|date:"M d, Y" }}</div>
+                            <div class="text-xs text-muted mt-0.5">{{ item.cluster.created_at|date:"M d, Y H:i:s" }} PST</div>
                         </td>
                         <td>
                             <strong class="text-dark">{{ item.client_name }}</strong>
@@ -695,7 +695,7 @@
                 </div>
                 {% if loan.verified_by %}
                 <div class="card-subtext mt-1 text-muted" style="font-size: 0.73rem;">
-                    <i class="bi bi-shield-check text-success me-1"></i> Verified by <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y" }}
+                    <i class="bi bi-shield-check text-success me-1"></i> Verified by <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y H:i:s" }} PST
                     {% if loan.verification_notes %}<span class="fst-italic">("{{ loan.verification_notes }}")</span>{% endif %}
                 </div>
                 {% endif %}
@@ -1156,6 +1156,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 var partialRow = document.getElementById('suggPartialRow');
                 var principalWrap = document.getElementById('standaloneLoanPrincipalWrap');
+                var defaultLoanAmt = (data.projected_sales > 0) ? data.projected_sales : ((data.remaining_required > 0) ? data.remaining_required : data.required);
                 var targetAmt = (data.remaining_required > 0) ? data.remaining_required : data.required;
 
                 if (data.already_loaned > 0) {
@@ -1166,32 +1167,32 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('suggRemainingRequired').textContent = formatMoney(data.remaining_required);
                         document.getElementById('suggPctRemaining').textContent = data.remaining_pct;
                     }
-                    var tip = 'Remaining Capital Balance Required: ' + formatMoney(data.remaining_required) + ' (' + data.remaining_pct + '% of Total Min Required ' + formatMoney(data.required) + ')';
+                    var tip = 'Projected Sales / Contract Value: ' + formatMoney(data.projected_sales) + ' (Min Required: ' + formatMoney(data.required) + ')';
                     if (principalWrap) {
                         principalWrap.setAttribute('title', tip);
                         principalWrap.setAttribute('data-bs-original-title', tip);
                     }
                     if (principalInput) {
                         principalInput.setAttribute('title', tip);
-                        principalInput.setAttribute('placeholder', 'Remaining: ' + formatMoney(targetAmt));
+                        principalInput.setAttribute('placeholder', 'Default: ' + formatMoney(defaultLoanAmt));
                     }
                 } else {
                     if (partialRow) partialRow.style.display = 'none';
-                    var tip = 'Suggested Min Capital Requirement: ' + formatMoney(data.required);
+                    var tip = 'Projected Sales Amount: ' + formatMoney(data.projected_sales);
                     if (principalWrap) {
                         principalWrap.setAttribute('title', tip);
                         principalWrap.setAttribute('data-bs-original-title', tip);
                     }
                     if (principalInput) {
                         principalInput.setAttribute('title', tip);
-                        principalInput.setAttribute('placeholder', 'Suggested: ' + formatMoney(data.required));
+                        principalInput.setAttribute('placeholder', 'Projected Sales: ' + formatMoney(defaultLoanAmt));
                     }
                 }
 
                 suggCard.style.display = 'block';
 
                 if (!principalInput.value || parseFloat(principalInput.value) <= 0) {
-                    principalInput.value = targetAmt.toFixed(2);
+                    principalInput.value = defaultLoanAmt.toFixed(2);
                 }
             })
             .catch(err => console.error(err));
@@ -1209,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (applyBtn) {
         applyBtn.addEventListener('click', function() {
             if (currentSuggestion) {
-                var amtToApply = (currentSuggestion.remaining_required > 0) ? currentSuggestion.remaining_required : currentSuggestion.required;
+                var amtToApply = (currentSuggestion.projected_sales > 0) ? currentSuggestion.projected_sales : ((currentSuggestion.remaining_required > 0) ? currentSuggestion.remaining_required : currentSuggestion.required);
                 if (amtToApply) {
                     principalInput.value = amtToApply.toFixed(2);
                 }

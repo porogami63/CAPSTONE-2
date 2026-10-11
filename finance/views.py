@@ -175,6 +175,26 @@ def reconciliation_detail(request, pk):
 def add_match(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)
     reconciliation, _ = FinancialReconciliation.objects.get_or_create(cluster=cluster)
+
+    # Gate Expense Matching Outlay: require valid Bank Loan Issuance
+    valid_loan_exists = cluster.loans.filter(
+        status__in=[
+            CapitalLoan.Status.ACTIVE,
+            CapitalLoan.Status.PENDING_SETTLEMENT,
+            CapitalLoan.Status.CLOSED,
+            CapitalLoan.Status.PENDING_CREATION,
+        ]
+    ).exists()
+    if not valid_loan_exists:
+        messages.error(
+            request,
+            "Bank Loan Issuance Required — Please issue a bank loan before matching expenses.",
+        )
+        next_url = request.POST.get("next") or request.GET.get("next")
+        if next_url:
+            return redirect(next_url)
+        return redirect("finance:po_workspace", pk=cluster.pk)
+
     if request.method == "POST":
         form = PaymentExpenseMatchForm(request.POST)
         if form.is_valid():
@@ -424,8 +444,20 @@ def po_financial_workspace(request, pk):
     gross_margin = expected_sales - total_cost
     gross_margin_pct = round(float(gross_margin / expected_sales * 100), 1) if expected_sales > 0 else 0.0
 
+    from audit.services import get_cluster_audit_events
+    audit_events = get_cluster_audit_events(cluster)
+
+    has_valid_loan = cluster.loans.filter(
+        status__in=[
+            CapitalLoan.Status.ACTIVE,
+            CapitalLoan.Status.PENDING_SETTLEMENT,
+            CapitalLoan.Status.CLOSED,
+            CapitalLoan.Status.PENDING_CREATION,
+        ]
+    ).exists()
+
     match_form = PaymentExpenseMatchForm()
-    loan_form = StandaloneLoanForm(user=request.user, initial={"cluster": cluster})
+    loan_form = StandaloneLoanForm(user=request.user, initial={"cluster": cluster, "principal": expected_sales})
 
     # Annotate loans with timeline data
     for loan in loans:
@@ -448,6 +480,8 @@ def po_financial_workspace(request, pk):
             "gross_margin_pct": gross_margin_pct,
             "loan_req": loan_req,
             "loans": loans,
+            "has_valid_loan": has_valid_loan,
+            "audit_events": audit_events,
             "reconciliation": reconciliation,
             "matches": matches,
             "vouchers": vouchers,

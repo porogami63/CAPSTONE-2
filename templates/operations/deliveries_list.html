@@ -353,10 +353,10 @@
                     <td class="text-nowrap">
                         <div class="fw-semibold text-dark">{{ d.delivery_date|date:"M d, Y" }}</div>
                         {% if d.dispatched_at %}
-                        <div class="fs-8 text-muted"><i class="bi bi-box-arrow-up text-primary me-1"></i>Dep: {{ d.dispatched_at|date:"M d, H:i" }}</div>
+                        <div class="fs-8 text-muted"><i class="bi bi-box-arrow-up text-primary me-1"></i>Dep: {{ d.dispatched_at|date:"M d, Y H:i:s" }} PST</div>
                         {% endif %}
                         {% if d.received_at %}
-                        <div class="fs-8 text-muted"><i class="bi bi-truck text-success me-1"></i>Arr: {{ d.received_at|date:"M d, H:i" }}</div>
+                        <div class="fs-8 text-muted"><i class="bi bi-truck text-success me-1"></i>Arr: {{ d.received_at|date:"M d, Y H:i:s" }} PST</div>
                         {% endif %}
                     </td>
                     <td>

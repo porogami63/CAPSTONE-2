@@ -159,7 +159,7 @@
                     <div class="p-2 mb-2 bg-light rounded border">
                         <div class="flex-between text-muted small mb-1">
                             <strong>{{ n.author.get_full_name|default:n.author.username }}</strong>
-                            <span>{{ n.created_at|date:"M d, Y H:i" }}</span>
+                            <span>{{ n.created_at|date:"M d, Y H:i:s" }} PST</span>
                         </div>
                         <div style="font-size:0.85rem;">{{ n.content }}</div>
                     </div>

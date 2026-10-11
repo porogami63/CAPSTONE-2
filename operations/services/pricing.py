@@ -200,6 +200,13 @@ def loan_requirement_data(cluster) -> dict:
     completion_pct = float(round(min(Decimal("100.0"), (already_loaned / required * Decimal("100"))), 1)) if required > 0 else (100.0 if loans_count > 0 else 0.0)
     remaining_pct = float(round(max(Decimal("0.0"), Decimal("100.0") - Decimal(str(completion_pct))), 1)) if required > 0 else 0.0
 
+    po = getattr(cluster, "purchase_order", None)
+    projected_sales = Decimal("0.00")
+    if po and po.total_selling_value:
+        projected_sales = Decimal(str(po.total_selling_value)).quantize(two)
+    elif fin.get("revenue"):
+        projected_sales = Decimal(str(fin["revenue"])).quantize(two)
+
     return {
         "cluster_id": str(cluster.pk),
         "ref": cluster.reference_code,
@@ -211,6 +218,7 @@ def loan_requirement_data(cluster) -> dict:
         "trucking_down_payment": trucking_dp,
         "freight_down_payment": freight_dp,
         "required": required,
+        "projected_sales": projected_sales,
         "already_loaned": already_loaned,
         "remaining_required": remaining_required,
         "is_complete": is_complete,

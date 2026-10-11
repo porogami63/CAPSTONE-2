@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import User
 from masters.models import Client, LogisticsPartner, SugarMill
@@ -403,7 +404,46 @@ class POFocusedFinanceWorkspaceTests(TestCase):
 			unit_price=42000,
 			selling_price=46000,
 		)
+		self.loan = CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="BDO Unibank",
+			principal=Decimal("8400000.00"),
+			interest_rate_annual=Decimal("10.0000"),
+			start_date=timezone.localdate(),
+			due_date=timezone.localdate() + timedelta(days=90),
+			status=CapitalLoan.Status.ACTIVE,
+		)
 		self.client.login(username="finance_pro", password="password123")
+
+	def test_gated_expense_matching_when_no_bank_loan(self):
+		new_cluster = TransactionCluster.objects.create(
+			reference_code="PO-NOLOAN-2026",
+			client=self.client_entity,
+			sugar_mill=self.mill,
+		)
+		PurchaseOrder.objects.create(
+			cluster=new_cluster,
+			po_reference_number="PO-NOLOAN-2026",
+			volume_mt=100,
+			unit_price=40000,
+			selling_price=45000,
+		)
+		# Workspace renders gated notice
+		res = self.client.get(reverse("finance:po_workspace", args=[new_cluster.pk]))
+		self.assertEqual(res.status_code, 200)
+		self.assertFalse(res.context["has_valid_loan"])
+		self.assertContains(res, "Bank Loan Issuance Required — Please issue a bank loan before matching expenses.")
+
+		# Submitting a match is rejected
+		post_res = self.client.post(
+			reverse("finance:add_match", args=[new_cluster.pk]),
+			{
+				"payment_reference": "OR-BLOCKED-001",
+				"expense_type": "sourcing",
+				"amount": "100000.00",
+			},
+		)
+		self.assertFalse(PaymentExpenseMatch.objects.filter(payment_reference="OR-BLOCKED-001").exists())
 
 	def test_loan_list_focus_by_po_param(self):
 		res = self.client.get(reverse("finance:loan_list") + f"?po={self.cluster.reference_code}")
@@ -503,6 +543,16 @@ class DeliveryExpenseMatchingLinkTests(TestCase):
 	def test_delivery_fulfillment_auto_generates_pending_cash_vouchers_and_matches(self):
 		from operations.models import DeliveryLedger
 		from finance.models import CashVoucher, PaymentExpenseMatch, FinancialReconciliation
+
+		CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="BDO Unibank",
+			principal=Decimal("49000000.00"),
+			interest_rate_annual=Decimal("10.0000"),
+			start_date=timezone.localdate(),
+			due_date=timezone.localdate() + timedelta(days=90),
+			status=CapitalLoan.Status.ACTIVE,
+		)
 
 		delivery = DeliveryLedger.objects.create(
 			purchase_order=self.po,

@@ -715,28 +715,8 @@ def cluster_detail(request, pk):
     total_mro_tons = sum(m.tons for m in linked_mros)
 
     # Collect Audit Trail
-    audit_events = []
-    
-    for h in cluster.history.all():
-        audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": "Transaction Cluster", "desc": f"Status: {h.status}"})
-        
-    if hasattr(cluster, 'logistics'):
-        for h in cluster.logistics.history.all():
-            audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": "Logistics", "desc": f"Loaded: {h.loaded_volume_mt}, Received: {h.received_volume_mt}"})
-            
-    if hasattr(cluster, 'purchase_order'):
-        for h in cluster.purchase_order.history.all():
-            audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": "Purchase Order", "desc": f"Vol: {h.volume_mt} MT @ P{h.unit_price}"})
-
-    for inv in cluster.invoices.all():
-        for h in inv.history.all():
-            audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": f"Invoice {h.invoice_number}", "desc": f"Status: {h.status}, Amount: {h.amount}"})
-
-    for v in cluster.cash_vouchers.all():
-        for h in v.history.all():
-            audit_events.append({"date": h.history_date, "user": h.history_user, "type": h.history_type, "model": f"Voucher {h.voucher_number}", "desc": f"Amount: {h.amount}"})
-
-    audit_events.sort(key=lambda x: x["date"], reverse=True)
+    from audit.services import get_cluster_audit_events
+    audit_events = get_cluster_audit_events(cluster)
     debrief = cluster_financials(cluster)
     from operations.services.pricing import get_invoice_suggestion_data, get_po_logistics_summary, loan_requirement_data
     invoice_suggestion_data = get_invoice_suggestion_data(cluster)

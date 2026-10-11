@@ -20,6 +20,9 @@ def check_loan_capital_cap(cluster, exclude_loan_id=None) -> tuple[bool, str]:
 
     req = loan_requirement_data(cluster)
     capital_requirement = req.get("required", Decimal("0.00"))
+    projected_sales = req.get("projected_sales", Decimal("0.00"))
+    # Loan amount reflects cash capital plus profit (projected sales)
+    loan_cap = max(capital_requirement, projected_sales)
 
     # Active / Approved loans for PO
     active_approved_statuses = [
@@ -35,7 +38,7 @@ def check_loan_capital_cap(cluster, exclude_loan_id=None) -> tuple[bool, str]:
     total_funded_capital = loans_qs.aggregate(total=Sum("principal"))["total"] or Decimal("0.00")
     two = Decimal("0.01")
 
-    if capital_requirement > Decimal("0.00") and total_funded_capital >= (capital_requirement - two):
+    if loan_cap > Decimal("0.00") and total_funded_capital >= (loan_cap - two):
         return False, "Capital requirement for this order has already been 100% funded. Additional loans cannot be created."
 
     return True, ""

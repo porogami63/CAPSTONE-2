@@ -308,11 +308,27 @@ class StandaloneLoanForm(LoanRulesMixin, forms.ModelForm):
             .order_by("-created_at")
         )
         valid_loan_cluster_ids = [c.id for c in all_clusters if not loan_requirement_data(c)["is_complete"]]
+        target_cluster = None
         if self.initial.get("cluster"):
             init_c = self.initial.get("cluster")
             c_id = getattr(init_c, "id", init_c)
             if c_id not in valid_loan_cluster_ids:
                 valid_loan_cluster_ids.append(c_id)
+            if isinstance(init_c, TransactionCluster):
+                target_cluster = init_c
+            else:
+                target_cluster = TransactionCluster.objects.filter(pk=c_id).first()
+
+        if target_cluster and not self.initial.get("principal"):
+            po = getattr(target_cluster, "purchase_order", None)
+            if po and po.total_selling_value and po.total_selling_value > 0:
+                self.initial["principal"] = po.total_selling_value
+            else:
+                from operations.services.pricing import cluster_financials
+                fin = cluster_financials(target_cluster)
+                if fin.get("revenue") and fin["revenue"] > 0:
+                    self.initial["principal"] = fin["revenue"]
+
         self.fields["cluster"].queryset = (
             TransactionCluster.objects.filter(id__in=valid_loan_cluster_ids)
             .select_related("client", "sugar_mill", "purchase_order")
@@ -376,6 +392,16 @@ class CapitalLoanForm(LoanRulesMixin, forms.ModelForm):
     def __init__(self, *args, user=None, cluster=None, **kwargs):
         self.cluster = cluster
         super().__init__(*args, **kwargs)
+        if self.cluster and not self.initial.get("principal"):
+            po = getattr(self.cluster, "purchase_order", None)
+            if po and po.total_selling_value and po.total_selling_value > 0:
+                self.initial["principal"] = po.total_selling_value
+            else:
+                from operations.services.pricing import cluster_financials
+                fin = cluster_financials(self.cluster)
+                if fin.get("revenue") and fin["revenue"] > 0:
+                    self.initial["principal"] = fin["revenue"]
+
         self.fields["cheque_number"].required = False
         self.fields["cheque_date"].required = False
         self.fields["bank_account_number"].required = False
