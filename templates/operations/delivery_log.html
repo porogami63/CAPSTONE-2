@@ -238,16 +238,20 @@
                         <div class="text-danger fs-8 fw-bold mt-1">{{ form.purchase_order.errors|striptags }}</div>
                         {% endif %}
                     </div>
-
                     <div class="row g-3 mb-3">
                         <!-- Field 2: Sourcing Mill (Dynamic per delivery) -->
                         <div class="col-md-6">
                             <div class="form-field-symmetric">
-                                <label for="{{ form.supplier.id_for_label }}">
-                                    {{ form.supplier.label }} <span class="text-danger">*</span>
-                                </label>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="{{ form.supplier.id_for_label }}" class="mb-0">
+                                        {{ form.supplier.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-0.5 px-2 d-none" id="originMillPill">
+                                        <i class="bi bi-geo-alt me-1"></i>Origin: <span id="originMillPillText"></span>
+                                    </span>
+                                </div>
                                 {{ form.supplier }}
-                                <div class="field-help">Source sugar mill (e.g. BUSCO, CASA).</div>
+                                <div class="field-help">Source sugar mill (defaults to PO contract origin).</div>
                                 {% if form.supplier.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1">{{ form.supplier.errors|striptags }}</div>
                                 {% endif %}
@@ -286,7 +290,6 @@
                                 {% endif %}
                             </div>
                         </div>
-
                         <div class="col-md-6">
                             <div class="form-field-symmetric">
                                 <label for="{{ form.receiving_location.id_for_label }}">
@@ -341,10 +344,16 @@
                         </div>
                     </div>
 
-                    <!-- Freight & Carrier Details -->
+                    <!-- Freight & Carrier Details (Auto-Calculated) -->
                     <div class="mt-4 pt-3 border-top">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold text-dark fs-7 mb-0">Freight &amp; Carrier Details <span class="fw-normal text-muted fs-8">(Optional)</span></h6>
+                            <div>
+                                <h6 class="fw-bold text-dark fs-7 mb-0">Freight &amp; Carrier Rates <span class="fw-normal text-muted fs-8">(Optional)</span></h6>
+                                <p class="text-muted fs-8 mb-0">Logistics totals are automatically calculated from Delivered MT × ₱/MT rate.</p>
+                            </div>
+                            <span class="badge bg-light text-primary border fs-8 px-2 py-1 fw-semibold">
+                                <i class="bi bi-calculator me-1"></i>Auto-Calculated
+                            </span>
                         </div>
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -359,6 +368,10 @@
                                     <div class="input-addon-group">
                                         <span class="addon addon-prefix">₱</span>
                                         {{ form.trucking_rate_per_mt }}
+                                    </div>
+                                    <div class="text-xs text-muted mt-1.5 fw-semibold d-flex justify-content-between align-items-center" id="pageTrkCalcRow">
+                                        <span><i class="bi bi-truck me-1"></i>Est. Land Freight:</span>
+                                        <span class="text-primary font-monospace fw-bold" id="pageTrkCalcText">₱0.00</span>
                                     </div>
                                 </div>
                             </div>
@@ -376,25 +389,60 @@
                                         <span class="addon addon-prefix">₱</span>
                                         {{ form.barge_rate_per_mt }}
                                     </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="form-field-symmetric">
-                                    <label for="{{ form.flat_trucking_fee.id_for_label }}">{{ form.flat_trucking_fee.label }}</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
-                                        {{ form.flat_trucking_fee }}
+                                    <div class="text-xs text-muted mt-1.5 fw-semibold d-flex justify-content-between align-items-center" id="pageBrgCalcRow">
+                                        <span><i class="bi bi-water me-1"></i>Est. Marine Freight:</span>
+                                        <span class="text-primary font-monospace fw-bold" id="pageBrgCalcText">₱0.00</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="col-md-6">
-                                <div class="form-field-symmetric">
-                                    <label for="{{ form.flat_barge_fee.id_for_label }}">{{ form.flat_barge_fee.label }}</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
-                                        {{ form.flat_barge_fee }}
+                            <!-- Real-Time Auto-Calculated Batch Logistics Summary -->
+                            <div class="col-12">
+                                <div class="p-3 rounded-3 bg-light border d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center gap-2.5">
+                                        <div class="rounded-2 bg-primary-subtle text-primary p-2">
+                                            <i class="bi bi-calculator-fill fs-6"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fs-8 fw-bold text-dark">Total Batch Logistics Cost</div>
+                                            <div class="text-xs text-muted" id="pageFreightFormulaText">Delivered MT × entered ₱/MT rates</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fs-6 fw-bold text-primary font-monospace" id="pageTotalFreightText">₱0.00</div>
+                                        <div class="text-xs text-muted">Zero manual calculation needed</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Optional Collapsed Fixed Flat Surcharge -->
+                            <div class="col-12 mt-1">
+                                <a class="text-decoration-none text-muted fs-8 d-inline-flex align-items-center gap-1" data-bs-toggle="collapse" href="#pageFlatSurchargeCollapse" role="button" aria-expanded="false" aria-controls="pageFlatSurchargeCollapse">
+                                    <i class="bi bi-chevron-down"></i>
+                                    <span>Optional: Add fixed lump-sum trip surcharge (if carrier charges flat charter fee)</span>
+                                </a>
+                                <div class="collapse mt-2" id="pageFlatSurchargeCollapse">
+                                    <div class="card card-body bg-light border p-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="form-field-symmetric">
+                                                    <label for="{{ form.flat_trucking_fee.id_for_label }}" class="form-label fs-8 text-muted mb-1">{{ form.flat_trucking_fee.label }}</label>
+                                                    <div class="input-addon-group">
+                                                        <span class="addon addon-prefix">₱</span>
+                                                        {{ form.flat_trucking_fee }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-field-symmetric">
+                                                    <label for="{{ form.flat_barge_fee.id_for_label }}" class="form-label fs-8 text-muted mb-1">{{ form.flat_barge_fee.label }}</label>
+                                                    <div class="input-addon-group">
+                                                        <span class="addon addon-prefix">₱</span>
+                                                        {{ form.flat_barge_fee }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -515,6 +563,48 @@ document.addEventListener('DOMContentLoaded', function() {
     const alertBox = document.getElementById('overDeliveryAlert');
     const alertRemSpan = document.getElementById('alertRemainingMT');
 
+    const trkRateInput = document.querySelector('input[name="trucking_rate_per_mt"]');
+    const brgRateInput = document.querySelector('input[name="barge_rate_per_mt"]');
+    const flatTrkInput = document.querySelector('input[name="flat_trucking_fee"]');
+    const flatBrgInput = document.querySelector('input[name="flat_barge_fee"]');
+
+    function updateFreightCalculations() {
+        const mt = parseFloat(mtInput?.value) || 0;
+        const trkRate = parseFloat(trkRateInput?.value) || 0;
+        const brgRate = parseFloat(brgRateInput?.value) || 0;
+        const flatTrk = parseFloat(flatTrkInput?.value) || 0;
+        const flatBrg = parseFloat(flatBrgInput?.value) || 0;
+
+        const totalTrk = (mt * trkRate) + flatTrk;
+        const totalBrg = (mt * brgRate) + flatBrg;
+        const grandTotal = totalTrk + totalBrg;
+
+        const trkText = document.getElementById('pageTrkCalcText');
+        const brgText = document.getElementById('pageBrgCalcText');
+        const totalFreightText = document.getElementById('pageTotalFreightText');
+        const formulaText = document.getElementById('pageFreightFormulaText');
+
+        if (trkText) {
+            trkText.textContent = `₱${totalTrk.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+        if (brgText) {
+            brgText.textContent = `₱${totalBrg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+        if (totalFreightText) {
+            totalFreightText.textContent = `₱${grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+        if (formulaText) {
+            if (grandTotal > 0 && mt > 0) {
+                let parts = [];
+                if (trkRate > 0) parts.push(`Land ₱${trkRate.toFixed(2)}/MT`);
+                if (brgRate > 0) parts.push(`Marine ₱${brgRate.toFixed(2)}/MT`);
+                formulaText.textContent = `${mt.toLocaleString('en-US', {minimumFractionDigits: 3})} MT: ${parts.join(' + ') || 'Entered rates'}`;
+            } else {
+                formulaText.textContent = `Delivered MT × entered ₱/MT rates`;
+            }
+        }
+    }
+
     function checkOverDelivery() {
         if (!mtInput) return;
         const val = parseFloat(mtInput.value) || 0;
@@ -532,11 +622,20 @@ document.addEventListener('DOMContentLoaded', function() {
             mtInput.style.borderColor = '';
             submitBtn.disabled = false;
         }
+        updateFreightCalculations();
     }
 
     if (mtInput) {
         mtInput.addEventListener('input', checkOverDelivery);
     }
+
+    [trkRateInput, brgRateInput, flatTrkInput, flatBrgInput].forEach(inp => {
+        if (inp) {
+            inp.addEventListener('input', updateFreightCalculations);
+        }
+    });
+
+    updateFreightCalculations();
 
     const custSelect = document.getElementById('id_receiving_customer_select');
     if (custSelect) {
@@ -595,9 +694,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
+                if (data.preferred_supplier_name) {
+                    const pill = document.getElementById('originMillPill');
+                    const pillText = document.getElementById('originMillPillText');
+                    if (pill && pillText) {
+                        pillText.textContent = data.preferred_supplier_name;
+                        pill.classList.remove('d-none');
+                    }
+                }
+
                 if (data.preferred_supplier_id) {
                     const supSelect = document.getElementById('id_delivery_supplier');
-                    if (supSelect && !supSelect.value) {
+                    if (supSelect) {
                         supSelect.value = data.preferred_supplier_id;
                     }
                 }
@@ -629,6 +737,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const badge = document.getElementById('poStatusBadge');
         badge.textContent = 'No PO Selected';
         badge.className = 'badge bg-secondary text-uppercase fs-8 px-2.5 py-1.5';
+        const pill = document.getElementById('originMillPill');
+        if (pill) pill.classList.add('d-none');
     }
 
     if (poSelect) {

@@ -396,6 +396,9 @@ class DeliveryLedgerForm(forms.ModelForm):
                 self.fields["receiving_customer"].initial = cust
                 if not self.initial.get("receiving_location"):
                     self.fields["receiving_location"].initial = f"{cust.name} Main Site"
+            mill = getattr(initial_po.cluster, "sugar_mill", None) if hasattr(initial_po, "cluster") and initial_po.cluster else None
+            if mill:
+                self.fields["supplier"].initial = mill
 
     def clean(self):
         cleaned_data = super().clean()
@@ -406,6 +409,11 @@ class DeliveryLedgerForm(forms.ModelForm):
 
         if rec_cust and not rec_loc:
             cleaned_data["receiving_location"] = f"{rec_cust.name} Main Facility"
+
+        if po and not cleaned_data.get("supplier"):
+            mill = getattr(po.cluster, "sugar_mill", None) if hasattr(po, "cluster") and po.cluster else None
+            if mill:
+                cleaned_data["supplier"] = mill
 
         if delivered_mt is not None and delivered_mt <= 0:
             self.add_error("delivered_mt", "Delivered quantity must be greater than 0 MT.")
