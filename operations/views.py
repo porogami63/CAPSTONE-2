@@ -19,7 +19,7 @@ from finance.models import CapitalLoan, CashVoucher, FinancialReconciliation, In
 from masters.models import LogisticsPartner, Planter, SugarMill
 
 from .forms import ExcelImportForm, LogisticsUpdateForm, TransactionClusterForm, MolassesReleaseOrderForm, MROExcelImportForm, CHAIRecordForm, DeliveryLedgerForm
-from .models import LogisticsLedger, PurchaseOrder, TransactionCluster, MolassesReleaseOrder, CHAIRecord, DeliveryLedger, normalize_crop_year
+from .models import LogisticsLedger, PurchaseOrder, TransactionCluster, MolassesReleaseOrder, CHAIRecord, DeliveryLedger, normalize_crop_year, MROExtractionJob
 from .services.excel_import import (
     clear_operational_data,
     import_htc_summary,
@@ -713,6 +713,8 @@ def cluster_detail(request, pk):
         .order_by("-release_date", "mro_number")[:50]
     )
     total_mro_tons = sum(m.tons for m in linked_mros)
+    available_sugar_mills = list(SugarMill.objects.filter(is_active=True).order_by("name"))
+    available_planters = list(Planter.objects.filter(is_active=True).order_by("name"))
 
     # Collect Audit Trail
     from audit.services import get_cluster_audit_events
@@ -753,6 +755,8 @@ def cluster_detail(request, pk):
             "logistics_summary": logistics_summary,
             "linked_mros": linked_mros,
             "available_mros": available_mros,
+            "available_sugar_mills": available_sugar_mills,
+            "available_planters": available_planters,
             "total_mro_tons": total_mro_tons,
             "wf": wf,
             "is_concluded": is_concluded,
@@ -1199,6 +1203,172 @@ def upload_mro(request, pk):
     if redirect_url:
         return redirect(redirect_url)
     return redirect("operations:cluster_detail", pk=pk)
+
+
+@csrf_protect
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGER)
+def upload_mro_for_ocr(request, pk):
+    """
+    Receives an uploaded MRO scan (PDF/Image) for a cluster/PO, creates an
+    MROExtractionJob, and enqueues the Celery worker task to parse with AWS Textract.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "POST method required"}, status=405)
+
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    uploaded_file = request.FILES.get("file") or request.FILES.get("mro_file")
+
+    if not uploaded_file:
+        return JsonResponse({"error": "No file provided. Please upload a PDF or image."}, status=400)
+
+    # 25MB file size limit
+    if uploaded_file.size > 25 * 1024 * 1024:
+        return JsonResponse({"error": "File size exceeds the 25MB limit."}, status=400)
+
+    job = MROExtractionJob.objects.create(
+        cluster=cluster,
+        document=uploaded_file,
+        file_name=uploaded_file.name,
+        file_size_bytes=uploaded_file.size,
+        status=MROExtractionJob.Status.QUEUED,
+        created_by=request.user if request.user.is_authenticated else None,
+    )
+
+    # Dispatch to Celery background worker with fallback to synchronous execution
+    try:
+        from .tasks import process_mro_ocr_task
+        process_mro_ocr_task.delay(str(job.id))
+    except Exception:
+        try:
+            from .tasks import process_mro_ocr_task
+            process_mro_ocr_task(str(job.id))
+        except Exception:
+            pass
+
+    return JsonResponse({
+        "status": "queued",
+        "job_id": str(job.id),
+        "file_name": job.file_name,
+        "file_url": job.document.url if job.document else "",
+        "poll_url": f"/operations/mro/ocr-job/{job.id}/",
+        "message": "Document uploaded successfully. OCR analysis started.",
+    }, status=202)
+
+
+@login_required
+def mro_ocr_job_status(request, job_id):
+    """
+    Polls the current status of an MROExtractionJob and returns the extracted
+    payload with confidence scores upon completion.
+    """
+    job = get_object_or_404(MROExtractionJob, id=job_id)
+
+    response_data = {
+        "job_id": str(job.id),
+        "status": job.status,
+        "average_confidence": job.average_confidence,
+        "error_message": job.error_message,
+        "file_name": job.file_name,
+        "file_url": job.document.url if job.document else "",
+        "created_at": job.created_at.isoformat(),
+        "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+    }
+
+    if job.status == MROExtractionJob.Status.COMPLETED and job.extracted_data:
+        response_data["data"] = job.extracted_data
+
+    return JsonResponse(response_data)
+
+
+@csrf_protect
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGER)
+def commit_mro_ocr_result(request, pk):
+    """
+    Receives user-verified MRO data, creates or updates the MolassesReleaseOrder,
+    links it to the TransactionCluster, and attaches the scanned document copy.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "POST method required"}, status=405)
+
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8")) if request.body else request.POST
+    except Exception as e:
+        return JsonResponse({"error": f"Invalid JSON payload: {e}"}, status=400)
+
+    job_id = payload.get("job_id")
+    mro_number = str(payload.get("mro_number", "")).strip()
+    sugar_mill_id = payload.get("sugar_mill_id")
+    sugar_mill_name = payload.get("sugar_mill_name", "").strip()
+    planter_id = payload.get("planter_id")
+    planter_name = payload.get("planter_name", "").strip()
+    tons = payload.get("tons", 0.0)
+    release_date = payload.get("release_date")
+    crop_year = payload.get("crop_year", "2024 - 2025")
+    brix_level = payload.get("brix_level")
+    chai_specs = payload.get("chai_specs", "")
+    notes = payload.get("notes", "")
+
+    if not mro_number:
+        return JsonResponse({"error": "MRO number is required."}, status=400)
+
+    try:
+        tons = Decimal(str(tons))
+        if tons <= 0:
+            return JsonResponse({"error": "Tons must be a positive number."}, status=400)
+    except Exception:
+        return JsonResponse({"error": "Invalid value for Tons."}, status=400)
+
+    sugar_mill = None
+    if sugar_mill_id:
+        sugar_mill = SugarMill.objects.filter(id=sugar_mill_id).first()
+    if not sugar_mill and sugar_mill_name:
+        sugar_mill = SugarMill.objects.filter(name__icontains=sugar_mill_name).first()
+
+    planter = None
+    if planter_id:
+        planter = Planter.objects.filter(id=planter_id).first()
+    if not planter and planter_name:
+        planter = Planter.objects.filter(name__icontains=planter_name).first()
+    if not planter:
+        planter = Planter.objects.first()
+
+    if not planter:
+        return JsonResponse({"error": "No active planter found in master records."}, status=400)
+
+    with transaction.atomic():
+        mro, created = MolassesReleaseOrder.objects.update_or_create(
+            mro_number=mro_number,
+            defaults={
+                "cluster": cluster,
+                "sugar_mill": sugar_mill,
+                "sugar_mill_name": sugar_mill.name if sugar_mill else (sugar_mill_name or "BUSCO"),
+                "planter": planter,
+                "tons": tons,
+                "release_date": release_date or None,
+                "crop_year": normalize_crop_year(crop_year),
+                "brix_level": Decimal(str(brix_level)) if brix_level else None,
+                "chai_specs": chai_specs or "",
+                "notes": notes or f"Autofilled via OCR (Job: {job_id})",
+            }
+        )
+
+        if job_id:
+            job = MROExtractionJob.objects.filter(id=job_id).first()
+            if job and job.document and not cluster.mro_file:
+                cluster.mro_file = job.document
+                cluster.save(update_fields=["mro_file"])
+
+    return JsonResponse({
+        "success": True,
+        "mro_id": mro.id,
+        "mro_number": mro.mro_number,
+        "tons": float(mro.tons),
+        "mill_name": mro.display_sugar_mill,
+        "planter_name": mro.planter.name,
+        "message": f"MRO #{mro.mro_number} successfully linked to {cluster.reference_code}.",
+    })
 
 
 @role_required(

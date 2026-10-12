@@ -147,15 +147,15 @@ class TransactionCluster(models.Model):
         # Step 4: Sales Invoicing
         s4_missing = []
         if not s2_approved:
-            s4_missing.append("PO must be approved by Executive Manager")
+            s4_missing.append("PO approved by Executive Manager")
         if not is_received and not is_delivered:
-            s4_missing.append("Logistics delivery receiving (Received MT) recorded")
+            s4_missing.append("Delivery received (Received MT)")
         if not invoices.exists():
-            s4_missing.append("Sales Invoice issued & recorded")
+            s4_missing.append("Sales invoice recorded")
         else:
             unpaid_count = invoices.exclude(status="paid").count()
             if unpaid_count > 0:
-                s4_missing.append(f"{unpaid_count} sales invoice(s) pending payment collection")
+                s4_missing.append(f"{unpaid_count} sales invoice(s) pending payment")
 
         s4_complete = s2_approved and (len(s4_missing) == 0)
 
@@ -941,6 +941,50 @@ class CHAIRecord(models.Model):
 
     def __str__(self):
         return f"{self.chai_number} — CHAI {self.chai_value:.1f}"
+
+
+class MROExtractionJob(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        PROCESSING = "processing", "Processing"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cluster = models.ForeignKey(
+        TransactionCluster,
+        on_delete=models.CASCADE,
+        related_name="mro_ocr_jobs",
+        help_text="Target transaction cluster for MRO linking",
+    )
+    document = models.FileField(
+        upload_to="mro_scans/ocr_uploads/%Y/%m/",
+        help_text="Uploaded MRO scan file for extraction",
+    )
+    file_name = models.CharField(max_length=255, blank=True)
+    file_size_bytes = models.BigIntegerField(default=0)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    average_confidence = models.FloatField(null=True, blank=True)
+    extracted_data = models.JSONField(null=True, blank=True)
+    error_message = models.TextField(blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mro_ocr_jobs",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "MRO Extraction Job"
+        verbose_name_plural = "MRO Extraction Jobs"
+
+    def __str__(self):
+        return f"MRO OCR Job {self.id} ({self.status}) for {self.cluster.reference_code}"
+
 
 
 

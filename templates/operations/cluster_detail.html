@@ -286,8 +286,8 @@
                 {% if not has_active_loan %}
                 <div class="alert alert-warning py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-xs flex-wrap gap-2" style="border-radius: 8px;">
                     <div>
-                        <i class="bi bi-info-circle-fill text-warning me-1"></i>
-                        <strong>Finance Notice:</strong> Bank loan facility has not yet been cleared by Finance for this deal. Operations, delivery batches, and MRO releases can proceed normally without restriction.
+                        <i class="bi bi-info-circle-fill text-warning me-2"></i>
+                        <strong>Finance Notice:</strong> Bank loan is not yet cleared for this order. Deliveries and operations can continue as normal.
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-warning text-dark">Soft Notice</span>
@@ -411,9 +411,14 @@
             <div class="panel-header d-flex justify-content-between align-items-center" style="padding: 0.85rem 1rem;">
                 <span style="font-weight: 700; color: var(--htc-primary-light);"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Attached Loading Permits (MRO)</span>
                 {% if user|has_perm:"edit_transaction" or user|has_perm:"edit_logistics" %}
-                <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" data-bs-toggle="modal" data-bs-target="#linkMroModal">
-                    <i class="bi bi-link-45deg me-1"></i> Attach Loading Permit (MRO)
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-primary py-1 px-2.5 fs-7 fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#mroOcrModal">
+                        <i class="bi bi-magic me-1"></i> Scan &amp; Autofill MRO
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" data-bs-toggle="modal" data-bs-target="#linkMroModal">
+                        <i class="bi bi-link-45deg me-1"></i> Link Existing MRO
+                    </button>
+                </div>
                 {% endif %}
             </div>
             <div class="panel-body">
@@ -504,6 +509,8 @@
                 </div>
             </div>
         </div>
+
+        {% include "operations/includes/mro_ocr_modal.html" %}
 
         <div class="panel">
 
@@ -773,12 +780,12 @@
 
                     {% with wf=cluster.get_workflow_steps_info %}
                     {% if wf.step4.missing %}
-                    <div class="p-2.5 px-3 mb-3 rounded-3 border d-flex align-items-start gap-2.5" style="background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.3) !important;">
-                        <i class="bi bi-exclamation-triangle-fill text-warning fs-6 flex-shrink-0 mt-0.5"></i>
-                        <div>
-                            <div class="fw-bold text-xs text-warning-emphasis">Invoicing Prerequisite Guidance</div>
-                            <div class="text-xs text-secondary mb-1.5">Review the following open prerequisites before finalizing customer billing:</div>
-                            <div class="d-flex flex-wrap gap-1">
+                    <div class="p-3 mb-3 rounded-3 border d-flex align-items-start" style="background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.3) !important;">
+                        <i class="bi bi-exclamation-triangle-fill text-warning flex-shrink-0" style="font-size: 1rem; margin-top: 1px; margin-right: 0.75rem;"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold text-xs text-warning-emphasis mb-1">Invoice Checklist</div>
+                            <div class="text-xs text-secondary mb-2">Check these items before billing the customer:</div>
+                            <div class="d-flex flex-wrap" style="gap: 0.35rem;">
                                 {% for m in wf.step4.missing %}
                                 <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-1 px-2 text-xs fw-medium"><i class="bi bi-dot me-0.5"></i>{{ m }}</span>
                                 {% endfor %}

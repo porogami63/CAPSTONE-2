@@ -1,0 +1,430 @@
+<!-- Modal: MRO OCR Upload & Autofill Verification -->
+<div class="modal fade" id="mroOcrModal" tabindex="-1" aria-labelledby="mroOcrModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 1140px;">
+        <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 16px 36px rgba(0,0,0,0.28);">
+            
+            <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1rem 1.4rem;">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle p-2 d-flex align-items-center justify-content-center bg-primary-subtle text-primary" style="width: 36px; height: 36px;">
+                        <i class="bi bi-magic fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="mroOcrModalLabel" style="color: var(--htc-text);">Scan &amp; Autofill MRO Permit</h5>
+                        <div class="text-xs text-muted">Upload scanned soft copy to auto-extract MRO specifications with AWS Textract</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="mroModalCloseBtn"></button>
+            </div>
+
+            <div class="modal-body p-3.5" style="padding: 1.25rem;">
+                <!-- 1. DRAG & DROP UPLOAD STATE -->
+                <div id="mroDropzone" class="border border-2 border-dashed rounded-3 p-5 text-center transition-all" 
+                     style="background: var(--htc-bg); border-color: var(--htc-border) !important; cursor: pointer;">
+                    <i class="bi bi-cloud-arrow-up-fill text-primary" style="font-size: 3rem;"></i>
+                    <h5 class="fw-bold mt-3 mb-1" style="color: var(--htc-text);">Drag &amp; Drop Scanned MRO Document Here</h5>
+                    <p class="text-muted text-xs mb-3">Supports PDF, TIFF, PNG, or JPEG files up to 25MB.</p>
+                    
+                    <input type="file" id="mroOcrFileInput" class="d-none" accept=".pdf,image/png,image/jpeg,image/tiff,image/webp">
+                    <button type="button" class="btn btn-primary px-4 py-2 fw-semibold rounded-3 shadow-xs" onclick="document.getElementById('mroOcrFileInput').click();">
+                        <i class="bi bi-folder2-open me-1"></i> Browse Files from Device
+                    </button>
+                    
+                    <div class="text-xs text-muted mt-3">
+                        <i class="bi bi-shield-lock me-1"></i> Document AI extraction runs securely within Amazon Web Services.
+                    </div>
+                </div>
+
+                <!-- 2. PROCESSING STATE -->
+                <div id="mroProcessingState" class="d-none text-center py-5">
+                    <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="fw-bold mb-1" style="color: var(--htc-text);">Extracting Document Metadata...</h5>
+                    <p class="text-xs text-muted mb-3" id="mroProcessingStatusText">Calling AWS Textract Document AI pipeline...</p>
+                    <div class="progress w-50 mx-auto" style="height: 6px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <!-- 3. SPLIT-SCREEN VERIFICATION STATE -->
+                <div id="mroSplitView" class="d-none">
+                    <div class="alert alert-info py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between rounded-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-check-circle-fill text-info fs-6"></i>
+                            <div>
+                                <strong>Extraction Complete:</strong> Please verify the highlighted fields below against the original document before attaching.
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="mroAvgConfidenceBadge">95% Match</span>
+                            <span class="badge bg-light text-dark border" id="mroEngineBadge">AWS Textract</span>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Left Pane: Document Viewer -->
+                        <div class="col-lg-5 col-md-6 border-end" style="border-color: var(--htc-border) !important;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-xs fw-bold text-muted text-uppercase"><i class="bi bi-file-earmark-pdf me-1"></i> Scanned Document Preview</span>
+                                <a id="mroDocOpenNewTab" href="#" target="_blank" class="text-xs text-primary text-decoration-none">
+                                    <i class="bi bi-box-arrow-up-right me-0.5"></i> Expand
+                                </a>
+                            </div>
+                            <div class="rounded border overflow-hidden position-relative bg-dark-subtle" style="height: 520px;">
+                                <iframe id="mroPreviewFrame" src="" class="w-100 h-100 border-0" title="MRO Document Preview"></iframe>
+                                <img id="mroPreviewImage" src="" class="w-100 h-100 d-none" style="object-fit: contain;" alt="MRO Preview">
+                            </div>
+                        </div>
+
+                        <!-- Right Pane: Auto-filled Verification Form -->
+                        <div class="col-lg-7 col-md-6">
+                            <form id="mroCommitForm">
+                                <input type="hidden" id="ocr_job_id" value="">
+                                
+                                <div class="row g-2.5">
+                                    <!-- MRO Number -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="text-xs fw-bold" style="color: var(--htc-text);">MRO Number <span class="text-danger">*</span></label>
+                                            <span id="badge_mro_number" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                        </div>
+                                        <input type="text" id="ocr_mro_number" class="form-control form-control-sm" required placeholder="e.g. 000731">
+                                    </div>
+
+                                    <!-- Volume Tons -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="text-xs fw-bold" style="color: var(--htc-text);">Quantity (Tons MT) <span class="text-danger">*</span></label>
+                                            <span id="badge_tons" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                        </div>
+                                        <input type="number" step="0.00001" id="ocr_tons" class="form-control form-control-sm" required placeholder="e.g. 500.00">
+                                    </div>
+
+                                    <!-- Sugar Mill -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="text-xs fw-bold" style="color: var(--htc-text);">Sugar Mill / Supplier</label>
+                                            <span id="badge_sugar_mill" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                        </div>
+                                        <select id="ocr_sugar_mill" class="form-select form-select-sm">
+                                            <option value="">-- Match or Select Sugar Mill --</option>
+                                            {% for m in available_sugar_mills %}
+                                            <option value="{{ m.id }}" {% if m.id == cluster.sugar_mill_id %}selected{% endif %}>{{ m.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- Planter -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="text-xs fw-bold" style="color: var(--htc-text);">Planter / Association</label>
+                                            <span id="badge_planter" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                        </div>
+                                        <select id="ocr_planter" class="form-select form-select-sm">
+                                            <option value="">-- Match or Select Planter --</option>
+                                            {% for p in available_planters %}
+                                            <option value="{{ p.id }}">{{ p.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- Release Date -->
+                                    <div class="col-md-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="text-xs fw-bold" style="color: var(--htc-text);">Release Date</label>
+                                            <span id="badge_release_date" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                        </div>
+                                        <input type="date" id="ocr_release_date" class="form-control form-control-sm">
+                                    </div>
+
+                                    <!-- Crop Year -->
+                                    <div class="col-md-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="text-xs fw-bold" style="color: var(--htc-text);">Crop Year</label>
+                                            <span id="badge_crop_year" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                        </div>
+                                        <input type="text" id="ocr_crop_year" class="form-control form-control-sm" placeholder="2024 - 2025">
+                                    </div>
+
+                                    <!-- Brix Level -->
+                                    <div class="col-md-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="text-xs fw-bold" style="color: var(--htc-text);">Brix Level (%)</label>
+                                            <span id="badge_brix_level" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                        </div>
+                                        <input type="number" step="0.01" id="ocr_brix_level" class="form-control form-control-sm" placeholder="85.00">
+                                    </div>
+
+                                    <!-- CHAI Specs -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="text-xs fw-bold" style="color: var(--htc-text);">CHAI Quality Specs</label>
+                                            <span id="badge_chai_specs" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                        </div>
+                                        <input type="text" id="ocr_chai_specs" class="form-control form-control-sm" placeholder="e.g. CHAI 1.0 — Grade A">
+                                    </div>
+
+                                    <!-- Work Order / Equipment Info -->
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="text-xs fw-bold" style="color: var(--htc-text);">Work Order / Reference ID</label>
+                                            <span id="badge_work_order_id" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                        </div>
+                                        <input type="text" id="ocr_work_order_id" class="form-control form-control-sm" placeholder="e.g. WO-4401">
+                                    </div>
+
+                                    <!-- Notes -->
+                                    <div class="col-12">
+                                        <label class="text-xs fw-bold mb-1" style="color: var(--htc-text);">Notes / Remarks</label>
+                                        <textarea id="ocr_notes" class="form-control form-control-sm" rows="2" placeholder="Extraction notes or remarks"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top" style="border-color: var(--htc-border) !important;">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetMroOcrModal();">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Upload Another
+                                    </button>
+                                    <button type="submit" class="btn btn-sm btn-success fw-bold px-4 py-2 rounded-3 shadow-sm" id="mroCommitBtn">
+                                        <i class="bi bi-check2-circle me-1"></i> Confirm &amp; Link MRO to PO
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const uploadUrl = "{% url 'operations:mro_upload_ocr' cluster.pk %}";
+    const commitUrl = "{% url 'operations:mro_commit_ocr' cluster.pk %}";
+    const csrfToken = "{{ csrf_token }}";
+
+    const dropzone = document.getElementById("mroDropzone");
+    const fileInput = document.getElementById("mroOcrFileInput");
+    const processingState = document.getElementById("mroProcessingState");
+    const splitView = document.getElementById("mroSplitView");
+    const commitForm = document.getElementById("mroCommitForm");
+    const commitBtn = document.getElementById("mroCommitBtn");
+    
+    let activePollTimer = null;
+
+    // Drag and drop events
+    ["dragenter", "dragover"].forEach(evt => {
+        dropzone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add("border-primary", "bg-primary-subtle");
+        });
+    });
+
+    ["dragleave", "drop"].forEach(evt => {
+        dropzone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove("border-primary", "bg-primary-subtle");
+        });
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFileUpload(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener("change", (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+
+    function handleFileUpload(file) {
+        dropzone.classList.add("d-none");
+        processingState.classList.remove("d-none");
+        splitView.classList.add("d-none");
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        fetch(uploadUrl, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrfToken
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.job_id) {
+                document.getElementById("ocr_job_id").value = data.job_id;
+                startPollingJob(data.poll_url, data.file_url);
+            } else {
+                alert(data.error || "Upload failed. Please try again.");
+                resetMroOcrModal();
+            }
+        })
+        .catch(err => {
+            alert("Network error: " + err);
+            resetMroOcrModal();
+        });
+    }
+
+    function startPollingJob(pollUrl, fileUrl) {
+        if (activePollTimer) clearInterval(activePollTimer);
+
+        activePollTimer = setInterval(() => {
+            fetch(pollUrl)
+            .then(res => res.json())
+            .then(resData => {
+                if (resData.status === "completed" && resData.data) {
+                    clearInterval(activePollTimer);
+                    renderExtractionResult(resData, fileUrl || resData.file_url);
+                } else if (resData.status === "failed") {
+                    clearInterval(activePollTimer);
+                    alert("OCR Parsing Failed: " + (resData.error_message || "Unknown error"));
+                    resetMroOcrModal();
+                }
+            })
+            .catch(() => {
+                // keep polling on temporary network glitch
+            });
+        }, 1200);
+    }
+
+    function renderExtractionResult(jobResponse, fileUrl) {
+        processingState.classList.add("d-none");
+        splitView.classList.remove("d-none");
+
+        const data = jobResponse.data;
+        const fields = data.fields || {};
+
+        // Document Preview
+        const previewFrame = document.getElementById("mroPreviewFrame");
+        const previewImage = document.getElementById("mroPreviewImage");
+        const openTabLink = document.getElementById("mroDocOpenNewTab");
+
+        if (fileUrl) {
+            openTabLink.href = fileUrl;
+            if (fileUrl.toLowerCase().endsWith(".pdf")) {
+                previewFrame.src = fileUrl;
+                previewFrame.classList.remove("d-none");
+                previewImage.classList.add("d-none");
+            } else {
+                previewImage.src = fileUrl;
+                previewImage.classList.remove("d-none");
+                previewFrame.classList.add("d-none");
+            }
+        }
+
+        // Summary Badges
+        const avgConf = Math.round((jobResponse.average_confidence || data.average_confidence || 0.85) * 100);
+        document.getElementById("mroAvgConfidenceBadge").textContent = avgConf + "% Match";
+        document.getElementById("mroEngineBadge").textContent = (data.engine === "aws_textract" ? "AWS Textract" : "Document AI Heuristics");
+
+        // Populate fields & confidence badges
+        setFieldAndBadge("mro_number", fields.mro_number);
+        setFieldAndBadge("tons", fields.tons);
+        setFieldAndBadge("release_date", fields.release_date);
+        setFieldAndBadge("crop_year", fields.crop_year);
+        setFieldAndBadge("brix_level", fields.brix_level);
+        setFieldAndBadge("chai_specs", fields.chai_specs);
+        setFieldAndBadge("work_order_id", fields.work_order_id);
+
+        if (fields.sugar_mill && fields.sugar_mill.id) {
+            const smSelect = document.getElementById("ocr_sugar_mill");
+            smSelect.value = fields.sugar_mill.id;
+            applyBadge("sugar_mill", fields.sugar_mill.confidence, fields.sugar_mill.needs_review);
+        }
+        if (fields.planter && fields.planter.id) {
+            const pSelect = document.getElementById("ocr_planter");
+            pSelect.value = fields.planter.id;
+            applyBadge("planter", fields.planter.confidence, fields.planter.needs_review);
+        }
+    }
+
+    function setFieldAndBadge(fieldKey, fieldObj) {
+        if (!fieldObj) return;
+        const input = document.getElementById("ocr_" + fieldKey);
+        if (input) {
+            input.value = fieldObj.value !== undefined ? fieldObj.value : "";
+        }
+        applyBadge(fieldKey, fieldObj.confidence, fieldObj.needs_review);
+    }
+
+    function applyBadge(fieldKey, confidence, needsReview) {
+        const badge = document.getElementById("badge_" + fieldKey);
+        if (!badge) return;
+
+        const pct = Math.round((confidence || 0.8) * 100);
+        if (needsReview || pct < 65) {
+            badge.className = "badge bg-danger-subtle text-danger border border-danger-subtle py-0.5 px-1.5";
+            badge.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-0.5"></i>${pct}% Check`;
+        } else if (pct < 85) {
+            badge.className = "badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-0.5 px-1.5";
+            badge.innerHTML = `<i class="bi bi-eye me-0.5"></i>${pct}% Review`;
+        } else {
+            badge.className = "badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5";
+            badge.innerHTML = `<i class="bi bi-check-circle-fill me-0.5"></i>${pct}% Match`;
+        }
+    }
+
+    // Submit & Save Form
+    commitForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        commitBtn.disabled = true;
+        commitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Saving...`;
+
+        const payload = {
+            job_id: document.getElementById("ocr_job_id").value,
+            mro_number: document.getElementById("ocr_mro_number").value,
+            tons: document.getElementById("ocr_tons").value,
+            sugar_mill_id: document.getElementById("ocr_sugar_mill").value,
+            planter_id: document.getElementById("ocr_planter").value,
+            release_date: document.getElementById("ocr_release_date").value,
+            crop_year: document.getElementById("ocr_crop_year").value,
+            brix_level: document.getElementById("ocr_brix_level").value,
+            chai_specs: document.getElementById("ocr_chai_specs").value,
+            notes: document.getElementById("ocr_notes").value,
+        };
+
+        fetch(commitUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(resp => {
+            if (resp.success) {
+                window.location.reload();
+            } else {
+                alert("Error: " + (resp.error || "Failed to commit MRO permit"));
+                commitBtn.disabled = false;
+                commitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Confirm &amp; Link MRO to PO`;
+            }
+        })
+        .catch(err => {
+            alert("Network error: " + err);
+            commitBtn.disabled = false;
+            commitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Confirm &amp; Link MRO to PO`;
+        });
+    });
+
+    window.resetMroOcrModal = function() {
+        if (activePollTimer) clearInterval(activePollTimer);
+        dropzone.classList.remove("d-none");
+        processingState.classList.add("d-none");
+        splitView.classList.add("d-none");
+        fileInput.value = "";
+        commitForm.reset();
+        commitBtn.disabled = false;
+        commitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Confirm &amp; Link MRO to PO`;
+    };
+})();
+</script>

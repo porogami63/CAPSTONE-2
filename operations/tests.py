@@ -877,6 +877,58 @@ class IncrementalDeliveryLedgerTests(TestCase):
         self.assertEqual(sugg["suggested_full"], 70000000.0)
         self.assertTrue(sugg["has_deliveries_to_bill"])
 
+    def test_mro_ocr_workflow(self):
+        import json
+        from django.urls import reverse
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from masters.models import Planter
+        from operations.models import MROExtractionJob, MolassesReleaseOrder
+
+        planter = Planter.objects.create(name="ABSFI Planters Assoc.")
+        self.client.force_login(self.admin)
+
+        dummy_file = SimpleUploadedFile("MRO_Permit_88123.pdf", b"%PDF-1.4 dummy content", content_type="application/pdf")
+        upload_url = reverse("operations:mro_upload_ocr", kwargs={"pk": self.cluster.pk})
+
+        response = self.client.post(upload_url, {"file": dummy_file})
+        self.assertEqual(response.status_code, 202)
+        res_data = response.json()
+        self.assertIn("job_id", res_data)
+        job_id = res_data["job_id"]
+
+        poll_url = reverse("operations:mro_ocr_job_status", kwargs={"job_id": job_id})
+        poll_resp = self.client.get(poll_url)
+        self.assertEqual(poll_resp.status_code, 200)
+        poll_data = poll_resp.json()
+        self.assertEqual(poll_data["status"], "completed")
+        self.assertIn("data", poll_data)
+        extracted = poll_data["data"]
+        self.assertIn("fields", extracted)
+        self.assertIn("mro_number", extracted["fields"])
+
+        commit_url = reverse("operations:mro_commit_ocr", kwargs={"pk": self.cluster.pk})
+        commit_payload = {
+            "job_id": job_id,
+            "mro_number": "MRO-88123",
+            "sugar_mill_id": self.mill_busco.id,
+            "planter_id": planter.id,
+            "tons": 750.50,
+            "release_date": "2026-09-28",
+            "crop_year": "2024 - 2025",
+            "brix_level": 85.00,
+            "chai_specs": "CHAI 1.0",
+            "notes": "Verified through OCR preview",
+        }
+        commit_resp = self.client.post(commit_url, data=json.dumps(commit_payload), content_type="application/json")
+        self.assertEqual(commit_resp.status_code, 200)
+        commit_data = commit_resp.json()
+        self.assertTrue(commit_data["success"])
+
+        mro = MolassesReleaseOrder.objects.get(mro_number="MRO-88123")
+        self.assertEqual(mro.cluster, self.cluster)
+        self.assertEqual(float(mro.tons), 750.50)
+        self.assertEqual(mro.sugar_mill, self.mill_busco)
+
 
 
 
