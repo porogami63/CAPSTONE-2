@@ -498,6 +498,7 @@ class MolassesReleaseOrderForm(forms.ModelForm):
                 defaults={"location": sugar_mill_name}
             )
             cleaned_data["sugar_mill"] = mill_obj
+            self.instance.sugar_mill = mill_obj
 
         # Operations is not gated by financing status to reduce friction.
         # Soft indicator is presented on cluster overview.
@@ -512,6 +513,7 @@ class MolassesReleaseOrderForm(forms.ModelForm):
                 defaults={"code": planter_name.upper()}
             )
             cleaned_data["planter"] = planter_obj
+            self.instance.planter = planter_obj
 
         brix_level = cleaned_data.get("brix_level")
         if brix_level is not None and (brix_level < 0 or brix_level > 100):

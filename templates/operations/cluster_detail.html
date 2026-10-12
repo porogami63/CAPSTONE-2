@@ -411,14 +411,9 @@
             <div class="panel-header d-flex justify-content-between align-items-center" style="padding: 0.85rem 1rem;">
                 <span style="font-weight: 700; color: var(--htc-primary-light);"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Attached Loading Permits (MRO)</span>
                 {% if user|has_perm:"edit_transaction" or user|has_perm:"edit_logistics" %}
-                <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-sm btn-primary py-1 px-2.5 fs-7 fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#mroOcrModal">
-                        <i class="bi bi-magic me-1"></i> Scan &amp; Autofill MRO
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" data-bs-toggle="modal" data-bs-target="#linkMroModal">
-                        <i class="bi bi-link-45deg me-1"></i> Link Existing MRO
-                    </button>
-                </div>
+                <button type="button" class="btn btn-sm btn-primary py-1 px-2.5 fs-7 fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#mroAttachModal">
+                    <i class="bi bi-link-45deg me-1"></i> + Link an MRO Permit
+                </button>
                 {% endif %}
             </div>
             <div class="panel-body">
@@ -444,6 +439,11 @@
                                 <td>{{ mro.release_date|date:"M d, Y"|default:"—" }}</td>
                                 <td class="text-end fw-bold text-primary">{{ mro.tons|floatformat:3|intcomma }} MT</td>
                                 <td class="text-end">
+                                    {% if cluster.mro_file %}
+                                    <button type="button" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none py-1 px-1.5 me-1" data-bs-toggle="modal" data-bs-target="#previewMroScanModal" title="Preview Attached Scanned MRO Document" style="cursor: pointer;">
+                                        <i class="bi bi-file-earmark-pdf me-0.5"></i> View Scan
+                                    </button>
+                                    {% endif %}
                                     <form method="post" action="{% url 'operations:unlink_mro' cluster.pk mro.pk %}" class="d-inline" onsubmit="return confirm('Unlink this MRO permit from cluster?');">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1 fs-8" title="Unlink Permit"><i class="bi bi-x-circle"></i></button>
@@ -462,55 +462,46 @@
                 <div class="p-3 text-center text-muted fs-7">
                     <i class="bi bi-info-circle me-1"></i> No MRO Permits linked to this cluster yet.
                     {% if user|has_perm:"edit_transaction" %}
-                    <br><a href="#" data-bs-toggle="modal" data-bs-target="#linkMroModal" class="text-primary fw-semibold text-decoration-none mt-1 d-inline-block">+ Link an MRO Permit</a>
+                    <br><a href="#" data-bs-toggle="modal" data-bs-target="#mroAttachModal" class="text-primary fw-semibold text-decoration-none mt-1 d-inline-block">+ Link an MRO Permit</a>
                     {% endif %}
                 </div>
                 {% endif %}
             </div>
         </div>
 
-        <!-- LINK MRO PERMIT MODAL -->
-        <div class="modal fade" id="linkMroModal" tabindex="-1" aria-labelledby="linkMroModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered" style="max-width: 540px;">
-                <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px;">
-                    <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1rem 1.25rem;">
-                        <h5 class="modal-title" id="linkMroModalLabel" style="font-weight: 700; color: var(--htc-text);">Link Molasses Release Order (MRO)</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        {% include "operations/includes/mro_attach_modal.html" %}
+
+        {% if cluster.mro_file %}
+        <!-- MODAL: PREVIEW ATTACHED SCANNED MRO DOCUMENT -->
+        <div class="modal fade" id="previewMroScanModal" tabindex="-1" aria-labelledby="previewMroScanModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 1050px;">
+                <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 16px 36px rgba(0,0,0,0.28);">
+                    <div class="modal-header py-2.5 px-3" style="border-bottom: 1px solid var(--htc-border);">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-file-earmark-pdf-fill text-primary fs-5"></i>
+                            <h6 class="modal-title fw-bold mb-0" id="previewMroScanModalLabel" style="color: var(--htc-text);">Attached Scanned MRO Document</h6>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">{{ cluster.reference_code }}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <a href="{{ cluster.mro_file.url }}" target="_blank" class="btn btn-xs btn-outline-primary py-1 px-2 fs-8">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> Open in New Tab
+                            </a>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
                     </div>
-                    <form method="post" action="{% url 'operations:link_mro' cluster.pk %}">
-                        {% csrf_token %}
-                        <div class="modal-body" style="padding: 1.25rem;">
-                            <p class="fs-7 text-muted mb-3">Select an active, unassigned MRO release permit to bind to <strong>{{ cluster.reference_code }}</strong> ({{ cluster.client.name }}):</p>
-                            <div class="mb-3">
-                                <label class="form-label fs-7 fw-bold">Select Unassigned MRO Permit</label>
-                                {% if available_mros %}
-                                <select name="mro_id" class="form-select fs-7" required>
-                                    <option value="">-- Choose MRO Permit --</option>
-                                    {% for mro in available_mros %}
-                                    <option value="{{ mro.pk }}">
-                                        MRO #{{ mro.mro_number }} — {{ mro.display_sugar_mill }} | {{ mro.planter.name }} ({{ mro.tons|floatformat:2 }} MT)
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                                {% else %}
-                                <div class="alert alert-warning fs-7 py-2">No unassigned MRO permits available in system ledger. You can add or import MROs in <a href="{% url 'operations:mro_summary' %}" class="alert-link">MRO Summary</a>.</div>
-                                {% endif %}
-                            </div>
+                    <div class="modal-body p-2 bg-dark-subtle text-center">
+                        {% if cluster.mro_file.name|lower|slice:"-4:" == ".pdf" %}
+                        <iframe src="{{ cluster.mro_file.url }}" class="w-100 border-0 rounded" style="height: 75vh;" title="Attached MRO Document"></iframe>
+                        {% else %}
+                        <div class="d-flex justify-content-center align-items-center" style="min-height: 50vh; max-height: 80vh; overflow: auto;">
+                            <img src="{{ cluster.mro_file.url }}" class="img-fluid rounded shadow-xs" style="max-height: 75vh; object-fit: contain;" alt="Attached MRO Document">
                         </div>
-                        <div class="modal-footer" style="border-top: 1px solid var(--htc-border); padding: 0.75rem 1.25rem;">
-                            <button type="button" class="btn-htc-outline" data-bs-dismiss="modal">Cancel</button>
-                            {% if available_mros %}
-                            <button type="submit" class="btn-htc" style="background: var(--htc-primary-light); border-color: var(--htc-primary-light);">
-                                <i class="bi bi-link-45deg"></i> Attach Permit to Order
-                            </button>
-                            {% endif %}
-                        </div>
-                    </form>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
-
-        {% include "operations/includes/mro_ocr_modal.html" %}
+        {% endif %}
 
         <div class="panel">
 

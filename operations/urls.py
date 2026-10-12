@@ -33,6 +33,7 @@ urlpatterns = [
     path("mro-summary/export/", views.mro_export_csv_view, name="mro_export_csv"),
     path("<uuid:pk>/link-mro/", views.link_mro_to_cluster, name="link_mro"),
     path("<uuid:pk>/unlink-mro/<int:mro_pk>/", views.unlink_mro_from_cluster, name="unlink_mro"),
+    path("<uuid:pk>/mro/manual-create/", views.create_and_link_mro_manual, name="create_and_link_mro_manual"),
     path("<uuid:pk>/mro/upload-ocr/", views.upload_mro_for_ocr, name="mro_upload_ocr"),
     path("mro/ocr-job/<uuid:job_id>/", views.mro_ocr_job_status, name="mro_ocr_job_status"),
     path("<uuid:pk>/mro/commit-ocr/", views.commit_mro_ocr_result, name="mro_commit_ocr"),

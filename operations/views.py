@@ -716,6 +716,15 @@ def cluster_detail(request, pk):
     available_sugar_mills = list(SugarMill.objects.filter(is_active=True).order_by("name"))
     available_planters = list(Planter.objects.filter(is_active=True).order_by("name"))
 
+    mro_create_form = MolassesReleaseOrderForm(initial={
+        "trader": "HEINDRICH",
+        "crop_year": "2024 - 25",
+        "sugar_mill_name": cluster.sugar_mill.name if cluster.sugar_mill else "BUSCO",
+        "sugar_mill": cluster.sugar_mill_id,
+        "tons": po.volume_mt if po and po.volume_mt else None,
+        "cluster": cluster.pk,
+    })
+
     # Collect Audit Trail
     from audit.services import get_cluster_audit_events
     audit_events = get_cluster_audit_events(cluster)
@@ -746,6 +755,7 @@ def cluster_detail(request, pk):
             "invoice_form": invoice_form,
             "voucher_form": voucher_form,
             "loan_form": loan_form,
+            "mro_create_form": mro_create_form,
             "audit_events": audit_events,
             "debrief": debrief,
             "invoice_suggestion_data": invoice_suggestion_data,
@@ -789,6 +799,37 @@ def unlink_mro_from_cluster(request, pk, mro_pk):
         mro.cluster = None
         mro.save()
         messages.success(request, f"Unlinked MRO permit #{mro_num} from {cluster.reference_code}.")
+    return redirect("operations:cluster_detail", pk=cluster.pk)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGER)
+def create_and_link_mro_manual(request, pk):
+    """
+    Creates a new MolassesReleaseOrder directly from the PO view with manual input,
+    links it to the transaction cluster, and saves an optional uploaded supporting scanned copy.
+    """
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    if request.method == "POST":
+        form = MolassesReleaseOrderForm(request.POST, request.FILES)
+        if form.is_valid():
+            mro = form.save(commit=False)
+            mro.cluster = cluster
+            mro.save()
+
+            mro_file = request.FILES.get("mro_file") or request.FILES.get("supporting_file")
+            if mro_file:
+                cluster.mro_file = mro_file
+                cluster._audit_user = request.user
+                cluster.save(update_fields=["mro_file"])
+
+            messages.success(
+                request,
+                f"MRO Release Order #{mro.mro_number} ({mro.tons} MT) created and linked to {cluster.reference_code} successfully."
+            )
+        else:
+            errors = "; ".join([f"{f}: {', '.join(errs)}" for f, errs in form.errors.items()])
+            messages.error(request, f"Error saving MRO entry: {errors}")
+
     return redirect("operations:cluster_detail", pk=cluster.pk)
 
 

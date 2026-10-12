@@ -929,6 +929,57 @@ class IncrementalDeliveryLedgerTests(TestCase):
         self.assertEqual(float(mro.tons), 750.50)
         self.assertEqual(mro.sugar_mill, self.mill_busco)
 
+    def test_create_and_link_mro_manual_with_scanned_supporting_document(self):
+        from operations.models import MolassesReleaseOrder
+        from masters.models import Planter
+
+        self.client.force_login(self.admin)
+        manual_url = reverse("operations:create_and_link_mro_manual", kwargs={"pk": self.cluster.pk})
+
+        dummy_scan = SimpleUploadedFile(
+            "Permit_Scan_Manual_77201.pdf",
+            b"%PDF-1.4 scanned supporting document content",
+            content_type="application/pdf",
+        )
+
+        payload = {
+            "sugar_mill": self.mill_busco.id,
+            "sugar_mill_name": self.mill_busco.name,
+            "mro_number": "MRO-77201",
+            "crop_year": "2024 - 25",
+            "planter_name": "Hacienda Test Planters",
+            "tons": "620.45000",
+            "release_date": "2026-10-12",
+            "trader": "HEINDRICH",
+            "cluster": str(self.cluster.pk),
+            "notes": "Direct manual entry from PO view with scanned supporting doc",
+            "mro_file": dummy_scan,
+        }
+
+        response = self.client.post(manual_url, data=payload, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        # Verify MRO record created and linked to cluster
+        mro = MolassesReleaseOrder.objects.get(mro_number="MRO-77201")
+        self.assertEqual(mro.cluster, self.cluster)
+        self.assertEqual(float(mro.tons), 620.45)
+        self.assertEqual(mro.planter.name, "Hacienda Test Planters")
+        self.assertEqual(mro.sugar_mill, self.mill_busco)
+
+        # Verify cluster.mro_file was saved with supporting document
+        self.cluster.refresh_from_db()
+        self.assertTrue(bool(self.cluster.mro_file))
+        self.assertIn("Permit_Scan_Manual_77201", self.cluster.mro_file.name)
+
+        # Verify PO view displays the newly linked MRO and View Scan badge
+        detail_url = reverse("operations:cluster_detail", kwargs={"pk": self.cluster.pk})
+        detail_resp = self.client.get(detail_url)
+        self.assertEqual(detail_resp.status_code, 200)
+        self.assertContains(detail_resp, "MRO-77201")
+        self.assertContains(detail_resp, "View Scan")
+        self.assertIn("mro_create_form", detail_resp.context)
+
+
 
 
 
