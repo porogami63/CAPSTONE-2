@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     "audit",
     "dashboard",
     "chat",
+    "admin_hub",
     "simple_history",
 ]
 

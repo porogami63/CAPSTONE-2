@@ -18,6 +18,7 @@ CORE_NAV_ITEMS = [
     ("chat:room", "Team Chat", "bi-chat-dots-fill", ("chat:",)),
     ("audit:list", "Activity History", "bi-journal-text", ("audit:",)),
     ("accounts:user_list", "User Management", "bi-people-fill", ("accounts:user",)),
+    ("admin_hub:dashboard", "Admin Control Hub", "bi-shield-shaded", ("admin_hub:",)),
 ]
 
 # Navigation items each role can see
@@ -25,7 +26,7 @@ NAV_ITEMS = {
     Role.ADMINISTRATOR: CORE_NAV_ITEMS,
     Role.OPERATIONS_MANAGEMENT: [
         i for i in CORE_NAV_ITEMS 
-        if i[0] not in ("accounts:user_list", "finance:loan_list", "finance:invoice_list")
+        if i[0] not in ("accounts:user_list", "finance:loan_list", "finance:invoice_list", "admin_hub:dashboard")
     ],
     Role.FINANCE: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "finance:loan_list", "dashboard:analytics", "dashboard:documents", "chat:room")],
     Role.INVOICING: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "dashboard:documents", "chat:room")],

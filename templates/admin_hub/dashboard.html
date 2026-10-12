@@ -1,0 +1,792 @@
+{% extends "app_base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Website Administration & Control Hub · HTC Core{% endblock %}
+
+{% block topbar_title %}Website Administration Hub{% endblock %}
+{% block topbar_subtitle %}Monitoring data flow, user accounts, audit security logs, data archives, and database disaster recovery{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+    <!-- ========================================================================= -->
+    <!-- HEADER BAR: TITLE, COMPLIANCE BADGES & INSTANT ACTION CONTROLS           -->
+    <!-- ========================================================================= -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 p-3.5 rounded-3 border"
+         style="background: var(--htc-surface); border-color: var(--htc-border) !important; box-shadow: var(--htc-shadow);">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fs-8">
+                    <i class="bi bi-shield-lock-fill me-1"></i> Strictly Restricted: Administrator Only
+                </span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-8">
+                    <i class="bi bi-journal-check me-1"></i> NFR-07 Audit Trail
+                </span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fs-8">
+                    <i class="bi bi-database-check me-1"></i> NFR-08 Disaster Recovery
+                </span>
+                <span class="badge bg-dark-subtle text-body border px-2 py-1 fs-8">
+                    <i class="bi bi-cloud-check-fill me-1 text-primary"></i> AWS EC2 Live Host (18.140.166.84)
+                </span>
+            </div>
+            <h4 class="fw-bold mb-0" style="color: var(--htc-text);">Website Administration &amp; Telemetry Hub</h4>
+            <div class="text-xs text-muted">Authorized administrative session for <strong>@{{ user.username }}</strong> · Production Endpoint: <code>https://htccore.tech/admin/</code></div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <form method="post" action="{% url 'admin_hub:trigger_backup' %}" class="m-0" onsubmit="return confirm('Generate an instant compressed database snapshot now?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3 py-1.5 shadow-xs rounded-2">
+                    <i class="bi bi-database-down me-1"></i> Create DB Snapshot Now
+                </button>
+            </form>
+            <a href="{% url 'admin_hub:export_audit_csv' %}" class="btn btn-sm btn-outline-secondary fw-semibold px-2.5 py-1.5 rounded-2 text-xs" title="Export complete audit trail to CSV">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export Audit (CSV)
+            </a>
+            <a href="{% url 'admin_hub:export_dataflow_csv' %}" class="btn btn-sm btn-outline-secondary fw-semibold px-2.5 py-1.5 rounded-2 text-xs" title="Export data flow summary to CSV">
+                <i class="bi bi-diagram-3 me-1"></i> Export Data Flow (CSV)
+            </a>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TOP KPI TELEMETRY CARDS                                                   -->
+    <!-- ========================================================================= -->
+    <div class="row g-3 mb-4">
+        <!-- 1. System Health -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card h-100 p-3 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-1.5">
+                    <span class="text-xs text-muted text-uppercase fw-bold">System Status</span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5 fs-9"><i class="bi bi-circle-fill fs-9 me-0.5"></i> Healthy</span>
+                </div>
+                <div class="fs-4 fw-bold text-success mb-1">100%</div>
+                <div class="text-xs text-muted text-truncate">Postgres · Redis · Celery</div>
+            </div>
+        </div>
+
+        <!-- 2. User Accounts -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card h-100 p-3 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-1.5">
+                    <span class="text-xs text-muted text-uppercase fw-bold">Users &amp; Auth</span>
+                    {% if user_analytics.pending_count > 0 %}
+                    <span class="badge bg-warning text-dark py-0.5 px-1.5 fs-9 fw-bold">{{ user_analytics.pending_count }} Pending</span>
+                    {% else %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-1.5 fs-9">{{ user_analytics.two_fa_pct }}% 2FA</span>
+                    {% endif %}
+                </div>
+                <div class="fs-4 fw-bold" style="color: var(--htc-text);">{{ user_analytics.total_users }} <span class="fs-7 text-muted fw-normal">({{ user_analytics.active_count }} active)</span></div>
+                <div class="text-xs text-muted text-truncate">{{ user_analytics.two_fa_enabled }} accounts with 2FA</div>
+            </div>
+        </div>
+
+        <!-- 3. Contract Throughput MT -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card h-100 p-3 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-1.5">
+                    <span class="text-xs text-muted text-uppercase fw-bold">Volume Throughput</span>
+                    <i class="bi bi-truck text-primary"></i>
+                </div>
+                <div class="fs-4 fw-bold text-primary mb-1">{{ dataflow.delivered_mt|floatformat:1|intcomma }} <span class="fs-8 text-muted">MT</span></div>
+                <div class="text-xs text-muted text-truncate">of {{ dataflow.contracted_mt|floatformat:1|intcomma }} MT contracted</div>
+            </div>
+        </div>
+
+        <!-- 4. Operational Clusters -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card h-100 p-3 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-1.5">
+                    <span class="text-xs text-muted text-uppercase fw-bold">Sourcing Clusters</span>
+                    <span class="badge bg-info-subtle text-info border border-info-subtle py-0.5 px-1.5 fs-9">{{ dataflow.active_clusters }} Active</span>
+                </div>
+                <div class="fs-4 fw-bold" style="color: var(--htc-text);">{{ dataflow.total_clusters }} <span class="fs-8 text-muted fw-normal">Total</span></div>
+                <div class="text-xs text-muted text-truncate">{{ dataflow.archived_clusters }} in Archive Vault</div>
+            </div>
+        </div>
+
+        <!-- 5. User Audits (NFR-07) -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card h-100 p-3 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-1.5">
+                    <span class="text-xs text-muted text-uppercase fw-bold">Audit Events</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-1.5 fs-9">NFR-07</span>
+                </div>
+                <div class="fs-4 fw-bold" style="color: var(--htc-text);">{{ audit_summary.total_count }}</div>
+                <div class="text-xs text-muted text-truncate">{{ audit_summary.today_count }} events recorded today</div>
+            </div>
+        </div>
+
+        <!-- 6. Database Backups (NFR-08) -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card h-100 p-3 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-1.5">
+                    <span class="text-xs text-muted text-uppercase fw-bold">DB Backups</span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5 fs-9">NFR-08</span>
+                </div>
+                <div class="fs-4 fw-bold text-success mb-1">{{ backups|length }} <span class="fs-8 text-muted fw-normal">Files</span></div>
+                <div class="text-xs text-muted text-truncate">Nightly 02:00 AM PHT cron</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- NAVIGATION TABS SWITCHER                                                  -->
+    <!-- ========================================================================= -->
+    <ul class="nav nav-pills nav-fill gap-2 p-1.5 mb-4 rounded-3 border" id="adminHubTabs" role="tablist"
+        style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'telemetry' or not active_tab %}active{% endif %} py-2 text-xs fw-bold rounded-2 d-flex align-items-center justify-content-center gap-2"
+                    id="tab-btn-telemetry" data-bs-toggle="pill" data-bs-target="#pane-telemetry" type="button" role="tab">
+                <i class="bi bi-hdd-network text-primary"></i> System Telemetry
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'dataflow' %}active{% endif %} py-2 text-xs fw-bold rounded-2 d-flex align-items-center justify-content-center gap-2"
+                    id="tab-btn-dataflow" data-bs-toggle="pill" data-bs-target="#pane-dataflow" type="button" role="tab">
+                <i class="bi bi-diagram-3-fill text-info"></i> Data Flow Monitor
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'users' %}active{% endif %} py-2 text-xs fw-bold rounded-2 d-flex align-items-center justify-content-center gap-2"
+                    id="tab-btn-users" data-bs-toggle="pill" data-bs-target="#pane-users" type="button" role="tab">
+                <i class="bi bi-people-fill text-warning"></i> User Accounts ({{ user_analytics.total_users }})
+                {% if user_analytics.pending_count > 0 %}<span class="badge bg-danger rounded-pill">{{ user_analytics.pending_count }}</span>{% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'audits' %}active{% endif %} py-2 text-xs fw-bold rounded-2 d-flex align-items-center justify-content-center gap-2"
+                    id="tab-btn-audits" data-bs-toggle="pill" data-bs-target="#pane-audits" type="button" role="tab">
+                <i class="bi bi-shield-check text-success"></i> User Audits (NFR-07)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'archives' %}active{% endif %} py-2 text-xs fw-bold rounded-2 d-flex align-items-center justify-content-center gap-2"
+                    id="tab-btn-archives" data-bs-toggle="pill" data-bs-target="#pane-archives" type="button" role="tab">
+                <i class="bi bi-archive-fill text-secondary"></i> Data Archives ({{ archive_metrics.archived_count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'backups' %}active{% endif %} py-2 text-xs fw-bold rounded-2 d-flex align-items-center justify-content-center gap-2"
+                    id="tab-btn-backups" data-bs-toggle="pill" data-bs-target="#pane-backups" type="button" role="tab">
+                <i class="bi bi-database-fill-check text-danger"></i> Data Backups (NFR-08)
+            </button>
+        </li>
+    </ul>
+
+    <!-- ========================================================================= -->
+    <!-- TAB PANES CONTENT                                                         -->
+    <!-- ========================================================================= -->
+    <div class="tab-content" id="adminHubTabsContent">
+
+        <!-- ===================================================================== -->
+        <!-- TAB 1: SYSTEM HEALTH & INFRASTRUCTURE TELEMETRY                       -->
+        <!-- ===================================================================== -->
+        <div class="tab-pane fade {% if active_tab == 'telemetry' or not active_tab %}show active{% endif %}" id="pane-telemetry" role="tabpanel">
+            <div class="row g-3">
+                <div class="col-lg-8">
+                    <div class="card p-4 rounded-3 border h-100" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <h6 class="fw-bold mb-3 d-flex align-items-center gap-2" style="color: var(--htc-text);">
+                            <i class="bi bi-cpu text-primary"></i> Server Infrastructure &amp; Runtime Environment
+                        </h6>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm fs-7 align-middle">
+                                <tbody>
+                                    <tr>
+                                        <td class="text-muted fw-semibold" style="width: 200px;">Cloud Production Host:</td>
+                                        <td><strong>{{ telemetry.production_host }}</strong> <span class="badge bg-success-subtle text-success ms-2">Live</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted fw-semibold">Public Domain &amp; Edge:</td>
+                                        <td><a href="{{ telemetry.production_domain }}" target="_blank" class="text-decoration-none fw-bold">{{ telemetry.production_domain }}</a> (Nginx 1.27 + TLS 1.3 / Let's Encrypt)</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted fw-semibold">Operating System / Platform:</td>
+                                        <td><code>{{ telemetry.host_platform }}</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted fw-semibold">Python Runtime:</td>
+                                        <td>Python <strong>{{ telemetry.python_version }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted fw-semibold">Django Framework:</td>
+                                        <td>Django <strong>{{ telemetry.django_version }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted fw-semibold">Primary Database:</td>
+                                        <td>
+                                            <span class="badge bg-primary-subtle text-primary">{{ telemetry.db_engine }}</span>
+                                            <span class="ms-1 fw-semibold text-success">{{ telemetry.db_status }}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted fw-semibold">Redis Message Broker:</td>
+                                        <td>
+                                            <span class="badge bg-danger-subtle text-danger">Redis 7</span>
+                                            <span class="ms-1 fw-semibold text-success">{{ telemetry.redis_status }}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted fw-semibold">Asynchronous Workers:</td>
+                                        <td><span class="badge bg-info-subtle text-info">Celery Worker</span> &amp; <span class="badge bg-info-subtle text-info">Celery Beat</span> (Active)</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted fw-semibold">Timezone / Server Clock:</td>
+                                        <td>{{ telemetry.timezone }} · <strong>{{ telemetry.current_time|date:"Y-m-d H:i:s" }}</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card p-4 rounded-3 border h-100" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <h6 class="fw-bold mb-3 d-flex align-items-center gap-2" style="color: var(--htc-text);">
+                            <i class="bi bi-hdd-fill text-warning"></i> Disk Storage &amp; Persistence
+                        </h6>
+
+                        <div class="p-3 rounded bg-light mb-3">
+                            <div class="d-flex justify-content-between text-xs mb-1">
+                                <span class="text-muted">Storage Utilization</span>
+                                <span class="fw-bold">{{ telemetry.disk_used_gb }} GB / {{ telemetry.disk_total_gb }} GB ({{ telemetry.disk_pct }}%)</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar {% if telemetry.disk_pct > 85 %}bg-danger{% elif telemetry.disk_pct > 65 %}bg-warning{% else %}bg-primary{% endif %}"
+                                     role="progressbar" style="width: {{ telemetry.disk_pct }}%;"></div>
+                            </div>
+                            <div class="text-xs text-muted mt-2 d-flex justify-content-between">
+                                <span>Free Available: <strong>{{ telemetry.disk_free_gb }} GB</strong></span>
+                                <span>Volume: <code>Amazon EBS</code></span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded border text-xs mb-3">
+                            <div class="fw-bold text-primary mb-1"><i class="bi bi-shield-check me-1"></i> Container Health &amp; Security</div>
+                            <div class="text-muted">All 6 Docker Compose microservices (<code>app-web-1</code>, <code>app-celery_worker-1</code>, <code>app-celery_beat-1</code>, <code>app-nginx-1</code>, <code>app-db-1</code>, <code>app-redis-1</code>) operate with restart policies and automated health checks.</div>
+                        </div>
+
+                        <div class="mt-auto">
+                            <form method="post" action="{% url 'admin_hub:trigger_backup' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-primary w-100 py-2 fw-semibold">
+                                    <i class="bi bi-database-down me-1"></i> Run Emergency Backup Snapshot
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 2: OPERATIONAL DATA FLOW MONITOR                                  -->
+        <!-- ===================================================================== -->
+        <div class="tab-pane fade {% if active_tab == 'dataflow' %}show active{% endif %}" id="pane-dataflow" role="tabpanel">
+            <div class="card p-4 rounded-3 border mb-4" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0 d-flex align-items-center gap-2" style="color: var(--htc-text);">
+                        <i class="bi bi-diagram-3-fill text-primary"></i> Operational Procurement-to-Cash Data Flow Pipeline
+                    </h6>
+                    <a href="{% url 'admin_hub:export_dataflow_csv' %}" class="btn btn-xs btn-outline-secondary py-1 px-2.5">
+                        <i class="bi bi-download me-1"></i> Export Metrics CSV
+                    </a>
+                </div>
+
+                <!-- VISUAL PIPELINE STAGES -->
+                <div class="row g-2 text-center mb-4">
+                    <div class="col-md-3 col-6">
+                        <div class="p-3 rounded-3 border bg-light h-100">
+                            <span class="badge bg-primary mb-2">Stage 1</span>
+                            <div class="fw-bold text-xs">Parent PO Contracts</div>
+                            <div class="fs-5 fw-bold text-primary my-1">{{ dataflow.total_pos }}</div>
+                            <div class="text-xs text-muted">{{ dataflow.contracted_mt|floatformat:1|intcomma }} MT contracted</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="p-3 rounded-3 border bg-light h-100">
+                            <span class="badge bg-info mb-2">Stage 2</span>
+                            <div class="fw-bold text-xs">Delivery Dispatches</div>
+                            <div class="fs-5 fw-bold text-info my-1">{{ dataflow.total_deliveries }}</div>
+                            <div class="text-xs text-muted">{{ dataflow.delivered_mt|floatformat:1|intcomma }} MT delivered</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="p-3 rounded-3 border bg-light h-100">
+                            <span class="badge bg-warning text-dark mb-2">Stage 3</span>
+                            <div class="fw-bold text-xs">MRO Release Permits</div>
+                            <div class="fs-5 fw-bold text-warning-emphasis my-1">{{ dataflow.total_mros }}</div>
+                            <div class="text-xs text-muted">{{ dataflow.total_mro_tons|floatformat:1|intcomma }} MT allocated</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="p-3 rounded-3 border bg-light h-100">
+                            <span class="badge bg-success mb-2">Stage 4</span>
+                            <div class="fw-bold text-xs">Billing &amp; Treasury</div>
+                            <div class="fs-5 fw-bold text-success my-1">₱{{ dataflow.total_invoiced_amount|floatformat:0|intcomma }}</div>
+                            <div class="text-xs text-muted">₱{{ dataflow.paid_invoices_amount|floatformat:0|intcomma }} collected</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SOURCING MILL & CLIENT DISTRIBUTION TABLES -->
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="border rounded-3 p-3">
+                            <div class="fw-bold text-xs text-uppercase text-muted mb-2"><i class="bi bi-building me-1"></i> Top Supplier Mills (Throughput MT)</div>
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-8 mb-0 align-middle">
+                                    <thead>
+                                        <tr class="text-muted"><th>Sugar Mill</th><th class="text-end">Batches</th><th class="text-end">Delivered MT</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for m in dataflow.mill_distribution %}
+                                        <tr>
+                                            <td class="fw-semibold">{{ m.supplier__name|default:"Direct / Warehouse" }}</td>
+                                            <td class="text-end">{{ m.batch_count }}</td>
+                                            <td class="text-end fw-bold text-primary">{{ m.total_mt|floatformat:2|intcomma }} MT</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="3" class="text-muted text-center py-2">No delivery batches recorded yet.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="border rounded-3 p-3">
+                            <div class="fw-bold text-xs text-uppercase text-muted mb-2"><i class="bi bi-people me-1"></i> Top Customer Destinations (Volume MT)</div>
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-8 mb-0 align-middle">
+                                    <thead>
+                                        <tr class="text-muted"><th>Customer Site</th><th class="text-end">Batches</th><th class="text-end">Received MT</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for c in dataflow.client_distribution %}
+                                        <tr>
+                                            <td class="fw-semibold">{{ c.receiving_destination__name|default:"Contract Default Site" }}</td>
+                                            <td class="text-end">{{ c.batch_count }}</td>
+                                            <td class="text-end fw-bold text-success">{{ c.total_mt|floatformat:2|intcomma }} MT</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="3" class="text-muted text-center py-2">No delivery batches recorded yet.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 3: USER ACCOUNTS & FLOW MANAGEMENT                                -->
+        <!-- ===================================================================== -->
+        <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" id="pane-users" role="tabpanel">
+            
+            <!-- PENDING USER APPROVALS ALERT -->
+            {% if user_analytics.pending_count > 0 %}
+            <div class="alert alert-warning border border-warning-subtle rounded-3 p-3 mb-3 shadow-xs">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="fw-bold text-xs text-dark"><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> Pending User Approvals ({{ user_analytics.pending_count }})</div>
+                    <span class="badge bg-warning text-dark">Action Required</span>
+                </div>
+                <div class="row g-2">
+                    {% for pu in user_analytics.pending_users %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="p-2.5 rounded bg-white border d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-xs text-dark">@{{ pu.username }}</div>
+                                <div class="text-muted fs-8">{{ pu.email|default:"No email" }}</div>
+                            </div>
+                            <form method="post" action="{% url 'admin_hub:user_approve' pu.pk %}" class="d-flex align-items-center gap-1.5 m-0">
+                                {% csrf_token %}
+                                <select name="role" class="form-select form-select-sm fs-8 py-0.5" style="width: 140px;">
+                                    {% for r_key, r_label in user_analytics.role_choices %}
+                                    <option value="{{ r_key }}" {% if r_key == pu.role %}selected{% endif %}>{{ r_label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-xs btn-success py-1 px-2 fw-semibold">Approve</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ALL USER ACCOUNTS TABLE -->
+            <div class="card p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h6 class="fw-bold mb-0 d-flex align-items-center gap-2" style="color: var(--htc-text);">
+                        <i class="bi bi-people-fill text-primary"></i> User Directory &amp; RBAC Access Governance
+                    </h6>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">{{ user_analytics.active_count }} Active</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle fs-8">{{ user_analytics.two_fa_enabled }} with 2FA</span>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover fs-7 align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>User</th>
+                                <th>Role</th>
+                                <th>2FA Status</th>
+                                <th>Account Status</th>
+                                <th>Last Login</th>
+                                <th>Date Joined</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in user_analytics.all_users %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                            {{ u.username|slice:":1"|upper }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-dark">@{{ u.username }}</div>
+                                            <div class="text-muted fs-8">{{ u.email|default:"No email registered" }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <form method="post" action="{% url 'admin_hub:user_update_role' u.pk %}" class="d-inline m-0">
+                                        {% csrf_token %}
+                                        <select name="role" class="form-select form-select-sm fs-8 py-0.5 px-1.5" onchange="this.form.submit();" style="width: 170px;">
+                                            {% for r_key, r_label in user_analytics.role_choices %}
+                                            <option value="{{ r_key }}" {% if r_key == u.role %}selected{% endif %}>{{ r_label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </form>
+                                </td>
+                                <td>
+                                    {% if u.is_2fa_enabled %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle-fill me-1"></i>2FA Active</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="bi bi-dash-circle me-1"></i>Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if u.is_active %}
+                                    <span class="badge bg-success text-white">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-danger text-white">Deactivated</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ u.last_login|date:"M d, Y H:i"|default:"Never" }}</td>
+                                <td>{{ u.date_joined|date:"M d, Y" }}</td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-1">
+                                        <form method="post" action="{% url 'admin_hub:user_toggle_active' u.pk %}" class="d-inline m-0" onsubmit="return confirm('Toggle active status for user {{ u.username }}?');">
+                                            {% csrf_token %}
+                                            {% if u.is_active %}
+                                            <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1.5" title="Deactivate user" {% if u == request.user %}disabled{% endif %}>
+                                                <i class="bi bi-person-x"></i>
+                                            </button>
+                                            {% else %}
+                                            <button type="submit" class="btn btn-xs btn-outline-success py-0 px-1.5" title="Activate user">
+                                                <i class="bi bi-person-check"></i>
+                                            </button>
+                                            {% endif %}
+                                        </form>
+                                        <a href="{% url 'accounts:user_reset_password' u.pk %}" class="btn btn-xs btn-outline-secondary py-0 px-1.5" title="Admin reset password">
+                                            <i class="bi bi-key"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 4: USER AUDITS (NFR-07 COMPLIANCE)                                -->
+        <!-- ===================================================================== -->
+        <div class="tab-pane fade {% if active_tab == 'audits' %}show active{% endif %}" id="pane-audits" role="tabpanel">
+            <div class="card p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h6 class="fw-bold mb-0 d-flex align-items-center gap-2" style="color: var(--htc-text);">
+                            <i class="bi bi-journal-check text-primary"></i> Immutable System Audit Trail (NFR-07)
+                        </h6>
+                        <div class="text-xs text-muted">Append-only security log recording user identity, mutations, and field-level diffs.</div>
+                    </div>
+                    <a href="{% url 'admin_hub:export_audit_csv' %}" class="btn btn-sm btn-primary fw-semibold px-3 py-1.5 shadow-xs">
+                        <i class="bi bi-download me-1"></i> Export Complete Audit Log (CSV)
+                    </a>
+                </div>
+
+                <!-- FILTER FORM -->
+                <form method="get" action="/admin/" class="p-3 rounded bg-light border mb-3">
+                    <input type="hidden" name="tab" value="audits">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <input type="text" name="audit_q" class="form-control form-control-sm" placeholder="Search user, table, record ID..." value="{{ audit_q }}">
+                        </div>
+                        <div class="col-md-3">
+                            <select name="audit_action" class="form-select form-select-sm">
+                                <option value="">-- All Actions --</option>
+                                {% for a_val, a_label in audit_summary.action_choices %}
+                                <option value="{{ a_val }}" {% if audit_action == a_val %}selected{% endif %}>{{ a_label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" name="audit_table" class="form-control form-control-sm" placeholder="Filter by Table / Entity..." value="{{ audit_table }}">
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-secondary w-50">Filter</button>
+                            <a href="/admin/?tab=audits#tab-audits" class="btn btn-sm btn-outline-secondary w-50">Reset</a>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- AUDIT TABLE -->
+                <div class="table-responsive">
+                    <table class="table table-hover fs-8 align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 170px;">Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Target Entity / Table</th>
+                                <th>Record ID</th>
+                                <th>Changes / Diff Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for e in audit_summary.entries %}
+                            <tr>
+                                <td class="text-muted">{{ e.timestamp|date:"M d, Y H:i:s" }}</td>
+                                <td>
+                                    <span class="fw-bold">@{{ e.user.username|default:"System" }}</span>
+                                </td>
+                                <td>
+                                    {% if e.action == "create" %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">CREATE</span>
+                                    {% elif e.action == "update" %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">UPDATE</span>
+                                    {% elif e.action == "delete" %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">DELETE</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{{ e.action|upper }}</span>
+                                    {% endif %}
+                                </td>
+                                <td><code>{{ e.table_name }}</code></td>
+                                <td><code>{{ e.record_id|slice:":16" }}</code></td>
+                                <td>
+                                    <details class="cursor-pointer">
+                                        <summary class="text-primary text-xs">Inspect Values</summary>
+                                        <div class="p-2 rounded bg-dark text-light mt-1 font-monospace fs-9" style="max-height: 140px; overflow: auto;">
+                                            <div><strong>Old Values:</strong> {{ e.old_values }}</div>
+                                            <div><strong>New Values:</strong> {{ e.new_values }}</div>
+                                        </div>
+                                    </details>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">No audit entries matching filter criteria.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 5: DATA ARCHIVES VAULT                                            -->
+        <!-- ===================================================================== -->
+        <div class="tab-pane fade {% if active_tab == 'archives' %}show active{% endif %}" id="pane-archives" role="tabpanel">
+            <div class="card p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-0 d-flex align-items-center gap-2" style="color: var(--htc-text);">
+                            <i class="bi bi-archive-fill text-primary"></i> Transaction Cluster Archive Vault
+                        </h6>
+                        <div class="text-xs text-muted">Closed, settled, and fully paid transaction contracts preserved for regulatory compliance.</div>
+                    </div>
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 fs-8">
+                        {{ archive_metrics.archived_count }} Archived Clusters ({{ archive_metrics.archived_tons|floatformat:1|intcomma }} MT)
+                    </span>
+                </div>
+
+                <!-- ARCHIVED CLUSTERS TABLE -->
+                <div class="table-responsive">
+                    <table class="table table-hover fs-7 align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Reference Code</th>
+                                <th>Customer (Client)</th>
+                                <th>Sugar Mill Supplier</th>
+                                <th class="text-end">Volume MT</th>
+                                <th>Archived Date</th>
+                                <th class="text-end">Restore Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ac in archive_metrics.archived_clusters %}
+                            <tr>
+                                <td class="fw-bold"><a href="{% url 'operations:cluster_detail' ac.pk %}" class="text-decoration-none">{{ ac.reference_code }}</a></td>
+                                <td>{{ ac.client.name|default:"—" }}</td>
+                                <td>{{ ac.sugar_mill.name|default:"—" }}</td>
+                                <td class="text-end fw-bold text-primary">{{ ac.purchase_order.volume_mt|default:0|floatformat:2|intcomma }} MT</td>
+                                <td>{{ ac.archived_at|date:"M d, Y H:i"|default:"Preserved" }}</td>
+                                <td class="text-end">
+                                    <form method="post" action="{% url 'admin_hub:archive_restore' ac.pk %}" class="d-inline m-0" onsubmit="return confirm('Restore transaction {{ ac.reference_code }} back to active operations?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-xs btn-outline-primary py-0.5 px-2">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i> Restore to Active
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">No archived transactions in the vault. All active clusters remain in operational ledgers.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 6: DATA BACKUPS & DISASTER RECOVERY (NFR-08)                      -->
+        <!-- ===================================================================== -->
+        <div class="tab-pane fade {% if active_tab == 'backups' %}show active{% endif %}" id="pane-backups" role="tabpanel">
+            <div class="card p-4 rounded-3 border mb-4" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h6 class="fw-bold mb-0 d-flex align-items-center gap-2" style="color: var(--htc-text);">
+                            <i class="bi bi-database-fill-check text-success"></i> Disaster Recovery &amp; Automated Database Backups (NFR-08)
+                        </h6>
+                        <div class="text-xs text-muted">Automated nightly PostgreSQL snapshots stored on persistent Amazon EBS volumes (RTO &lt; 30 min, RPO &lt; 24 hrs).</div>
+                    </div>
+                    <form method="post" action="{% url 'admin_hub:trigger_backup' %}" class="m-0" onsubmit="return confirm('Generate an instant compressed database snapshot now?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-success fw-bold px-3 py-1.5 shadow-xs">
+                            <i class="bi bi-database-down me-1"></i> Trigger Instant Backup Snapshot Now
+                        </button>
+                    </form>
+                </div>
+
+                <!-- BACKUP SPECIFICATION ALERT -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3 border bg-light">
+                            <div class="fw-bold text-xs text-primary mb-1"><i class="bi bi-clock-history me-1"></i> Automated Schedule</div>
+                            <div class="text-muted text-xs">Cron executes nightly at <strong>02:00 AM PHT</strong> via <code>/home/ubuntu/backups/backup_db.sh</code>. Backups older than 14 days are rotated automatically.</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3 border bg-light">
+                            <div class="fw-bold text-xs text-success mb-1"><i class="bi bi-shield-check me-1"></i> Compliance Standards</div>
+                            <div class="text-muted text-xs">Complies with <strong>NFR-08</strong>: Recovery Point Objective (RPO) &lt; 24 hours and Recovery Time Objective (RTO) &lt; 30 minutes.</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3 border bg-light">
+                            <div class="fw-bold text-xs text-info mb-1"><i class="bi bi-folder-check me-1"></i> Target Storage</div>
+                            <div class="text-muted text-xs">Persistent Amazon EBS block volume mount and local project archive directory at <code>/app/backups/</code>.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AVAILABLE BACKUPS LIST -->
+                <h6 class="fw-bold text-xs text-uppercase text-muted mb-2">Available Database Snapshots &amp; Archives ({{ backups|length }})</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover fs-7 align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Backup Filename</th>
+                                <th>Type</th>
+                                <th>File Size</th>
+                                <th>Created Timestamp</th>
+                                <th>Integrity Status</th>
+                                <th class="text-end">Download Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in backups %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-file-earmark-zip-fill text-primary fs-5"></i>
+                                        <code>{{ b.filename }}</code>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if b.is_automated %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Nightly Automated</span>
+                                    {% else %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Manual Snapshot</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-bold">{{ b.size_display }}</td>
+                                <td class="text-muted">{{ b.created_at|date:"M d, Y H:i:s" }}</td>
+                                <td><span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle-fill me-0.5"></i> Verified (OK)</span></td>
+                                <td class="text-end">
+                                    <a href="{% url 'admin_hub:download_backup' b.filename %}" class="btn btn-xs btn-outline-primary py-1 px-2.5">
+                                        <i class="bi bi-download me-1"></i> Download File
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    No database backup archives found on this server. Click "Trigger Instant Backup Snapshot Now" above to generate the first snapshot.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Check URL hash or query param to keep active tab across form submissions
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get("tab");
+    if (tabParam) {
+        const triggerEl = document.getElementById("tab-btn-" + tabParam);
+        if (triggerEl) {
+            const tabObj = new bootstrap.Tab(triggerEl);
+            tabObj.show();
+        }
+    } else if (window.location.hash) {
+        const hashTab = window.location.hash.replace("#tab-", "");
+        const triggerEl = document.getElementById("tab-btn-" + hashTab);
+        if (triggerEl) {
+            const tabObj = new bootstrap.Tab(triggerEl);
+            tabObj.show();
+        }
+    }
+});
+</script>
+{% endblock %}

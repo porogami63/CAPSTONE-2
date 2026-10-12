@@ -22,6 +22,7 @@ def _admin_login_via_portal(request, extra_context=None):
 admin.site.login = _admin_login_via_portal
 
 urlpatterns = [
+    path("admin/", include("admin_hub.urls")),
     path("admin-portal/", admin.site.urls),
     path("", include("dashboard.urls")),
     path("accounts/", include("accounts.urls")),
