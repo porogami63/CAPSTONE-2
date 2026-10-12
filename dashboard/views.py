@@ -3,7 +3,7 @@ from collections import defaultdict
 from decimal import Decimal
 
 from django.db.models import Avg, Count, Q, Sum
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from accounts.decorators import role_required
@@ -33,6 +33,10 @@ def _format_currency(value):
     User.Role.INVOICING,
 )
 def home(request):
+    # Make admin view the default dashboard for the admin (not the company metrics)
+    if getattr(request.user, "role", None) == User.Role.ADMINISTRATOR:
+        return redirect("admin_hub:dashboard")
+
     # Process automated pre- and post-timeline activity reminders
     try:
         from operations.services.reminder_services import process_timeline_reminders

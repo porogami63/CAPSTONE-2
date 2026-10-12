@@ -4,6 +4,25 @@ from accounts.models import User
 
 Role = User.Role
 
+ADMIN_PRIMARY_NAV = [
+    ("admin_hub:dashboard", "Dashboard", "bi-grid-1x2-fill", ("admin_hub:",)),
+    ("accounts:user_list", "User Management", "bi-people-fill", ("accounts:user",)),
+    ("audit:list", "Activity History", "bi-journal-text", ("audit:",)),
+    ("chat:room", "Team Chat", "bi-chat-dots-fill", ("chat:",)),
+]
+
+ADMIN_OPERATIONAL_NAV = [
+    ("operations:pending_tasks", "Pending Tasks", "bi-check2-square", ("operations:pending_tasks",)),
+    ("operations:cluster_list", "Orders & Deals", "bi-receipt", ("operations:cluster", "operations:import_excel", "operations:clear_database")),
+    ("operations:mro_summary", "Loading Permits (MRO)", "bi-file-earmark-ruled", ("operations:mro",)),
+    ("finance:invoice_list", "Customer Invoices", "bi-file-earmark-spreadsheet", ("finance:invoice", "finance:reconciliation")),
+    ("operations:deliveries_list", "Deliveries & Trucking", "bi-truck", ("operations:deliveries", "operations:logistics")),
+    ("finance:loan_list", "Bank Loans", "bi-bank", ("finance:loan",)),
+    ("dashboard:analytics", "Analytics", "bi-graph-up-arrow", ("dashboard:analytics",)),
+    ("masters:partners", "Suppliers & Customers", "bi-building", ("masters:",)),
+    ("dashboard:documents", "Documents", "bi-folder2-open", ("dashboard:documents",)),
+]
+
 CORE_NAV_ITEMS = [
     ("dashboard:home", "Dashboard", "bi-grid-1x2-fill", ("dashboard:home",)),
     ("operations:pending_tasks", "Pending Tasks", "bi-check2-square", ("operations:pending_tasks",)),
@@ -23,7 +42,7 @@ CORE_NAV_ITEMS = [
 
 # Navigation items each role can see
 NAV_ITEMS = {
-    Role.ADMINISTRATOR: CORE_NAV_ITEMS,
+    Role.ADMINISTRATOR: ADMIN_PRIMARY_NAV + ADMIN_OPERATIONAL_NAV,
     Role.OPERATIONS_MANAGEMENT: [
         i for i in CORE_NAV_ITEMS 
         if i[0] not in ("accounts:user_list", "finance:loan_list", "finance:invoice_list", "admin_hub:dashboard")
@@ -93,12 +112,10 @@ def get_user_permissions(user) -> set[str]:
 
 
 def get_nav_items(user):
-    if user.is_superuser:
-        items = NAV_ITEMS[Role.ADMINISTRATOR]
-    else:
-        role = _normalize_role(user.role)
-        items = NAV_ITEMS.get(role, NAV_ITEMS.get(Role.OPERATIONS_MANAGEMENT, CORE_NAV_ITEMS))
-    return items
+    role = _normalize_role(getattr(user, "role", ""))
+    if role == Role.ADMINISTRATOR:
+        return NAV_ITEMS[Role.ADMINISTRATOR]
+    return NAV_ITEMS.get(role, NAV_ITEMS.get(Role.OPERATIONS_MANAGEMENT, CORE_NAV_ITEMS))
 
 
 def nav_is_active(view_name: str, url_name: str, prefixes: tuple[str, ...]) -> bool:

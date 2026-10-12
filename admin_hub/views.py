@@ -24,6 +24,7 @@ from .services import (
     get_dataflow_metrics,
     get_system_telemetry,
     get_user_analytics,
+    get_website_latency_and_activity,
     list_database_backups,
 )
 
@@ -31,8 +32,8 @@ from .services import (
 def admin_required(view_func):
     """
     Decorator enforcing strict access control:
-    Only authenticated users with the Administrator role or superuser status are permitted.
-    All others are denied with HTTP 403 Forbidden.
+    Only authenticated users with the Administrator role are permitted.
+    Operations managers and any other non-admin users are strictly denied with HTTP 403 Forbidden.
     """
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
@@ -40,9 +41,7 @@ def admin_required(view_func):
             return redirect_to_login(request.get_full_path(), settings.LOGIN_URL)
         
         is_admin_role = (getattr(request.user, "role", None) == User.Role.ADMINISTRATOR)
-        is_superuser = request.user.is_superuser
-
-        if not (is_admin_role or is_superuser) or not request.user.is_active:
+        if not is_admin_role or not request.user.is_active:
             raise PermissionDenied("Access restricted strictly to System Administrators (NFR-07 / NFR-08).")
         
         return view_func(request, *args, **kwargs)
@@ -52,15 +51,15 @@ def admin_required(view_func):
 @admin_required
 def dashboard_view(request):
     """
-    Comprehensive Website Administration Hub.
-    Monitors System Telemetry, Operational Data Flow, User Accounts & Flow,
-    User Audits (NFR-07), Data Archives, and Database Backups (NFR-08).
+    Website Administration Hub: monitors website latency, website activity,
+    user accounts, user audits (NFR-07), data archives, and database backups (NFR-08).
     """
-    active_tab = request.GET.get("tab", "telemetry")
+    active_tab = request.GET.get("tab", "overview")
     audit_action = request.GET.get("audit_action", "").strip()
     audit_table = request.GET.get("audit_table", "").strip()
     audit_q = request.GET.get("audit_q", "").strip()
 
+    website_metrics = get_website_latency_and_activity()
     telemetry = get_system_telemetry()
     dataflow = get_dataflow_metrics()
     user_analytics = get_user_analytics()
@@ -74,6 +73,7 @@ def dashboard_view(request):
 
     context = {
         "active_tab": active_tab,
+        "website_metrics": website_metrics,
         "telemetry": telemetry,
         "dataflow": dataflow,
         "user_analytics": user_analytics,

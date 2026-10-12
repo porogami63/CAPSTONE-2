@@ -67,18 +67,28 @@ class AdminHubSecurityAndFunctionalityTests(TestCase):
         response = self.client.get(reverse("admin_hub:dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Website Administration Hub")
+        self.assertContains(response, "Website Latency")
+        self.assertContains(response, "Website Activity")
         self.assertContains(response, "System Telemetry")
-        self.assertContains(response, "Data Flow Monitor")
-        self.assertContains(response, "User Accounts")
         self.assertContains(response, "User Audits (NFR-07)")
-        self.assertContains(response, "Data Archives")
+        self.assertContains(response, "User Accounts")
         self.assertContains(response, "Data Backups (NFR-08)")
+        self.assertContains(response, "Data Archives")
 
-    def test_superuser_access_allowed(self):
-        """Superuser must receive HTTP 200."""
-        self.client.force_login(self.superuser)
+    def test_admin_default_dashboard_redirect(self):
+        """Admin accessing '/' must be redirected to the Admin Hub dashboard."""
+        self.client.force_login(self.admin_user)
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/", response.url)
+
+    def test_operations_manager_with_superuser_flag_still_denied(self):
+        """Operations Manager even with is_superuser=True is strictly denied access."""
+        self.ops_user.is_superuser = True
+        self.ops_user.save()
+        self.client.force_login(self.ops_user)
         response = self.client.get(reverse("admin_hub:dashboard"))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
 
     def test_trigger_backup_generates_file_and_audit(self):
         """NFR-08: Admin can trigger an instant backup snapshot with audit logging."""
