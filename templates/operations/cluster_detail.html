@@ -915,17 +915,107 @@
 
 
 
+        <!-- Collapsible Comprehensive Audit Log (Simple History) -->
+        <div class="panel mb-3" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div class="panel-header d-flex justify-content-between align-items-center py-2.5 px-3" 
+                 role="button" 
+                 data-bs-toggle="collapse" 
+                 data-bs-target="#auditLogCollapse" 
+                 aria-expanded="false" 
+                 aria-controls="auditLogCollapse"
+                 style="cursor: pointer; user-select: none; background: var(--htc-surface); border-bottom: 1px solid var(--htc-border);">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history text-primary fs-7"></i>
+                    <span class="fw-bold text-dark" style="font-size: 0.88rem;">Comprehensive Audit Log</span>
+                    <span class="badge bg-secondary-subtle text-secondary border fs-8 ms-1">{{ audit_events|length }} Events</span>
+                </div>
+                <div class="d-flex align-items-center gap-2 text-muted text-xs">
+                    <span class="d-none d-sm-inline">Click to expand</span>
+                    <i class="bi bi-chevron-down fs-8" id="auditLogChevron"></i>
+                </div>
+            </div>
+            <div class="collapse" id="auditLogCollapse">
+                <div class="panel-body p-0">
+                    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.78rem;">
+                            <thead class="table-light sticky-top" style="font-size: 0.72rem; letter-spacing: 0.3px; border-bottom: 1px solid var(--htc-border);">
+                                <tr>
+                                    <th class="ps-3 py-2 text-muted" style="width: 32%;">User &amp; Time</th>
+                                    <th class="py-2 text-muted" style="width: 20%;">Target</th>
+                                    <th class="py-2 text-muted" style="width: 18%;">Action</th>
+                                    <th class="pe-3 py-2 text-muted" style="width: 30%;">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in audit_events %}
+                                <tr style="border-bottom: 1px solid var(--htc-border);">
+                                    <td class="ps-3 py-2 text-nowrap">
+                                        <div class="fw-semibold text-dark" style="font-size: 0.78rem;">
+                                            {{ event.user|default:"System" }}
+                                        </div>
+                                        <div class="font-monospace text-muted" style="font-size: 0.7rem;">
+                                            {{ event.date|date:"M d, Y H:i" }} PST
+                                        </div>
+                                    </td>
+                                    <td class="py-2">
+                                        <span class="badge bg-light text-secondary border text-truncate d-inline-block" style="max-width: 95px; font-size: 0.68rem;" title="{{ event.model }}">
+                                            {{ event.model }}
+                                        </span>
+                                    </td>
+                                    <td class="py-2">
+                                        {% if event.type == '+' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                            <i class="bi bi-plus-circle me-1"></i>Created
+                                        </span>
+                                        {% elif event.type == '~' %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                            <i class="bi bi-pencil me-1"></i>Updated
+                                        </span>
+                                        {% elif event.type == '-' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                            <i class="bi bi-trash me-1"></i>Deleted
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                            {{ event.type }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="pe-3 py-2">
+                                        <div class="text-secondary" style="font-size: 0.74rem; line-height: 1.35; word-break: break-word;">
+                                            {{ event.desc }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-muted text-center py-3.5 fs-7">
+                                        <i class="bi bi-info-circle me-1 text-muted"></i> No audit logs available for this transaction.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-3 py-1.5 bg-light border-top d-flex justify-content-between align-items-center text-muted" style="border-color: var(--htc-border) !important; font-size: 0.7rem;">
+                        <span>Philippine Standard Time (PST / UTC+8)</span>
+                        <span>{{ audit_events|length }} total event{{ audit_events|length|pluralize }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Bank Loans & Finance Status (Spacious & Clean) -->
         {% if user|has_perm:"add_loan" or user|has_perm:"view_loans" or user|has_perm:"view_cluster" %}
-        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-            <div class="panel-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded p-2 bg-light text-secondary border d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; flex-shrink: 0; font-size: 0.85rem; font-weight: 700;">
+        <div class="panel mb-3" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div class="panel-body py-3 px-3.5 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="rounded p-1.5 bg-light text-secondary border d-flex align-items-center justify-content-center" style="width: 34px; height: 34px; flex-shrink: 0; font-size: 0.85rem; font-weight: 700;">
                         ₱
                     </div>
                     <div>
-                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                            <span class="fw-bold text-dark" style="font-size: 0.95rem;">Bank Loans &amp; Financial Matching</span>
+                        <div class="d-flex align-items-center gap-2 mb-0.5 flex-wrap">
+                            <span class="fw-bold text-dark" style="font-size: 0.9rem;">Bank Loans &amp; Financial Matching</span>
                             {% if has_active_loan %}
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-8 fw-semibold">
                                 Active / Cleared
@@ -940,7 +1030,7 @@
                             </span>
                             {% endif %}
                         </div>
-                        <p class="text-muted mb-0 text-sm">
+                        <p class="text-muted mb-0" style="font-size: 0.78rem;">
                             {% if has_active_loan %}
                             Bank loan facility is active for this PO.
                             {% else %}
@@ -950,68 +1040,13 @@
                     </div>
                 </div>
                 <div>
-                    <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-primary btn-sm fw-semibold px-3 py-2 shadow-xs d-inline-flex align-items-center gap-1.5">
+                    <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-primary btn-sm fw-semibold px-3 py-1.5 shadow-xs d-inline-flex align-items-center gap-1.5" style="font-size: 0.8rem;">
                         Open Bank Loans &amp; Matching Panel &rarr;
                     </a>
                 </div>
             </div>
         </div>
         {% endif %}
-    </div>
-</div>
-
-<!-- Collapsible Comprehensive Audit Log (Simple History) -->
-<div class="panel mt-4 mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-    <div class="panel-header d-flex justify-content-between align-items-center py-3.5 px-4" 
-         role="button" 
-         data-bs-toggle="collapse" 
-         data-bs-target="#auditLogCollapse" 
-         aria-expanded="false" 
-         aria-controls="auditLogCollapse"
-         style="cursor: pointer; user-select: none; background: var(--htc-surface); border-bottom: 1px solid var(--htc-border);">
-        <div class="d-flex align-items-center gap-2">
-            <span class="fw-bold text-dark" style="font-size: 0.95rem;">Comprehensive Audit Log (Simple History)</span>
-            <span class="badge bg-secondary-subtle text-secondary border fs-8 ms-1">{{ audit_events|length }} Events</span>
-        </div>
-        <div class="d-flex align-items-center gap-2 text-muted text-xs">
-            <span>Click to expand / collapse</span>
-            <i class="bi bi-chevron-down" id="auditLogChevron"></i>
-        </div>
-    </div>
-    <div class="collapse" id="auditLogCollapse">
-        <div class="panel-body p-3">
-            <div class="table-responsive">
-                <table class="table-htc mb-0">
-                    <thead>
-                        <tr>
-                            <th>Timestamp</th>
-                            <th>User</th>
-                            <th>Model</th>
-                            <th>Action</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for event in audit_events %}
-                        <tr>
-                            <td class="font-monospace text-nowrap text-muted fs-8">{{ event.date|date:"M d, Y H:i:s" }} PST</td>
-                            <td><strong>{{ event.user|default:"System" }}</strong></td>
-                            <td><span class="badge-status {{ event.model|lower }}">{{ event.model }}</span></td>
-                            <td>
-                                {% if event.type == '+' %}<span class="text-success"><i class="bi bi-plus-circle"></i> Created</span>
-                                {% elif event.type == '~' %}<span class="text-warning"><i class="bi bi-pencil-square"></i> Updated</span>
-                                {% elif event.type == '-' %}<span class="text-danger"><i class="bi bi-trash"></i> Deleted</span>
-                                {% else %}{{ event.type }}{% endif %}
-                            </td>
-                            <td>{{ event.desc }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="5" class="text-muted text-center py-4">No audit logs available for this transaction.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 </div>
 <!-- Modal for uploading MRO scanned copy -->
