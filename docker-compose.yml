@@ -65,6 +65,10 @@ services:
       - ./accounts:/app/accounts
       - ./masters:/app/masters
       - ./config:/app/config
+      - ./admin_hub:/app/admin_hub
+      - ./audit:/app/audit
+      - ./chat:/app/chat
+      - ./dashboard:/app/dashboard
       - ./static:/app/static
 
   nginx:
@@ -104,6 +108,10 @@ services:
       - ./accounts:/app/accounts
       - ./masters:/app/masters
       - ./config:/app/config
+      - ./admin_hub:/app/admin_hub
+      - ./audit:/app/audit
+      - ./chat:/app/chat
+      - ./dashboard:/app/dashboard
       - ./templates:/app/templates
       - media_volume:/app/media
     depends_on:
