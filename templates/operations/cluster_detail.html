@@ -406,66 +406,95 @@
             </div>
         </div>
 
-        <div class="panel mb-3">
-
-            <div class="panel-header d-flex justify-content-between align-items-center" style="padding: 0.85rem 1rem;">
-                <span style="font-weight: 700; color: var(--htc-primary-light);"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Attached Loading Permits (MRO)</span>
-                {% if user|has_perm:"edit_transaction" or user|has_perm:"edit_logistics" %}
-                <button type="button" class="btn btn-sm btn-primary py-1 px-2.5 fs-7 fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#mroAttachModal">
-                    <i class="bi bi-link-45deg me-1"></i> + Link an MRO Permit
-                </button>
-                {% endif %}
-            </div>
-            <div class="panel-body">
-                {% if linked_mros %}
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle fs-7 mb-2">
-                        <thead>
-                            <tr class="table-light">
-                                <th>MRO #</th>
-                                <th>Supplier (Mill)</th>
-                                <th>Planter</th>
-                                <th>Release Date</th>
-                                <th class="text-end">Quantity (MT)</th>
-                                <th class="text-end">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for mro in linked_mros %}
-                            <tr>
-                                <td class="fw-bold"><a href="{% url 'operations:mro_summary' %}?q={{ mro.mro_number }}" class="text-decoration-none">#{mro.mro_number}</a></td>
-                                <td>{{ mro.display_sugar_mill }}</td>
-                                <td>{{ mro.planter.name }}</td>
-                                <td>{{ mro.release_date|date:"M d, Y"|default:"—" }}</td>
-                                <td class="text-end fw-bold text-primary">{{ mro.tons|floatformat:3|intcomma }} MT</td>
-                                <td class="text-end">
-                                    {% if cluster.mro_file %}
-                                    <button type="button" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none py-1 px-1.5 me-1" data-bs-toggle="modal" data-bs-target="#previewMroScanModal" title="Preview Attached Scanned MRO Document" style="cursor: pointer;">
-                                        <i class="bi bi-file-earmark-pdf me-0.5"></i> View Scan
-                                    </button>
-                                    {% endif %}
-                                    <form method="post" action="{% url 'operations:unlink_mro' cluster.pk mro.pk %}" class="d-inline" onsubmit="return confirm('Unlink this MRO permit from cluster?');">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1 fs-8" title="Unlink Permit"><i class="bi bi-x-circle"></i></button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        <div class="panel mb-3" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div class="panel-header d-flex justify-content-between align-items-center flex-wrap gap-2" 
+                 role="button" 
+                 data-bs-toggle="collapse" 
+                 data-bs-target="#mroSectionCollapse" 
+                 aria-expanded="true" 
+                 aria-controls="mroSectionCollapse"
+                 style="padding: 0.85rem 1.15rem; cursor: pointer; user-select: none;">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-file-earmark-spreadsheet text-primary"></i>
+                    <span class="fw-bold" style="color: var(--htc-text); font-size: 0.95rem;">Attached Loading Permits (MRO)</span>
+                    {% if linked_mros %}
+                    <span class="badge bg-secondary-subtle text-secondary border fs-8 ms-1">{{ linked_mros|length }} Permit{% if linked_mros|length > 1 %}s{% endif %}</span>
+                    <span class="text-muted fs-8 d-none d-sm-inline">({{ total_mro_tons|floatformat:3|intcomma }} MT)</span>
+                    {% endif %}
+                    <i class="bi bi-chevron-up text-muted fs-8 ms-1" id="mroCollapseChevron"></i>
                 </div>
-                <div class="p-2 rounded bg-body-tertiary border d-flex justify-content-between align-items-center fs-7">
-                    <span class="text-muted">Total Linked MRO Volume:</span>
-                    <span class="fw-bold text-primary fs-6">{{ total_mro_tons|floatformat:3|intcomma }} MT</span>
-                </div>
-                {% else %}
-                <div class="p-3 text-center text-muted fs-7">
-                    <i class="bi bi-info-circle me-1"></i> No MRO Permits linked to this cluster yet.
-                    {% if user|has_perm:"edit_transaction" %}
-                    <br><a href="#" data-bs-toggle="modal" data-bs-target="#mroAttachModal" class="text-primary fw-semibold text-decoration-none mt-1 d-inline-block">+ Link an MRO Permit</a>
+                <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+                    {% if cluster.mro_file %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-7 fw-medium" data-bs-toggle="modal" data-bs-target="#previewMroScanModal" title="Preview attached scanned MRO document">
+                        <i class="bi bi-file-earmark-pdf text-primary me-1"></i> View Scanned Document
+                    </button>
+                    {% endif %}
+                    {% if user|has_perm:"edit_transaction" or user|has_perm:"edit_logistics" %}
+                    <button type="button" class="btn btn-sm btn-primary py-1 px-2.5 fs-7 fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#mroAttachModal">
+                        <i class="bi bi-link-45deg me-1"></i> + Link an MRO Permit
+                    </button>
                     {% endif %}
                 </div>
-                {% endif %}
+            </div>
+            <div class="collapse show" id="mroSectionCollapse">
+                <div class="panel-body pt-0 px-3 pb-3">
+                    {% if linked_mros %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle fs-7 mb-2">
+                            <thead>
+                                <tr class="table-light">
+                                    <th class="text-nowrap" style="min-width: 110px;">MRO #</th>
+                                    <th>Supplier (Mill)</th>
+                                    <th>Planter</th>
+                                    <th>Release Date</th>
+                                    <th class="text-end">Quantity (MT)</th>
+                                    <th class="text-end text-nowrap" style="width: 120px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mro in linked_mros %}
+                                <tr>
+                                    <td class="fw-semibold text-nowrap">
+                                        <a href="{% url 'operations:mro_summary' %}?q={{ mro.mro_number }}" class="text-decoration-none fw-semibold text-primary font-monospace" title="View permit details in MRO Directory">#{{ mro.mro_number }}</a>
+                                    </td>
+                                    <td>{{ mro.display_sugar_mill }}</td>
+                                    <td>{{ mro.planter.name }}</td>
+                                    <td>{{ mro.release_date|date:"M d, Y"|default:"—" }}</td>
+                                    <td class="text-end fw-bold text-primary">{{ mro.tons|floatformat:3|intcomma }} MT</td>
+                                    <td class="text-end text-nowrap">
+                                        <div class="d-inline-flex align-items-center justify-content-end gap-1.5">
+                                            {% if cluster.mro_file %}
+                                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 text-xs d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#previewMroScanModal" title="View attached scanned document">
+                                                <i class="bi bi-file-earmark-pdf text-primary"></i>
+                                                <span>Scan</span>
+                                            </button>
+                                            {% endif %}
+                                            <form method="post" action="{% url 'operations:unlink_mro' cluster.pk mro.pk %}" class="d-inline m-0 p-0" onsubmit="return confirm('Unlink MRO #{{ mro.mro_number }} from this purchase order?');">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-xs btn-outline-danger py-1 px-1.5 text-xs d-inline-flex align-items-center" title="Unlink MRO #{{ mro.mro_number }}">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-2 rounded bg-body-tertiary border d-flex justify-content-between align-items-center fs-7">
+                        <span class="text-muted">Total Linked MRO Volume:</span>
+                        <span class="fw-bold text-primary fs-6">{{ total_mro_tons|floatformat:3|intcomma }} MT</span>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-center text-muted fs-7">
+                        <i class="bi bi-info-circle me-1"></i> No MRO Permits linked to this cluster yet.
+                        {% if user|has_perm:"edit_transaction" %}
+                        <br><a href="#" data-bs-toggle="modal" data-bs-target="#mroAttachModal" class="text-primary fw-semibold text-decoration-none mt-1 d-inline-block">+ Link an MRO Permit</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -1204,6 +1233,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         auditCollapse.addEventListener('hide.bs.collapse', function () {
             chevron.classList.replace('bi-chevron-up', 'bi-chevron-down');
+        });
+    }
+
+    const mroCollapse = document.getElementById('mroSectionCollapse');
+    const mroChevron = document.getElementById('mroCollapseChevron');
+    if (mroCollapse && mroChevron) {
+        mroCollapse.addEventListener('show.bs.collapse', function () {
+            mroChevron.classList.replace('bi-chevron-down', 'bi-chevron-up');
+        });
+        mroCollapse.addEventListener('hide.bs.collapse', function () {
+            mroChevron.classList.replace('bi-chevron-up', 'bi-chevron-down');
         });
     }
 });
