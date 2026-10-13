@@ -767,15 +767,15 @@ def run_automated_tests(suite="all", user=None):
     if suite in ("all", "core_pipeline"):
         def check_auth_rbac():
             roles = [c[0] for c in User.Role.choices]
-            assert "ADMINISTRATOR" in roles, "Admin role missing"
-            assert "OPERATIONS_OFFICER" in roles or "LOGISTICS_OFFICER" in roles, "Operations role missing"
+            assert User.Role.ADMINISTRATOR in roles, "Admin role missing"
+            assert User.Role.OPERATIONS_MANAGEMENT in roles or "operations_management" in roles, "Operations role missing"
             return "User authentication and Role-Based Access Control (RBAC) role taxonomy verified."
         run_check("t_p1", "Core Company Process", "Stage 1: Authentication & Governance", "User Authentication & RBAC Gate", check_auth_rbac)
 
         def check_cluster_creation():
             statuses = [s[0] for s in TransactionCluster.Status.choices]
-            assert "PENDING" in statuses, "Pending status missing"
-            assert "COMPLETED" in statuses, "Completed status missing"
+            assert TransactionCluster.Status.PENDING_APPROVAL in statuses or "pending_approval" in statuses, "Pending approval status missing"
+            assert TransactionCluster.Status.CLOSED in statuses or "closed" in statuses, "Closed status missing"
             return "Transaction cluster lifecycle states and initialization schema verified."
         run_check("t_p2", "Core Company Process", "Stage 2: Transaction Initiation", "Cluster & Purchase Order Schema", check_cluster_creation)
 
@@ -801,9 +801,9 @@ def run_automated_tests(suite="all", user=None):
 
         def check_loan_status_flow():
             loan_statuses = [s[0] for s in CapitalLoan.Status.choices]
-            for req in ["PENDING", "APPROVED", "RELEASED", "SETTLED"]:
+            for req in [CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED]:
                 assert req in loan_statuses, f"Missing loan status {req}"
-            return "Capital loan progression states (Pending -> Approved -> Released -> Settled) verified."
+            return "Capital loan progression states (Pending Creation -> Active -> Settled & Closed) verified."
         run_check("t_p5", "Core Company Process", "Stage 5: Loan Verification Queue", "Loan Verification Status Flow", check_loan_status_flow)
 
         def check_logistics_variance():
@@ -867,7 +867,7 @@ def run_automated_tests(suite="all", user=None):
 
         def check_delivery_ledger():
             fields = [f.name for f in DeliveryLedger._meta.get_fields()]
-            assert "delivered_weight_mt" in fields or "tons" in fields or "net_weight_mt" in fields, "Delivery weight field missing"
+            assert "delivered_mt" in fields or "delivered_weight_mt" in fields or "tons" in fields, "Delivery weight field missing"
             return "Delivery ledger incremental trip volume tracking verified."
         run_check("t_o4", "Operations & MRO", "Delivery Fulfillment", "Incremental Delivery Ledger Aggregation", check_delivery_ledger)
 
@@ -877,7 +877,7 @@ def run_automated_tests(suite="all", user=None):
     if suite in ("all", "finance_accounting"):
         def check_loan_cap_enforcement():
             loan_fields = [f.name for f in CapitalLoan._meta.get_fields()]
-            assert "amount" in loan_fields, "CapitalLoan amount missing"
+            assert "principal" in loan_fields or "amount" in loan_fields, "CapitalLoan principal missing"
             return "Capital loan principal allocation and disbursement limits verified."
         run_check("t_f1", "Finance & Accounting", "Loan Facilities", "Loan Principal Allocation Limits", check_loan_cap_enforcement)
 
@@ -885,7 +885,7 @@ def run_automated_tests(suite="all", user=None):
             tons = 1234.567
             price = 11500.25
             total = round(tons * price, 2)
-            assert total == 14197829.41, f"Invoice currency precision error: {total}"
+            assert total == 14197829.14, f"Invoice currency precision error: {total}"
             return f"Fractional MT volume precision (3 decimals) and currency precision (2 decimals) validated."
         run_check("t_f2", "Finance & Accounting", "Invoicing", "Fractional MT and PHP Currency Precision", check_invoice_precision)
 
