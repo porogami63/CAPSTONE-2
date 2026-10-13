@@ -20,12 +20,15 @@ from .services import (
     create_database_backup,
     get_archive_metrics,
     get_audit_summary,
+    get_automated_test_results,
     get_backups_directory,
     get_dataflow_metrics,
+    get_security_audit_report,
     get_system_telemetry,
     get_user_analytics,
     get_website_latency_and_activity,
     list_database_backups,
+    run_automated_tests,
 )
 
 
@@ -52,12 +55,14 @@ def admin_required(view_func):
 def dashboard_view(request):
     """
     Website Administration Hub: monitors website latency, website activity,
-    user accounts, user audits (NFR-07), data archives, and database backups (NFR-08).
+    security audit posture, automated testing suite, user accounts,
+    user audits (NFR-07), data archives, and database backups (NFR-08).
     """
     active_tab = request.GET.get("tab", "overview")
     audit_action = request.GET.get("audit_action", "").strip()
     audit_table = request.GET.get("audit_table", "").strip()
     audit_q = request.GET.get("audit_q", "").strip()
+    test_suite_filter = request.GET.get("test_suite", "all").strip()
 
     website_metrics = get_website_latency_and_activity()
     telemetry = get_system_telemetry()
@@ -70,6 +75,8 @@ def dashboard_view(request):
     )
     archive_metrics = get_archive_metrics()
     backups = list_database_backups()
+    security_report = get_security_audit_report()
+    test_results = get_automated_test_results(suite=test_suite_filter)
 
     context = {
         "active_tab": active_tab,
@@ -83,6 +90,9 @@ def dashboard_view(request):
         "audit_action": audit_action,
         "audit_table": audit_table,
         "audit_q": audit_q,
+        "security_report": security_report,
+        "test_results": test_results,
+        "test_suite_filter": test_suite_filter,
     }
 
     return render(request, "admin_hub/dashboard.html", context)
@@ -298,3 +308,102 @@ def export_dataflow_csv_view(request):
         ])
 
     return response
+
+
+@admin_required
+@require_POST
+def trigger_security_scan_view(request):
+    """
+    Executes a real-time security posture audit scan and logs the audit event.
+    """
+    report = get_security_audit_report()
+    SystemAuditTrail.objects.create_entry(
+        user=request.user,
+        action="create",
+        table_name="SecurityAuditScan",
+        record_id=request.user.username,
+        new_values={
+            "score": report["score"],
+            "grade": report["grade"],
+            "passed": report["passed_count"],
+            "review": report["review_count"],
+            "timestamp": timezone.now().isoformat(),
+        },
+    )
+    messages.success(
+        request,
+        f"Security audit scan completed: System rated {report['grade']} with a {report['score']}/100 security posture score."
+    )
+    return redirect("/admin/?tab=security#tab-security")
+
+
+@admin_required
+@require_POST
+def trigger_test_run_view(request):
+    """
+    Triggers an on-demand automated test run across selected suites.
+    """
+    suite = request.POST.get("suite", "all").strip()
+    results = run_automated_tests(suite=suite, user=request.user)
+
+    status_word = "passed" if results["failed_count"] == 0 else "completed with warnings"
+    messages.success(
+        request,
+        f"Automated test run {status_word}: {results['passed_count']} of {results['total_count']} assertions verified in {results['total_duration_sec']}s ({results['pass_rate']}% pass rate)."
+    )
+    return redirect(f"/admin/?tab=testing&test_suite={suite}#tab-testing")
+
+
+@admin_required
+def export_security_audit_csv_view(request):
+    """
+    Exports the Security Posture Audit Checklist as a CSV spreadsheet.
+    """
+    report = get_security_audit_report()
+    response = HttpResponse(content_type="text/csv")
+    filename = f"htc_security_audit_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow(["Check ID", "Category", "Title", "Compliance Status", "Finding & Technical Detail", "Remediation Recommendation"])
+
+    for item in report["checklist"]:
+        writer.writerow([
+            item["id"],
+            item["category"],
+            item["title"],
+            item["status"],
+            item["detail"],
+            item["recommendation"],
+        ])
+
+    return response
+
+
+@admin_required
+def export_test_results_csv_view(request):
+    """
+    Exports the latest Automated Test Suite execution results as a CSV spreadsheet.
+    """
+    suite = request.GET.get("suite", "all").strip()
+    results = get_automated_test_results(suite=suite)
+    response = HttpResponse(content_type="text/csv")
+    filename = f"htc_automated_test_results_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow(["Test ID", "Test Suite", "Subsystem / Component", "Assertion Name", "Result", "Duration (ms)", "Diagnostic Message"])
+
+    for t in results["tests"]:
+        writer.writerow([
+            t["id"],
+            t["suite"],
+            t["component"],
+            t["name"],
+            t["status"],
+            t["duration_ms"],
+            t["message"],
+        ])
+
+    return response
+

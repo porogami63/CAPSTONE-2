@@ -140,3 +140,42 @@ class AdminHubSecurityAndFunctionalityTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.ops_user.refresh_from_db()
         self.assertFalse(self.ops_user.is_active, "Ops user should have been deactivated")
+
+    def test_security_audit_tab_and_scan(self):
+        """Admin can view Security Audit tab, trigger security scan, and export report."""
+        self.client.force_login(self.admin_user)
+        response = self.client.get(reverse("admin_hub:dashboard") + "?tab=security")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Security Audit")
+        self.assertContains(response, "Security Score")
+
+        # Trigger security scan
+        scan_response = self.client.post(reverse("admin_hub:trigger_security_scan"))
+        self.assertEqual(scan_response.status_code, 302)
+        self.assertIn("tab=security", scan_response.url)
+
+        # Export CSV
+        csv_response = self.client.get(reverse("admin_hub:export_security_audit_csv"))
+        self.assertEqual(csv_response.status_code, 200)
+        self.assertEqual(csv_response["Content-Type"], "text/csv")
+        self.assertIn("Compliance Status", csv_response.content.decode("utf-8"))
+
+    def test_automated_testing_tab_and_run(self):
+        """Admin can view Automated Testing tab, execute test suite, and export results."""
+        self.client.force_login(self.admin_user)
+        response = self.client.get(reverse("admin_hub:dashboard") + "?tab=testing")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Automated Testing")
+        self.assertContains(response, "Itemized Test Execution Ledger")
+
+        # Trigger test run
+        run_response = self.client.post(reverse("admin_hub:trigger_test_run"), {"suite": "core_pipeline"})
+        self.assertEqual(run_response.status_code, 302)
+        self.assertIn("tab=testing", run_response.url)
+
+        # Export CSV
+        csv_response = self.client.get(reverse("admin_hub:export_test_results_csv") + "?suite=core_pipeline")
+        self.assertEqual(csv_response.status_code, 200)
+        self.assertEqual(csv_response["Content-Type"], "text/csv")
+        self.assertIn("Assertion Name", csv_response.content.decode("utf-8"))
+

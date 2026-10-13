@@ -13,4 +13,8 @@ urlpatterns = [
     path("archive/<uuid:pk>/restore/", views.archive_restore_view, name="archive_restore"),
     path("audit/export/", views.export_audit_csv_view, name="export_audit_csv"),
     path("dataflow/export/", views.export_dataflow_csv_view, name="export_dataflow_csv"),
+    path("security/scan/", views.trigger_security_scan_view, name="trigger_security_scan"),
+    path("security/export/", views.export_security_audit_csv_view, name="export_security_audit_csv"),
+    path("testing/run/", views.trigger_test_run_view, name="trigger_test_run"),
+    path("testing/export/", views.export_test_results_csv_view, name="export_test_results_csv"),
 ]

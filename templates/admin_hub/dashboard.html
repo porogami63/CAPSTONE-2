@@ -136,6 +136,18 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'security' %}active{% endif %} py-2.5 px-3 fs-7 fw-bold rounded-2"
+                    id="tab-btn-security" data-bs-toggle="pill" data-bs-target="#pane-security" type="button" role="tab">
+                Security Audit
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if active_tab == 'testing' %}active{% endif %} py-2.5 px-3 fs-7 fw-bold rounded-2"
+                    id="tab-btn-testing" data-bs-toggle="pill" data-bs-target="#pane-testing" type="button" role="tab">
+                Automated Testing
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link {% if active_tab == 'audits' %}active{% endif %} py-2.5 px-3 fs-7 fw-bold rounded-2"
                     id="tab-btn-audits" data-bs-toggle="pill" data-bs-target="#pane-audits" type="button" role="tab">
                 User Audits (NFR-07)
@@ -269,7 +281,372 @@
         </div>
 
         <!-- ===================================================================== -->
-        <!-- TAB 2: WEBSITE ACTIVITY & USER AUDITS (NFR-07)                         -->
+        <!-- TAB: SYSTEM SECURITY AUDIT POSTURE                                    -->
+        <!-- ===================================================================== -->
+        <div class="tab-pane fade {% if active_tab == 'security' %}show active{% endif %}" id="pane-security" role="tabpanel">
+
+            <!-- Top Header & Actions Bar -->
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 p-4 rounded-3 border"
+                 style="background: var(--htc-surface); border-color: var(--htc-border) !important; box-shadow: var(--htc-shadow);">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                        <span class="badge bg-{{ security_report.grade_badge }}-subtle text-{{ security_report.grade_badge }} border border-{{ security_report.grade_badge }}-subtle px-2.5 py-1 fs-8">
+                            {{ security_report.grade }}
+                        </span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fs-8">
+                            Score: {{ security_report.score }}/100
+                        </span>
+                        <span class="badge bg-secondary-subtle text-secondary border px-2.5 py-1 fs-8">
+                            {{ security_report.passed_count }} of {{ security_report.total_checks }} Controls Verified
+                        </span>
+                    </div>
+                    <h5 class="fw-bold mb-1" style="color: var(--htc-text);">Security Audit &amp; System Hardening Posture</h5>
+                    <div class="text-xs text-muted">
+                        Automated assessment of infrastructure controls, identity governance, access restrictions, and disaster recovery.
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <form method="post" action="{% url 'admin_hub:trigger_security_scan' %}" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary fw-semibold px-3 py-2 shadow-xs rounded-2 fs-7">
+                            <i class="bi bi-shield-check me-1"></i> Run Security Scan
+                        </button>
+                    </form>
+                    <a href="{% url 'admin_hub:export_security_audit_csv' %}" class="btn btn-outline-secondary fw-semibold px-3 py-2 rounded-2 fs-7">
+                        Export Audit (CSV)
+                    </a>
+                </div>
+            </div>
+
+            <!-- Primary Metric Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="card h-100 p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-xs text-muted text-uppercase fw-bold">Security Score</span>
+                            <span class="badge bg-{{ security_report.grade_badge }}-subtle text-{{ security_report.grade_badge }} border border-{{ security_report.grade_badge }}-subtle py-1 px-2 fs-9">
+                                Overall Health
+                            </span>
+                        </div>
+                        <div class="fs-2 fw-bold text-{{ security_report.grade_badge }} mb-2">
+                            {{ security_report.score }} <span class="fs-6 fw-normal text-muted">/ 100</span>
+                        </div>
+                        <div class="text-xs text-muted">
+                            Weighted compliance across all audited controls
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card h-100 p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-xs text-muted text-uppercase fw-bold">Passed Controls</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2 fs-9">
+                                Verified
+                            </span>
+                        </div>
+                        <div class="fs-2 fw-bold text-success mb-2">
+                            {{ security_report.passed_count }} <span class="fs-6 fw-normal text-muted">of {{ security_report.total_checks }}</span>
+                        </div>
+                        <div class="text-xs text-muted">
+                            Audited system parameters fully compliant with security baselines
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card h-100 p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-xs text-muted text-uppercase fw-bold">Review Items</span>
+                            <span class="badge bg-{% if security_report.review_count == 0 %}success{% else %}warning{% endif %}-subtle text-{% if security_report.review_count == 0 %}success{% else %}warning{% endif %} border py-1 px-2 fs-9">
+                                {% if security_report.review_count == 0 %}Clear{% else %}Advisories{% endif %}
+                            </span>
+                        </div>
+                        <div class="fs-2 fw-bold mb-2" style="color: var(--htc-text);">
+                            {{ security_report.review_count }} <span class="fs-6 fw-normal text-muted">Items</span>
+                        </div>
+                        <div class="text-xs text-muted">
+                            Non-critical items with recommended hardening actions
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card h-100 p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-xs text-muted text-uppercase fw-bold">Audit Standard</span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2 fs-9">
+                                Enterprise
+                            </span>
+                        </div>
+                        <div class="fs-4 fw-bold mb-2" style="color: var(--htc-text);">
+                            NFR-07 &amp; NFR-08
+                        </div>
+                        <div class="text-xs text-muted">
+                            Immutable audit trail &amp; automated disaster recovery
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Itemized Checklist by Category -->
+            {% for category_name, items in security_report.categories.items %}
+            <div class="card p-4 rounded-3 border mb-4" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0" style="color: var(--htc-text);">
+                        <i class="bi bi-shield-check text-primary me-1.5"></i> {{ category_name }}
+                    </h6>
+                    <span class="badge bg-secondary-subtle text-secondary border fs-8">
+                        {{ items|length }} Controls Evaluated
+                    </span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover fs-7 align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 140px;">Status</th>
+                                <th style="width: 260px;">Security Control</th>
+                                <th>Finding &amp; Technical Detail</th>
+                                <th style="width: 280px;">Recommended Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-{{ item.badge }}-subtle text-{{ item.badge }} border border-{{ item.badge }}-subtle fs-8 px-2 py-1">
+                                        {{ item.status }}
+                                    </span>
+                                </td>
+                                <td class="fw-bold" style="color: var(--htc-text);">
+                                    {{ item.title }}
+                                </td>
+                                <td>
+                                    <div class="text-body">{{ item.detail }}</div>
+                                </td>
+                                <td>
+                                    <span class="text-muted fs-8">{{ item.recommendation }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- TAB: AUTOMATED TESTING (SEPARATE TAB)                                 -->
+        <!-- ===================================================================== -->
+        <div class="tab-pane fade {% if active_tab == 'testing' %}show active{% endif %}" id="pane-testing" role="tabpanel">
+
+            <!-- Top Header & Actions Bar -->
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 p-4 rounded-3 border"
+                 style="background: var(--htc-surface); border-color: var(--htc-border) !important; box-shadow: var(--htc-shadow);">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                        <span class="badge bg-{% if test_results.failed_count == 0 %}success{% else %}warning{% endif %}-subtle text-{% if test_results.failed_count == 0 %}success{% else %}warning{% endif %} border px-2.5 py-1 fs-8">
+                            {{ test_results.status_label }}
+                        </span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fs-8">
+                            Pass Rate: {{ test_results.pass_rate }}%
+                        </span>
+                        <span class="text-xs text-muted">
+                            Last run: <strong>@{{ test_results.executed_by }}</strong> at {{ test_results.executed_at|date:"M d, Y H:i:s" }}
+                        </span>
+                    </div>
+                    <h5 class="fw-bold mb-1" style="color: var(--htc-text);">Automated Regression &amp; Business Process Testing</h5>
+                    <div class="text-xs text-muted">
+                        On-demand automated test execution verifying core company pipelines, loan math rules, operations OCR, and RBAC governance.
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <form method="post" action="{% url 'admin_hub:trigger_test_run' %}" class="d-flex align-items-center gap-2 m-0 flex-wrap">
+                        {% csrf_token %}
+                        <select name="suite" class="form-select form-select-sm fs-7 py-1.5" style="width: auto; min-width: 220px;">
+                            <option value="all" {% if test_suite_filter == 'all' %}selected{% endif %}>All Test Suites (Complete Pipeline)</option>
+                            <option value="core_pipeline" {% if test_suite_filter == 'core_pipeline' %}selected{% endif %}>Core Company Process (9 Stages)</option>
+                            <option value="operations_mro" {% if test_suite_filter == 'operations_mro' %}selected{% endif %}>Operations &amp; MRO Permit Engine</option>
+                            <option value="finance_accounting" {% if test_suite_filter == 'finance_accounting' %}selected{% endif %}>Finance &amp; Loan Governance</option>
+                            <option value="access_audit" {% if test_suite_filter == 'access_audit' %}selected{% endif %}>Access Control, Audit &amp; Recovery</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary fw-semibold px-3 py-2 shadow-xs rounded-2 fs-7 text-nowrap">
+                            <i class="bi bi-play-circle me-1"></i> Run Automated Tests
+                        </button>
+                    </form>
+                    <a href="{% url 'admin_hub:export_test_results_csv' %}?suite={{ test_suite_filter }}" class="btn btn-outline-secondary fw-semibold px-3 py-2 rounded-2 fs-7 text-nowrap">
+                        Export Results (CSV)
+                    </a>
+                </div>
+            </div>
+
+            <!-- Primary Metric Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="card h-100 p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-xs text-muted text-uppercase fw-bold">Test Pass Rate</span>
+                            <span class="badge bg-{% if test_results.failed_count == 0 %}success{% else %}danger{% endif %}-subtle text-{% if test_results.failed_count == 0 %}success{% else %}danger{% endif %} border py-1 px-2 fs-9">
+                                {{ test_results.pass_rate }}%
+                            </span>
+                        </div>
+                        <div class="fs-2 fw-bold text-{% if test_results.failed_count == 0 %}success{% else %}danger{% endif %} mb-2">
+                            {{ test_results.passed_count }} <span class="fs-6 fw-normal text-muted">/ {{ test_results.total_count }} Passed</span>
+                        </div>
+                        <div class="text-xs text-muted">
+                            {% if test_results.failed_count == 0 %}All assertions verified with zero errors{% else %}{{ test_results.failed_count }} assertion failure(s){% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card h-100 p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-xs text-muted text-uppercase fw-bold">Total Assertions</span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2 fs-9">
+                                Verified
+                            </span>
+                        </div>
+                        <div class="fs-2 fw-bold mb-2" style="color: var(--htc-text);">
+                            {{ test_results.total_count }} <span class="fs-6 fw-normal text-muted">Tests</span>
+                        </div>
+                        <div class="text-xs text-muted">
+                            Across {{ test_results.suite|title }} verification suite
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card h-100 p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-xs text-muted text-uppercase fw-bold">Execution Speed</span>
+                            <span class="badge bg-info-subtle text-info border border-info-subtle py-1 px-2 fs-9">
+                                Latency
+                            </span>
+                        </div>
+                        <div class="fs-2 fw-bold mb-2" style="color: var(--htc-text);">
+                            {{ test_results.total_duration_sec }} <span class="fs-6 fw-normal text-muted">sec</span>
+                        </div>
+                        <div class="text-xs text-muted">
+                            In-memory execution with sub-millisecond assertions
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card h-100 p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-xs text-muted text-uppercase fw-bold">Target Architecture</span>
+                            <span class="badge bg-dark-subtle text-body border py-1 px-2 fs-9">
+                                Live Host
+                            </span>
+                        </div>
+                        <div class="fs-4 fw-bold mb-2" style="color: var(--htc-text);">
+                            AWS EC2 Ubuntu
+                        </div>
+                        <div class="text-xs text-muted">
+                            18.140.166.84 · PostgreSQL 16 · Redis 7
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Assertions Table Card -->
+            <div class="card p-4 rounded-3 border mb-4" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h6 class="fw-bold mb-1" style="color: var(--htc-text);">
+                            Itemized Test Execution Ledger
+                        </h6>
+                        <div class="text-xs text-muted">
+                            Complete record of individual subsystem verifications and diagnostic outputs.
+                        </div>
+                    </div>
+                    <span class="badge bg-secondary-subtle text-secondary border fs-8">
+                        {{ test_results.tests|length }} Active Test Cases
+                    </span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover fs-7 align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 80px;">ID</th>
+                                <th style="width: 100px;">Status</th>
+                                <th style="width: 220px;">Assertion Name</th>
+                                <th style="width: 220px;">Subsystem / Stage</th>
+                                <th style="width: 100px;" class="text-end">Duration</th>
+                                <th>Diagnostic Verification Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in test_results.tests %}
+                            <tr>
+                                <td><code class="text-muted">{{ t.id }}</code></td>
+                                <td>
+                                    <span class="badge bg-{{ t.badge }}-subtle text-{{ t.badge }} border border-{{ t.badge }}-subtle fs-8 px-2 py-1">
+                                        {{ t.status }}
+                                    </span>
+                                </td>
+                                <td class="fw-bold" style="color: var(--htc-text);">
+                                    {{ t.name }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-secondary border fs-8">{{ t.component }}</span>
+                                </td>
+                                <td class="text-end font-monospace text-muted">
+                                    {{ t.duration_ms }} ms
+                                </td>
+                                <td>
+                                    <div class="text-body">{{ t.message }}</div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No test assertions recorded. Click "Run Automated Tests" above to execute.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Monospace Diagnostic Log (Collapsible) -->
+            <div class="card p-3 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-2" role="button" data-bs-toggle="collapse" data-bs-target="#collapseTestLog" aria-expanded="false" style="cursor: pointer;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-terminal text-muted"></i>
+                        <span class="fw-bold fs-7" style="color: var(--htc-text);">Technical Test Execution Log</span>
+                        <span class="badge bg-secondary-subtle text-secondary border fs-8">Console Output</span>
+                    </div>
+                    <span class="text-xs text-muted">Click to expand / collapse <i class="bi bi-chevron-down ms-1"></i></span>
+                </div>
+                <div class="collapse" id="collapseTestLog">
+                    <pre class="m-0 p-3 rounded" style="background: #18181c; color: #d0d0d8; font-size: 0.76rem; font-family: monospace; max-height: 280px; overflow-y: auto;">
+================================================================================
+ HTC CORE AUTOMATED TEST SUITE RUNNER
+ Executed: {{ test_results.executed_at|date:"Y-m-d H:i:s" }} by @{{ test_results.executed_by }}
+ Selected Suite: {{ test_results.suite }}
+================================================================================
+{% for t in test_results.tests %}[{{ t.status }}] [{{ t.duration_ms }}ms] [{{ t.component }}] {{ t.name }}
+       -> {{ t.message }}
+{% endfor %}
+--------------------------------------------------------------------------------
+ SUMMARY: {{ test_results.passed_count }}/{{ test_results.total_count }} Passed ({{ test_results.pass_rate }}%) in {{ test_results.total_duration_sec }}s
+ STATUS: {{ test_results.status_label }}
+================================================================================</pre>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 4: WEBSITE ACTIVITY & USER AUDITS (NFR-07)                         -->
         <!-- ===================================================================== -->
         <div class="tab-pane fade {% if active_tab == 'audits' %}show active{% endif %}" id="pane-audits" role="tabpanel">
             <div class="card p-4 rounded-3 border" style="background: var(--htc-surface); border-color: var(--htc-border) !important;">
@@ -601,4 +978,27 @@
 
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const hash = window.location.hash;
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+
+    let targetTabId = null;
+    if (hash && hash.startsWith('#tab-')) {
+        targetTabId = hash.replace('#tab-', 'tab-btn-');
+    } else if (tabParam) {
+        targetTabId = 'tab-btn-' + tabParam;
+    }
+
+    if (targetTabId) {
+        const btn = document.getElementById(targetTabId);
+        if (btn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+            const trigger = new bootstrap.Tab(btn);
+            trigger.show();
+        }
+    }
+});
+</script>
 {% endblock %}
