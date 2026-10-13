@@ -255,13 +255,14 @@
 
                         <!-- Split-Screen Verification -->
                         <div id="mroOcrSplitView" class="d-none">
-                            <div class="alert alert-info py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between rounded-3">
+                            <div class="alert alert-secondary py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between rounded-3 border">
                                 <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-check-circle-fill text-info fs-6"></i>
-                                    <div><strong>Extraction Complete:</strong> Review highlighted fields below before linking.</div>
+                                    <i class="bi bi-file-earmark-check text-secondary fs-6"></i>
+                                    <div id="mroStatusMessageText"><strong>Extraction Complete:</strong> Review detected permit details below before filing.</div>
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="mroModalAvgConf">95% Match</span>
+                                    <span class="badge bg-light text-dark border d-none" id="mroModalVolumeSummaryBadge">0.00 MT</span>
+                                    <span class="badge bg-light text-secondary border" id="mroModalAvgConf">95% Match</span>
                                     <span class="badge bg-light text-dark border" id="mroModalEngine">AWS Textract</span>
                                 </div>
                             </div>
@@ -272,118 +273,164 @@
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span class="text-xs fw-bold text-muted text-uppercase"><i class="bi bi-file-earmark-pdf me-1"></i> Document Preview</span>
                                         <a id="mroModalDocExpand" href="#" target="_blank" class="text-xs text-primary text-decoration-none">
-                                            <i class="bi bi-box-arrow-up-right me-0.5"></i> Expand
+                                            <i class="bi bi-box-arrow-up-right me-0.5"></i> Open in New Tab
                                         </a>
                                     </div>
-                                    <div class="rounded border overflow-hidden position-relative bg-dark-subtle" style="height: 480px;">
+                                    <div class="rounded border overflow-hidden position-relative bg-dark-subtle" style="height: 520px;">
                                         <iframe id="mroModalFrame" src="" class="w-100 h-100 border-0" title="MRO Modal Preview"></iframe>
                                         <img id="mroModalImage" src="" class="w-100 h-100 d-none" style="object-fit: contain;" alt="MRO Preview">
                                     </div>
                                 </div>
 
-                                <!-- Auto-filled Form -->
+                                <!-- Right Pane: Batch View or Single Form -->
                                 <div class="col-lg-7 col-md-6">
-                                    <form id="mroOcrCommitFormModal">
-                                        <input type="hidden" id="ocr_job_id_modal" value="">
-                                        
-                                        <div class="row g-2.5">
-                                            <div class="col-md-6">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <label class="text-xs fw-bold" style="color: var(--htc-text);">MRO Number <span class="text-danger">*</span></label>
-                                                    <span id="badge_modal_mro_number" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
-                                                </div>
-                                                <input type="text" id="ocr_modal_mro_number" class="form-control form-control-sm" required placeholder="e.g. 000731">
-                                            </div>
 
-                                            <div class="col-md-6">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <label class="text-xs fw-bold" style="color: var(--htc-text);">Quantity (Tons MT) <span class="text-danger">*</span></label>
-                                                    <span id="badge_modal_tons" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
-                                                </div>
-                                                <input type="number" step="0.00001" id="ocr_modal_tons" class="form-control form-control-sm" required placeholder="e.g. 500.00">
+                                    <!-- 1. BATCH VIEW (For Multi-Page documents) -->
+                                    <div id="mroBatchContainer" class="d-none">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div>
+                                                <h6 class="fw-bold mb-0" style="color: var(--htc-text);">Detected Release Orders</h6>
+                                                <span class="text-xs text-muted">Review permits found in this document before filing</span>
                                             </div>
-
-                                            <div class="col-md-6">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <label class="text-xs fw-bold" style="color: var(--htc-text);">Sugar Mill / Supplier</label>
-                                                    <span id="badge_modal_sugar_mill" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
-                                                </div>
-                                                <select id="ocr_modal_sugar_mill" class="form-select form-select-sm">
-                                                    <option value="">-- Match or Select Sugar Mill --</option>
-                                                    {% for m in available_sugar_mills %}
-                                                    <option value="{{ m.id }}" {% if m.id == cluster.sugar_mill_id %}selected{% endif %}>{{ m.name }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-
-                                            <div class="col-md-6">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <label class="text-xs fw-bold" style="color: var(--htc-text);">Planter / Association</label>
-                                                    <span id="badge_modal_planter" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
-                                                </div>
-                                                <select id="ocr_modal_planter" class="form-select form-select-sm">
-                                                    <option value="">-- Match or Select Planter --</option>
-                                                    {% for p in available_planters %}
-                                                    <option value="{{ p.id }}">{{ p.name }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-
-                                            <div class="col-md-4">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <label class="text-xs fw-bold" style="color: var(--htc-text);">Release Date</label>
-                                                    <span id="badge_modal_release_date" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
-                                                </div>
-                                                <input type="date" id="ocr_modal_release_date" class="form-control form-control-sm">
-                                            </div>
-
-                                            <div class="col-md-4">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <label class="text-xs fw-bold" style="color: var(--htc-text);">Crop Year</label>
-                                                    <span id="badge_modal_crop_year" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
-                                                </div>
-                                                <input type="text" id="ocr_modal_crop_year" class="form-control form-control-sm" placeholder="2024 - 2025">
-                                            </div>
-
-                                            <div class="col-md-4">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <label class="text-xs fw-bold" style="color: var(--htc-text);">Brix Level (%)</label>
-                                                    <span id="badge_modal_brix_level" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
-                                                </div>
-                                                <input type="number" step="0.01" id="ocr_modal_brix_level" class="form-control form-control-sm" placeholder="85.00">
-                                            </div>
-
-                                            <div class="col-md-6">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <label class="text-xs fw-bold" style="color: var(--htc-text);">CHAI Quality Specs</label>
-                                                    <span id="badge_modal_chai_specs" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
-                                                </div>
-                                                <input type="text" id="ocr_modal_chai_specs" class="form-control form-control-sm" placeholder="e.g. CHAI 1.0 — Grade A">
-                                            </div>
-
-                                            <div class="col-md-6">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <label class="text-xs fw-bold" style="color: var(--htc-text);">Work Order ID</label>
-                                                    <span id="badge_modal_work_order_id" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
-                                                </div>
-                                                <input type="text" id="ocr_modal_work_order_id" class="form-control form-control-sm" placeholder="e.g. WO-4401">
-                                            </div>
-
-                                            <div class="col-12">
-                                                <label class="text-xs fw-bold mb-1" style="color: var(--htc-text);">Notes / Remarks</label>
-                                                <textarea id="ocr_modal_notes" class="form-control form-control-sm" rows="2" placeholder="Extraction notes or remarks"></textarea>
-                                            </div>
+                                            <span class="badge bg-light text-dark border" id="mroBatchCountBadge">19 Permits</span>
                                         </div>
 
-                                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top" style="border-color: var(--htc-border) !important;">
+                                        <div class="table-responsive border rounded bg-white mb-3" style="max-height: 380px; overflow-y: auto;">
+                                            <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
+                                                <thead class="table-light sticky-top" style="font-size: 0.74rem;">
+                                                    <tr class="text-uppercase text-muted">
+                                                        <th style="width: 10%;">Page</th>
+                                                        <th style="width: 22%;">MRO #</th>
+                                                        <th style="width: 20%;">Date</th>
+                                                        <th style="width: 26%;">Planter / Assoc.</th>
+                                                        <th class="text-end" style="width: 22%;">Volume (MT)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="mroBatchTableBody">
+                                                </tbody>
+                                                <tfoot class="table-light border-top">
+                                                    <tr class="fw-bold">
+                                                        <td colspan="4" class="text-uppercase text-muted" style="font-size: 0.74rem;">Total Detected Volume</td>
+                                                        <td class="text-end font-monospace text-primary" id="mroBatchTotalTonsFoot">0.00 MT</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center pt-2 border-top" style="border-color: var(--htc-border) !important;">
                                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetMroOcrModalState();">
                                                 <i class="bi bi-arrow-counterclockwise me-1"></i> Upload Another
                                             </button>
-                                            <button type="submit" class="btn btn-sm btn-success fw-bold px-4 py-2 rounded-3 shadow-sm" id="mroModalCommitBtn">
-                                                <i class="bi bi-check2-circle me-1"></i> Confirm &amp; Link MRO to PO
+                                            <button type="button" class="btn btn-sm btn-primary fw-semibold px-4 py-2 rounded-2" id="mroBatchCommitBtn" onclick="submitBatchMroPermits();">
+                                                <i class="bi bi-folder-check me-1"></i> File All Permits to Purchase Order
                                             </button>
                                         </div>
-                                    </form>
+                                    </div>
+
+                                    <!-- 2. SINGLE PERMIT VIEW (For Single Page documents) -->
+                                    <div id="mroSingleContainer">
+                                        <form id="mroOcrCommitFormModal">
+                                            <input type="hidden" id="ocr_job_id_modal" value="">
+                                            
+                                            <div class="row g-2.5">
+                                                <div class="col-md-6">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label class="text-xs fw-bold" style="color: var(--htc-text);">MRO Number <span class="text-danger">*</span></label>
+                                                        <span id="badge_modal_mro_number" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                                    </div>
+                                                    <input type="text" id="ocr_modal_mro_number" class="form-control form-control-sm" required placeholder="e.g. 000731">
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label class="text-xs fw-bold" style="color: var(--htc-text);">Quantity (Tons MT) <span class="text-danger">*</span></label>
+                                                        <span id="badge_modal_tons" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                                    </div>
+                                                    <input type="number" step="0.00001" id="ocr_modal_tons" class="form-control form-control-sm" required placeholder="e.g. 500.00">
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label class="text-xs fw-bold" style="color: var(--htc-text);">Sugar Mill / Supplier</label>
+                                                        <span id="badge_modal_sugar_mill" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                                    </div>
+                                                    <select id="ocr_modal_sugar_mill" class="form-select form-select-sm">
+                                                        <option value="">-- Match or Select Sugar Mill --</option>
+                                                        {% for m in available_sugar_mills %}
+                                                        <option value="{{ m.id }}" {% if m.id == cluster.sugar_mill_id %}selected{% endif %}>{{ m.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label class="text-xs fw-bold" style="color: var(--htc-text);">Planter / Association</label>
+                                                        <span id="badge_modal_planter" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                                    </div>
+                                                    <select id="ocr_modal_planter" class="form-select form-select-sm">
+                                                        <option value="">-- Match or Select Planter --</option>
+                                                        {% for p in available_planters %}
+                                                        <option value="{{ p.id }}">{{ p.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-md-4">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label class="text-xs fw-bold" style="color: var(--htc-text);">Release Date</label>
+                                                        <span id="badge_modal_release_date" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                                    </div>
+                                                    <input type="date" id="ocr_modal_release_date" class="form-control form-control-sm">
+                                                </div>
+
+                                                <div class="col-md-4">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label class="text-xs fw-bold" style="color: var(--htc-text);">Crop Year</label>
+                                                        <span id="badge_modal_crop_year" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                                    </div>
+                                                    <input type="text" id="ocr_modal_crop_year" class="form-control form-control-sm" placeholder="2024 - 2025">
+                                                </div>
+
+                                                <div class="col-md-4">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label class="text-xs fw-bold" style="color: var(--htc-text);">Brix Level (%)</label>
+                                                        <span id="badge_modal_brix_level" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                                    </div>
+                                                    <input type="number" step="0.01" id="ocr_modal_brix_level" class="form-control form-control-sm" placeholder="85.00">
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label class="text-xs fw-bold" style="color: var(--htc-text);">CHAI Quality Specs</label>
+                                                        <span id="badge_modal_chai_specs" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                                    </div>
+                                                    <input type="text" id="ocr_modal_chai_specs" class="form-control form-control-sm" placeholder="e.g. CHAI 1.0 — Grade A">
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <label class="text-xs fw-bold" style="color: var(--htc-text);">Work Order ID</label>
+                                                        <span id="badge_modal_work_order_id" class="badge py-0.5 px-1.5" style="font-size: 0.68rem;"></span>
+                                                    </div>
+                                                    <input type="text" id="ocr_modal_work_order_id" class="form-control form-control-sm" placeholder="e.g. WO-4401">
+                                                </div>
+
+                                                <div class="col-12">
+                                                    <label class="text-xs fw-bold mb-1" style="color: var(--htc-text);">Notes / Remarks</label>
+                                                    <textarea id="ocr_modal_notes" class="form-control form-control-sm" rows="2" placeholder="Extraction notes or remarks"></textarea>
+                                                </div>
+                                            </div>
+
+                                            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top" style="border-color: var(--htc-border) !important;">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetMroOcrModalState();">
+                                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Upload Another
+                                                </button>
+                                                <button type="submit" class="btn btn-sm btn-primary fw-semibold px-4 py-2 rounded-2" id="mroModalCommitBtn">
+                                                    <i class="bi bi-check2-circle me-1"></i> File Permit to Purchase Order
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -639,13 +686,13 @@
         }, 1200);
     }
 
+    let currentBatchPages = [];
+
     function renderOcrResult(jobResponse, fileUrl) {
         ocrProcessingState.classList.add("d-none");
         ocrSplitView.classList.remove("d-none");
 
-        const data = jobResponse.data;
-        const fields = data.fields || {};
-
+        const data = jobResponse.data || {};
         const frame = document.getElementById("mroModalFrame");
         const img = document.getElementById("mroModalImage");
         const expand = document.getElementById("mroModalDocExpand");
@@ -667,25 +714,121 @@
         document.getElementById("mroModalAvgConf").textContent = avg + "% Match";
         document.getElementById("mroModalEngine").textContent = (data.engine === "aws_textract" ? "AWS Textract" : "Document AI Heuristics");
 
-        setFieldAndBadgeModal("mro_number", fields.mro_number);
-        setFieldAndBadgeModal("tons", fields.tons);
-        setFieldAndBadgeModal("release_date", fields.release_date);
-        setFieldAndBadgeModal("crop_year", fields.crop_year);
-        setFieldAndBadgeModal("brix_level", fields.brix_level);
-        setFieldAndBadgeModal("chai_specs", fields.chai_specs);
-        setFieldAndBadgeModal("work_order_id", fields.work_order_id);
+        const isMultiPage = Boolean(data.is_multi_page && data.pages && data.pages.length > 1);
+        const batchContainer = document.getElementById("mroBatchContainer");
+        const singleContainer = document.getElementById("mroSingleContainer");
+        const statusMsg = document.getElementById("mroStatusMessageText");
+        const volumeBadge = document.getElementById("mroModalVolumeSummaryBadge");
 
-        if (fields.sugar_mill && fields.sugar_mill.id) {
-            const sm = document.getElementById("ocr_modal_sugar_mill");
-            if (sm) sm.value = fields.sugar_mill.id;
-            applyBadgeModal("sugar_mill", fields.sugar_mill.confidence, fields.sugar_mill.needs_review);
-        }
-        if (fields.planter && fields.planter.id) {
-            const pl = document.getElementById("ocr_modal_planter");
-            if (pl) pl.value = fields.planter.id;
-            applyBadgeModal("planter", fields.planter.confidence, fields.planter.needs_review);
+        if (isMultiPage) {
+            currentBatchPages = data.pages;
+            batchContainer.classList.remove("d-none");
+            singleContainer.classList.add("d-none");
+
+            const count = data.pages.length;
+            const totalTons = Number(data.total_tons || 0);
+
+            statusMsg.innerHTML = `<strong>Multi-Page Extraction:</strong> Found ${count} release order permits in this file.`;
+            volumeBadge.textContent = `${totalTons.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 3})} MT Total`;
+            volumeBadge.classList.remove("d-none");
+
+            document.getElementById("mroBatchCountBadge").textContent = `${count} Permits`;
+            document.getElementById("mroBatchTotalTonsFoot").textContent = `${totalTons.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 3})} MT`;
+
+            const tbody = document.getElementById("mroBatchTableBody");
+            tbody.innerHTML = "";
+            data.pages.forEach((p, idx) => {
+                const tr = document.createElement("tr");
+                tr.style.cursor = "pointer";
+                tr.innerHTML = `
+                    <td class="text-muted text-center fw-semibold">${p.page_number || (idx + 1)}</td>
+                    <td><strong class="text-dark">${p.mro_number || '—'}</strong></td>
+                    <td class="text-muted">${p.release_date || '—'}</td>
+                    <td><span class="badge bg-light text-dark border">${p.planter_name || 'SGABI'}</span></td>
+                    <td class="text-end font-monospace fw-bold text-dark">${Number(p.tons || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
+                `;
+                tr.addEventListener("click", () => {
+                    tbody.querySelectorAll("tr").forEach(r => r.classList.remove("table-active"));
+                    tr.classList.add("table-active");
+                });
+                tbody.appendChild(tr);
+            });
+        } else {
+            currentBatchPages = [];
+            batchContainer.classList.add("d-none");
+            singleContainer.classList.remove("d-none");
+
+            statusMsg.innerHTML = `<strong>Extraction Complete:</strong> Review detected permit details below before filing.`;
+            volumeBadge.classList.add("d-none");
+
+            const fields = data.fields || {};
+            setFieldAndBadgeModal("mro_number", fields.mro_number);
+            setFieldAndBadgeModal("tons", fields.tons);
+            setFieldAndBadgeModal("release_date", fields.release_date);
+            setFieldAndBadgeModal("crop_year", fields.crop_year);
+            setFieldAndBadgeModal("brix_level", fields.brix_level);
+            setFieldAndBadgeModal("chai_specs", fields.chai_specs);
+            setFieldAndBadgeModal("work_order_id", fields.work_order_id);
+
+            if (fields.sugar_mill && fields.sugar_mill.id) {
+                const sm = document.getElementById("ocr_modal_sugar_mill");
+                if (sm) sm.value = fields.sugar_mill.id;
+                applyBadgeModal("sugar_mill", fields.sugar_mill.confidence, fields.sugar_mill.needs_review);
+            }
+            if (fields.planter && fields.planter.id) {
+                const pl = document.getElementById("ocr_modal_planter");
+                if (pl) pl.value = fields.planter.id;
+                applyBadgeModal("planter", fields.planter.confidence, fields.planter.needs_review);
+            }
         }
     }
+
+    window.submitBatchMroPermits = function() {
+        if (!currentBatchPages || currentBatchPages.length === 0) {
+            alert("No permits found to file.");
+            return;
+        }
+
+        const btn = document.getElementById("mroBatchCommitBtn");
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Filing Permits...`;
+        }
+
+        const jobId = document.getElementById("ocr_job_id_modal").value;
+        const payload = {
+            job_id: jobId,
+            permits: currentBatchPages
+        };
+
+        fetch(commitUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(resp => {
+            if (resp.success) {
+                window.location.reload();
+            } else {
+                alert("Error filing permits: " + (resp.error || resp.message || "Failed"));
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="bi bi-folder-check me-1"></i> File All Permits to Purchase Order`;
+                }
+            }
+        })
+        .catch(err => {
+            alert("Network error: " + err);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="bi bi-folder-check me-1"></i> File All Permits to Purchase Order`;
+            }
+        });
+    };
 
     function setFieldAndBadgeModal(key, obj) {
         if (!obj) return;
@@ -744,19 +887,20 @@
                 } else {
                     alert("Error: " + (resp.error || "Failed to commit MRO permit"));
                     ocrCommitBtn.disabled = false;
-                    ocrCommitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Confirm &amp; Link MRO to PO`;
+                    ocrCommitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> File Permit to Purchase Order`;
                 }
             })
             .catch(err => {
                 alert("Network error: " + err);
                 ocrCommitBtn.disabled = false;
-                ocrCommitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Confirm &amp; Link MRO to PO`;
+                ocrCommitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> File Permit to Purchase Order`;
             });
         });
     }
 
     window.resetMroOcrModalState = function() {
         if (activeOcrTimer) clearInterval(activeOcrTimer);
+        currentBatchPages = [];
         if (ocrDropzone) ocrDropzone.classList.remove("d-none");
         if (ocrProcessingState) ocrProcessingState.classList.add("d-none");
         if (ocrSplitView) ocrSplitView.classList.add("d-none");
@@ -764,8 +908,14 @@
         if (ocrCommitForm) ocrCommitForm.reset();
         if (ocrCommitBtn) {
             ocrCommitBtn.disabled = false;
-            ocrCommitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Confirm &amp; Link MRO to PO`;
+            ocrCommitBtn.innerHTML = `<i class="bi bi-check2-circle me-1"></i> File Permit to Purchase Order`;
+        }
+        const batchBtn = document.getElementById("mroBatchCommitBtn");
+        if (batchBtn) {
+            batchBtn.disabled = false;
+            batchBtn.innerHTML = `<i class="bi bi-folder-check me-1"></i> File All Permits to Purchase Order`;
         }
     };
 })();
 </script>
+

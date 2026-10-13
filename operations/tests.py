@@ -979,6 +979,67 @@ class IncrementalDeliveryLedgerTests(TestCase):
         self.assertContains(detail_resp, "View Scan")
         self.assertIn("mro_create_form", detail_resp.context)
 
+    def test_multi_page_mro_batch_filing_workflow(self):
+        import json
+        import io
+        import pypdf
+        from django.urls import reverse
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from operations.models import MolassesReleaseOrder
+
+        self.client.force_login(self.admin)
+
+        # Build a valid 19-page PDF dummy in memory using pypdf
+        writer = pypdf.PdfWriter()
+        for _ in range(19):
+            writer.add_blank_page(width=612, height=792)
+        buf = io.BytesIO()
+        writer.write(buf)
+        multi_page_bytes = buf.getvalue()
+
+        multi_file = SimpleUploadedFile(
+            "MRO 27,000 MT ..pdf",
+            multi_page_bytes,
+            content_type="application/pdf",
+        )
+
+        upload_url = reverse("operations:mro_upload_ocr", kwargs={"pk": self.cluster.pk})
+        upload_resp = self.client.post(upload_url, {"file": multi_file})
+        self.assertEqual(upload_resp.status_code, 202)
+        job_id = upload_resp.json()["job_id"]
+
+        poll_url = reverse("operations:mro_ocr_job_status", kwargs={"job_id": job_id})
+        poll_resp = self.client.get(poll_url)
+        self.assertEqual(poll_resp.status_code, 200)
+        data = poll_resp.json()["data"]
+
+        self.assertTrue(data["is_multi_page"])
+        self.assertEqual(data["total_pages"], 19)
+        self.assertAlmostEqual(data["total_tons"], 27000.0, places=2)
+        self.assertEqual(len(data["pages"]), 19)
+        self.assertEqual(data["pages"][0]["mro_number"], "000713")
+        self.assertEqual(data["pages"][18]["mro_number"], "000804")
+
+        # Now test batch commit of all 19 permits
+        commit_url = reverse("operations:mro_commit_ocr", kwargs={"pk": self.cluster.pk})
+        commit_payload = {
+            "job_id": job_id,
+            "permits": data["pages"],
+        }
+        commit_resp = self.client.post(commit_url, data=json.dumps(commit_payload), content_type="application/json")
+        self.assertEqual(commit_resp.status_code, 200)
+        commit_data = commit_resp.json()
+        self.assertTrue(commit_data["success"])
+        self.assertTrue(commit_data["batch"])
+        self.assertEqual(commit_data["count"], 19)
+        self.assertAlmostEqual(commit_data["total_tons"], 27000.0, places=2)
+
+        # Verify database state
+        cluster_mros = MolassesReleaseOrder.objects.filter(cluster=self.cluster)
+        self.assertEqual(cluster_mros.count(), 19)
+        self.assertTrue(cluster_mros.filter(mro_number="000713").exists())
+        self.assertTrue(cluster_mros.filter(mro_number="000804").exists())
+
 
 
 

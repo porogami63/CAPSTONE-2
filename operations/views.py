@@ -1339,6 +1339,84 @@ def commit_mro_ocr_result(request, pk):
         return JsonResponse({"error": f"Invalid JSON payload: {e}"}, status=400)
 
     job_id = payload.get("job_id")
+    batch_permits = payload.get("permits")
+
+    # Handle Batch Ingestion (e.g. multi-page MRO scan filing)
+    if batch_permits and isinstance(batch_permits, list) and len(batch_permits) > 0:
+        saved_count = 0
+        total_tons_filed = Decimal("0")
+        with transaction.atomic():
+            for p in batch_permits:
+                p_mro = str(p.get("mro_number", "")).strip()
+                if not p_mro:
+                    continue
+                try:
+                    p_tons = Decimal(str(p.get("tons", 0)))
+                except Exception:
+                    p_tons = Decimal("0")
+                if p_tons <= Decimal("0"):
+                    continue
+
+                p_mill_id = p.get("sugar_mill_id")
+                p_mill_name = str(p.get("sugar_mill_name", "")).strip()
+                p_mill = None
+                if p_mill_id:
+                    p_mill = SugarMill.objects.filter(id=p_mill_id).first()
+                if not p_mill and p_mill_name:
+                    p_mill = SugarMill.objects.filter(name__icontains=p_mill_name).first()
+
+                p_planter_id = p.get("planter_id")
+                p_planter_name = str(p.get("planter_name", "")).strip()
+                p_planter = None
+                if p_planter_id:
+                    p_planter = Planter.objects.filter(id=p_planter_id).first()
+                if not p_planter and p_planter_name:
+                    p_planter = Planter.objects.filter(name__icontains=p_planter_name).first()
+                if not p_planter and p_planter_name:
+                    p_planter, _ = Planter.objects.get_or_create(
+                        name=p_planter_name,
+                        defaults={"code": p_planter_name[:20].upper(), "is_active": True}
+                    )
+                if not p_planter:
+                    p_planter = Planter.objects.first()
+
+                p_cy = p.get("crop_year", "2024 - 2025")
+                p_date = p.get("release_date")
+                p_notes = p.get("notes") or f"Filed from permit scan (Page {p.get('page_number', 1)})"
+
+                MolassesReleaseOrder.objects.update_or_create(
+                    mro_number=p_mro,
+                    sugar_mill_name=p_mill.name if p_mill else (p_mill_name or "BUSCO"),
+                    crop_year=normalize_crop_year(p_cy),
+                    defaults={
+                        "cluster": cluster,
+                        "sugar_mill": p_mill,
+                        "sugar_mill_name": p_mill.name if p_mill else (p_mill_name or "BUSCO"),
+                        "planter": p_planter,
+                        "tons": p_tons,
+                        "release_date": p_date or None,
+                        "crop_year": normalize_crop_year(p_cy),
+                        "notes": p_notes,
+                    }
+                )
+                saved_count += 1
+                total_tons_filed += p_tons
+
+            if job_id:
+                job = MROExtractionJob.objects.filter(id=job_id).first()
+                if job and job.document and not cluster.mro_file:
+                    cluster.mro_file = job.document
+                    cluster.save(update_fields=["mro_file"])
+
+        return JsonResponse({
+            "success": True,
+            "batch": True,
+            "count": saved_count,
+            "total_tons": float(total_tons_filed),
+            "message": f"Successfully filed {saved_count} MRO permits ({total_tons_filed:,.3f} MT) to {cluster.reference_code}.",
+        })
+
+    # Single MRO Permit Filing
     mro_number = str(payload.get("mro_number", "")).strip()
     sugar_mill_id = payload.get("sugar_mill_id")
     sugar_mill_name = payload.get("sugar_mill_name", "").strip()
@@ -1372,6 +1450,11 @@ def commit_mro_ocr_result(request, pk):
         planter = Planter.objects.filter(id=planter_id).first()
     if not planter and planter_name:
         planter = Planter.objects.filter(name__icontains=planter_name).first()
+    if not planter and planter_name:
+        planter, _ = Planter.objects.get_or_create(
+            name=planter_name,
+            defaults={"code": planter_name[:20].upper(), "is_active": True}
+        )
     if not planter:
         planter = Planter.objects.first()
 
@@ -1408,7 +1491,7 @@ def commit_mro_ocr_result(request, pk):
         "tons": float(mro.tons),
         "mill_name": mro.display_sugar_mill,
         "planter_name": mro.planter.name,
-        "message": f"MRO #{mro.mro_number} successfully linked to {cluster.reference_code}.",
+        "message": f"MRO #{mro.mro_number} successfully filed and linked to {cluster.reference_code}.",
     })
 
 
