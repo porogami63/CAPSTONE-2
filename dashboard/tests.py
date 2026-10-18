@@ -148,7 +148,7 @@ class DocumentStorageAndDistinctionTests(TestCase):
 
         self.assertEqual(reg["categories"]["release_orders"]["origin"], "uploaded")
         self.assertEqual(reg["categories"]["delivery_receipts"]["origin"], "uploaded")
-        self.assertEqual(reg["categories"]["loan_settlements"]["origin"], "uploaded")
+        self.assertNotIn("loan_settlements", reg["categories"])
 
         # Counts
         self.assertGreaterEqual(reg["total_uploaded_count"], 1)

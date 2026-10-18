@@ -6,7 +6,7 @@ import os
 from django.urls import reverse
 from django.utils import timezone
 
-from finance.models import CapitalLoan, CashVoucher, Invoice
+from finance.models import CashVoucher, Invoice
 from operations.models import LogisticsLedger, MolassesReleaseOrder, TransactionCluster
 
 
@@ -46,14 +46,6 @@ def build_document_registry(query: str = "") -> dict:
             "icon": "bi-truck",
             "origin": "uploaded",
             "origin_label": "User Uploaded Receipts",
-            "badge_class": "bg-success-subtle text-success border border-success-subtle",
-            "items": [],
-        },
-        "loan_settlements": {
-            "title": "Bank Loan Clearance Advices",
-            "icon": "bi-bank",
-            "origin": "uploaded",
-            "origin_label": "User Uploaded Advice",
             "badge_class": "bg-success-subtle text-success border border-success-subtle",
             "items": [],
         },
@@ -392,45 +384,7 @@ def build_document_registry(query: str = "") -> dict:
                     }
                 )
 
-    # 4. BANK LOAN SETTLEMENT CLEARANCE ADVICES (User Uploaded)
-    loans = (
-        CapitalLoan.objects.filter(settlement_document__isnull=False)
-        .exclude(settlement_document="")
-        .select_related("cluster", "cluster__client")
-        .order_by("-created_at")
-    )
-    for loan in loans:
-        try:
-            loan_doc_name = os.path.basename(loan.settlement_document.name)
-            loan_doc_bytes = loan.settlement_document.size
-            total_uploaded_bytes += loan_doc_bytes
-        except Exception:
-            loan_doc_name = f"Loan-Settlement-{loan.bank_name}.pdf"
-            loan_doc_bytes = 0
-
-        ref_str = f"{loan.cluster.reference_code} ({loan.bank_name})"
-        if not query or query in loan_doc_name.lower() or query in ref_str.lower():
-            categories["loan_settlements"]["items"].append(
-                {
-                    "id": f"loan-{loan.pk}",
-                    "name": loan_doc_name,
-                    "date": loan.settlement_date or loan.created_at,
-                    "size": _format_bytes(loan_doc_bytes),
-                    "size_bytes": loan_doc_bytes,
-                    "ref": ref_str,
-                    "client_name": loan.cluster.client.name,
-                    "mill_name": loan.bank_name,
-                    "url": reverse("finance:po_workspace", args=[loan.cluster.pk]),
-                    "has_scan": True,
-                    "scan_url": loan.settlement_document.url,
-                    "is_pdf": loan.settlement_document.name.lower().endswith(".pdf"),
-                    "origin": "uploaded",
-                    "origin_label": "User Uploaded Advice",
-                    "badge_class": "bg-success-subtle text-success border border-success-subtle",
-                }
-            )
-
-    # 5. CASH VOUCHERS (System Generated)
+    # 4. CASH VOUCHERS (System Generated)
     vouchers = CashVoucher.objects.select_related("cluster").order_by("-issued_at")
     for voucher in vouchers:
         label = f"CV-{voucher.voucher_number}.pdf"
