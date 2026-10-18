@@ -1,127 +1,223 @@
 {% extends "app_base.html" %}
-{% block title %}Documents · Molasses Trading{% endblock %}
-{% block topbar_title %}Document Management{% endblock %}
-{% block topbar_subtitle %}Centralized repository for scanned MRO soft copies, invoices, delivery receipts & cash vouchers{% endblock %}
+{% load humanize %}
+{% block title %}Documents & Soft Copies · HTC Core{% endblock %}
+{% block topbar_title %}Document Management & Storage{% endblock %}
+{% block topbar_subtitle %}Centralized repository distinguishing System-Generated Official PDFs and User-Uploaded Scanned Documents{% endblock %}
 {% block content %}
 
-<div class="d-flex justify-content-end align-items-center mb-3" data-step="1" data-intro="Centralized document management repository for searching scanned Molasses Release Orders (MRO), invoices, delivery receipts, and cash vouchers.">
+<!-- TOP SEARCH & FILTERS -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3" data-step="1" data-intro="Centralized document management repository for searching scanned Molasses Release Orders (MRO), delivery receipts, bank loan clearance advices, invoices, and vouchers.">
+    <!-- Origin Filter Pills (Distinguishing Generated vs Uploaded) -->
+    <div class="d-flex align-items-center gap-2">
+        <span class="text-xs fw-bold text-muted text-uppercase" style="letter-spacing: 0.5px;">Filter by Origin:</span>
+        <div class="btn-group btn-group-sm" role="group" id="originFilterGroup">
+            <button type="button" class="btn btn-primary fw-semibold origin-btn active" onclick="filterOrigin('all', this)">
+                <i class="bi bi-collection me-1"></i> All Documents ({{ total_documents }})
+            </button>
+            <button type="button" class="btn btn-outline-success fw-semibold origin-btn" onclick="filterOrigin('uploaded', this)">
+                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Uploaded by User ({{ total_uploaded_count }})
+            </button>
+            <button type="button" class="btn btn-outline-primary fw-semibold origin-btn" onclick="filterOrigin('generated', this)">
+                <i class="bi bi-gear-wide-connected me-1"></i> System Generated ({{ total_generated_count }})
+            </button>
+        </div>
+    </div>
+
+    <!-- Live Search -->
     <div style="width: 320px;">
         <form method="get">
             <div class="search-input-wrap">
                 <i class="bi bi-search"></i>
-                <input class="form-control form-control-sm" type="search" name="q" value="{{ query }}" placeholder="Search invoice, MRO, CV, or PO...">
+                <input class="form-control form-control-sm" type="search" name="q" value="{{ query }}" placeholder="Search PO, MRO #, client, or scan...">
             </div>
         </form>
     </div>
 </div>
 
-<div class="tabs-row mb-4" data-step="2" data-intro="Filter documents by category tab: Release Orders (MRO), Sales Invoices, Delivery Receipts, or Cash Vouchers.">
+<!-- CATEGORY TABS -->
+<div class="tabs-row mb-4 overflow-auto" data-step="2" data-intro="Filter documents by category tab: Release Orders (MRO), Delivery Receipts & Waybills, Bank Clearances, Contracts, POs, Invoices, or Cash Vouchers.">
     <button type="button" class="tab-btn active" onclick="showCategory('all', this)">
         <i class="bi bi-collection"></i> All Categories
     </button>
     <button type="button" class="tab-btn" onclick="showCategory('release_orders', this)">
-        <i class="bi bi-file-earmark-ruled"></i> Release Orders (MRO)
-    </button>
-    <button type="button" class="tab-btn" onclick="showCategory('sales_invoices', this)">
-        <i class="bi bi-receipt"></i> Sales Invoices
+        <i class="bi bi-file-earmark-ruled text-success"></i> Scanned MROs ({{ categories.release_orders.items|length }})
     </button>
     <button type="button" class="tab-btn" onclick="showCategory('delivery_receipts', this)">
-        <i class="bi bi-truck"></i> Delivery Receipts
+        <i class="bi bi-truck text-success"></i> Delivery Receipts ({{ categories.delivery_receipts.items|length }})
+    </button>
+    <button type="button" class="tab-btn" onclick="showCategory('loan_settlements', this)">
+        <i class="bi bi-bank text-success"></i> Bank Loan Clearances ({{ categories.loan_settlements.items|length }})
+    </button>
+    <button type="button" class="tab-btn" onclick="showCategory('contracts', this)">
+        <i class="bi bi-file-earmark-text-fill text-primary"></i> Supply Contracts ({{ categories.contracts.items|length }})
+    </button>
+    <button type="button" class="tab-btn" onclick="showCategory('purchase_orders', this)">
+        <i class="bi bi-file-earmark-check-fill text-primary"></i> Purchase Orders ({{ categories.purchase_orders.items|length }})
+    </button>
+    <button type="button" class="tab-btn" onclick="showCategory('sales_invoices', this)">
+        <i class="bi bi-receipt text-primary"></i> Sales Invoices ({{ categories.sales_invoices.items|length }})
     </button>
     <button type="button" class="tab-btn" onclick="showCategory('cash_vouchers', this)">
-        <i class="bi bi-cash-stack"></i> Cash Vouchers
+        <i class="bi bi-cash-stack text-primary"></i> Cash Vouchers ({{ categories.cash_vouchers.items|length }})
     </button>
 </div>
 
-<div class="row g-4 mb-4" id="documentsGrid" data-step="3" data-intro="Document cards grid. Click on any file to open the full-screen in-app PDF and Image previewer.">
+<!-- DOCUMENTS GRID -->
+<div class="row g-4 mb-4" id="documentsGrid" data-step="3" data-intro="Document cards grid. Distinguishes official system-generated files from user-uploaded scanned documents with instant in-app modal preview.">
     {% for key, cat in categories.items %}
-    <div class="col-lg-6 doc-category-col" data-cat="{{ key }}">
+    <div class="col-lg-6 doc-category-col" data-cat="{{ key }}" data-origin="{{ cat.origin }}">
         <div class="card h-100 border shadow-sm">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 px-3">
-                <h5 class="mb-0 fs-6 fw-bold text-dark">
-                    <i class="bi {{ cat.icon }} me-1 text-primary"></i> {{ cat.title }}
-                </h5>
+            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2.5 px-3">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="mb-0 fs-6 fw-bold text-dark">
+                        <i class="bi {{ cat.icon }} me-1 {% if cat.origin == 'uploaded' %}text-success{% else %}text-primary{% endif %}"></i> {{ cat.title }}
+                    </h5>
+                    {% if cat.origin == 'uploaded' %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5" style="font-size: 0.72rem;">
+                        <i class="bi bi-cloud-arrow-up-fill me-1"></i>User Uploaded
+                    </span>
+                    {% else %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style="font-size: 0.72rem;">
+                        <i class="bi bi-gear-fill me-1"></i>System Generated
+                    </span>
+                    {% endif %}
+                </div>
                 <span class="badge bg-secondary rounded-pill">{{ cat.items|length }}</span>
             </div>
             <div class="card-body p-0">
-                <div class="doc-category-scroll" style="max-height: 380px; overflow-y: auto; scrollbar-width: thin;">
+                <div class="doc-category-scroll" style="max-height: 440px; overflow-y: auto; scrollbar-width: thin;">
                     <div class="list-group list-group-flush">
                         {% for doc in cat.items %}
-                        <div class="list-group-item d-flex align-items-center justify-content-between py-2 px-3">
-                            <div class="d-flex align-items-center gap-3" style="min-width: 0;">
-                                <div class="flex-shrink-0">
-                                    {% if doc.has_scan %}
-                                        <i class="bi bi-file-earmark-check-fill text-success fs-4" title="Scanned Soft Copy Available"></i>
-                                    {% elif doc.pdf_url %}
-                                        <i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>
-                                    {% else %}
-                                        <i class="bi bi-file-earmark-pdf text-danger fs-4"></i>
-                                    {% endif %}
-                                </div>
-                                <div style="min-width: 0;">
-                                    <div class="fw-bold text-truncate text-dark" style="max-width: 260px;" title="{{ doc.name }}">{{ doc.name }}</div>
-                                    <div class="text-muted small">
-                                        {{ doc.date|date:"M d, Y" }} · {{ doc.size }}
-                                        {% if key == "release_orders" %}
+                        <div class="list-group-item py-2.5 px-3 doc-item-row" data-origin="{{ doc.origin }}">
+                            <div class="d-flex align-items-start justify-content-between gap-2">
+                                <div class="d-flex align-items-start gap-3" style="min-width: 0; flex-grow: 1;">
+                                    <div class="flex-shrink-0 mt-1">
+                                        {% if doc.origin == 'uploaded' %}
                                             {% if doc.has_scan %}
-                                                · <span class="badge bg-success-subtle text-success border border-success-subtle">Soft Copy Scanned</span>
+                                                <i class="bi bi-file-earmark-check-fill text-success fs-3" title="Scanned Soft Copy Stored"></i>
                                             {% else %}
-                                                · <span class="badge bg-warning-subtle text-warning border border-warning-subtle">No Soft Copy</span>
+                                                <i class="bi bi-cloud-arrow-up text-warning fs-3" title="Awaiting Upload"></i>
                                             {% endif %}
+                                        {% else %}
+                                            <i class="bi bi-file-earmark-pdf-fill text-primary fs-3" title="Official Generated PDF"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div style="min-width: 0; flex-grow: 1;">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="fw-bold text-dark text-truncate" style="max-width: 280px;" title="{{ doc.name }}">{{ doc.name }}</span>
+                                            <span class="badge {{ doc.badge_class }} px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                                {% if doc.origin == 'uploaded' %}
+                                                    <i class="bi bi-cloud-arrow-up me-0.5"></i>Uploaded
+                                                {% else %}
+                                                    <i class="bi bi-cpu me-0.5"></i>Generated
+                                                {% endif %}
+                                            </span>
+                                            {% if doc.ref %}
+                                            <span class="badge bg-light text-secondary border font-monospace px-1.5 py-0.5" style="font-size: 0.7rem;">{{ doc.ref }}</span>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="text-muted small mt-0.5">
+                                            {{ doc.date|date:"M d, Y" }} · {{ doc.size }}
+                                            {% if doc.client_name %} · <span class="text-secondary fw-semibold">{{ doc.client_name }}</span>{% endif %}
+                                            {% if doc.mill_name %} · <span class="text-muted">({{ doc.mill_name }})</span>{% endif %}
+                                        </div>
+
+                                        <!-- CONSOLIDATED SCANNED MRO DETAILS (1 Document Covering Multiple MRO Entries) -->
+                                        {% if doc.is_consolidated %}
+                                        <div class="mt-2 p-2 rounded bg-body-tertiary border" style="font-size: 0.78rem;">
+                                            <div class="d-flex align-items-center justify-content-between mb-1.5 flex-wrap gap-1">
+                                                <span class="fw-bold text-primary d-inline-flex align-items-center gap-1.5">
+                                                    <i class="bi bi-layers-fill text-primary"></i> Consolidated Scan (1 File Covers {{ doc.mro_count }} MRO Entries)
+                                                </span>
+                                                <span class="badge bg-primary text-white font-monospace">{{ doc.total_tons|floatformat:2 }} MT</span>
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-1 mb-1">
+                                                {% for m in doc.mro_entries %}
+                                                <span class="badge bg-white text-dark border font-monospace" title="{{ m.planter_name }} · {{ m.tons|floatformat:2 }} MT">
+                                                    #{{ m.mro_number }} ({{ m.tons|floatformat:1 }} MT{% if m.planter_name %} · {{ m.planter_name|truncatechars:14 }}{% endif %})
+                                                </span>
+                                                {% endfor %}
+                                            </div>
+                                            {% if doc.deliveries_count %}
+                                            <div class="text-muted text-xs mt-1">
+                                                <i class="bi bi-truck me-1 text-secondary"></i> Fulfills {{ doc.deliveries_count }} delivery batch{{ doc.deliveries_count|pluralize:"es" }} under PO {{ doc.ref }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% elif doc.coverage_summary and key == "release_orders" %}
+                                        <div class="text-muted text-xs mt-1">
+                                            <i class="bi bi-check2-circle text-success me-1"></i>{{ doc.coverage_summary }}
+                                        </div>
                                         {% endif %}
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                                {% if doc.has_scan %}
-                                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" title="Preview Scanned MRO" data-url="{{ doc.scan_url }}" data-title="{{ doc.name }}" data-is-pdf="{{ doc.is_pdf|yesno:'true,false' }}" onclick="previewSoftCopy(this.dataset.url, this.dataset.title, this.dataset.isPdf === 'true')">
-                                        <i class="bi bi-eye-fill"></i> Preview MRO
-                                    </button>
-                                {% elif doc.pdf_url %}
-                                    <a href="{{ doc.pdf_url }}" class="btn btn-sm btn-outline-danger py-1 px-2" title="Download PDF" download>
-                                        <i class="bi bi-file-earmark-pdf"></i> Invoice PDF
-                                    </a>
-                                {% endif %}
+                                <!-- ACTIONS -->
+                                <div class="d-flex align-items-center gap-1 flex-shrink-0 mt-1">
+                                    {% if doc.has_scan and doc.scan_url %}
+                                        <button type="button" class="btn btn-sm btn-outline-success py-1 px-2 text-nowrap" title="Preview Scanned Document" onclick="previewSoftCopy('{{ doc.scan_url }}', '{{ doc.name|escapejs }}', {{ doc.is_pdf|yesno:'true,false' }})">
+                                            <i class="bi bi-eye-fill me-1"></i> Preview
+                                        </button>
+                                        <a href="{{ doc.scan_url }}" class="btn btn-sm btn-light py-1 px-2 border" title="Download Soft Copy" download>
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    {% elif doc.pdf_url %}
+                                        <a href="{{ doc.pdf_url }}" class="btn btn-sm btn-outline-primary py-1 px-2 text-nowrap" title="Download Official PDF" download>
+                                            <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+                                        </a>
+                                    {% endif %}
 
-                                {% if key == "release_orders" %}
-                                    <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" title="Upload Scanned MRO" data-bs-toggle="modal" data-bs-target="#uploadMroModal{{ forloop.counter }}">
-                                        <i class="bi bi-upload"></i> Upload
-                                    </button>
-                                    <!-- Modal for uploading MRO scanned copy -->
-                                    <div class="modal fade" id="uploadMroModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog modal-dialog-centered">
-                                            <div class="modal-content">
-                                                <form method="post" action="{{ doc.upload_url }}" enctype="multipart/form-data">
-                                                    {% csrf_token %}
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title"><i class="bi bi-upload text-primary"></i> Upload Scanned MRO Soft Copy</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body text-start">
-                                                        <p class="mb-2">Upload the scanned soft copy (PDF or image) of Molasses Release Order for transaction <strong>{{ doc.ref }}</strong>.</p>
-                                                        <div class="mb-3">
-                                                            <label class="form-label font-weight-bold">Select MRO Soft Copy File (PDF/Image)</label>
-                                                            <input type="file" name="mro_file" class="form-control" accept="application/pdf,image/*" required>
+                                    {% if key == "release_orders" and doc.upload_url %}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" title="Upload / Replace Scanned MRO" data-bs-toggle="modal" data-bs-target="#uploadMroModal{{ forloop.counter }}">
+                                            <i class="bi bi-upload"></i>
+                                        </button>
+                                        <!-- Modal for uploading MRO scanned copy -->
+                                        <div class="modal fade" id="uploadMroModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-dialog-centered">
+                                                <div class="modal-content">
+                                                    <form method="post" action="{{ doc.upload_url }}" enctype="multipart/form-data">
+                                                        {% csrf_token %}
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-upload text-primary me-2"></i>Upload Scanned MRO Soft Copy</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                         </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                                                        <button type="submit" class="btn-htc"><i class="bi bi-check-circle"></i> Upload Soft Copy</button>
-                                                    </div>
-                                                </form>
+                                                        <div class="modal-body text-start">
+                                                            <p class="mb-2 text-xs">
+                                                                Upload the official scanned soft copy (PDF or image) of Molasses Release Order for transaction <strong>{{ doc.ref }}</strong>.
+                                                            </p>
+                                                            <div class="alert alert-info py-2 px-3 text-xs mb-3">
+                                                                <i class="bi bi-info-circle-fill me-1"></i>
+                                                                <strong>Multi-MRO Support:</strong> If this scanned PDF contains multiple MRO entries for multiple batches of deliveries, this 1 document file will be stored once and shared across all those entries without duplicating storage.
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label class="form-label font-weight-bold text-xs">Select MRO Soft Copy File (PDF/Image)</label>
+                                                                <input type="file" name="mro_file" class="form-control form-control-sm" accept="application/pdf,image/*" required>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                            <button type="submit" class="btn-htc btn-sm"><i class="bi bi-check-circle me-1"></i> Upload Soft Copy</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                {% endif %}
+                                    {% endif %}
 
-                                <a href="{{ doc.url }}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="View Transaction Detail">
-                                    <i class="bi bi-box-arrow-up-right"></i>
-                                </a>
+                                    {% if doc.url %}
+                                    <a href="{{ doc.url }}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="View Transaction Detail">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                         {% empty %}
-                        <div class="list-group-item text-muted text-center py-3">No documents available in this category.</div>
+                        <div class="list-group-item text-muted text-center py-4 text-xs">
+                            <i class="bi bi-folder2-open fs-3 d-block mb-1 text-secondary opacity-50"></i>
+                            No documents found in this operational category.
+                        </div>
                         {% endfor %}
                     </div>
                 </div>
@@ -131,18 +227,23 @@
     {% endfor %}
 </div>
 
-<!-- Soft Copy PDF / Image In-App Previewer Modal -->
+<!-- IN-APP PREVIEWER MODAL -->
 <div class="modal fade" id="previewDocModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 90vw;">
-        <div class="modal-content" style="height: 85vh;">
-            <div class="modal-header py-2">
-                <h5 class="modal-title fs-6 fw-bold" id="previewModalTitle"><i class="bi bi-file-earmark-pdf text-danger"></i> Document Preview</h5>
+    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 92vw;">
+        <div class="modal-content" style="height: 88vh; background: var(--htc-surface);">
+            <div class="modal-header py-2 px-3 border-bottom">
                 <div class="d-flex align-items-center gap-2">
-                    <a id="previewDownloadBtn" href="#" class="btn btn-sm btn-outline-primary" download><i class="bi bi-download"></i> Download Soft Copy</a>
+                    <i class="bi bi-file-earmark-text-fill text-primary fs-5"></i>
+                    <h5 class="modal-title fs-6 fw-bold mb-0" id="previewModalTitle">Document Preview</h5>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a id="previewDownloadBtn" href="#" class="btn btn-sm btn-primary fw-semibold" download>
+                        <i class="bi bi-download me-1"></i> Download Soft Copy
+                    </a>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
             </div>
-            <div class="modal-body p-0 bg-dark position-relative" style="height: calc(85vh - 50px);">
+            <div class="modal-body p-0 bg-dark position-relative" style="height: calc(88vh - 54px);">
                 <iframe id="pdfPreviewIframe" src="" style="width: 100%; height: 100%; border: none; display: none;"></iframe>
                 <img id="imgPreview" src="" alt="Scanned Document" style="max-width: 100%; max-height: 100%; object-fit: contain; margin: auto; display: none;" class="position-absolute top-50 start-50 translate-middle">
             </div>
@@ -150,32 +251,75 @@
     </div>
 </div>
 
+<!-- BOTTOM STORAGE & STATUS METRICS -->
 <div class="metric-grid mb-4">
     <div class="metric-box">
         <div class="label">Total Documents</div>
         <div class="value">{{ total_documents }}</div>
+        <div class="small text-muted mt-1">{{ total_uploaded_count }} uploaded · {{ total_generated_count }} generated</div>
     </div>
     <div class="metric-box">
-        <div class="label">Uploaded This Month</div>
-        <div class="value text-success">{{ uploaded_this_month }}</div>
+        <div class="label">User-Uploaded Soft Copies</div>
+        <div class="value text-success">{{ total_uploaded_count }}</div>
+        <div class="small text-muted mt-1">{{ storage_used_display }} permanent storage</div>
     </div>
     <div class="metric-box">
-        <div class="label">Storage Used</div>
-        <div class="value">{{ storage_used_gb }} GB</div>
+        <div class="label">Consolidated Multi-MRO Scans</div>
+        <div class="value text-primary">{{ consolidated_mro_scans_count }}</div>
+        <div class="small text-muted mt-1">Multi-permit documents shared across deliveries</div>
     </div>
     <div class="metric-box">
-        <div class="label">Pending Review</div>
-        <div class="value text-warning">{{ pending_review }}</div>
+        <div class="label">System-Generated PDFs</div>
+        <div class="value text-info">{{ total_generated_count }}</div>
+        <div class="small text-muted mt-1">Contracts, POs, Invoices &amp; Vouchers</div>
     </div>
 </div>
 
 <script>
+let currentCategory = 'all';
+let currentOrigin = 'all';
+
+function filterOrigin(origin, btn) {
+    currentOrigin = origin;
+    document.querySelectorAll('#originFilterGroup .origin-btn').forEach(b => {
+        b.classList.remove('active', 'btn-primary', 'btn-success');
+        if (b.innerText.includes('Uploaded')) b.classList.add('btn-outline-success');
+        else if (b.innerText.includes('Generated')) b.classList.add('btn-outline-primary');
+        else b.classList.add('btn-outline-secondary');
+    });
+
+    if (btn) {
+        btn.classList.add('active');
+        if (origin === 'uploaded') {
+            btn.classList.remove('btn-outline-success');
+            btn.classList.add('btn-success');
+        } else if (origin === 'generated') {
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-primary');
+        } else {
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-primary');
+        }
+    }
+    applyGridFilters();
+}
+
 function showCategory(catKey, btn) {
+    currentCategory = catKey;
     document.querySelectorAll('.tabs-row .tab-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
+    applyGridFilters();
+}
 
+function applyGridFilters() {
     document.querySelectorAll('.doc-category-col').forEach(col => {
-        if (catKey === 'all' || col.getAttribute('data-cat') === catKey) {
+        const cat = col.getAttribute('data-cat');
+        const origin = col.getAttribute('data-origin');
+
+        const matchCat = (currentCategory === 'all' || cat === currentCategory);
+        const matchOrigin = (currentOrigin === 'all' || origin === currentOrigin);
+
+        if (matchCat && matchOrigin) {
             col.style.display = 'block';
         } else {
             col.style.display = 'none';

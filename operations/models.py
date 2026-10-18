@@ -448,6 +448,14 @@ class DeliveryLedger(models.Model):
         help_text="Flat batch marine transport fee if not charged per MT",
     )
     vessel_or_truck = models.CharField("Vessel ID / Truck Plate", max_length=100, blank=True)
+    mro_permit = models.ForeignKey(
+        "MolassesReleaseOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deliveries",
+        help_text="Optional linked MRO release order permit fulfilled by this delivery batch",
+    )
     dr_number = models.CharField("Delivery Receipt (DR) #", max_length=100, blank=True)
     waybill_number = models.CharField("Waybill #", max_length=100, blank=True)
     notes = models.TextField(blank=True)
@@ -481,6 +489,15 @@ class DeliveryLedger(models.Model):
     def total_freight_cost(self):
         """Total combined logistics cost for this batch."""
         return self.trucking_cost + self.barge_cost
+
+    @property
+    def scanned_mro_document(self):
+        """Returns the scanned MRO permit document covering this delivery batch (shared or direct)."""
+        if self.mro_permit and self.mro_permit.scanned_document:
+            return self.mro_permit.scanned_document
+        if self.purchase_order and self.purchase_order.cluster and self.purchase_order.cluster.mro_file:
+            return self.purchase_order.cluster.mro_file
+        return None
 
     def clean(self):
         super().clean()
@@ -834,6 +851,12 @@ class MolassesReleaseOrder(models.Model):
     brix_level = models.DecimalField("Brix Level (%)", max_digits=5, decimal_places=2, null=True, blank=True, help_text="Brix quality level")
     chai_specs = models.CharField("CHAI Specs", max_length=120, blank=True, help_text="Chemical / CHAI quality specs")
     notes = models.TextField(blank=True)
+    scanned_file = models.FileField(
+        upload_to="mro_scans/",
+        null=True,
+        blank=True,
+        help_text="Optional direct scanned soft copy for this MRO permit if not sharing the cluster's consolidated scan",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     history = HistoricalRecords()
@@ -848,6 +871,35 @@ class MolassesReleaseOrder(models.Model):
         if self.sugar_mill:
             return self.sugar_mill.name
         return self.sugar_mill_name or "Unknown Mill"
+
+    @property
+    def scanned_document(self):
+        """
+        Returns the attached scanned soft copy.
+        If this MRO entry is part of a multi-MRO consolidated upload for a PO cluster,
+        it automatically falls back to the cluster's shared scanned document.
+        """
+        if self.scanned_file:
+            return self.scanned_file
+        if self.cluster and self.cluster.mro_file:
+            return self.cluster.mro_file
+        return None
+
+    @property
+    def has_scanned_document(self):
+        return bool(self.scanned_document)
+
+    @property
+    def is_shared_document(self):
+        """Returns True if this MRO relies on the PO cluster's consolidated scanned document."""
+        return not bool(self.scanned_file) and bool(self.cluster and self.cluster.mro_file)
+
+    @property
+    def shared_mro_count(self):
+        """Number of MRO entries sharing this cluster's scanned document."""
+        if self.cluster and self.cluster.mro_file:
+            return self.cluster.mro_releases.count()
+        return 1 if self.scanned_file else 0
 
     def save(self, *args, **kwargs):
         if self.crop_year:

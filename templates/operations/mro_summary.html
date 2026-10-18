@@ -165,6 +165,17 @@
                     </td>
                     <td>
                         <span class="badge bg-secondary font-monospace" style="font-size: 0.85rem;">{{ item.mro_number }}</span>
+                        {% if item.has_scanned_document %}
+                            {% if item.is_shared_document %}
+                            <a href="{{ item.scanned_document.url }}" target="_blank" class="badge bg-info-subtle text-info border border-info-subtle ms-0.5 text-decoration-none" title="Consolidated Scan from PO {{ item.cluster.reference_code }}">
+                                <i class="bi bi-layers-fill"></i> Shared Scan
+                            </a>
+                            {% else %}
+                            <a href="{{ item.scanned_document.url }}" target="_blank" class="badge bg-success-subtle text-success border border-success-subtle ms-0.5 text-decoration-none" title="Direct Permit Scan Attached">
+                                <i class="bi bi-file-earmark-check-fill"></i> Scan
+                            </a>
+                            {% endif %}
+                        {% endif %}
                     </td>
                     <td>
                         <span class="badge bg-light text-dark border">{{ item.crop_year }}</span>

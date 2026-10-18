@@ -177,6 +177,16 @@
                                         </label>
                                         <span class="badge bg-light text-muted border text-xs">Optional Supporting Document</span>
                                     </div>
+
+                                    {% if cluster.mro_file %}
+                                    <div class="alert alert-info py-2 px-3 mb-2.5 rounded-3 text-xs d-flex align-items-center gap-2">
+                                        <i class="bi bi-layers-fill text-primary fs-5"></i>
+                                        <div>
+                                            <strong>PO Has Consolidated Scanned Document Attached:</strong>
+                                            <span class="text-muted">A scanned permit document (<code>{{ cluster.mro_file.name|slice:"10:" }}</code>) is already attached to this PO. This new MRO entry will automatically share that document across delivery batches without duplicating storage. Upload a file below only if you wish to override or provide an individual scan.</span>
+                                        </div>
+                                    </div>
+                                    {% endif %}
                                     
                                     <div class="p-3 rounded-3 border bg-light text-center" id="manualUploadDropArea">
                                         <input type="file" name="mro_file" id="manualMroFileInput" class="form-control form-control-sm mb-2" accept=".pdf,image/png,image/jpeg,image/webp">

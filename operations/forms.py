@@ -290,6 +290,7 @@ class DeliveryLedgerForm(forms.ModelForm):
         fields = [
             "purchase_order",
             "supplier",
+            "mro_permit",
             "delivered_mt",
             "receiving_location",
             "delivery_date",
@@ -311,6 +312,7 @@ class DeliveryLedgerForm(forms.ModelForm):
         labels = {
             "purchase_order": "Purchase Order (PO #)",
             "supplier": "Source Sugar Mill",
+            "mro_permit": "Fulfillment MRO Permit",
             "delivered_mt": "Delivered Quantity (MT)",
             "receiving_location": "Delivery Location / Site",
             "delivery_date": "Delivery Date",
@@ -332,6 +334,7 @@ class DeliveryLedgerForm(forms.ModelForm):
         widgets = {
             "purchase_order": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_po"}),
             "supplier": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_supplier"}),
+            "mro_permit": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_mro"}),
             "delivered_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "e.g. 2000.000", "id": "id_delivery_mt"}),
             "receiving_location": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Main Plant, Warehouse 2, Silo A", "id": "id_delivery_location"}),
             "delivery_date": forms.DateInput(attrs={"type": "date", "class": "form-control-htc"}),
@@ -388,6 +391,14 @@ class DeliveryLedgerForm(forms.ModelForm):
 
         clients_qs = Client.objects.filter(is_active=True).order_by("name")
         self.fields["receiving_customer"].queryset = clients_qs
+
+        from operations.models import MolassesReleaseOrder
+        self.fields["mro_permit"].required = False
+        self.fields["mro_permit"].empty_label = "-- Select Linked MRO Permit (Optional) --"
+        if initial_po and hasattr(initial_po, "cluster") and initial_po.cluster:
+            self.fields["mro_permit"].queryset = initial_po.cluster.mro_releases.all()
+        else:
+            self.fields["mro_permit"].queryset = MolassesReleaseOrder.objects.all().order_by("-created_at")[:50]
 
         if initial_po:
             self.fields["purchase_order"].initial = initial_po
@@ -451,8 +462,11 @@ class MolassesReleaseOrderForm(forms.ModelForm):
         fields = [
             "mro_number", "sugar_mill", "sugar_mill_name", "planter", "planter_name",
             "tons", "release_date", "trader", "crop_year", "cluster",
-            "brix_level", "chai_specs", "notes"
+            "brix_level", "chai_specs", "notes", "scanned_file"
         ]
+        labels = {
+            "scanned_file": "Direct Permit Scan (Optional if sharing PO consolidated scan)",
+        }
         widgets = {
             "mro_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. 000731"}),
             "sugar_mill": forms.Select(attrs={"class": "form-select-htc"}),
@@ -466,6 +480,7 @@ class MolassesReleaseOrderForm(forms.ModelForm):
             "brix_level": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 85.50"}),
             "chai_specs": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Verified Brix 85°+"}),
             "notes": forms.Textarea(attrs={"class": "form-control-htc", "rows": 2, "placeholder": "Optional notes or batch details"}),
+            "scanned_file": forms.FileInput(attrs={"class": "form-control-htc", "accept": ".pdf,image/*"}),
         }
 
     def __init__(self, *args, **kwargs):

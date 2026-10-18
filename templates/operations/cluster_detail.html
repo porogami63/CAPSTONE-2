@@ -426,7 +426,7 @@
                 <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
                     {% if cluster.mro_file %}
                     <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-7 fw-medium" data-bs-toggle="modal" data-bs-target="#previewMroScanModal" title="Preview attached scanned MRO document">
-                        <i class="bi bi-file-earmark-pdf text-primary me-1"></i> View Scanned Document
+                        <i class="bi bi-file-earmark-pdf text-primary me-1"></i> View Scan
                     </button>
                     {% endif %}
                     {% if user|has_perm:"edit_transaction" or user|has_perm:"edit_logistics" %}
@@ -438,6 +438,21 @@
             </div>
             <div class="collapse show" id="mroSectionCollapse">
                 <div class="panel-body pt-0 px-3 pb-3">
+                    {% if cluster.mro_file and linked_mros|length > 1 %}
+                    <div class="alert alert-info py-2 px-3 mb-2.5 fs-8 d-flex align-items-center justify-content-between rounded-3 border-info-subtle">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-layers-fill text-primary fs-5"></i>
+                            <div>
+                                <strong class="text-dark">Consolidated Scanned Document:</strong>
+                                <span class="text-muted">1 uploaded scan (<code>{{ cluster.mro_file.name|slice:"10:" }}</code>) covers all {{ linked_mros|length }} MRO permit entries across multiple delivery batches.</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2.5 fw-semibold" data-bs-toggle="modal" data-bs-target="#previewMroScanModal">
+                            <i class="bi bi-eye-fill me-1"></i> Preview Scan
+                        </button>
+                    </div>
+                    {% endif %}
+
                     {% if linked_mros %}
                     <div class="table-responsive">
                         <table class="table table-sm align-middle fs-7 mb-2">
@@ -448,7 +463,7 @@
                                     <th>Planter</th>
                                     <th>Release Date</th>
                                     <th class="text-end">Quantity (MT)</th>
-                                    <th class="text-end text-nowrap" style="width: 120px;">Action</th>
+                                    <th class="text-end text-nowrap" style="width: 140px;">Document &amp; Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -456,6 +471,9 @@
                                 <tr>
                                     <td class="fw-semibold text-nowrap">
                                         <a href="{% url 'operations:mro_summary' %}?q={{ mro.mro_number }}" class="text-decoration-none fw-semibold text-primary font-monospace" title="View permit details in MRO Directory">#{{ mro.mro_number }}</a>
+                                        {% if mro.is_shared_document %}
+                                        <span class="badge bg-light text-muted border text-xs ms-0.5" title="Part of consolidated scanned PDF">Shared</span>
+                                        {% endif %}
                                     </td>
                                     <td>{{ mro.display_sugar_mill }}</td>
                                     <td>{{ mro.planter.name }}</td>
@@ -463,10 +481,10 @@
                                     <td class="text-end fw-bold text-primary">{{ mro.tons|floatformat:3|intcomma }} MT</td>
                                     <td class="text-end text-nowrap">
                                         <div class="d-inline-flex align-items-center justify-content-end gap-1.5">
-                                            {% if cluster.mro_file %}
-                                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 text-xs d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#previewMroScanModal" title="View attached scanned document">
+                                            {% if mro.has_scanned_document %}
+                                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 text-xs d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#previewMroScanModal" title="View attached scanned document ({{ mro.is_shared_document|yesno:'Shared Scan,Direct Scan' }})">
                                                 <i class="bi bi-file-earmark-pdf text-primary"></i>
-                                                <span>Scan</span>
+                                                <span>{% if mro.is_shared_document %}Shared Scan{% else %}Scan{% endif %}</span>
                                             </button>
                                             {% endif %}
                                             <form method="post" action="{% url 'operations:unlink_mro' cluster.pk mro.pk %}" class="d-inline m-0 p-0" onsubmit="return confirm('Unlink MRO #{{ mro.mro_number }} from this purchase order?');">
@@ -622,6 +640,7 @@
                                     <th>Receiving Location</th>
                                     <th class="text-end">Delivered MT</th>
                                     <th>Carrier / DR</th>
+                                    <th>MRO Permit &amp; Scan</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -635,6 +654,22 @@
                                         {% if d.carrier %}<span class="text-muted">{{ d.carrier.name }}</span>{% endif %}
                                         {% if d.dr_number %}<span class="badge bg-secondary-subtle text-secondary ms-1">DR: {{ d.dr_number }}</span>{% endif %}
                                         {% if not d.carrier and not d.dr_number %}<span class="text-muted">—</span>{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if d.mro_permit %}
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+                                                #{{ d.mro_permit.mro_number }}
+                                            </span>
+                                        {% elif linked_mros %}
+                                            <span class="badge bg-light text-muted border fs-8" title="Fulfilled under PO's linked MRO permits">PO Shared</span>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                        {% if d.scanned_mro_document %}
+                                            <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 ms-1 text-xs d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#previewMroScanModal" title="Preview MRO Scan for this delivery batch">
+                                                <i class="bi bi-file-earmark-pdf text-primary"></i> Scan
+                                            </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}

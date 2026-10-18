@@ -816,16 +816,27 @@ def create_and_link_mro_manual(request, pk):
             mro.cluster = cluster
             mro.save()
 
-            mro_file = request.FILES.get("mro_file") or request.FILES.get("supporting_file")
+            mro_file = request.FILES.get("mro_file") or request.FILES.get("supporting_file") or form.cleaned_data.get("scanned_file")
             if mro_file:
-                cluster.mro_file = mro_file
-                cluster._audit_user = request.user
-                cluster.save(update_fields=["mro_file"])
+                if not cluster.mro_file:
+                    cluster.mro_file = mro_file
+                    cluster._audit_user = request.user
+                    cluster.save(update_fields=["mro_file"])
+                else:
+                    mro.scanned_file = mro_file
+                    mro.save(update_fields=["scanned_file"])
 
             messages.success(
                 request,
                 f"MRO Release Order #{mro.mro_number} ({mro.tons} MT) created and linked to {cluster.reference_code} successfully."
             )
+            if mro.is_shared_document:
+                import os
+                doc_name = os.path.basename(cluster.mro_file.name)
+                messages.info(
+                    request,
+                    f"MRO #{mro.mro_number} is linked to consolidated scanned document '{doc_name}' (shared across {cluster.mro_releases.count()} MRO entries)."
+                )
         else:
             errors = "; ".join([f"{f}: {', '.join(errs)}" for f, errs in form.errors.items()])
             messages.error(request, f"Error saving MRO entry: {errors}")
@@ -1236,7 +1247,14 @@ def upload_mro(request, pk):
         cluster.mro_file = request.FILES["mro_file"]
         cluster._audit_user = request.user
         cluster.save(update_fields=["mro_file"])
-        messages.success(request, f"Scanned MRO document uploaded for {cluster.reference_code}.")
+        mro_count = cluster.mro_releases.count()
+        if mro_count > 1:
+            messages.success(
+                request,
+                f"Scanned MRO document uploaded for {cluster.reference_code}. This single consolidated document is now shared across all {mro_count} MRO permit entries."
+            )
+        else:
+            messages.success(request, f"Scanned MRO document uploaded for {cluster.reference_code}.")
     else:
         messages.error(request, "Please select a valid PDF or scanned document to upload.")
     

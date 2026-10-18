@@ -532,6 +532,15 @@ def po_financial_workspace(request, pk):
         loan.days_remaining = max((loan.due_date - timezone.localdate()).days, 0)
         loan.daily_interest = loan.daily_interest_cost
 
+    import os
+    linked_mros = list(cluster.mro_releases.select_related("planter", "sugar_mill").all())
+    deliveries = list(po.deliveries.select_related("supplier", "carrier", "trucking_partner", "barge_partner", "mro_permit").all()) if po else []
+    total_mro_tons = sum(m.tons for m in linked_mros)
+    has_mro_scan = bool(cluster.mro_file)
+    mro_scan_name = os.path.basename(cluster.mro_file.name) if cluster.mro_file else ""
+    mro_scan_url = cluster.mro_file.url if cluster.mro_file else ""
+    is_consolidated_mro = len(linked_mros) > 1 and has_mro_scan
+
     return render(
         request,
         "finance/po_workspace.html",
@@ -560,6 +569,13 @@ def po_financial_workspace(request, pk):
             "match_form": match_form,
             "loan_form": loan_form,
             "quick_match_suggestions": quick_match_suggestions,
+            "linked_mros": linked_mros,
+            "deliveries": deliveries,
+            "total_mro_tons": total_mro_tons,
+            "has_mro_scan": has_mro_scan,
+            "mro_scan_name": mro_scan_name,
+            "mro_scan_url": mro_scan_url,
+            "is_consolidated_mro": is_consolidated_mro,
         },
     )
 
