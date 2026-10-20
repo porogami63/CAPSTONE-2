@@ -43,18 +43,23 @@ CORE_NAV_ITEMS = [
 # Navigation items each role can see
 NAV_ITEMS = {
     Role.ADMINISTRATOR: ADMIN_PRIMARY_NAV + ADMIN_OPERATIONAL_NAV,
-    Role.OPERATIONS_MANAGEMENT: [
+    Role.OPERATIONS: [
         i for i in CORE_NAV_ITEMS 
         if i[0] not in ("accounts:user_list", "finance:loan_list", "finance:invoice_list", "admin_hub:dashboard")
+    ],
+    Role.OPERATIONS_MANAGEMENT: [
+        i for i in CORE_NAV_ITEMS 
+        if i[0] not in ("admin_hub:dashboard",)
     ],
     Role.FINANCE: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "finance:loan_list", "dashboard:analytics", "dashboard:documents", "chat:room")],
     Role.INVOICING: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "dashboard:documents", "chat:room")],
 }
 
-ALL_ROLES = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.FINANCE, Role.INVOICING}
+ALL_ROLES = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.OPERATIONS, Role.FINANCE, Role.INVOICING}
+OPS_ROLES = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.OPERATIONS}
 EXEC_ROLES = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT}
 MGMT_FINANCE = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.FINANCE}
-FINANCE_ADMIN = {Role.ADMINISTRATOR, Role.FINANCE}
+FINANCE_ADMIN = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.FINANCE}
 MGMT_INVOICING = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.INVOICING, Role.FINANCE}
 
 # Fine-grained permissions
@@ -62,13 +67,13 @@ PERMISSIONS = {
     "manage_users": {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT},
     "create_transaction": ALL_ROLES,
     "edit_transaction": ALL_ROLES,
-    "approve_transaction": EXEC_ROLES,
+    "approve_transaction": {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.OPERATIONS},
     "archive_transaction": EXEC_ROLES,
-    "edit_logistics": EXEC_ROLES,
-    "upload_mro": EXEC_ROLES,
+    "edit_logistics": OPS_ROLES,
+    "upload_mro": OPS_ROLES,
     "view_mro": ALL_ROLES,
     "view_chai": ALL_ROLES,
-    "manage_chai": MGMT_FINANCE,
+    "manage_chai": {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.OPERATIONS, Role.FINANCE},
     "add_invoice": MGMT_INVOICING,
     "add_voucher": FINANCE_ADMIN,
     "add_loan": FINANCE_ADMIN,
@@ -77,18 +82,16 @@ PERMISSIONS = {
     "reconcile_payments": FINANCE_ADMIN,
     "add_match": FINANCE_ADMIN,
     "view_reconciliation": FINANCE_ADMIN,
-    "view_audit": EXEC_ROLES,
+    "view_audit": OPS_ROLES,
     "view_masters": ALL_ROLES,
     "view_financial_summary": FINANCE_ADMIN,
     "view_operational_alerts": ALL_ROLES,
-    "import_excel": EXEC_ROLES,
+    "import_excel": OPS_ROLES,
     "clear_database": {Role.ADMINISTRATOR},
 }
 
 
 def _normalize_role(role_str: str) -> str:
-    if role_str == "operations":
-        return Role.OPERATIONS_MANAGEMENT
     if role_str == "management":
         return Role.ADMINISTRATOR
     return role_str
@@ -101,6 +104,12 @@ def user_has_perm(user, perm: str) -> bool:
         return True
     role = _normalize_role(user.role)
     allowed = PERMISSIONS.get(perm, set())
+    if role == Role.OPERATIONS_MANAGEMENT:
+        # Operations Manager encompasses operations, finance, and invoicing
+        if role in allowed or user.role in allowed:
+            return True
+        if any(r in allowed for r in (Role.OPERATIONS, Role.FINANCE, Role.INVOICING)):
+            return True
     return role in allowed or user.role in allowed
 
 
@@ -108,14 +117,19 @@ def get_user_permissions(user) -> set[str]:
     if user.is_superuser:
         return set(PERMISSIONS.keys())
     role = _normalize_role(user.role)
-    return {p for p, roles in PERMISSIONS.items() if role in roles or user.role in roles}
+    perms = {p for p, roles in PERMISSIONS.items() if role in roles or user.role in roles}
+    if role == Role.OPERATIONS_MANAGEMENT:
+        for p, roles in PERMISSIONS.items():
+            if any(r in roles for r in (Role.OPERATIONS, Role.FINANCE, Role.INVOICING)):
+                perms.add(p)
+    return perms
 
 
 def get_nav_items(user):
     role = _normalize_role(getattr(user, "role", ""))
     if role == Role.ADMINISTRATOR:
         return NAV_ITEMS[Role.ADMINISTRATOR]
-    return NAV_ITEMS.get(role, NAV_ITEMS.get(Role.OPERATIONS_MANAGEMENT, CORE_NAV_ITEMS))
+    return NAV_ITEMS.get(role, NAV_ITEMS.get(Role.OPERATIONS, CORE_NAV_ITEMS))
 
 
 def nav_is_active(view_name: str, url_name: str, prefixes: tuple[str, ...]) -> bool:

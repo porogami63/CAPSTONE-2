@@ -16,6 +16,7 @@ class DashboardRoleInterfaceTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(username="admin_user", password="password123", role=User.Role.ADMINISTRATOR)
         self.ops = User.objects.create_user(username="ops_user", password="password123", role=User.Role.OPERATIONS_MANAGEMENT)
+        self.ops_role = User.objects.create_user(username="ops_role_user", password="password123", role=User.Role.OPERATIONS)
         self.fin = User.objects.create_user(username="fin_user", password="password123", role=User.Role.FINANCE)
         self.inv = User.objects.create_user(username="inv_user", password="password123", role=User.Role.INVOICING)
 
@@ -24,12 +25,52 @@ class DashboardRoleInterfaceTests(TestCase):
         res = self.client.get("/", follow=True)
         self.assertEqual(res.status_code, 200)
 
-    def test_operations_dashboard_home(self):
+    def test_operations_manager_dashboard_home(self):
         self.client.login(username="ops_user", password="password123")
         res = self.client.get("/")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.context["user_role"], User.Role.OPERATIONS_MANAGEMENT)
         self.assertIn("active_shipments_count", res.context)
+
+    def test_operations_role_dashboard_home(self):
+        self.client.login(username="ops_role_user", password="password123")
+        res = self.client.get("/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.context["user_role"], User.Role.OPERATIONS)
+        self.assertIn("active_shipments_count", res.context)
+
+    def test_financial_table_cadence_and_copilot_context(self):
+        client = Client.objects.create(name="San Miguel Corp")
+        mill = SugarMill.objects.create(name="Central Azucarera")
+        cluster = TransactionCluster.objects.create(
+            reference_code="PO-CADENCE-01",
+            client=client,
+            sugar_mill=mill,
+            status=TransactionCluster.Status.ACTIVE,
+        )
+        PurchaseOrder.objects.create(
+            cluster=cluster,
+            po_reference_number="PO-CADENCE-01",
+            volume_mt=Decimal("100.000"),
+            unit_price=Decimal("41000.00"),
+            customer=client,
+        )
+
+        self.client.login(username="ops_user", password="password123")
+        res = self.client.get("/")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("financial_intervals", res.context)
+        intervals = res.context["financial_intervals"]
+        self.assertIn("weekly", intervals)
+        self.assertIn("monthly", intervals)
+        self.assertIn("yearly", intervals)
+        for cadence in ["weekly", "monthly", "yearly"]:
+            self.assertIn("title", intervals[cadence])
+            self.assertIn("labels", intervals[cadence])
+            self.assertIn("table", intervals[cadence])
+            self.assertIn("copilot_text", intervals[cadence])
+        self.assertContains(res, 'id="financialTableContainer"')
+        self.assertContains(res, 'id="financialCopilotFootnote"')
 
     def test_finance_dashboard_home(self):
         self.client.login(username="fin_user", password="password123")

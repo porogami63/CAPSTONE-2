@@ -143,6 +143,7 @@ def cluster_financials(cluster) -> dict:
         "ewt_amount": float(ewt_amount),
         "net_after_tax": float(net_after_tax),
         "profit": float(profit),
+        "net_profit": float(profit),
         "profit_m": float(profit) / 1_000_000,
         "margin": float(margin),
         "order_value": float(purchase_total),

@@ -332,14 +332,20 @@
                         </div>
                         <div class="col-md-4">
                             <div class="form-field-symmetric">
-                                <label for="{{ form.received_at.id_for_label }}">
-                                    {{ form.received_at.label }}
-                                </label>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="{{ form.received_at.id_for_label }}" class="mb-0">
+                                        {{ form.received_at.label }}
+                                    </label>
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle fs-8 py-0.5 px-2 d-none" id="futureEtaPill">
+                                        <i class="bi bi-clock-history me-1"></i>Future ETA
+                                    </span>
+                                </div>
                                 {{ form.received_at }}
-                                <div class="field-help">Arrival date and time.</div>
+                                <div class="field-help" id="receivedAtHelp">Arrival timestamp or tentative future ETA (non-fixed schedule).</div>
                                 {% if form.received_at.errors %}
-                                <div class="text-danger fs-8 fw-bold mt-1">{{ form.received_at.errors|striptags }}</div>
+                                <div class="text-danger fs-8 fw-bold mt-1" id="receivedAtServerErr">{{ form.received_at.errors|striptags }}</div>
                                 {% endif %}
+                                <div class="text-danger fs-8 fw-bold mt-1 d-none" id="receivedAtClientErr"></div>
                             </div>
                         </div>
                     </div>
@@ -605,8 +611,72 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    const dispatchedInput = document.getElementById('id_dispatched_at') || document.querySelector('input[name="dispatched_at"]');
+    const receivedInput = document.getElementById('id_received_at') || document.querySelector('input[name="received_at"]');
+    const futureEtaPill = document.getElementById('futureEtaPill');
+    const receivedAtClientErr = document.getElementById('receivedAtClientErr');
+    const receivedAtHelp = document.getElementById('receivedAtHelp');
+
+    function checkArrivalDateAndStatus() {
+        if (!receivedInput) return true;
+        let isValid = true;
+        const val = receivedInput.value;
+        if (val) {
+            const receivedDate = new Date(val);
+            const now = new Date();
+            if (receivedDate > now) {
+                if (futureEtaPill) futureEtaPill.classList.remove('d-none');
+                if (receivedAtHelp) receivedAtHelp.textContent = "Tentative schedule: Arrival set in future (ETA mode active).";
+            } else {
+                if (futureEtaPill) futureEtaPill.classList.add('d-none');
+                if (receivedAtHelp) receivedAtHelp.textContent = "Arrival timestamp recorded at destination.";
+            }
+
+            if (dispatchedInput && dispatchedInput.value) {
+                const dispDate = new Date(dispatchedInput.value);
+                if (receivedDate < dispDate) {
+                    isValid = false;
+                    receivedInput.classList.add('is-invalid');
+                    if (receivedAtClientErr) {
+                        receivedAtClientErr.textContent = "Arrival timestamp cannot be earlier than departure dispatch timestamp.";
+                        receivedAtClientErr.classList.remove('d-none');
+                    }
+                } else {
+                    receivedInput.classList.remove('is-invalid');
+                    if (receivedAtClientErr) {
+                        receivedAtClientErr.textContent = "";
+                        receivedAtClientErr.classList.add('d-none');
+                    }
+                }
+            } else {
+                receivedInput.classList.remove('is-invalid');
+                if (receivedAtClientErr) receivedAtClientErr.classList.add('d-none');
+            }
+        } else {
+            if (futureEtaPill) futureEtaPill.classList.add('d-none');
+            if (receivedAtHelp) receivedAtHelp.textContent = "Arrival timestamp or tentative future ETA (non-fixed schedule).";
+            receivedInput.classList.remove('is-invalid');
+            if (receivedAtClientErr) receivedAtClientErr.classList.add('d-none');
+        }
+        return isValid;
+    }
+
+    function checkNegativeFees() {
+        let isValid = true;
+        [trkRateInput, brgRateInput, flatTrkInput, flatBrgInput].forEach(inp => {
+            if (inp && parseFloat(inp.value) < 0) {
+                inp.classList.add('is-invalid');
+                isValid = false;
+            } else if (inp) {
+                inp.classList.remove('is-invalid');
+            }
+        });
+        return isValid;
+    }
+
     function checkOverDelivery() {
         if (!mtInput) return;
+        let isOver = false;
         const val = parseFloat(mtInput.value) || 0;
         if (currentRemainingMT > 0 && val > currentRemainingMT) {
             alertBox.classList.remove('d-none');
@@ -614,13 +684,19 @@ document.addEventListener('DOMContentLoaded', function() {
             alertRemSpan.textContent = currentRemainingMT.toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3});
             mtInput.classList.add('is-invalid');
             mtInput.style.borderColor = '#dc3545';
-            submitBtn.disabled = true;
+            isOver = true;
         } else {
             alertBox.classList.remove('d-flex');
             alertBox.classList.add('d-none');
             mtInput.classList.remove('is-invalid');
             mtInput.style.borderColor = '';
-            submitBtn.disabled = false;
+        }
+
+        const arrivalValid = checkArrivalDateAndStatus();
+        const feesValid = checkNegativeFees();
+
+        if (submitBtn) {
+            submitBtn.disabled = isOver || !arrivalValid || !feesValid;
         }
         updateFreightCalculations();
     }
@@ -628,14 +704,23 @@ document.addEventListener('DOMContentLoaded', function() {
     if (mtInput) {
         mtInput.addEventListener('input', checkOverDelivery);
     }
+    if (receivedInput) {
+        receivedInput.addEventListener('input', checkOverDelivery);
+        receivedInput.addEventListener('change', checkOverDelivery);
+    }
+    if (dispatchedInput) {
+        dispatchedInput.addEventListener('input', checkOverDelivery);
+        dispatchedInput.addEventListener('change', checkOverDelivery);
+    }
 
     [trkRateInput, brgRateInput, flatTrkInput, flatBrgInput].forEach(inp => {
         if (inp) {
-            inp.addEventListener('input', updateFreightCalculations);
+            inp.addEventListener('input', checkOverDelivery);
         }
     });
 
     updateFreightCalculations();
+    checkArrivalDateAndStatus();
 
     const custSelect = document.getElementById('id_receiving_customer_select');
     if (custSelect) {

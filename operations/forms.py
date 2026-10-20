@@ -317,7 +317,7 @@ class DeliveryLedgerForm(forms.ModelForm):
             "receiving_location": "Delivery Location / Site",
             "delivery_date": "Delivery Date",
             "dispatched_at": "Dispatch Date & Time",
-            "received_at": "Arrival Date & Time",
+            "received_at": "Arrival Date & Time (Future ETA supported)",
             "carrier": "Carrier (Optional)",
             "trucking_partner": "Trucking Partner (Land)",
             "trucking_rate_per_mt": "Trucking Rate (₱/MT)",
@@ -337,9 +337,9 @@ class DeliveryLedgerForm(forms.ModelForm):
             "mro_permit": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_mro"}),
             "delivered_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "e.g. 2000.000", "id": "id_delivery_mt"}),
             "receiving_location": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Main Plant, Warehouse 2, Silo A", "id": "id_delivery_location"}),
-            "delivery_date": forms.DateInput(attrs={"type": "date", "class": "form-control-htc"}),
-            "dispatched_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control-htc"}),
-            "received_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control-htc"}),
+            "delivery_date": forms.DateInput(attrs={"type": "date", "class": "form-control-htc", "id": "id_delivery_date"}),
+            "dispatched_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control-htc", "id": "id_dispatched_at"}),
+            "received_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control-htc", "id": "id_received_at"}),
             "carrier": forms.Select(attrs={"class": "form-select-htc"}),
             "trucking_partner": forms.Select(attrs={"class": "form-select-htc"}),
             "trucking_rate_per_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 450.00"}),
@@ -417,19 +417,48 @@ class DeliveryLedgerForm(forms.ModelForm):
         delivered_mt = cleaned_data.get("delivered_mt")
         rec_cust = cleaned_data.get("receiving_customer")
         rec_loc = cleaned_data.get("receiving_location")
+        supplier = cleaned_data.get("supplier")
+        delivery_date = cleaned_data.get("delivery_date")
+        dispatched_at = cleaned_data.get("dispatched_at")
+        received_at = cleaned_data.get("received_at")
+        trucking_rate = cleaned_data.get("trucking_rate_per_mt")
+        flat_trucking = cleaned_data.get("flat_trucking_fee")
+        barge_rate = cleaned_data.get("barge_rate_per_mt")
+        flat_barge = cleaned_data.get("flat_barge_fee")
 
-        if rec_cust and not rec_loc:
-            cleaned_data["receiving_location"] = f"{rec_cust.name} Main Facility"
+        # 1. Purchase Order Validation
+        if not po:
+            self.add_error("purchase_order", "Please select a valid Purchase Order contract.")
 
-        if po and not cleaned_data.get("supplier"):
+        # 2. Receiving Location Validation & Auto-Fill
+        if rec_cust and (not rec_loc or not rec_loc.strip()):
+            rec_loc = f"{rec_cust.name} Main Facility"
+            cleaned_data["receiving_location"] = rec_loc
+
+        if not rec_loc or not rec_loc.strip():
+            self.add_error("receiving_location", "Delivery drop-off destination / receiving site is required.")
+        else:
+            cleaned_data["receiving_location"] = rec_loc.strip()
+
+        # 3. Source Mill Supplier Validation
+        if po and not supplier:
             mill = getattr(po.cluster, "sugar_mill", None) if hasattr(po, "cluster") and po.cluster else None
             if mill:
                 cleaned_data["supplier"] = mill
+                supplier = mill
 
-        if delivered_mt is not None and delivered_mt <= 0:
+        if not cleaned_data.get("supplier"):
+            self.add_error("supplier", "Source Sugar Mill / Supplier is required.")
+
+        # 4. Delivered Quantity Validation
+        if delivered_mt is None:
+            self.add_error("delivered_mt", "Delivered quantity is required.")
+        elif delivered_mt <= 0:
             self.add_error("delivered_mt", "Delivered quantity must be greater than 0 MT.")
+        elif delivered_mt > Decimal("100000.000"):
+            self.add_error("delivered_mt", "Delivered quantity exceeds maximum batch limit (100,000 MT).")
 
-        if po and delivered_mt is not None:
+        if po and delivered_mt is not None and delivered_mt > 0:
             contracted = po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or Decimal("0"))
             existing = po.deliveries.all()
             if self.instance and self.instance.pk:
@@ -437,12 +466,54 @@ class DeliveryLedgerForm(forms.ModelForm):
             total_other = existing.aggregate(t=models.Sum("delivered_mt"))["t"] or Decimal("0")
             available = max(contracted - total_other, Decimal("0"))
 
-            if delivered_mt > available:
+            if available <= Decimal("0") and (not self.instance or not self.instance.pk):
+                po_ref = po.po_reference_number or (po.cluster.reference_code if po.cluster else "PO")
+                self.add_error(
+                    "delivered_mt",
+                    f"PO {po_ref} is already 100% fulfilled. Remaining deliverable balance is 0.000 MT."
+                )
+            elif delivered_mt > available:
                 po_ref = po.po_reference_number or (po.cluster.reference_code if po.cluster else "PO")
                 self.add_error(
                     "delivered_mt",
                     f"Delivered quantity ({delivered_mt:,.3f} MT) exceeds the remaining available balance ({available:,.3f} MT) for PO {po_ref}."
                 )
+
+        # 5. Date & Timestamp Validation (Future arrival dates / ETAs explicitly supported)
+        if delivery_date:
+            if delivery_date.year < 2020 or delivery_date.year > 2100:
+                self.add_error("delivery_date", "Delivery date must be within years 2020 to 2100.")
+
+        if dispatched_at:
+            if dispatched_at.year < 2020 or dispatched_at.year > 2100:
+                self.add_error("dispatched_at", "Departure dispatch timestamp must be within years 2020 to 2100.")
+
+        if received_at:
+            # Note: Future arrival dates / ETAs are fully allowed and valid as vessel/truck arrivals are tentative
+            if received_at.year < 2020 or received_at.year > 2100:
+                self.add_error("received_at", "Arrival timestamp must be within years 2020 to 2100.")
+
+            if dispatched_at and received_at < dispatched_at:
+                self.add_error(
+                    "received_at",
+                    "Arrival timestamp cannot be earlier than departure dispatch timestamp."
+                )
+
+        # 6. Logistics Fee Validations (non-negative)
+        if trucking_rate is not None and trucking_rate < 0:
+            self.add_error("trucking_rate_per_mt", "Trucking rate cannot be negative.")
+        if flat_trucking is not None and flat_trucking < 0:
+            self.add_error("flat_trucking_fee", "Flat trucking fee cannot be negative.")
+        if barge_rate is not None and barge_rate < 0:
+            self.add_error("barge_rate_per_mt", "Barging rate cannot be negative.")
+        if flat_barge is not None and flat_barge < 0:
+            self.add_error("flat_barge_fee", "Flat barge fee cannot be negative.")
+
+        # 7. String fields sanitization
+        for field_name in ["vessel_or_truck", "vessel_or_barge_name", "dr_number", "waybill_number"]:
+            val = cleaned_data.get(field_name)
+            if val and isinstance(val, str):
+                cleaned_data[field_name] = val.strip()
 
         return cleaned_data
 

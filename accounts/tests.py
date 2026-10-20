@@ -16,6 +16,11 @@ class AccountsPermissionTests(TestCase):
             password="password123",
             role=User.Role.OPERATIONS_MANAGEMENT,
         )
+        self.ops_user = User.objects.create_user(
+            username="ops_user",
+            password="password123",
+            role=User.Role.OPERATIONS,
+        )
         self.finance_user = User.objects.create_user(
             username="fin_user",
             password="password123",
@@ -38,11 +43,25 @@ class AccountsPermissionTests(TestCase):
         self.assertTrue(user_has_perm(self.admin_user, "clear_database"))
 
     def test_operations_management_user_permissions(self):
+        """Operations Manager encompasses finance, invoicing, and operations."""
         self.assertTrue(user_has_perm(self.ops_mgmt_user, "manage_users"))
         self.assertTrue(user_has_perm(self.ops_mgmt_user, "create_transaction"))
         self.assertTrue(user_has_perm(self.ops_mgmt_user, "edit_logistics"))
         self.assertTrue(user_has_perm(self.ops_mgmt_user, "import_excel"))
+        self.assertTrue(user_has_perm(self.ops_mgmt_user, "add_invoice"))
+        self.assertTrue(user_has_perm(self.ops_mgmt_user, "add_loan"))
+        self.assertTrue(user_has_perm(self.ops_mgmt_user, "reconcile_payments"))
         self.assertFalse(user_has_perm(self.ops_mgmt_user, "clear_database"))
+
+    def test_operations_user_permissions(self):
+        """Operations role has operational capabilities, without finance loan/invoice admin rights."""
+        self.assertTrue(user_has_perm(self.ops_user, "create_transaction"))
+        self.assertTrue(user_has_perm(self.ops_user, "edit_logistics"))
+        self.assertTrue(user_has_perm(self.ops_user, "import_excel"))
+        self.assertTrue(user_has_perm(self.ops_user, "view_mro"))
+        self.assertFalse(user_has_perm(self.ops_user, "add_loan"))
+        self.assertFalse(user_has_perm(self.ops_user, "reconcile_payments"))
+        self.assertFalse(user_has_perm(self.ops_user, "clear_database"))
 
     def test_finance_user_permissions(self):
         self.assertTrue(user_has_perm(self.finance_user, "create_transaction"))

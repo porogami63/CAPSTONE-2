@@ -2208,8 +2208,8 @@ def pending_tasks_view(request):
     unpaid_invoices = Invoice.objects.filter(status__in=[Invoice.Status.ISSUED, Invoice.Status.DRAFT], is_archived=False).select_related("cluster", "cluster__client").order_by("-issued_at")
     open_loans = CapitalLoan.objects.filter(status__in=[CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.PENDING_SETTLEMENT, CapitalLoan.Status.ACTIVE, CapitalLoan.Status.OVERDUE]).select_related("cluster", "cluster__client").order_by("-created_at")
 
-    # Scope querysets per role (Loans are strictly isolated to Finance and Admin)
-    if not (user.is_superuser or role == User.Role.ADMINISTRATOR):
+    # Scope querysets per role (Operations Manager encompasses all roles finance, invoice, and operations)
+    if not (user.is_superuser or role in (User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)):
         if role == User.Role.FINANCE:
             unlinked_mros = MolassesReleaseOrder.objects.none()
             disputed_logistics = LogisticsLedger.objects.none()
@@ -2219,7 +2219,7 @@ def pending_tasks_view(request):
             disputed_logistics = LogisticsLedger.objects.none()
             offspec_chai = CHAIRecord.objects.none()
             open_loans = CapitalLoan.objects.none()
-        elif role in (User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGEMENT):
+        elif role == User.Role.OPERATIONS:
             unbilled_clusters = TransactionCluster.objects.none()
             unpaid_invoices = Invoice.objects.none()
             open_loans = CapitalLoan.objects.none()

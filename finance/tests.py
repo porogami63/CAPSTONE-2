@@ -81,6 +81,11 @@ class LoanVerificationTests(TestCase):
 			password="password123",
 			role=User.Role.OPERATIONS_MANAGEMENT,
 		)
+		self.ops_user = User.objects.create_user(
+			username="ops_user",
+			password="password123",
+			role=User.Role.OPERATIONS,
+		)
 		self.admin_user = User.objects.create_user(
 			username="admin_user",
 			password="password123",
@@ -143,15 +148,24 @@ class LoanVerificationTests(TestCase):
 		loan.refresh_from_db()
 		self.assertEqual(loan.status, CapitalLoan.Status.PENDING_CREATION)
 
-	def test_ops_manager_cannot_access_finance_loan_list(self):
-		self.client.login(username="ops_manager", password="password123")
+	def test_operations_role_cannot_access_finance_loan_list(self):
+		self.client.login(username="ops_user", password="password123")
 		response = self.client.get(reverse("finance:loan_list"))
 		self.assertEqual(response.status_code, 403)
 
-	def test_ops_manager_cannot_access_reconciliation(self):
-		self.client.login(username="ops_manager", password="password123")
+	def test_operations_role_cannot_access_reconciliation(self):
+		self.client.login(username="ops_user", password="password123")
 		response = self.client.get(reverse("finance:reconciliation", kwargs={"pk": self.cluster.pk}))
 		self.assertEqual(response.status_code, 403)
+
+	def test_ops_manager_can_access_finance_loan_list_and_reconciliation(self):
+		# Operations Manager encompasses finance, invoicing, and operations
+		self.client.login(username="ops_manager", password="password123")
+		response = self.client.get(reverse("finance:loan_list"))
+		self.assertEqual(response.status_code, 200)
+
+		response_recon = self.client.get(reverse("finance:reconciliation", kwargs={"pk": self.cluster.pk}))
+		self.assertEqual(response_recon.status_code, 200)
 
 	def test_finance_submits_loan_settlement(self):
 		loan = CapitalLoan.objects.create(

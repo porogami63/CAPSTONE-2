@@ -104,39 +104,226 @@ def home(request):
     ).count()
     total_loan_exposure = active_loans.aggregate(total=Sum("principal"))["total"] or Decimal("0")
 
-    # ── Monthly chart data ───────────────────────────────────────────────
+    # ── Revenue, Expenses & Profit Breakdown: Weekly, Monthly, Yearly Cadences ──
+    now = timezone.now()
     month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    revenue_by_month = defaultdict(float)
-    expense_by_month = defaultdict(float)
+
+    # Target month and year for weekly view
+    target_year = now.year
+    target_month = now.month
+    has_cur_month = False
+    latest_trans_dt = None
+
+    for cluster in clusters_all:
+        invs = list(cluster.invoices.all()) if hasattr(cluster, "invoices") else []
+        po = getattr(cluster, "purchase_order", None)
+        c_dt = invs[0].issued_at if invs and invs[0].issued_at else (po.approved_at if po and po.approved_at else cluster.created_at)
+        if c_dt:
+            if latest_trans_dt is None or c_dt > latest_trans_dt:
+                latest_trans_dt = c_dt
+            if c_dt.year == target_year and c_dt.month == target_month:
+                has_cur_month = True
+
+    if not has_cur_month and latest_trans_dt:
+        target_year = latest_trans_dt.year
+        target_month = latest_trans_dt.month
+
+    # 1. Weekly Data Structure (4 Weeks)
+    weekly_buckets = [
+        {"period": "Week 1 (Days 1–7)", "short_label": "W1", "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0},
+        {"period": "Week 2 (Days 8–14)", "short_label": "W2", "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0},
+        {"period": "Week 3 (Days 15–21)", "short_label": "W3", "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0},
+        {"period": "Week 4+ (Days 22+)", "short_label": "W4", "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0},
+    ]
+
+    # 2. Monthly Data Structure (12 Months)
+    monthly_buckets = {
+        i: {"period": month_labels[i], "short_label": month_labels[i], "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0}
+        for i in range(12)
+    }
+
+    # 3. Yearly Data Structure
+    yearly_buckets = defaultdict(lambda: {"revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0})
 
     for cluster in clusters_all:
         fin = cluster_financials(cluster)
         po = getattr(cluster, "purchase_order", None)
         invs = list(cluster.invoices.all()) if hasattr(cluster, "invoices") else []
         primary_inv = invs[0] if invs else None
+        c_dt = primary_inv.issued_at if primary_inv and primary_inv.issued_at else (po.approved_at if po and po.approved_at else cluster.created_at)
 
-        if primary_inv and primary_inv.issued_at:
-            m_idx = primary_inv.issued_at.month - 1
-        elif po and po.approved_at:
-            m_idx = po.approved_at.month - 1
-        else:
-            m_idx = cluster.created_at.month - 1
+        r = float(fin.get("revenue", 0.0))
+        e = float(fin.get("purchase_total", 0.0) + fin.get("logistics_cost", 0.0))
+        p = float(fin.get("profit", fin.get("net_profit", 0.0)))
+        v = float(fin.get("volume_mt", 0.0))
 
-        revenue_by_month[m_idx] += float(fin["revenue"])
-        expense_by_month[m_idx] += float(fin["purchase_total"] + fin["logistics_cost"])
+        if c_dt:
+            # Yearly
+            y = c_dt.year
+            yb = yearly_buckets[y]
+            yb["revenue"] += r
+            yb["expenses"] += e
+            yb["profit"] += p
+            yb["volume_mt"] += v
+            yb["deals"] += 1
 
-    # Determine which months have data
-    all_months_with_data = sorted(set(list(revenue_by_month.keys()) + list(expense_by_month.keys())))
-    if all_months_with_data:
-        chart_months = [month_labels[i] for i in all_months_with_data]
-        revenue_data = [round(revenue_by_month[i] / 1_000_000, 2) for i in all_months_with_data]
-        expenses_data = [round(expense_by_month[i] / 1_000_000, 2) for i in all_months_with_data]
-        profit_data = [round(revenue_by_month[i] / 1_000_000 - expense_by_month[i] / 1_000_000, 2) for i in all_months_with_data]
-    else:
-        chart_months = month_labels[:6]
-        revenue_data = [0] * 6
-        expenses_data = [0] * 6
-        profit_data = [0] * 6
+            # Monthly
+            m_idx = c_dt.month - 1
+            mb = monthly_buckets[m_idx]
+            mb["revenue"] += r
+            mb["expenses"] += e
+            mb["profit"] += p
+            mb["volume_mt"] += v
+            mb["deals"] += 1
+
+            # Weekly (for target month)
+            if c_dt.year == target_year and c_dt.month == target_month:
+                w_idx = min((c_dt.day - 1) // 7, 3)
+                wb = weekly_buckets[w_idx]
+                wb["revenue"] += r
+                wb["expenses"] += e
+                wb["profit"] += p
+                wb["volume_mt"] += v
+                wb["deals"] += 1
+
+    # Format table rows & chart arrays for Weekly
+    weekly_table = []
+    for wb in weekly_buckets:
+        rev = wb["revenue"]
+        exp = wb["expenses"]
+        prof = wb["profit"]
+        margin = round((prof / rev * 100), 2) if rev > 0 else 0.0
+        weekly_table.append({
+            "period": wb["period"],
+            "short_label": wb["short_label"],
+            "revenue": rev,
+            "revenue_m": round(rev / 1_000_000, 2),
+            "expenses": exp,
+            "expenses_m": round(exp / 1_000_000, 2),
+            "profit": prof,
+            "profit_m": round(prof / 1_000_000, 2),
+            "margin": margin,
+            "volume_mt": round(wb["volume_mt"], 3),
+            "deals": wb["deals"],
+        })
+
+    # Format table rows & chart arrays for Monthly
+    all_months_with_data = sorted([i for i, mb in monthly_buckets.items() if mb["revenue"] > 0 or mb["expenses"] > 0])
+    if not all_months_with_data:
+        all_months_with_data = list(range(6))
+    monthly_table = []
+    for i in all_months_with_data:
+        mb = monthly_buckets[i]
+        rev = mb["revenue"]
+        exp = mb["expenses"]
+        prof = mb["profit"]
+        margin = round((prof / rev * 100), 2) if rev > 0 else 0.0
+        monthly_table.append({
+            "period": mb["period"],
+            "short_label": mb["short_label"],
+            "revenue": rev,
+            "revenue_m": round(rev / 1_000_000, 2),
+            "expenses": exp,
+            "expenses_m": round(exp / 1_000_000, 2),
+            "profit": prof,
+            "profit_m": round(prof / 1_000_000, 2),
+            "margin": margin,
+            "volume_mt": round(mb["volume_mt"], 3),
+            "deals": mb["deals"],
+        })
+
+    # Format table rows & chart arrays for Yearly
+    yearly_years = sorted(yearly_buckets.keys()) if yearly_buckets else [now.year]
+    yearly_table = []
+    for y in yearly_years:
+        yb = yearly_buckets[y]
+        rev = yb["revenue"]
+        exp = yb["expenses"]
+        prof = yb["profit"]
+        margin = round((prof / rev * 100), 2) if rev > 0 else 0.0
+        yearly_table.append({
+            "period": str(y),
+            "short_label": str(y),
+            "revenue": rev,
+            "revenue_m": round(rev / 1_000_000, 2),
+            "expenses": exp,
+            "expenses_m": round(exp / 1_000_000, 2),
+            "profit": prof,
+            "profit_m": round(prof / 1_000_000, 2),
+            "margin": margin,
+            "volume_mt": round(yb["volume_mt"], 3),
+            "deals": yb["deals"],
+        })
+
+    # Copilot Local ORM Footnote Explanations
+    wk_tot_rev = sum(r["revenue"] for r in weekly_table)
+    wk_tot_exp = sum(r["expenses"] for r in weekly_table)
+    wk_tot_prof = sum(r["profit"] for r in weekly_table)
+    wk_margin = round((wk_tot_prof / wk_tot_rev * 100), 2) if wk_tot_rev > 0 else 0.0
+    best_wk = max(weekly_table, key=lambda x: x["profit"]) if weekly_table else None
+    copilot_weekly_footnote = (
+        f"HTC Copilot ORM Analysis ({month_labels[target_month - 1]} {target_year}): "
+        f"Weekly revenue totaled ₱{wk_tot_rev:,.2f} with ₱{wk_tot_exp:,.2f} operational expenses, "
+        f"delivering ₱{wk_tot_prof:,.2f} net profit ({wk_margin:.2f}% net margin). "
+        f"Strongest weekly net return occurred during {best_wk['period'] if best_wk else 'W1'}."
+    )
+
+    mo_tot_rev = sum(r["revenue"] for r in monthly_table)
+    mo_tot_exp = sum(r["expenses"] for r in monthly_table)
+    mo_tot_prof = sum(r["profit"] for r in monthly_table)
+    mo_margin = round((mo_tot_prof / mo_tot_rev * 100), 2) if mo_tot_rev > 0 else 0.0
+    best_mo = max(monthly_table, key=lambda x: x["profit"]) if monthly_table else None
+    copilot_monthly_footnote = (
+        f"HTC Copilot ORM Analysis: Across {len(monthly_table)} active months, gross revenue reached ₱{mo_tot_rev:,.2f} "
+        f"against ₱{mo_tot_exp:,.2f} in procurement & logistics, yielding ₱{mo_tot_prof:,.2f} net operating profit ({mo_margin:.2f}% net margin). "
+        f"Top gross margin performance was recorded in {best_mo['period'] if best_mo else 'active cycle'}."
+    )
+
+    yr_tot_rev = sum(r["revenue"] for r in yearly_table)
+    yr_tot_exp = sum(r["expenses"] for r in yearly_table)
+    yr_tot_prof = sum(r["profit"] for r in yearly_table)
+    yr_margin = round((yr_tot_prof / yr_tot_rev * 100), 2) if yr_tot_rev > 0 else 0.0
+    best_yr = max(yearly_table, key=lambda x: x["profit"]) if yearly_table else None
+    copilot_yearly_footnote = (
+        f"HTC Copilot ORM Analysis: Multi-year audited records reflect cumulative revenue of ₱{yr_tot_rev:,.2f} "
+        f"vs ₱{yr_tot_exp:,.2f} outlays, leaving ₱{yr_tot_prof:,.2f} net earnings ({yr_margin:.2f}% net margin). "
+        f"Peak annual volume occurred in {best_yr['period'] if best_yr else str(now.year)}."
+    )
+
+    financial_intervals = {
+        "weekly": {
+            "title": f"Weekly Breakdown ({month_labels[target_month - 1]} {target_year})",
+            "labels": [r["short_label"] for r in weekly_table],
+            "revenue": [r["revenue_m"] for r in weekly_table],
+            "expenses": [r["expenses_m"] for r in weekly_table],
+            "profit": [r["profit_m"] for r in weekly_table],
+            "table": weekly_table,
+            "copilot_text": copilot_weekly_footnote,
+        },
+        "monthly": {
+            "title": "Monthly Aggregated Trend",
+            "labels": [r["short_label"] for r in monthly_table],
+            "revenue": [r["revenue_m"] for r in monthly_table],
+            "expenses": [r["expenses_m"] for r in monthly_table],
+            "profit": [r["profit_m"] for r in monthly_table],
+            "table": monthly_table,
+            "copilot_text": copilot_monthly_footnote,
+        },
+        "yearly": {
+            "title": "Year-Over-Year Performance",
+            "labels": [r["short_label"] for r in yearly_table],
+            "revenue": [r["revenue_m"] for r in yearly_table],
+            "expenses": [r["expenses_m"] for r in yearly_table],
+            "profit": [r["profit_m"] for r in yearly_table],
+            "table": yearly_table,
+            "copilot_text": copilot_yearly_footnote,
+        },
+    }
+
+    chart_months = [r["short_label"] for r in monthly_table]
+    revenue_data = [r["revenue_m"] for r in monthly_table]
+    expenses_data = [r["expenses_m"] for r in monthly_table]
+    profit_data = [r["profit_m"] for r in monthly_table]
 
     # ── Weekly cash flow (from recent invoices and vouchers) ──────────────
     now = timezone.now()
@@ -190,7 +377,7 @@ def home(request):
     user_role = request.user.role if hasattr(request.user, "role") and request.user.role else "administrator"
     role_override = request.GET.get("role") or request.GET.get("view_as")
     if role_override and request.user.is_superuser:
-        if role_override in [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING]:
+        if role_override in [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS, User.Role.FINANCE, User.Role.INVOICING]:
             user_role = role_override
 
     # Operations role metrics
@@ -226,8 +413,8 @@ def home(request):
         {
             # Role-scoped access flags
             "is_executive": request.user.role in [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, "administrator", "operations_management"] or request.user.is_superuser,
-            "is_operations": request.user.role in [User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS, "operations_management"],
-            "is_finance": request.user.role in [User.Role.FINANCE, User.Role.INVOICING, "finance", "invoicing"],
+            "is_operations": request.user.role in [User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS, "operations_management", "operations"] or request.user.is_superuser,
+            "is_finance": request.user.role in [User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING, "operations_management", "finance", "invoicing"] or request.user.is_superuser,
             # Core & Status card values
             "user_role": user_role,
             "open_clusters": open_clusters,
@@ -269,6 +456,9 @@ def home(request):
             "issued_invoices_count": issued_invoices_count,
             "overdue_invoices_count": overdue_invoices_count,
             "pending_invoices_list": pending_invoices_list,
+            # Revenue, Expenses & Profit Breakdown (Weekly, Monthly, Yearly)
+            "financial_intervals": financial_intervals,
+            "financial_intervals_json": json.dumps(financial_intervals),
             # Chart data (JSON-safe)
             "chart_months_json": json.dumps(chart_months),
             "revenue_data_json": json.dumps(revenue_data),

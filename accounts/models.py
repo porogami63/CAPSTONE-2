@@ -5,14 +5,15 @@ from django.db import models
 class User(AbstractUser):
     class Role(models.TextChoices):
         ADMINISTRATOR = "administrator", "Administrator"
-        OPERATIONS_MANAGEMENT = "operations_management", "Operations Management"
+        OPERATIONS_MANAGEMENT = "operations_management", "Operations Manager"
+        OPERATIONS = "operations", "Operations"
         FINANCE = "finance", "Finance"
         INVOICING = "invoicing", "Invoicing"
 
     role = models.CharField(
         max_length=30,
         choices=Role.choices,
-        default=Role.OPERATIONS_MANAGEMENT,
+        default=Role.OPERATIONS,
     )
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
     otp_secret = models.CharField(max_length=32, blank=True, null=True)
@@ -32,6 +33,5 @@ class User(AbstractUser):
 # Class aliases for backward compatibility if referenced dynamically
 User.Role.MANAGEMENT = User.Role.ADMINISTRATOR
 User.Role.OPERATIONS_MANAGER = User.Role.OPERATIONS_MANAGEMENT
-User.Role.OPERATIONS = User.Role.OPERATIONS_MANAGEMENT
 
 

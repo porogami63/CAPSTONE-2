@@ -356,7 +356,11 @@
                         <div class="fs-8 text-muted"><i class="bi bi-box-arrow-up text-primary me-1"></i>Dep: {{ d.dispatched_at|date:"M d, Y H:i:s" }} PST</div>
                         {% endif %}
                         {% if d.received_at %}
-                        <div class="fs-8 text-muted"><i class="bi bi-truck text-success me-1"></i>Arr: {{ d.received_at|date:"M d, Y H:i:s" }} PST</div>
+                            {% if d.is_future_arrival %}
+                            <div class="fs-8 text-primary fw-semibold"><i class="bi bi-clock-history text-primary me-1"></i>ETA: {{ d.received_at|date:"M d, Y H:i" }} PST <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0 px-1 fs-9">Future</span></div>
+                            {% else %}
+                            <div class="fs-8 text-muted"><i class="bi bi-truck text-success me-1"></i>Arr: {{ d.received_at|date:"M d, Y H:i:s" }} PST</div>
+                            {% endif %}
                         {% endif %}
                     </td>
                     <td>
@@ -540,9 +544,9 @@
                         </div>
                         <div class="col-md-4">
                             <div class="form-field-symmetric">
-                                <label>Arrival Date &amp; Time</label>
+                                <label>Arrival Date &amp; Time (Future ETA supported)</label>
                                 {{ form.received_at }}
-                                <div class="field-help">Arrival date and time.</div>
+                                <div class="field-help">Arrival timestamp or tentative future ETA (non-fixed schedule).</div>
                             </div>
                         </div>
                     </div>

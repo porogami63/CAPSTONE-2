@@ -491,6 +491,13 @@ class DeliveryLedger(models.Model):
         return self.trucking_cost + self.barge_cost
 
     @property
+    def is_future_arrival(self):
+        """True if arrival date/time is scheduled in the future (ETA)."""
+        if self.received_at:
+            return self.received_at > timezone.now()
+        return False
+
+    @property
     def scanned_mro_document(self):
         """Returns the scanned MRO permit document covering this delivery batch (shared or direct)."""
         if self.mro_permit and self.mro_permit.scanned_document:

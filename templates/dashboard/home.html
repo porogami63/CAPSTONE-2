@@ -717,13 +717,87 @@
 {% if is_executive %}
 <!-- Charts Split Grid (Executive Management Only) -->
 <div class="charts-split-grid">
-    <!-- Left Column: Revenue Expenses Profit Line Chart -->
-    <div class="chart-box" data-intro="This chart visually trends your revenue against your expenses over time, giving you a quick look at your net profitability trajectory." data-step="4">
-        <div class="chart-box-header">
-            <h3>Revenue · Expenses · Profit</h3>
-            <p>Monthly aggregated financial trend (PHP in Millions)</p>
+    <!-- Left Column: Revenue Expenses Profit Line Chart & Breakdown Table -->
+    <div class="chart-box" data-intro="This chart visually trends your revenue against your expenses over time with weekly, monthly, and yearly options and HTC Copilot local ORM analysis." data-step="4">
+        <div class="chart-box-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+                <h3 class="mb-0">Revenue · Expenses · Profit</h3>
+                <p class="mb-0 text-muted fs-8" id="financialIntervalSubtitle">{{ financial_intervals.monthly.title }} (PHP in Millions)</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <!-- Cadence Toggle (Weekly / Monthly / Yearly) -->
+                <div class="btn-group btn-group-sm" role="group" aria-label="Cadence Selector">
+                    <button type="button" class="btn btn-outline-primary" id="btnInterval_weekly" onclick="updateFinancialDisplay('weekly')">Weekly</button>
+                    <button type="button" class="btn btn-primary active" id="btnInterval_monthly" onclick="updateFinancialDisplay('monthly')">Monthly</button>
+                    <button type="button" class="btn btn-outline-primary" id="btnInterval_yearly" onclick="updateFinancialDisplay('yearly')">Yearly</button>
+                </div>
+
+                <!-- Display Mode Toggle (Chart / Table / Split) -->
+                <div class="btn-group btn-group-sm" role="group" aria-label="View Mode">
+                    <button type="button" class="btn btn-outline-secondary active" id="btnViewMode_chart" onclick="setFinancialViewMode('chart')" title="Chart View"><i class="bi bi-graph-up"></i></button>
+                    <button type="button" class="btn btn-outline-secondary" id="btnViewMode_table" onclick="setFinancialViewMode('table')" title="Table View"><i class="bi bi-table"></i></button>
+                    <button type="button" class="btn btn-outline-secondary" id="btnViewMode_split" onclick="setFinancialViewMode('split')" title="Split View"><i class="bi bi-layout-split"></i></button>
+                </div>
+            </div>
         </div>
-        <canvas id="financialLineChart" style="max-height: 320px;"></canvas>
+
+        <!-- Chart View Container -->
+        <div id="financialChartContainer" style="min-height: 250px;">
+            <canvas id="financialLineChart" style="max-height: 300px; width: 100%;"></canvas>
+        </div>
+
+        <!-- Table View Container -->
+        <div id="financialTableContainer" class="d-none mt-2">
+            <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <table class="table-htc fs-7 table-sm mb-0">
+                    <thead class="sticky-top bg-light">
+                        <tr>
+                            <th>Period</th>
+                            <th class="text-end">Revenue</th>
+                            <th class="text-end">Expenses</th>
+                            <th class="text-end">Net Profit</th>
+                            <th class="text-end">Margin</th>
+                            <th class="text-end">Volume</th>
+                        </tr>
+                    </thead>
+                    <tbody id="financialTableBody">
+                        {% for row in financial_intervals.monthly.table %}
+                        <tr>
+                            <td class="fw-semibold text-dark text-nowrap">{{ row.period }}</td>
+                            <td class="text-end fw-medium">₱{{ row.revenue|floatformat:2|intcomma }}</td>
+                            <td class="text-end text-muted">₱{{ row.expenses|floatformat:2|intcomma }}</td>
+                            <td class="text-end fw-bold {% if row.profit > 0 %}text-success{% elif row.profit < 0 %}text-danger{% else %}text-muted{% endif %}">₱{{ row.profit|floatformat:2|intcomma }}</td>
+                            <td class="text-end">
+                                <span class="badge {% if row.margin >= 15 %}bg-success-subtle text-success border border-success-subtle{% elif row.margin > 0 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %} fs-8">
+                                    {{ row.margin|floatformat:2 }}%
+                                </span>
+                            </td>
+                            <td class="text-end text-muted fs-8">{{ row.volume_mt|floatformat:3|intcomma }} MT</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- HTC Copilot (Local ORM) Explanation Footnote -->
+        <div class="copilot-financial-footnote mt-3 p-2.5 rounded bg-light border border-primary-subtle d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2" id="financialCopilotFootnote">
+            <div class="d-flex align-items-start gap-2">
+                <div class="badge bg-primary text-white p-1.5 rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
+                    <i class="bi bi-robot fs-7"></i>
+                </div>
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-0.5">
+                        <span class="fw-bold fs-8 text-primary">HTC Copilot (Local ORM Aggregation)</span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-9 py-0 px-1.5" id="copilotActiveCadenceBadge">Monthly Cadence</span>
+                    </div>
+                    <p class="mb-0 fs-8 text-muted" id="copilotExplanationText">{{ financial_intervals.monthly.copilot_text }}</p>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary text-nowrap d-flex align-items-center gap-1 fs-8 fw-semibold align-self-md-center align-self-start" id="btnAskCopilotFinancial" onclick="askCopilotCurrentFinancials()">
+                <i class="bi bi-chat-dots-fill"></i> Explain with HTC Copilot
+            </button>
+        </div>
     </div>
 
     <!-- Right Column: Weekly Cash Flow Bar Chart -->
@@ -773,6 +847,7 @@
 
 {% block scripts %}
 {% if not is_empty %}
+<script id="financial-intervals-data" type="application/json">{{ financial_intervals_json|safe }}</script>
 <script id="chart-months-data" type="application/json">{{ chart_months_json|safe }}</script>
 <script id="revenue-data-data" type="application/json">{{ revenue_data_json|safe }}</script>
 <script id="expenses-data-data" type="application/json">{{ expenses_data_json|safe }}</script>
@@ -805,23 +880,33 @@
     const weeklyLabels = parseJSONData('weekly-labels-data');
     const inflowData = parseJSONData('inflow-data-data');
     const outflowData = parseJSONData('outflow-data-data');
+    const financialIntervals = JSON.parse(document.getElementById('financial-intervals-data')?.textContent || '{}');
 
-    // Compute Y-axis max dynamically
-    const allValues = [...revenueData, ...expensesData, ...profitData];
-    const yMax = Math.max(Math.ceil(Math.max(...allValues) * 1.3), 1);
-    const yStep = Math.max(Math.round(yMax / 4 * 10) / 10, 0.5);
+    let currentIntervalKey = 'monthly';
+    let currentViewMode = 'chart';
+    let financialChartInstance = null;
 
     // 1. Line Chart: Revenue, Expenses, Profit
     const lineCtx = document.getElementById('financialLineChart');
     if (lineCtx) {
-        new Chart(lineCtx, {
+        const initialData = financialIntervals['monthly'] || {
+            labels: chartMonths,
+            revenue: revenueData,
+            expenses: expensesData,
+            profit: profitData
+        };
+        const allInitVals = [...initialData.revenue, ...initialData.expenses, ...initialData.profit];
+        const initYMax = Math.max(Math.ceil(Math.max(...allInitVals) * 1.3), 1);
+        const initYStep = Math.max(Math.round(initYMax / 4 * 10) / 10, 0.5);
+
+        financialChartInstance = new Chart(lineCtx, {
             type: 'line',
             data: {
-                labels: chartMonths,
+                labels: initialData.labels,
                 datasets: [
                     {
                         label: 'Revenue',
-                        data: revenueData,
+                        data: initialData.revenue,
                         borderColor: brandBlue,
                         backgroundColor: 'transparent',
                         borderWidth: 2.5,
@@ -831,7 +916,7 @@
                     },
                     {
                         label: 'Expenses',
-                        data: expensesData,
+                        data: initialData.expenses,
                         borderColor: brandRed,
                         backgroundColor: 'transparent',
                         borderWidth: 2,
@@ -841,7 +926,7 @@
                     },
                     {
                         label: 'Profit',
-                        data: profitData,
+                        data: initialData.profit,
                         borderColor: brandGreen,
                         backgroundColor: 'transparent',
                         borderWidth: 2,
@@ -872,15 +957,15 @@
                         }
                     },
                     y: {
-                        min: Math.min(0, ...profitData),
-                        max: yMax,
+                        min: Math.min(0, ...initialData.profit),
+                        max: initYMax,
                         ticks: {
                             color: '#475569',
                             font: { family: 'Inter', size: 11, weight: 700 },
                             callback: function(value) {
                                 return '₱' + value.toFixed(1) + 'M';
                             },
-                            stepSize: yStep
+                            stepSize: initYStep
                         },
                         grid: {
                             color: 'var(--htc-border)',
@@ -891,6 +976,117 @@
             }
         });
     }
+
+    // Financial Cadence (Weekly, Monthly, Yearly) Switcher
+    window.updateFinancialDisplay = function(intervalKey) {
+        currentIntervalKey = intervalKey;
+        const data = financialIntervals[intervalKey];
+        if (!data) return;
+
+        // 1. Update Cadence Selector Buttons
+        ['weekly', 'monthly', 'yearly'].forEach(k => {
+            const btn = document.getElementById(`btnInterval_${k}`);
+            if (btn) {
+                if (k === intervalKey) {
+                    btn.classList.add('active', 'btn-primary');
+                    btn.classList.remove('btn-outline-primary');
+                } else {
+                    btn.classList.remove('active', 'btn-primary');
+                    btn.classList.add('btn-outline-primary');
+                }
+            }
+        });
+
+        // 2. Update Subtitle
+        const sub = document.getElementById('financialIntervalSubtitle');
+        if (sub) sub.textContent = data.title + ' (PHP in Millions)';
+
+        // 3. Update Chart
+        if (financialChartInstance) {
+            financialChartInstance.data.labels = data.labels;
+            financialChartInstance.data.datasets[0].data = data.revenue;
+            financialChartInstance.data.datasets[1].data = data.expenses;
+            financialChartInstance.data.datasets[2].data = data.profit;
+            const allVals = [...data.revenue, ...data.expenses, ...data.profit];
+            const newMax = Math.max(Math.ceil(Math.max(...allVals) * 1.3), 1);
+            const newMin = Math.min(0, ...data.profit);
+            financialChartInstance.options.scales.y.max = newMax;
+            financialChartInstance.options.scales.y.min = newMin;
+            financialChartInstance.update();
+        }
+
+        // 4. Update Table Rows
+        const tbody = document.getElementById('financialTableBody');
+        if (tbody) {
+            tbody.innerHTML = data.table.map(row => {
+                const profClass = row.profit > 0 ? 'text-success' : (row.profit < 0 ? 'text-danger' : 'text-muted');
+                const marginBadge = row.margin >= 15 ? 'bg-success-subtle text-success border border-success-subtle' :
+                                   (row.margin > 0 ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle');
+                return `
+                <tr>
+                    <td class="fw-semibold text-dark text-nowrap">${row.period}</td>
+                    <td class="text-end fw-medium">₱${row.revenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="text-end text-muted">₱${row.expenses.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="text-end fw-bold ${profClass}">₱${row.profit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="text-end"><span class="badge ${marginBadge} fs-8">${row.margin.toFixed(2)}%</span></td>
+                    <td class="text-end text-muted fs-8">${row.volume_mt.toLocaleString('en-US', {minimumFractionDigits: 3})} MT</td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        // 5. Update Copilot Footnote
+        const copilotText = document.getElementById('copilotExplanationText');
+        if (copilotText) copilotText.textContent = data.copilot_text;
+
+        const badge = document.getElementById('copilotActiveCadenceBadge');
+        if (badge) badge.textContent = `${intervalKey.charAt(0).toUpperCase() + intervalKey.slice(1)} Cadence`;
+    };
+
+    // Financial View Mode Switcher (Chart / Table / Split)
+    window.setFinancialViewMode = function(mode) {
+        currentViewMode = mode;
+        const chartCont = document.getElementById('financialChartContainer');
+        const tableCont = document.getElementById('financialTableContainer');
+
+        ['chart', 'table', 'split'].forEach(m => {
+            const btn = document.getElementById(`btnViewMode_${m}`);
+            if (btn) {
+                if (m === mode) {
+                    btn.classList.add('active', 'btn-secondary');
+                    btn.classList.remove('btn-outline-secondary');
+                } else {
+                    btn.classList.remove('active', 'btn-secondary');
+                    btn.classList.add('btn-outline-secondary');
+                }
+            }
+        });
+
+        if (mode === 'chart') {
+            if (chartCont) chartCont.classList.remove('d-none');
+            if (tableCont) tableCont.classList.add('d-none');
+        } else if (mode === 'table') {
+            if (chartCont) chartCont.classList.add('d-none');
+            if (tableCont) tableCont.classList.remove('d-none');
+        } else if (mode === 'split') {
+            if (chartCont) chartCont.classList.remove('d-none');
+            if (tableCont) tableCont.classList.remove('d-none');
+        }
+        if (financialChartInstance) financialChartInstance.resize();
+    };
+
+    // HTC Copilot Trigger for Financial Analysis
+    window.askCopilotCurrentFinancials = function() {
+        const prompt = `Explain ${currentIntervalKey} revenue, expenses and profit performance`;
+        if (typeof sendCopilotQuery === 'function') {
+            const drawer = document.getElementById("copilotSlideDrawer");
+            if (drawer && typeof toggleCopilot === 'function') toggleCopilot(true);
+            sendCopilotQuery(prompt);
+        } else {
+            const btn = document.getElementById("btnCopilotDrawer");
+            if (btn) btn.click();
+        }
+    };
 
     // 2. Bar Chart: Weekly Cash Flow
     const barCtx = document.getElementById('cashFlowBarChart');

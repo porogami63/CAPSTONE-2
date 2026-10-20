@@ -1041,6 +1041,143 @@ class IncrementalDeliveryLedgerTests(TestCase):
         self.assertTrue(cluster_mros.filter(mro_number="000804").exists())
 
 
+class DeliveryLoggingValidationTests(TestCase):
+    def setUp(self):
+        from operations.models import PurchaseOrder
+
+        self.user = User.objects.create_user(
+            username="ops_tester",
+            password="password123",
+            role=User.Role.OPERATIONS,
+            is_staff=True,
+        )
+        self.client_entity = Client.objects.create(name="San Miguel Foods")
+        self.mill = SugarMill.objects.create(name="First Farmers Mill")
+        self.cluster = TransactionCluster.objects.create(
+            reference_code="HTC-DLV-TEST",
+            client=self.client_entity,
+            sugar_mill=self.mill,
+        )
+        self.po = PurchaseOrder.objects.create(
+            cluster=self.cluster,
+            po_reference_number="PO-TEST-DLV",
+            volume_mt=100.0,
+            unit_price=41000.0,
+            customer=self.client_entity,
+        )
+
+    def test_future_arrival_date_is_valid_and_flagged(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from operations.forms import DeliveryLedgerForm
+
+        now = timezone.now()
+        future_arrival = now + timedelta(days=7)
+
+        form = DeliveryLedgerForm(
+            data={
+                "purchase_order": self.po.pk,
+                "supplier": self.mill.pk,
+                "delivery_date": now.date().isoformat(),
+                "delivered_mt": 25.5,
+                "dispatched_at": now.strftime("%Y-%m-%dT%H:%M"),
+                "received_at": future_arrival.strftime("%Y-%m-%dT%H:%M"),
+                "receiving_location": "Bacolod Terminal Pier 2",
+                "trucking_rate_per_mt": 450.0,
+                "barge_rate_per_mt": 200.0,
+                "trucking_cost": 11475.0,
+                "barge_cost": 5100.0,
+                "delivery_status": "in_transit",
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        delivery = form.save(commit=False)
+        delivery._audit_user = self.user
+        delivery.save()
+        self.assertTrue(delivery.is_future_arrival)
+
+    def test_received_before_dispatched_rejected(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from operations.forms import DeliveryLedgerForm
+
+        now = timezone.now()
+        past_arrival = now - timedelta(hours=4)
+
+        form = DeliveryLedgerForm(
+            data={
+                "purchase_order": self.po.pk,
+                "supplier": self.mill.pk,
+                "delivery_date": now.date().isoformat(),
+                "delivered_mt": 20.0,
+                "dispatched_at": now.strftime("%Y-%m-%dT%H:%M"),
+                "received_at": past_arrival.strftime("%Y-%m-%dT%H:%M"),
+                "receiving_location": "Bacolod Terminal",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("received_at", form.errors)
+        self.assertIn("cannot be earlier than", form.errors["received_at"][0])
+
+    def test_negative_rates_rejected(self):
+        from django.utils import timezone
+        from operations.forms import DeliveryLedgerForm
+
+        now = timezone.now()
+        form = DeliveryLedgerForm(
+            data={
+                "purchase_order": self.po.pk,
+                "supplier": self.mill.pk,
+                "delivery_date": now.date().isoformat(),
+                "delivered_mt": 20.0,
+                "dispatched_at": now.strftime("%Y-%m-%dT%H:%M"),
+                "receiving_location": "Bacolod Terminal",
+                "trucking_rate_per_mt": -100.0,
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("trucking_rate_per_mt", form.errors)
+
+    def test_exceeding_po_balance_rejected(self):
+        from django.utils import timezone
+        from operations.forms import DeliveryLedgerForm
+
+        now = timezone.now()
+        form = DeliveryLedgerForm(
+            data={
+                "purchase_order": self.po.pk,
+                "supplier": self.mill.pk,
+                "delivery_date": now.date().isoformat(),
+                "delivered_mt": 999.0,  # PO is only 100 MT
+                "dispatched_at": now.strftime("%Y-%m-%dT%H:%M"),
+                "receiving_location": "Bacolod Terminal",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("delivered_mt", form.errors)
+
+
+class CopilotFinancialLocalORMTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="copilot_admin",
+            password="password123",
+            role=User.Role.ADMINISTRATOR,
+            is_staff=True,
+        )
+
+    def test_evaluate_financial_query_offline_orm(self):
+        from operations.services.copilot_services import evaluate_copilot_query
+
+        res = evaluate_copilot_query(self.admin, "explain weekly profit and revenue breakdown")
+        self.assertIn("answer_html", res)
+        self.assertIn("Financial Performance &amp; Profit Breakdown", res["answer_html"])
+        self.assertIn("Weekly Cadence", res["answer_html"])
+        self.assertIn("Local ORM Explanation", res["answer_html"])
+        self.assertTrue(len(res.get("suggestions", [])) > 0)
+
+
+
 
 
 

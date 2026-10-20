@@ -1,4 +1,5 @@
 import re
+from collections import defaultdict
 from decimal import Decimal
 from django.db.models import Q, Sum, Avg, Count
 from django.utils import timezone
@@ -17,9 +18,9 @@ def evaluate_copilot_query(user, query_text):
     """
     q = query_text.lower().strip()
     role = getattr(user, "role", User.Role.OPERATIONS)
-    is_admin_or_mgmt = role in (User.Role.ADMINISTRATOR, User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGER) or user.is_superuser
-    is_finance = role in (User.Role.FINANCE, User.Role.MANAGEMENT, User.Role.ADMINISTRATOR) or user.is_superuser
-    is_ops = role in (User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGER, User.Role.MANAGEMENT, User.Role.ADMINISTRATOR) or user.is_superuser
+    is_admin_or_mgmt = role in (User.Role.ADMINISTRATOR, User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS_MANAGER, "administrator", "operations_management") or user.is_superuser
+    is_finance = role in (User.Role.FINANCE, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.MANAGEMENT, User.Role.ADMINISTRATOR, "finance", "operations_management") or user.is_superuser
+    is_ops = role in (User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.MANAGEMENT, User.Role.ADMINISTRATOR, "operations", "operations_management") or user.is_superuser
 
     suggestions = [
         "Show high variance clusters",
@@ -206,7 +207,198 @@ def evaluate_copilot_query(user, query_text):
         """
         return {"answer_html": html, "suggestions": suggestions}
 
-    # --- Intent 5: General System Overview / Help ---
+    # --- Intent 5: Revenue, Expenses & Profit Breakdown (Weekly / Yearly / Overall) ---
+    if any(k in q for k in ["revenue", "expense", "expenses", "profit", "margin", "p&l", "financial", "income", "cost"]):
+        from operations.services.pricing import cluster_financials
+
+        clusters = list(
+            TransactionCluster.objects.select_related("client", "sugar_mill", "logistics", "purchase_order")
+            .prefetch_related("invoices", "cash_vouchers")
+            .all()
+        )
+        total_rev = Decimal("0.00")
+        total_exp = Decimal("0.00")
+        total_prof = Decimal("0.00")
+        total_vol = Decimal("0.00")
+
+        weekly_rev = defaultdict(Decimal)
+        weekly_exp = defaultdict(Decimal)
+        weekly_prof = defaultdict(Decimal)
+        weekly_vol = defaultdict(Decimal)
+        weekly_deals = defaultdict(int)
+
+        yearly_rev = defaultdict(Decimal)
+        yearly_exp = defaultdict(Decimal)
+        yearly_prof = defaultdict(Decimal)
+        yearly_vol = defaultdict(Decimal)
+        yearly_deals = defaultdict(int)
+
+        now = timezone.now()
+        target_year = now.year
+        target_month = now.month
+
+        # Find latest transaction month if no activity in current month
+        has_current_month = False
+        latest_dt = None
+        for c in clusters:
+            invs = list(c.invoices.all()) if hasattr(c, "invoices") else []
+            po = getattr(c, "purchase_order", None)
+            dt = invs[0].issued_at if invs and invs[0].issued_at else (po.approved_at if po and po.approved_at else c.created_at)
+            if dt:
+                if latest_dt is None or dt > latest_dt:
+                    latest_dt = dt
+                if dt.year == target_year and dt.month == target_month:
+                    has_current_month = True
+
+        if not has_current_month and latest_dt:
+            target_year = latest_dt.year
+            target_month = latest_dt.month
+
+        for c in clusters:
+            fin = cluster_financials(c)
+            r = Decimal(str(fin.get("revenue", "0.00")))
+            e = Decimal(str(fin.get("purchase_total", 0.0) + fin.get("logistics_cost", 0.0)))
+            p = Decimal(str(fin.get("profit", fin.get("net_profit", "0.00"))))
+            v = Decimal(str(fin.get("volume_mt", "0.00")))
+
+            total_rev += r
+            total_exp += e
+            total_prof += p
+            total_vol += v
+
+            invs = list(c.invoices.all()) if hasattr(c, "invoices") else []
+            po = getattr(c, "purchase_order", None)
+            dt = invs[0].issued_at if invs and invs[0].issued_at else (po.approved_at if po and po.approved_at else c.created_at)
+            if dt:
+                y = dt.year
+                yearly_rev[y] += r
+                yearly_exp[y] += e
+                yearly_prof[y] += p
+                yearly_vol[y] += v
+                yearly_deals[y] += 1
+
+                if dt.year == target_year and dt.month == target_month:
+                    w = min((dt.day - 1) // 7, 3) + 1
+                    weekly_rev[w] += r
+                    weekly_exp[w] += e
+                    weekly_prof[w] += p
+                    weekly_vol[w] += v
+                    weekly_deals[w] += 1
+
+        overall_margin = (total_prof / total_rev * Decimal("100")).quantize(Decimal("0.01")) if total_rev > 0 else Decimal("0.00")
+
+        is_weekly_query = any(w in q for w in ["week", "weekly"])
+        is_yearly_query = any(y in q for y in ["year", "yearly", "annual"])
+
+        # Build Weekly Breakdown Table HTML
+        weekly_rows = []
+        for w in range(1, 5):
+            w_rev = weekly_rev[w]
+            w_exp = weekly_exp[w]
+            w_prof = weekly_prof[w]
+            w_margin = (w_prof / w_rev * Decimal("100")).quantize(Decimal("0.01")) if w_rev > 0 else Decimal("0.00")
+            w_class = "text-success" if w_prof > 0 else ("text-danger" if w_prof < 0 else "text-muted")
+            weekly_rows.append(f"""
+            <tr class='{"table-primary fw-semibold" if is_weekly_query else ""}'>
+                <td>Week {w}</td>
+                <td>₱{w_rev:,.2f}</td>
+                <td>₱{w_exp:,.2f}</td>
+                <td class='{w_class} fw-bold'>₱{w_prof:,.2f}</td>
+                <td>{w_margin:.2f}%</td>
+            </tr>
+            """)
+
+        # Build Yearly Breakdown Table HTML
+        yearly_rows = []
+        for y in sorted(yearly_rev.keys()):
+            y_rev = yearly_rev[y]
+            y_exp = yearly_exp[y]
+            y_prof = yearly_prof[y]
+            y_margin = (y_prof / y_rev * Decimal("100")).quantize(Decimal("0.01")) if y_rev > 0 else Decimal("0.00")
+            y_class = "text-success" if y_prof > 0 else ("text-danger" if y_prof < 0 else "text-muted")
+            yearly_rows.append(f"""
+            <tr class='{"table-primary fw-semibold" if is_yearly_query else ""}'>
+                <td>{y}</td>
+                <td>₱{y_rev:,.2f}</td>
+                <td>₱{y_exp:,.2f}</td>
+                <td class='{y_class} fw-bold'>₱{y_prof:,.2f}</td>
+                <td>{y_margin:.2f}%</td>
+            </tr>
+            """)
+
+        view_focus_note = ""
+        if is_weekly_query:
+            view_focus_note = f"<div class='badge bg-primary text-white mb-2 fs-8'><i class='bi bi-calendar-week me-1'></i> Weekly Interval Focus (Active Month: {target_month}/{target_year})</div>"
+        elif is_yearly_query:
+            view_focus_note = "<div class='badge bg-info text-dark mb-2 fs-8'><i class='bi bi-calendar3 me-1'></i> Multi-Year Performance Trend Focus</div>"
+
+        html = f"""
+        <div class='copilot-card p-3 rounded bg-body border'>
+            <div class='d-flex justify-content-between align-items-center mb-2'>
+                <div class='fw-bold text-primary'><i class='bi bi-pie-chart-fill me-1'></i> Financial Performance &amp; Profit Breakdown</div>
+                <span class='badge bg-success-subtle text-success border border-success-subtle'>ORM Verified</span>
+            </div>
+            {view_focus_note}
+            <div class='row text-center g-2 mb-3 fs-7'>
+                <div class='col-4'>
+                    <div class='p-2 border rounded bg-body-tertiary'>
+                        <div class='text-muted fs-8'>Total Revenue</div>
+                        <div class='fw-bold text-primary fs-6'>₱{total_rev / Decimal('1000000'):,.2f}M</div>
+                    </div>
+                </div>
+                <div class='col-4'>
+                    <div class='p-2 border rounded bg-body-tertiary'>
+                        <div class='text-muted fs-8'>Total Expenses</div>
+                        <div class='fw-bold text-danger fs-6'>₱{total_exp / Decimal('1000000'):,.2f}M</div>
+                    </div>
+                </div>
+                <div class='col-4'>
+                    <div class='p-2 border rounded bg-success-subtle text-success-emphasis'>
+                        <div class='fs-8'>Net Profit ({overall_margin:.1f}%)</div>
+                        <div class='fw-bold fs-6'>₱{total_prof / Decimal('1000000'):,.2f}M</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interval Breakdown Sub-Tables -->
+            <div class='mb-2'>
+                <div class='fs-8 fw-bold text-uppercase text-muted mb-1'><i class='bi bi-calendar-week me-1'></i> Weekly Cadence (Active Month {target_month}/{target_year})</div>
+                <table class='table table-sm table-bordered fs-8 mb-2 text-end'>
+                    <thead class='table-light text-end'>
+                        <tr><th class='text-start'>Period</th><th>Revenue</th><th>Expenses</th><th>Net Profit</th><th>Margin</th></tr>
+                    </thead>
+                    <tbody>
+                        {''.join(weekly_rows)}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class='mb-2'>
+                <div class='fs-8 fw-bold text-uppercase text-muted mb-1'><i class='bi bi-calendar3 me-1'></i> Yearly Cadence Overview</div>
+                <table class='table table-sm table-bordered fs-8 mb-2 text-end'>
+                    <thead class='table-light text-end'>
+                        <tr><th class='text-start'>Year</th><th>Revenue</th><th>Expenses</th><th>Net Profit</th><th>Margin</th></tr>
+                    </thead>
+                    <tbody>
+                        {''.join(yearly_rows)}
+                    </tbody>
+                </table>
+            </div>
+
+            <p class='fs-8 text-muted mb-0 mt-2 border-top pt-2'>
+                <i class='bi bi-info-circle-fill text-primary me-1'></i><strong>Local ORM Explanation:</strong> Operating figures are calculated from verified PO contracts, customer invoice collections, sugar mill procurement, and incremental freight batches.
+            </p>
+        </div>
+        """
+        suggestions_fin = [
+            "Explain weekly profit",
+            "Explain yearly profit",
+            "Show high variance clusters",
+            "Check overdue loans",
+        ]
+        return {"answer_html": html, "suggestions": suggestions_fin}
+
+    # --- Intent 6: General System Overview / Help ---
     total_clusters = TransactionCluster.objects.count()
     active_clusters = TransactionCluster.objects.filter(status=TransactionCluster.Status.ACTIVE).count()
     total_mros = MolassesReleaseOrder.objects.count()
