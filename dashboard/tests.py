@@ -56,6 +56,29 @@ class DashboardRoleInterfaceTests(TestCase):
             customer=client,
         )
 
+        # Create second cluster with an issued Invoice (date field) alongside cluster created_at (datetime field)
+        from finance.models import Invoice
+        cluster2 = TransactionCluster.objects.create(
+            reference_code="PO-CADENCE-02",
+            client=client,
+            sugar_mill=mill,
+            status=TransactionCluster.Status.ACTIVE,
+        )
+        PurchaseOrder.objects.create(
+            cluster=cluster2,
+            po_reference_number="PO-CADENCE-02",
+            volume_mt=Decimal("50.000"),
+            unit_price=Decimal("42000.00"),
+            customer=client,
+        )
+        Invoice.objects.create(
+            cluster=cluster2,
+            invoice_number="INV-CAD-02",
+            amount=Decimal("2100000.00"),
+            issued_at=date.today(),
+            status=Invoice.Status.ISSUED,
+        )
+
         self.client.login(username="ops_user", password="password123")
         res = self.client.get("/")
         self.assertEqual(res.status_code, 200)

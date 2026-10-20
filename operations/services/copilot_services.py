@@ -239,20 +239,21 @@ def evaluate_copilot_query(user, query_text):
 
         # Find latest transaction month if no activity in current month
         has_current_month = False
-        latest_dt = None
+        latest_date = None
         for c in clusters:
             invs = list(c.invoices.all()) if hasattr(c, "invoices") else []
             po = getattr(c, "purchase_order", None)
-            dt = invs[0].issued_at if invs and invs[0].issued_at else (po.approved_at if po and po.approved_at else c.created_at)
-            if dt:
-                if latest_dt is None or dt > latest_dt:
-                    latest_dt = dt
-                if dt.year == target_year and dt.month == target_month:
+            raw_dt = invs[0].issued_at if invs and invs[0].issued_at else (po.approved_at if po and po.approved_at else c.created_at)
+            c_date = raw_dt.date() if hasattr(raw_dt, "date") else raw_dt
+            if c_date:
+                if latest_date is None or c_date > latest_date:
+                    latest_date = c_date
+                if c_date.year == target_year and c_date.month == target_month:
                     has_current_month = True
 
-        if not has_current_month and latest_dt:
-            target_year = latest_dt.year
-            target_month = latest_dt.month
+        if not has_current_month and latest_date:
+            target_year = latest_date.year
+            target_month = latest_date.month
 
         for c in clusters:
             fin = cluster_financials(c)
@@ -268,17 +269,18 @@ def evaluate_copilot_query(user, query_text):
 
             invs = list(c.invoices.all()) if hasattr(c, "invoices") else []
             po = getattr(c, "purchase_order", None)
-            dt = invs[0].issued_at if invs and invs[0].issued_at else (po.approved_at if po and po.approved_at else c.created_at)
-            if dt:
-                y = dt.year
+            raw_dt = invs[0].issued_at if invs and invs[0].issued_at else (po.approved_at if po and po.approved_at else c.created_at)
+            c_date = raw_dt.date() if hasattr(raw_dt, "date") else raw_dt
+            if c_date:
+                y = c_date.year
                 yearly_rev[y] += r
                 yearly_exp[y] += e
                 yearly_prof[y] += p
                 yearly_vol[y] += v
                 yearly_deals[y] += 1
 
-                if dt.year == target_year and dt.month == target_month:
-                    w = min((dt.day - 1) // 7, 3) + 1
+                if c_date.year == target_year and c_date.month == target_month:
+                    w = min((c_date.day - 1) // 7, 3) + 1
                     weekly_rev[w] += r
                     weekly_exp[w] += e
                     weekly_prof[w] += p

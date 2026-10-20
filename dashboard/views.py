@@ -112,21 +112,22 @@ def home(request):
     target_year = now.year
     target_month = now.month
     has_cur_month = False
-    latest_trans_dt = None
+    latest_trans_date = None
 
     for cluster in clusters_all:
         invs = list(cluster.invoices.all()) if hasattr(cluster, "invoices") else []
         po = getattr(cluster, "purchase_order", None)
-        c_dt = invs[0].issued_at if invs and invs[0].issued_at else (po.approved_at if po and po.approved_at else cluster.created_at)
-        if c_dt:
-            if latest_trans_dt is None or c_dt > latest_trans_dt:
-                latest_trans_dt = c_dt
-            if c_dt.year == target_year and c_dt.month == target_month:
+        raw_dt = invs[0].issued_at if invs and invs[0].issued_at else (po.approved_at if po and po.approved_at else cluster.created_at)
+        c_date = raw_dt.date() if hasattr(raw_dt, "date") else raw_dt
+        if c_date:
+            if latest_trans_date is None or c_date > latest_trans_date:
+                latest_trans_date = c_date
+            if c_date.year == target_year and c_date.month == target_month:
                 has_cur_month = True
 
-    if not has_cur_month and latest_trans_dt:
-        target_year = latest_trans_dt.year
-        target_month = latest_trans_dt.month
+    if not has_cur_month and latest_trans_date:
+        target_year = latest_trans_date.year
+        target_month = latest_trans_date.month
 
     # 1. Weekly Data Structure (4 Weeks)
     weekly_buckets = [
@@ -150,16 +151,17 @@ def home(request):
         po = getattr(cluster, "purchase_order", None)
         invs = list(cluster.invoices.all()) if hasattr(cluster, "invoices") else []
         primary_inv = invs[0] if invs else None
-        c_dt = primary_inv.issued_at if primary_inv and primary_inv.issued_at else (po.approved_at if po and po.approved_at else cluster.created_at)
+        raw_dt = primary_inv.issued_at if primary_inv and primary_inv.issued_at else (po.approved_at if po and po.approved_at else cluster.created_at)
+        c_date = raw_dt.date() if hasattr(raw_dt, "date") else raw_dt
 
         r = float(fin.get("revenue", 0.0))
         e = float(fin.get("purchase_total", 0.0) + fin.get("logistics_cost", 0.0))
         p = float(fin.get("profit", fin.get("net_profit", 0.0)))
         v = float(fin.get("volume_mt", 0.0))
 
-        if c_dt:
+        if c_date:
             # Yearly
-            y = c_dt.year
+            y = c_date.year
             yb = yearly_buckets[y]
             yb["revenue"] += r
             yb["expenses"] += e
@@ -168,7 +170,7 @@ def home(request):
             yb["deals"] += 1
 
             # Monthly
-            m_idx = c_dt.month - 1
+            m_idx = c_date.month - 1
             mb = monthly_buckets[m_idx]
             mb["revenue"] += r
             mb["expenses"] += e
@@ -177,8 +179,8 @@ def home(request):
             mb["deals"] += 1
 
             # Weekly (for target month)
-            if c_dt.year == target_year and c_dt.month == target_month:
-                w_idx = min((c_dt.day - 1) // 7, 3)
+            if c_date.year == target_year and c_date.month == target_month:
+                w_idx = min((c_date.day - 1) // 7, 3)
                 wb = weekly_buckets[w_idx]
                 wb["revenue"] += r
                 wb["expenses"] += e
