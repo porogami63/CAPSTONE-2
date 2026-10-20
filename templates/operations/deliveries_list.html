@@ -267,22 +267,26 @@
         <div class="label">Active Open / Partial POs</div>
         <div class="value text-warning">{{ open_pos|length }} <span class="fs-7 fw-normal text-muted">contracts</span></div>
     </div>
+    <!-- 4th Top Card: In-Transit Tonnage Active KPI -->
     <div class="metric-box-deliv" style="border-top-color: #6366f1;">
-        <div class="label">Quick Actions</div>
-        <div class="mt-2">
-            <a href="{% url 'operations:log_delivery' %}" class="btn-htc btn-sm w-100 text-center py-1.5">
-                <i class="bi bi-plus-circle me-1"></i> Log Incremental Delivery
-            </a>
+        <div class="label">In-Transit Tonnage</div>
+        <div class="value text-primary" style="color: #4f46e5 !important;">
+            {{ in_transit_tonnage|floatformat:3|intcomma }} <span class="fs-7 fw-normal text-muted">MT</span>
+        </div>
+        <div class="small text-muted mt-1 d-flex align-items-center gap-1">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">
+                {{ in_transit_batches_count }} batch{{ in_transit_batches_count|pluralize:"es" }} in transit
+            </span>
         </div>
     </div>
 </div>
 {% endif %}
 
-<!-- Filter Toolbar -->
+<!-- Consolidated Filter Toolbar -->
 <div class="panel mb-3.5">
     <div class="panel-body p-3">
         <form method="get" class="row g-2.5 align-items-center">
-            <div class="col-lg-4 col-md-4">
+            <div class="col-lg-5 col-md-5">
                 <div class="search-input-wrap">
                     <i class="bi bi-search search-icon"></i>
                     <input type="text" name="q" value="{{ q }}" class="form-control-htc search-field" placeholder="Search PO #, location, supplier, DR #...">
@@ -296,12 +300,17 @@
                     {% endfor %}
                 </select>
             </div>
+            <!-- Status Filter Dropdown replacing duplicate PO Ref input -->
             <div class="col-lg-3 col-md-3">
-                <input type="text" name="po" value="{{ current_po }}" class="form-control-htc filter-control" placeholder="Filter by PO Ref # (e.g. HTC-2026-001)">
+                <select name="status" class="form-select-htc filter-control" onchange="this.form.submit()">
+                    <option value="">-- All Shipment Statuses --</option>
+                    <option value="in_transit" {% if current_status == "in_transit" %}selected{% endif %}>In Transit (Pending Arrival)</option>
+                    <option value="arrived" {% if current_status == "arrived" %}selected{% endif %}>Arrived / Delivered</option>
+                </select>
             </div>
-            <div class="col-lg-2 col-md-2 d-flex gap-2">
-                <button type="submit" class="btn-htc filter-btn flex-grow-1">Filter</button>
-                {% if q or current_supplier or current_po %}
+            <div class="col-lg-1 col-md-1 d-flex gap-2">
+                <button type="submit" class="btn-htc filter-btn flex-grow-1" title="Apply filters"><i class="bi bi-funnel"></i></button>
+                {% if q or current_supplier or current_status or current_po %}
                 <a href="{% url 'operations:deliveries_list' %}" class="btn-htc-outline filter-btn px-2.5" title="Clear filters"><i class="bi bi-x-lg"></i></a>
                 {% endif %}
             </div>
@@ -317,14 +326,15 @@
             <span>Incremental Shipment Delivery Records</span>
             <span class="badge bg-light text-muted border fs-8 ms-1">{{ deliveries|length }} records</span>
         </div>
+        <!-- Consolidated Primary CTA Button on Table Header -->
         <div class="d-flex gap-2">
             {% if focused_po and focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
-            <button type="button" class="btn-htc btn-sm" data-bs-toggle="modal" data-bs-target="#logBatchModal">
-                <i class="bi bi-plus-lg me-1"></i> Log Delivery Batch
+            <button type="button" class="btn-htc btn-sm d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#logBatchModal">
+                <i class="bi bi-plus-lg"></i> Log Delivery Batch
             </button>
             {% else %}
-            <a href="{% url 'operations:log_delivery' %}{% if focused_po %}?po_id={{ focused_po.pk }}{% endif %}" class="btn-htc btn-sm">
-                <i class="bi bi-plus-lg me-1"></i> Log Delivery Batch
+            <a href="{% url 'operations:log_delivery' %}{% if focused_po %}?po_id={{ focused_po.pk }}{% endif %}" class="btn-htc btn-sm d-inline-flex align-items-center gap-1">
+                <i class="bi bi-plus-lg"></i> Log Delivery Batch
             </a>
             {% endif %}
         </div>
@@ -333,17 +343,17 @@
         <table class="table-htc fs-7">
             <thead>
                 <tr>
-                    <th>Delivery Date &amp; Timestamps</th>
-                    <th>PO Ref #</th>
+                    <th style="min-width: 170px;">Delivery Date &amp; Timestamps</th>
+                    <th class="whitespace-nowrap text-nowrap">PO Ref #</th>
                     <th>Customer (Buyer)</th>
-                    <th>Source Mill</th>
+                    <th class="text-nowrap">Source Mill</th>
                     <th>Receiving Destination</th>
-                    <th class="text-end">Delivered MT</th>
-                    <th>Land Trucking</th>
-                    <th>Marine Barging</th>
-                    <th class="text-end">Freight Cost</th>
-                    <th>Waybill / DR</th>
-                    <th class="text-center">Action</th>
+                    <th class="text-end whitespace-nowrap">Delivered MT</th>
+                    <th style="min-width: 160px;">Land Trucking</th>
+                    <th style="min-width: 160px;">Marine Barging</th>
+                    <th class="text-end whitespace-nowrap">Freight Cost</th>
+                    <th class="text-nowrap">Waybill / DR</th>
+                    <th class="text-center whitespace-nowrap">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -357,66 +367,71 @@
                         {% if d.received_at %}
                         <div class="fs-8 text-success fw-medium"><i class="bi bi-check-circle-fill me-1"></i>Arr: {{ d.received_at|date:"M d, Y H:i" }} PST</div>
                         {% else %}
-                        <div class="mt-1 d-flex align-items-center gap-1">
+                        <div class="mt-1">
                             <span class="badge bg-warning-subtle text-warning border border-warning-subtle fs-8 py-0.5 px-1.5">
                                 <i class="bi bi-clock me-1"></i>In Transit
                             </span>
-                            {% if user|has_perm:"edit_logistics" %}
-                            <button type="button" class="btn btn-outline-success btn-xs py-0 px-1.5 fs-8" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code|escapejs }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Log arrival date for this shipment">
-                                <i class="bi bi-calendar-check me-1"></i>Log Arrival
-                            </button>
-                            {% endif %}
                         </div>
                         {% endif %}
                     </td>
-                    <td>
+                    <td class="whitespace-nowrap text-nowrap">
                         <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="fw-bold text-primary text-decoration-none">
                             {{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code }}
                         </a>
                     </td>
                     <td>{{ d.purchase_order.customer.name|default:d.purchase_order.cluster.client.name }}</td>
-                    <td>
-                        <span class="badge bg-light text-dark border">
-                            <i class="bi bi-building me-1"></i>{{ d.supplier.name }}
+                    <td class="text-nowrap">
+                        <span class="d-inline-flex align-items-center gap-1.5 fw-semibold text-dark">
+                            <span class="rounded-circle d-inline-block flex-shrink-0" style="width: 8px; height: 8px; background-color: {% if 'BUSCO' in d.supplier.name %}#0c385c{% elif 'HAWAIIAN' in d.supplier.name %}#059669{% elif 'BISCOM' in d.supplier.name %}#d97706{% elif 'CASA' in d.supplier.name %}#7c3aed{% elif 'LOPEZ' in d.supplier.name %}#dc2626{% else %}#64748b{% endif %};"></span>
+                            <span>{{ d.supplier.name }}</span>
                         </span>
                     </td>
                     <td>
                         <span class="fw-medium text-dark"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ d.receiving_location }}</span>
                     </td>
-                    <td class="text-end fw-bold text-success text-nowrap">
+                    <td class="text-end fw-bold text-success text-nowrap font-monospace">
                         {{ d.delivered_mt|floatformat:3|intcomma }} MT
                     </td>
+                    <!-- Land Trucking: 3 Distinct Readable Lines -->
                     <td>
-                        {% if d.trucking_partner or d.trucking_rate_per_mt > 0 %}
-                        <div class="fw-semibold text-dark fs-8">{{ d.trucking_partner.name|default:"Hauler" }}</div>
-                        <div class="fs-8 text-muted">₱{{ d.trucking_rate_per_mt|floatformat:2 }}/MT</div>
-                        {% if d.vessel_or_truck %}
-                        <div class="fs-8 text-muted font-monospace">{{ d.vessel_or_truck }}</div>
-                        {% endif %}
-                        {% elif d.carrier %}
-                        <div class="fs-8 text-muted">{{ d.carrier.name }}</div>
+                        {% if d.trucking_partner or d.trucking_rate_per_mt > 0 or d.carrier or d.vessel_or_truck %}
+                        <div class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 170px;" title="{{ d.trucking_partner.name|default:d.carrier.name|default:'Hauler' }}">
+                            {{ d.trucking_partner.name|default:d.carrier.name|default:"Hauler Carrier" }}
+                        </div>
+                        <div class="fs-8 text-muted">
+                            {% if d.trucking_rate_per_mt > 0 %}₱{{ d.trucking_rate_per_mt|floatformat:2 }}/MT{% else %}Rate: —{% endif %}
+                        </div>
+                        <div class="fs-8 text-secondary font-monospace">
+                            {{ d.vessel_or_truck|default:"No Plate ID" }}
+                        </div>
                         {% else %}
                         <span class="text-muted fs-8">—</span>
                         {% endif %}
                     </td>
+                    <!-- Marine Barging: 3 Distinct Readable Lines -->
                     <td>
-                        {% if d.barge_partner or d.barge_rate_per_mt > 0 %}
-                        <div class="fw-semibold text-dark fs-8">{{ d.barge_partner.name|default:"Barge Carrier" }}</div>
-                        <div class="fs-8 text-muted">₱{{ d.barge_rate_per_mt|floatformat:2 }}/MT</div>
-                        {% if d.vessel_or_barge_name %}
-                        <div class="fs-8 text-muted font-monospace">{{ d.vessel_or_barge_name }}</div>
-                        {% endif %}
+                        {% if d.barge_partner or d.barge_rate_per_mt > 0 or d.vessel_or_barge_name %}
+                        <div class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 170px;" title="{{ d.barge_partner.name|default:'Barge Operator' }}">
+                            {{ d.barge_partner.name|default:"Barge Operator" }}
+                        </div>
+                        <div class="fs-8 text-muted">
+                            {% if d.barge_rate_per_mt > 0 %}₱{{ d.barge_rate_per_mt|floatformat:2 }}/MT{% else %}Rate: —{% endif %}
+                        </div>
+                        <div class="fs-8 text-secondary font-monospace">
+                            {{ d.vessel_or_barge_name|default:"No Vessel ID" }}
+                        </div>
                         {% else %}
                         <span class="text-muted fs-8">—</span>
                         {% endif %}
                     </td>
-                    <td class="text-end text-nowrap">
+                    <td class="text-end text-nowrap font-monospace">
                         {% if d.total_freight_cost > 0 %}
                         <span class="fw-bold text-primary">₱{{ d.total_freight_cost|floatformat:2|intcomma }}</span>
                         {% else %}
                         <span class="text-muted fs-8">—</span>
                         {% endif %}
                     </td>
+                    <!-- Waybill / DR: Neutral Unassigned placeholder tag when empty -->
                     <td>
                         {% if d.dr_number %}
                         <span class="badge bg-secondary-subtle text-secondary fs-8 d-block mb-1">DR: {{ d.dr_number }}</span>
@@ -425,24 +440,25 @@
                         <span class="badge bg-light text-muted border fs-8 d-block">WB: {{ d.waybill_number }}</span>
                         {% endif %}
                         {% if not d.dr_number and not d.waybill_number %}
-                        <span class="text-muted fs-8">—</span>
+                        <span class="badge bg-light text-muted border border-dashed fs-8 py-0.5 px-2">Unassigned</span>
                         {% endif %}
                     </td>
+                    <!-- Rightmost Action Column strictly confining state actions -->
                     <td class="text-center text-nowrap">
                         <div class="d-inline-flex align-items-center gap-1.5">
                             {% if user|has_perm:"edit_logistics" %}
                                 {% if not d.received_at %}
-                                <button type="button" class="btn btn-success btn-sm py-0 px-2 fs-8 fw-semibold" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code|escapejs }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Log arrival date">
+                                <button type="button" class="btn btn-success btn-sm py-0.5 px-2.5 fs-8 fw-semibold" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code|escapejs }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Log arrival date">
                                     <i class="bi bi-calendar-check me-1"></i>Log Arrival
                                 </button>
                                 {% else %}
-                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 fs-8" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code|escapejs }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '{{ d.received_at|date:"Y-m-d\\TH:i"|default:"" }}')" title="Update recorded arrival date">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 fs-8" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code|escapejs }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '{{ d.received_at|date:"Y-m-d\\TH:i"|default:"" }}')" title="Update recorded arrival date">
                                     <i class="bi bi-pencil-square me-1"></i>Edit Arrival
                                 </button>
                                 {% endif %}
                             {% endif %}
-                            <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="btn-htc-outline btn-sm py-0 px-2 fs-8" title="View Transaction Contract">
-                                <i class="bi bi-eye"></i> View PO
+                            <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="btn-htc-outline btn-sm py-0.5 px-2 fs-8" title="View Transaction Contract">
+                                <i class="bi bi-eye me-1"></i>View PO
                             </a>
                         </div>
                     </td>

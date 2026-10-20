@@ -2506,6 +2506,7 @@ def deliveries_list_view(request):
     """
     q = request.GET.get("q", "").strip()
     supplier_id = request.GET.get("supplier", "").strip()
+    status_filter = request.GET.get("status", "").strip()
     po_ref = request.GET.get("po", "").strip()
 
     deliveries_qs = DeliveryLedger.objects.select_related(
@@ -2533,6 +2534,11 @@ def deliveries_list_view(request):
     if supplier_id:
         deliveries_qs = deliveries_qs.filter(supplier_id=supplier_id)
 
+    if status_filter == "in_transit":
+        deliveries_qs = deliveries_qs.filter(received_at__isnull=True)
+    elif status_filter in ("arrived", "delivered"):
+        deliveries_qs = deliveries_qs.filter(received_at__isnull=False)
+
     focused_po = None
     po_trucking_cost = Decimal("0.00")
     po_barge_cost = Decimal("0.00")
@@ -2553,6 +2559,9 @@ def deliveries_list_view(request):
     total_delivered_mt = deliveries_qs.aggregate(total=Sum("delivered_mt"))["total"] or Decimal("0")
     total_deliveries_count = deliveries_qs.count()
 
+    in_transit_tonnage = deliveries_qs.filter(received_at__isnull=True).aggregate(total=Sum("delivered_mt"))["total"] or Decimal("0")
+    in_transit_batches_count = deliveries_qs.filter(received_at__isnull=True).count()
+
     for d in deliveries_qs:
         po_trucking_cost += d.trucking_cost
         po_barge_cost += d.barge_cost
@@ -2570,11 +2579,14 @@ def deliveries_list_view(request):
             "deliveries": deliveries_qs,
             "total_delivered_mt": total_delivered_mt,
             "total_deliveries_count": total_deliveries_count,
+            "in_transit_tonnage": in_transit_tonnage,
+            "in_transit_batches_count": in_transit_batches_count,
             "mills": mills,
             "open_pos": open_pos,
             "form": form,
             "q": q,
             "current_supplier": supplier_id,
+            "current_status": status_filter,
             "current_po": po_ref,
             "focused_po": focused_po,
             "po_trucking_cost": po_trucking_cost,
