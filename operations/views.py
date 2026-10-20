@@ -2556,6 +2556,90 @@ def deliveries_list_view(request):
     )
 
 
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def update_delivery_arrival_view(request, delivery_id):
+    """
+    Log or update the destination arrival timestamp (received_at)
+    after a delivery batch has been input/dispatched.
+    """
+    delivery = get_object_or_404(
+        DeliveryLedger.objects.select_related("purchase_order", "purchase_order__cluster", "supplier"),
+        pk=delivery_id,
+    )
+
+    if request.method != "POST":
+        return JsonResponse({"error": "METHOD_NOT_ALLOWED", "message": "Only POST requests are supported."}, status=405)
+
+    data = {}
+    if request.content_type == "application/json":
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            data = {}
+    else:
+        data = request.POST.dict()
+
+    received_at_raw = data.get("received_at", "").strip()
+    next_url = request.POST.get("next") or request.GET.get("next")
+
+    if not received_at_raw:
+        msg = "Arrival date & time is required."
+        if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
+            return JsonResponse({"error": "MISSING_FIELD", "message": msg}, status=400)
+        messages.error(request, msg)
+        return redirect(next_url or "operations:deliveries_list")
+
+    from django.utils.dateparse import parse_date, parse_datetime
+    import datetime
+
+    received_at = parse_datetime(received_at_raw)
+    if not received_at:
+        d = parse_date(received_at_raw)
+        if d:
+            received_at = timezone.make_aware(datetime.datetime.combine(d, datetime.time(12, 0)))
+
+    if not received_at:
+        msg = f"Invalid date/time format: {received_at_raw}. Expected YYYY-MM-DDTHH:MM."
+        if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
+            return JsonResponse({"error": "INVALID_DATETIME", "message": msg}, status=400)
+        messages.error(request, msg)
+        return redirect(next_url or "operations:deliveries_list")
+
+    if timezone.is_naive(received_at):
+        received_at = timezone.make_aware(received_at)
+
+    if delivery.dispatched_at and received_at < delivery.dispatched_at:
+        msg = f"Arrival timestamp ({received_at.strftime('%b %d, %Y %H:%M')}) cannot be earlier than departure dispatch timestamp ({delivery.dispatched_at.strftime('%b %d, %Y %H:%M')})."
+        if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
+            return JsonResponse({"error": "INVALID_ARRIVAL_DATE", "message": msg}, status=400)
+        messages.error(request, msg)
+        return redirect(next_url or "operations:deliveries_list")
+
+    delivery.received_at = received_at
+    delivery.save(update_fields=["received_at"])
+
+    # Synchronize cluster logistics and financial vouchers
+    delivery.sync_cluster_logistics()
+    try:
+        delivery.sync_delivery_expense_vouchers()
+    except Exception:
+        pass
+
+    success_msg = f"Successfully logged arrival date ({delivery.received_at.strftime('%b %d, %Y %H:%M')}) for {delivery.delivered_mt:,.3f} MT delivery to {delivery.receiving_location}."
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
+        return JsonResponse({
+            "success": True,
+            "delivery_id": str(delivery.delivery_id),
+            "received_at": delivery.received_at.isoformat(),
+            "message": success_msg,
+        })
+
+    messages.success(request, success_msg)
+    return redirect(next_url or "operations:deliveries_list")
+
+
+
 
 
 

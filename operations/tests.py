@@ -1156,6 +1156,65 @@ class DeliveryLoggingValidationTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("delivered_mt", form.errors)
 
+    def test_update_delivery_arrival_view_success(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        from django.urls import reverse
+        from operations.models import DeliveryLedger
+
+        now = timezone.localtime()
+        delivery = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill,
+            delivered_mt=30.0,
+            receiving_location="Bacolod Terminal",
+            delivery_date=now.date(),
+            dispatched_at=now,
+        )
+        self.assertIsNone(delivery.received_at)
+
+        self.client.force_login(self.user)
+        arrival_time = now + timedelta(hours=5)
+        url = reverse("operations:update_delivery_arrival", args=[delivery.delivery_id])
+        resp = self.client.post(
+            url,
+            {"received_at": arrival_time.strftime("%Y-%m-%dT%H:%M")},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["success"])
+        delivery.refresh_from_db()
+        self.assertIsNotNone(delivery.received_at)
+
+    def test_update_delivery_arrival_view_earlier_than_dispatch_rejected(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        from django.urls import reverse
+        from operations.models import DeliveryLedger
+
+        now = timezone.localtime()
+        delivery = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill,
+            delivered_mt=30.0,
+            receiving_location="Bacolod Terminal",
+            delivery_date=now.date(),
+            dispatched_at=now,
+        )
+
+        self.client.force_login(self.user)
+        invalid_arrival = now - timedelta(hours=2)
+        url = reverse("operations:update_delivery_arrival", args=[delivery.delivery_id])
+        resp = self.client.post(
+            url,
+            {"received_at": invalid_arrival.strftime("%Y-%m-%dT%H:%M")},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 400)
+        data = resp.json()
+        self.assertEqual(data["error"], "INVALID_ARRIVAL_DATE")
+
 
 class CopilotFinancialLocalORMTests(TestCase):
     def setUp(self):

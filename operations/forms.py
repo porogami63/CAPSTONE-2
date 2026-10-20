@@ -317,7 +317,7 @@ class DeliveryLedgerForm(forms.ModelForm):
             "receiving_location": "Delivery Location / Site",
             "delivery_date": "Delivery Date",
             "dispatched_at": "Dispatch Date & Time",
-            "received_at": "Arrival Date & Time (Future ETA supported)",
+            "received_at": "Arrival Date & Time",
             "carrier": "Carrier (Optional)",
             "trucking_partner": "Trucking Partner (Land)",
             "trucking_rate_per_mt": "Trucking Rate (₱/MT)",

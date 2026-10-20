@@ -305,13 +305,15 @@ class PurchaseOrder(models.Model):
     @property
     def remaining_mt(self):
         """Dynamic remaining contracted quantity: remaining_mt = total_contracted_mt - SUM(delivered_mt)"""
-        contracted = self.total_contracted_mt if self.total_contracted_mt is not None else (self.volume_mt or Decimal("0"))
+        raw_contracted = self.total_contracted_mt if self.total_contracted_mt is not None else (self.volume_mt or Decimal("0"))
+        contracted = Decimal(str(raw_contracted or 0))
         remaining = contracted - self.total_delivered_mt
         return max(remaining, Decimal("0"))
 
     def update_status(self):
         """Automatically updates po_status based on remaining_mt: Completed when 0, Partially Fulfilled when >0, Open when 0 delivered."""
-        contracted = self.total_contracted_mt if self.total_contracted_mt is not None else (self.volume_mt or Decimal("0"))
+        raw_contracted = self.total_contracted_mt if self.total_contracted_mt is not None else (self.volume_mt or Decimal("0"))
+        contracted = Decimal(str(raw_contracted or 0))
         delivered = self.total_delivered_mt
         remaining = contracted - delivered
 
@@ -514,7 +516,8 @@ class DeliveryLedger(models.Model):
 
         if self.purchase_order_id and self.delivered_mt is not None:
             po = self.purchase_order
-            contracted = po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or Decimal("0"))
+            raw_contracted = po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or Decimal("0"))
+            contracted = Decimal(str(raw_contracted or 0))
             
             existing_deliveries = po.deliveries.all()
             if self.pk:
