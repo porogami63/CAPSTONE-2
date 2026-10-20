@@ -465,7 +465,7 @@
             <div class="status-card-label">Total Revenue</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend neutral">{{ total_invoices }} invoice{{ total_invoices|pluralize }}</span>
+            <span class="status-card-trend up"><i class="bi bi-arrow-up-right me-0.5"></i>{{ revenue_growth_text }}</span>
         </div>
     </a>
     
@@ -479,7 +479,7 @@
             <div class="status-card-label">Total Expenses</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend neutral">Procurement + Logistics</span>
+            <span class="status-card-trend neutral"><i class="bi bi-shield-check me-1"></i>Cost Ratio: {{ cost_to_revenue_pct }}% (Target: &lt;85%)</span>
         </div>
     </a>
 
@@ -493,7 +493,7 @@
             <div class="status-card-label">Net Profit</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend neutral">Revenue − Expenses</span>
+            <span class="status-card-trend up"><i class="bi bi-graph-up me-1"></i>Net Margin: {{ net_margin_pct }}% (Target: 15.0%)</span>
         </div>
     </a>
     {% else %}
@@ -526,37 +526,70 @@
     </a>
 
     <!-- Departmental Card 3: Delivery Variance Alerts -->
-    <a href="{% url 'operations:logistics_list' %}" class="status-card {% if variance_alert_count > 0 %}stripe-alert{% else %}stripe-success{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="Departmental: View Transit Shrinkage Alerts">
-        <div class="status-card-header">
-            <i class="bi bi-exclamation-triangle {% if variance_alert_count > 0 %}text-danger{% else %}text-success{% endif %}"></i>
+    <a href="{% url 'operations:logistics_list' %}" class="status-card {% if variance_alert_count > 0 %}stripe-alert border-danger-subtle bg-danger-subtle bg-opacity-10{% else %}stripe-success{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="Departmental: View Transit Shrinkage Alerts">
+        <div class="status-card-header d-flex justify-content-between align-items-center">
+            <i class="bi bi-exclamation-triangle {% if variance_alert_count > 0 %}text-danger fs-5{% else %}text-success{% endif %}"></i>
+            {% if variance_alert_count > 0 %}
+            <span class="badge bg-danger text-white fs-9 px-1.5 py-0.5 rounded-pill">ACTION REQ</span>
+            {% endif %}
         </div>
         <div>
-            <div class="status-card-val">{{ variance_alert_count }}</div>
+            <div class="status-card-val {% if variance_alert_count > 0 %}text-danger{% endif %}">{{ variance_alert_count }}</div>
             <div class="status-card-label">Volume Shrinkage Alerts</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend {% if variance_alert_count > 0 %}down{% else %}up{% endif %}">
-                {% if variance_alert_count > 0 %}>1.0% Tolerance Exceeded{% else %}Within 1.0% Tolerance{% endif %}
+            {% if variance_alert_count > 0 %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle d-inline-flex align-items-center gap-1 py-1 px-2 fs-8 fw-bold">
+                <i class="bi bi-exclamation-triangle-fill"></i> >1.0% Tolerance &bull; <span class="text-decoration-underline">Review Shrinkage &rarr;</span>
             </span>
+            {% else %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1 py-1 px-2 fs-8">
+                <i class="bi bi-check-circle-fill"></i> Within 1.0% Tolerance
+            </span>
+            {% endif %}
         </div>
     </a>
     {% endif %}
 
-    <!-- Card 4: Pending Action / Verification Queue -->
-    <a href="{% if user_role == 'operations_management' or is_operations %}{% url 'operations:pending_tasks' %}{% else %}{% url 'finance:loan_list' %}{% endif %}" class="status-card {% if overdue_loans > 0 and not is_operations %}stripe-alert{% else %}stripe-neutral{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="View Verification &amp; Pending Action Items">
+    <!-- Card 4: Actionable A/R vs Net Margin KPI -->
+    {% if has_pending_actions %}
+    <a href="{% if user_role == 'operations_management' or is_operations %}{% url 'operations:pending_tasks' %}{% else %}{% url 'finance:invoice_list' %}{% endif %}" class="status-card {% if overdue_loans > 0 %}stripe-alert border-danger-subtle bg-danger-subtle bg-opacity-10{% else %}stripe-neutral{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="View Outstanding Accounts Receivable &amp; Action Queue">
         <div class="status-card-header">
-            <i class="bi bi-clock-history {% if overdue_loans > 0 %}text-danger{% else %}text-muted{% endif %}"></i>
+            <i class="bi bi-receipt-cutoff {% if overdue_loans > 0 %}text-danger{% else %}text-warning{% endif %}"></i>
         </div>
         <div>
-            <div class="status-card-val">{% if is_executive %}{{ pending_display }}{% else %}{{ unpaid_invoices }}{% endif %}</div>
-            <div class="status-card-label">Pending Actions</div>
+            <div class="status-card-val {% if overdue_loans > 0 %}text-danger{% else %}text-dark{% endif %}">{% if is_executive %}{{ pending_display }}{% else %}{{ unpaid_invoices }}{% endif %}</div>
+            <div class="status-card-label">Outstanding Invoices (A/R)</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend {% if overdue_loans > 0 %}down{% else %}neutral{% endif %}">
-                {% if overdue_loans > 0 %}{{ overdue_loans }} overdue facility{% else %}{{ unpaid_invoices }} pending item{{ unpaid_invoices|pluralize }}{% endif %}
+            {% if overdue_loans > 0 %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-1 px-2 fs-8 fw-bold d-inline-flex align-items-center gap-1">
+                <i class="bi bi-exclamation-circle-fill"></i> {{ overdue_loans }} Overdue Facility &bull; Review &rarr;
+            </span>
+            {% else %}
+            <span class="status-card-trend neutral">
+                <i class="bi bi-clock-history me-1"></i>{{ unpaid_invoices }} pending invoice{{ unpaid_invoices|pluralize }}
+            </span>
+            {% endif %}
+        </div>
+    </a>
+    {% else %}
+    <!-- High-Value Fallback when all workflows are settled -->
+    <a href="{% url 'dashboard:analytics' %}" class="status-card stripe-success" data-bs-toggle="tooltip" data-bs-placement="top" title="Executive Profitability: Average Net Profit Margin (All Workflows Settled)">
+        <div class="status-card-header">
+            <i class="bi bi-pie-chart-fill text-success"></i>
+        </div>
+        <div>
+            <div class="status-card-val text-success">{{ net_margin_pct }}%</div>
+            <div class="status-card-label">Average Net Margin</div>
+        </div>
+        <div class="status-card-footer">
+            <span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-2 fs-8 d-inline-flex align-items-center gap-1">
+                <i class="bi bi-check2-circle"></i> Workflows Settled &bull; Top Return
             </span>
         </div>
     </a>
+    {% endif %}
 
     <!-- Card 5: Active Contracts -->
     <a href="{% url 'operations:cluster_list' %}" class="status-card stripe-neutral" data-bs-toggle="tooltip" data-bs-placement="top" title="View Active Transaction Deals">
@@ -568,30 +601,39 @@
             <div class="status-card-label">Active Contracts</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend neutral">{{ total_transactions }} total contracts</span>
+            <span class="status-card-trend neutral"><i class="bi bi-check2-all me-1"></i>{{ open_clusters }} active &bull; {{ draft_count }} in draft</span>
         </div>
     </a>
 
     <!-- Card 6: Delivery Status -->
-    <a href="{% url 'operations:logistics_list' %}" class="status-card {% if variance_alert_count > 0 %}stripe-alert{% else %}stripe-success{% endif %}" data-intro="Keep a close eye on this metric. It tracks any delivery variances (shrinkage) between the source mill and the customer drop-off. Click to inspect the Logistics Ledger!" data-step="3" data-bs-toggle="tooltip" data-bs-placement="top" title="View Logistics Transit Status">
-        <div class="status-card-header">
-            <i class="bi bi-truck {% if variance_alert_count > 0 %}text-danger{% else %}text-success{% endif %}"></i>
+    <a href="{% url 'operations:logistics_list' %}" class="status-card {% if variance_alert_count > 0 %}stripe-alert border-danger-subtle bg-danger-subtle bg-opacity-10{% else %}stripe-success{% endif %}" data-intro="Keep a close eye on this metric. It tracks any delivery variances (shrinkage) between the source mill and the customer drop-off. Click to inspect the Logistics Ledger!" data-step="3" data-bs-toggle="tooltip" data-bs-placement="top" title="View Logistics Transit Status">
+        <div class="status-card-header d-flex justify-content-between align-items-center">
+            <i class="bi bi-truck {% if variance_alert_count > 0 %}text-danger fs-5{% else %}text-success{% endif %}"></i>
+            {% if variance_alert_count > 0 %}
+            <span class="badge bg-danger text-white fs-9 px-1.5 py-0.5 rounded-pill">ACTION REQ</span>
+            {% endif %}
         </div>
         <div>
-            <div class="status-card-val">{{ delivered_clusters }}/{{ total_transactions }}</div>
+            <div class="status-card-val {% if variance_alert_count > 0 %}text-danger{% endif %}">{{ delivered_clusters }}/{{ total_transactions }}</div>
             <div class="status-card-label">Delivery Status</div>
         </div>
         <div class="status-card-footer">
-            <span class="status-card-trend {% if variance_alert_count > 0 %}down{% else %}up{% endif %}">
-                {% if variance_alert_count > 0 %}{{ variance_alert_count }} shrinkage alert{{ variance_alert_count|pluralize }}{% else %}Within 1% tolerance{% endif %}
+            {% if variance_alert_count > 0 %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle d-inline-flex align-items-center gap-1.5 py-1 px-2 fs-8 fw-bold">
+                <i class="bi bi-exclamation-triangle-fill"></i> {{ variance_alert_count }} Shrinkage Alert{{ variance_alert_count|pluralize }} &bull; <span class="text-decoration-underline">Review Shrinkage &rarr;</span>
             </span>
+            {% else %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1 py-1 px-2 fs-8">
+                <i class="bi bi-check-circle-fill"></i> Within 1% tolerance
+            </span>
+            {% endif %}
         </div>
     </a>
 </div>
 
 {% if user_role == 'operations_management' or user_role == 'administrator' %}
 <!-- Operations Management Specialized Widget: Sugar Mill MRO Release Allocations -->
-<div class="card border-0 shadow-sm mb-4 hover-zoom-card" data-href="{% url 'operations:mro_summary' %}" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view full MRO Release Summary & Allocations">
+<div class="card border-0 shadow-sm mb-4 hover-zoom-card" data-href="{% url 'operations:mro_summary' %}" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="Click to view full MRO Release Summary &amp; Allocations">
     <div class="card-header py-3 flex-between">
         <h6 class="mb-0 font-weight-bold"><i class="bi bi-building text-primary me-2"></i>Sugar Mill Supplier MRO Release Balances</h6>
         <a href="{% url 'operations:mro_summary' %}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-7">View Full MRO Summary <i class="bi bi-arrow-right"></i></a>
@@ -607,9 +649,12 @@
             </div>
             {% endfor %}
             <div class="col-md-2 col-12">
-                <div class="p-2 border rounded text-center bg-primary-subtle text-primary">
-                    <small class="text-primary font-weight-bold d-block text-truncate" style="font-size: 0.75rem;">Total Mill Releases</small>
-                    <span class="fs-6 font-weight-bold">{{ total_volume_mt|floatformat:2|intcomma }} <small>MT</small></span>
+                <div class="p-2 border rounded text-center bg-primary-subtle text-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="{% if mro_all_total > mro_visible_total %}Total MRO volume allocated across all sugar mills (Visible pinned mills: {{ mro_visible_total|floatformat:2|intcomma }} MT; unpinned mills account for remaining ~{{ mro_all_total|floatformat:0 }} MT).{% else %}Total active MRO volume allocated across all sugar mill suppliers (Matches visible mill releases).{% endif %}">
+                    <small class="text-primary font-weight-bold d-block text-truncate" style="font-size: 0.72rem;">Total Allocated (All Mills)</small>
+                    <span class="fs-6 font-weight-bold">{{ mro_all_total|floatformat:2|intcomma }} <small>MT</small></span>
+                    {% if mro_all_total > mro_visible_total %}
+                    <span class="d-block text-primary-emphasis opacity-75" style="font-size: 0.68rem;">Visible: {{ mro_visible_total|floatformat:2|intcomma }} MT</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -743,6 +788,10 @@
 
         <!-- Chart View Container -->
         <div id="financialChartContainer" style="min-height: 250px;">
+            <div id="singlePeriodNotice" class="alert alert-info py-2 px-3 mb-2 fs-8 d-none align-items-center gap-2 rounded-3 border-0 bg-primary-subtle text-primary">
+                <i class="bi bi-info-circle-fill fs-6 flex-shrink-0"></i>
+                <span id="singlePeriodNoticeText">Single-period summary active. Bar representation displayed; month-over-month spline trendline will automatically populate as multi-month records accumulate.</span>
+            </div>
             <canvas id="financialLineChart" style="max-height: 300px; width: 100%;"></canvas>
         </div>
 
@@ -802,9 +851,22 @@
 
     <!-- Right Column: Weekly Cash Flow Bar Chart -->
     <div class="chart-box">
-        <div class="chart-box-header">
-            <h3>Weekly Cash Flow</h3>
-            <p>Inflow vs Outflow — Current Month</p>
+        <div class="chart-box-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div>
+                <h3 class="mb-0">Weekly Cash Flow</h3>
+                <p class="mb-0 text-muted fs-8">Inflow vs Outflow — Current Month</p>
+            </div>
+            <!-- Explicit Inline Legend -->
+            <div class="d-flex align-items-center gap-2.5 fs-8 fw-semibold">
+                <span class="d-inline-flex align-items-center gap-1">
+                    <span class="d-inline-block rounded-1" style="width: 12px; height: 12px; background-color: #0c385c;"></span>
+                    <span class="text-dark">Cash Inflow</span>
+                </span>
+                <span class="d-inline-flex align-items-center gap-1">
+                    <span class="d-inline-block rounded-1" style="width: 12px; height: 12px; background-color: #d69e2e;"></span>
+                    <span class="text-dark">Cash Outflow</span>
+                </span>
+            </div>
         </div>
         <div class="cash-flow-banner">
             <i class="bi bi-lightning-charge-fill"></i>
@@ -837,8 +899,17 @@
         <i class="bi bi-check-circle-fill"></i> Aggregation Layer: Synced
     </div>
     {% if variance_alert_count > 0 %}
-    <div class="status-bar-item danger">
-        <i class="bi bi-exclamation-circle-fill"></i> Overdue Alerts: {{ variance_alert_count }} flagged
+    <div class="status-bar-item">
+        <a href="{% url 'operations:logistics_list' %}" class="badge bg-danger-subtle text-danger border border-danger-subtle text-decoration-none py-1 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-bold">
+            <i class="bi bi-exclamation-triangle-fill"></i> Transit Shrinkage: {{ variance_alert_count }} flagged &bull; Review Shrinkage &rarr;
+        </a>
+    </div>
+    {% endif %}
+    {% if overdue_loans > 0 %}
+    <div class="status-bar-item">
+        <a href="{% url 'finance:loan_list' %}" class="badge bg-danger-subtle text-danger border border-danger-subtle text-decoration-none py-1 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-bold">
+            <i class="bi bi-clock-history"></i> Overdue Facilities: {{ overdue_loans }} flagged &bull; Review Accounts &rarr;
+        </a>
     </div>
     {% endif %}
 </div>
@@ -886,65 +957,144 @@
     let currentViewMode = 'chart';
     let financialChartInstance = null;
 
-    // 1. Line Chart: Revenue, Expenses, Profit
-    const lineCtx = document.getElementById('financialLineChart');
-    if (lineCtx) {
-        const initialData = financialIntervals['monthly'] || {
-            labels: chartMonths,
-            revenue: revenueData,
-            expenses: expensesData,
-            profit: profitData
-        };
-        const allInitVals = [...initialData.revenue, ...initialData.expenses, ...initialData.profit];
-        const initYMax = Math.max(Math.ceil(Math.max(...allInitVals) * 1.3), 1);
-        const initYStep = Math.max(Math.round(initYMax / 4 * 10) / 10, 0.5);
+    function createFinancialDatasets(data, isSingle) {
+        if (isSingle) {
+            return [
+                {
+                    label: 'Revenue',
+                    data: data.revenue,
+                    backgroundColor: brandBlue,
+                    borderColor: brandBlue,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.45,
+                    categoryPercentage: 0.6
+                },
+                {
+                    label: 'Expenses',
+                    data: data.expenses,
+                    backgroundColor: brandRed,
+                    borderColor: brandRed,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.45,
+                    categoryPercentage: 0.6
+                },
+                {
+                    label: 'Net Profit',
+                    data: data.profit,
+                    backgroundColor: brandGreen,
+                    borderColor: brandGreen,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.45,
+                    categoryPercentage: 0.6
+                }
+            ];
+        } else {
+            return [
+                {
+                    label: 'Revenue',
+                    data: data.revenue,
+                    borderColor: brandBlue,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    tension: 0.45,
+                    pointRadius: 3,
+                    pointBackgroundColor: brandBlue
+                },
+                {
+                    label: 'Expenses',
+                    data: data.expenses,
+                    borderColor: brandRed,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [4, 4],
+                    tension: 0.45,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Net Profit',
+                    data: data.profit,
+                    borderColor: brandGreen,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.45,
+                    pointRadius: 3,
+                    pointBackgroundColor: brandGreen
+                }
+            ];
+        }
+    }
 
-        financialChartInstance = new Chart(lineCtx, {
-            type: 'line',
+    function renderFinancialChart(intervalKey) {
+        const data = financialIntervals[intervalKey];
+        if (!data) return;
+
+        const noticeEl = document.getElementById('singlePeriodNotice');
+        const noticeText = document.getElementById('singlePeriodNoticeText');
+        const isSingle = !data.labels || data.labels.length <= 1;
+
+        if (noticeEl) {
+            if (isSingle) {
+                noticeEl.classList.remove('d-none');
+                noticeEl.classList.add('d-flex');
+                if (noticeText) {
+                    const periodName = (data.labels && data.labels[0]) ? data.labels[0] : 'Current Period';
+                    noticeText.textContent = `Single-period summary active (${periodName}). Rendered as a comparative bar chart; multi-period spline trendlines will automatically populate as historical records accumulate over time.`;
+                }
+            } else {
+                noticeEl.classList.add('d-none');
+                noticeEl.classList.remove('d-flex');
+            }
+        }
+
+        const chartType = isSingle ? 'bar' : 'line';
+        const allVals = [...(data.revenue || [0]), ...(data.expenses || [0]), ...(data.profit || [0])];
+        const yMax = Math.max(Math.ceil(Math.max(...allVals) * 1.3), 1);
+        const yMin = Math.min(0, ...(data.profit || [0]));
+        const yStep = Math.max(Math.round(yMax / 4 * 10) / 10, 0.5);
+
+        if (financialChartInstance) {
+            financialChartInstance.destroy();
+        }
+
+        const ctx = document.getElementById('financialLineChart');
+        if (!ctx) return;
+
+        financialChartInstance = new Chart(ctx, {
+            type: chartType,
             data: {
-                labels: initialData.labels,
-                datasets: [
-                    {
-                        label: 'Revenue',
-                        data: initialData.revenue,
-                        borderColor: brandBlue,
-                        backgroundColor: 'transparent',
-                        borderWidth: 2.5,
-                        tension: 0.45,
-                        pointRadius: 3,
-                        pointBackgroundColor: brandBlue
-                    },
-                    {
-                        label: 'Expenses',
-                        data: initialData.expenses,
-                        borderColor: brandRed,
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        borderDash: [4, 4],
-                        tension: 0.45,
-                        pointRadius: 0
-                    },
-                    {
-                        label: 'Profit',
-                        data: initialData.profit,
-                        borderColor: brandGreen,
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        tension: 0.45,
-                        pointRadius: 3,
-                        pointBackgroundColor: brandGreen
-                    }
-                ]
+                labels: data.labels,
+                datasets: createFinancialDatasets(data, isSingle)
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        left: 14,
+                        right: 14,
+                        top: 10,
+                        bottom: 6
+                    }
+                },
                 plugins: {
                     legend: {
                         position: 'bottom',
                         labels: {
                             boxWidth: 12,
-                            font: { family: 'Inter', size: 11, weight: 600 }
+                            boxHeight: 12,
+                            usePointStyle: !isSingle,
+                            font: { family: 'Inter', size: 11, weight: 600 },
+                            padding: 14
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ₱${Number(context.raw).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}M`;
+                            }
                         }
                     }
                 },
@@ -957,18 +1107,19 @@
                         }
                     },
                     y: {
-                        min: Math.min(0, ...initialData.profit),
-                        max: initYMax,
+                        min: yMin,
+                        max: yMax,
                         ticks: {
+                            padding: 14, // 14px padding to prevent overlap with axis lines and canvas boundary
                             color: '#475569',
                             font: { family: 'Inter', size: 11, weight: 700 },
                             callback: function(value) {
                                 return '₱' + value.toFixed(1) + 'M';
                             },
-                            stepSize: initYStep
+                            stepSize: yStep
                         },
                         grid: {
-                            color: 'var(--htc-border)',
+                            color: 'rgba(226, 232, 240, 0.8)',
                             borderDash: [3, 3]
                         }
                     }
@@ -976,6 +1127,9 @@
             }
         });
     }
+
+    // Initialize Financial Chart
+    renderFinancialChart('monthly');
 
     // Financial Cadence (Weekly, Monthly, Yearly) Switcher
     window.updateFinancialDisplay = function(intervalKey) {
@@ -1001,19 +1155,8 @@
         const sub = document.getElementById('financialIntervalSubtitle');
         if (sub) sub.textContent = data.title + ' (PHP in Millions)';
 
-        // 3. Update Chart
-        if (financialChartInstance) {
-            financialChartInstance.data.labels = data.labels;
-            financialChartInstance.data.datasets[0].data = data.revenue;
-            financialChartInstance.data.datasets[1].data = data.expenses;
-            financialChartInstance.data.datasets[2].data = data.profit;
-            const allVals = [...data.revenue, ...data.expenses, ...data.profit];
-            const newMax = Math.max(Math.ceil(Math.max(...allVals) * 1.3), 1);
-            const newMin = Math.min(0, ...data.profit);
-            financialChartInstance.options.scales.y.max = newMax;
-            financialChartInstance.options.scales.y.min = newMin;
-            financialChartInstance.update();
-        }
+        // 3. Render Chart
+        renderFinancialChart(intervalKey);
 
         // 4. Update Table Rows
         const tbody = document.getElementById('financialTableBody');
@@ -1097,28 +1240,53 @@
                 labels: weeklyLabels,
                 datasets: [
                     {
-                        label: 'Inflow',
+                        label: 'Cash Inflow',
                         data: inflowData,
                         backgroundColor: brandBlue,
-                        borderRadius: 2
+                        borderRadius: 3
                     },
                     {
-                        label: 'Outflow',
+                        label: 'Cash Outflow',
                         data: outflowData,
                         backgroundColor: brandOrange,
-                        borderRadius: 2
+                        borderRadius: 3
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: { left: 8, right: 8, top: 4, bottom: 4 }
+                },
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            usePointStyle: true,
+                            pointStyle: 'rectRounded',
+                            font: { family: 'Inter', size: 11, weight: 600 },
+                            padding: 12
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ₱${Number(context.raw).toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})}M`;
+                            }
+                        }
+                    }
                 },
                 scales: {
                     x: {
-                        grid: { display: false }
+                        grid: { display: false },
+                        ticks: {
+                            color: '#475569',
+                            font: { family: 'Inter', size: 10, weight: 600 }
+                        }
                     },
                     y: {
                         display: false

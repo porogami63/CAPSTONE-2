@@ -396,6 +396,26 @@ def home(request):
         ).aggregate(total=Sum("tons"))["total"] or Decimal("0")
         mro_mill_balances.append({"name": mill_name, "tons": float(tons_sum)})
 
+    mro_visible_total = sum(m["tons"] for m in mro_mill_balances)
+    mro_all_total = float(MolassesReleaseOrder.objects.aggregate(total=Sum("tons"))["total"] or Decimal("0"))
+
+    # Business performance deltas and ratios (replacing elementary formula text)
+    cost_to_revenue_pct = round(float(total_expenses / total_revenue * 100), 1) if total_revenue > Decimal("0") else 0.0
+    net_margin_pct = round(float(net_profit / total_revenue * 100), 1) if total_revenue > Decimal("0") else 0.0
+
+    if len(monthly_table) >= 2:
+        prev_rev = monthly_table[-2]["revenue"]
+        curr_rev = monthly_table[-1]["revenue"]
+        if prev_rev > 0:
+            growth = round(((curr_rev - prev_rev) / prev_rev * 100), 1)
+            revenue_growth_text = f"↑ {growth:+}% vs prior month" if growth >= 0 else f"↓ {growth}% vs prior month"
+        else:
+            revenue_growth_text = "Target: ₱1.5B (Active Pipeline)"
+    else:
+        revenue_growth_text = "Target: ₱1.5B (Active Pipeline)"
+
+    has_pending_actions = (pending_receivables > Decimal("0")) or (unpaid_invoices > 0) or (overdue_loans > 0) or (pending_verification_loans_count > 0)
+
     # Finance role metrics
     vouchers_count = CashVoucher.objects.count()
     vouchers_total = CashVoucher.objects.aggregate(total=Sum("amount"))["total"] or Decimal("0")
@@ -436,6 +456,11 @@ def home(request):
             "profit_display": profit_display,
             "pending_display": pending_display,
             "overdue_loans": overdue_loans,
+            # Business intelligence deltas & ratios
+            "cost_to_revenue_pct": cost_to_revenue_pct,
+            "net_margin_pct": net_margin_pct,
+            "revenue_growth_text": revenue_growth_text,
+            "has_pending_actions": has_pending_actions,
             # Delivery stats
             "delivered_clusters": delivered_clusters,
             "active_clusters": active_clusters,
@@ -443,6 +468,8 @@ def home(request):
             "active_shipments_count": active_shipments_count,
             "disputed_shortages_count": disputed_shortages_count,
             "mro_mill_balances": mro_mill_balances,
+            "mro_visible_total": mro_visible_total,
+            "mro_all_total": mro_all_total,
             # Finance specific
             "vouchers_count": vouchers_count,
             "vouchers_display": vouchers_display,
