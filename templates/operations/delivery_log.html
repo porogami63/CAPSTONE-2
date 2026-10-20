@@ -524,11 +524,15 @@
                         <tr>
                             <td>{{ d.delivery_date|date:"M d, Y" }}</td>
                             <td>
+                                {% if d.purchase_order.cluster %}
                                 <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="fw-bold text-primary">
-                                    {{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code }}
+                                    {% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number }}{% else %}{{ d.purchase_order.cluster.reference_code }}{% endif %}
                                 </a>
+                                {% else %}
+                                <span class="fw-bold text-primary">{{ d.purchase_order.po_reference_number|default:"—" }}</span>
+                                {% endif %}
                             </td>
-                            <td>{{ d.purchase_order.customer.name|default:d.purchase_order.cluster.client.name }}</td>
+                            <td>{% if d.purchase_order.customer %}{{ d.purchase_order.customer.name }}{% elif d.purchase_order.cluster.client %}{{ d.purchase_order.cluster.client.name }}{% else %}—{% endif %}</td>
                             <td><span class="badge bg-light text-dark border">{{ d.supplier.name }}</span></td>
                             <td>{{ d.receiving_location }}</td>
                             <td class="text-end fw-bold text-success">{{ d.delivered_mt|floatformat:3|intcomma }} MT</td>

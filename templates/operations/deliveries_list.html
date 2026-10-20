@@ -165,8 +165,8 @@
                 </span>
             </div>
             <h4 class="fw-bold mb-0 text-dark">
-                {{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }}
-                <span class="fs-6 fw-normal text-muted">— {{ focused_po.customer.name|default:focused_po.cluster.client.name }}</span>
+                {% if focused_po.po_reference_number %}{{ focused_po.po_reference_number }}{% else %}{{ focused_po.cluster.reference_code }}{% endif %}
+                <span class="fs-6 fw-normal text-muted">— {% if focused_po.customer %}{{ focused_po.customer.name }}{% elif focused_po.cluster.client %}{{ focused_po.cluster.client.name }}{% else %}—{% endif %}</span>
             </h4>
         </div>
         <div class="d-flex gap-2">
@@ -375,11 +375,23 @@
                         {% endif %}
                     </td>
                     <td class="whitespace-nowrap text-nowrap">
+                        {% if d.purchase_order.cluster %}
                         <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="fw-bold text-primary text-decoration-none">
-                            {{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code }}
+                            {% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number }}{% else %}{{ d.purchase_order.cluster.reference_code }}{% endif %}
                         </a>
+                        {% else %}
+                        <span class="fw-bold text-primary">{{ d.purchase_order.po_reference_number|default:"—" }}</span>
+                        {% endif %}
                     </td>
-                    <td>{{ d.purchase_order.customer.name|default:d.purchase_order.cluster.client.name }}</td>
+                    <td>
+                        {% if d.purchase_order.customer %}
+                            {{ d.purchase_order.customer.name }}
+                        {% elif d.purchase_order.cluster.client %}
+                            {{ d.purchase_order.cluster.client.name }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td class="text-nowrap">
                         <span class="d-inline-flex align-items-center gap-1.5 fw-semibold text-dark">
                             <span class="rounded-circle d-inline-block flex-shrink-0" style="width: 8px; height: 8px; background-color: {% if 'BUSCO' in d.supplier.name %}#0c385c{% elif 'HAWAIIAN' in d.supplier.name %}#059669{% elif 'BISCOM' in d.supplier.name %}#d97706{% elif 'CASA' in d.supplier.name %}#7c3aed{% elif 'LOPEZ' in d.supplier.name %}#dc2626{% else %}#64748b{% endif %};"></span>
@@ -395,8 +407,8 @@
                     <!-- Land Trucking: 3 Distinct Readable Lines -->
                     <td>
                         {% if d.trucking_partner or d.trucking_rate_per_mt > 0 or d.carrier or d.vessel_or_truck %}
-                        <div class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 170px;" title="{{ d.trucking_partner.name|default:d.carrier.name|default:'Hauler' }}">
-                            {{ d.trucking_partner.name|default:d.carrier.name|default:"Hauler Carrier" }}
+                        <div class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 170px;" title="{% if d.trucking_partner %}{{ d.trucking_partner.name }}{% elif d.carrier %}{{ d.carrier.name }}{% else %}Hauler Carrier{% endif %}">
+                            {% if d.trucking_partner %}{{ d.trucking_partner.name }}{% elif d.carrier %}{{ d.carrier.name }}{% else %}Hauler Carrier{% endif %}
                         </div>
                         <div class="fs-8 text-muted">
                             {% if d.trucking_rate_per_mt > 0 %}₱{{ d.trucking_rate_per_mt|floatformat:2 }}/MT{% else %}Rate: —{% endif %}
@@ -411,8 +423,8 @@
                     <!-- Marine Barging: 3 Distinct Readable Lines -->
                     <td>
                         {% if d.barge_partner or d.barge_rate_per_mt > 0 or d.vessel_or_barge_name %}
-                        <div class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 170px;" title="{{ d.barge_partner.name|default:'Barge Operator' }}">
-                            {{ d.barge_partner.name|default:"Barge Operator" }}
+                        <div class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 170px;" title="{% if d.barge_partner %}{{ d.barge_partner.name }}{% else %}Barge Operator{% endif %}">
+                            {% if d.barge_partner %}{{ d.barge_partner.name }}{% else %}Barge Operator{% endif %}
                         </div>
                         <div class="fs-8 text-muted">
                             {% if d.barge_rate_per_mt > 0 %}₱{{ d.barge_rate_per_mt|floatformat:2 }}/MT{% else %}Rate: —{% endif %}
@@ -448,18 +460,20 @@
                         <div class="d-inline-flex align-items-center gap-1.5">
                             {% if user|has_perm:"edit_logistics" %}
                                 {% if not d.received_at %}
-                                <button type="button" class="btn btn-success btn-sm py-0.5 px-2.5 fs-8 fw-semibold" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code|escapejs }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Log arrival date">
+                                <button type="button" class="btn btn-success btn-sm py-0.5 px-2.5 fs-8 fw-semibold" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Log arrival date">
                                     <i class="bi bi-calendar-check me-1"></i>Log Arrival
                                 </button>
                                 {% else %}
-                                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 fs-8" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{{ d.purchase_order.po_reference_number|default:d.purchase_order.cluster.reference_code|escapejs }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '{{ d.received_at|date:"Y-m-d\\TH:i"|default:"" }}')" title="Update recorded arrival date">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 fs-8" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '{{ d.received_at|date:"Y-m-d\\TH:i"|default:"" }}')" title="Update recorded arrival date">
                                     <i class="bi bi-pencil-square me-1"></i>Edit Arrival
                                 </button>
                                 {% endif %}
                             {% endif %}
+                            {% if d.purchase_order.cluster %}
                             <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="btn-htc-outline btn-sm py-0.5 px-2 fs-8" title="View Transaction Contract">
                                 <i class="bi bi-eye me-1"></i>View PO
                             </a>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -496,7 +510,7 @@
                 <div>
                     <h6 class="modal-title fw-bold mb-0 text-white" id="logBatchModalLabel">Log Delivery Batch</h6>
                     <div class="fs-8 text-white-75 d-flex align-items-center flex-wrap gap-2 mt-0.5">
-                        <span>PO #{{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }} — {{ focused_po.customer.name|default:focused_po.cluster.client.name }}</span>
+                        <span>PO #{% if focused_po.po_reference_number %}{{ focused_po.po_reference_number }}{% else %}{{ focused_po.cluster.reference_code }}{% endif %} — {% if focused_po.customer %}{{ focused_po.customer.name }}{% elif focused_po.cluster.client %}{{ focused_po.cluster.client.name }}{% else %}—{% endif %}</span>
                         {% if focused_po.cluster.sugar_mill %}
                         <span class="badge bg-white bg-opacity-25 text-white border-0 py-0.5 px-2">
                             <i class="bi bi-geo-alt-fill me-1 text-warning"></i>PO Origin: {{ focused_po.cluster.sugar_mill.name }}
@@ -512,7 +526,7 @@
             <form method="post" action="{% url 'operations:log_delivery' %}" id="modalDeliveryForm">
                 {% csrf_token %}
                 <input type="hidden" name="purchase_order" value="{{ focused_po.pk }}">
-                <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}?po={{ focused_po.po_reference_number|default:focused_po.cluster.reference_code }}">
+                <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}?po={% if focused_po.po_reference_number %}{{ focused_po.po_reference_number }}{% else %}{{ focused_po.cluster.reference_code }}{% endif %}">
 
                 <div class="modal-body p-4">
                     <!-- Row 1: Source Mill & Delivered Quantity -->
