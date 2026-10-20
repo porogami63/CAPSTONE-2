@@ -5,6 +5,49 @@
 {% block topbar_subtitle %}Manage purchase orders, deliveries, and deal financials{% endblock %}
 {% block content %}
 <style>
+    .badge-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: 1px solid transparent;
+        line-height: 1.2;
+    }
+    .badge-status.approved {
+        background-color: #e0e7ff;
+        color: #3730a3;
+        border-color: #c7d2fe;
+    }
+    .badge-status.delivered, .badge-status.closed {
+        background-color: #d1fae5;
+        color: #065f46;
+        border-color: #a7f3d0;
+    }
+    .badge-status.draft {
+        background-color: #f1f5f9;
+        color: #475569;
+        border-color: #cbd5e1;
+    }
+    .badge-status.pending_approval {
+        background-color: #fef3c7;
+        color: #92400e;
+        border-color: #fde68a;
+    }
+    .badge-status.returned {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border-color: #fecaca;
+    }
+    .badge-status.active {
+        background-color: #e0f2fe;
+        color: #0369a1;
+        border-color: #bae6fd;
+    }
 
     .view-mode-btn {
         padding: 0.25rem 0.6rem;
@@ -62,14 +105,14 @@
     </div>
 </div>
 
-<form method="get" class="filters-bar mb-2" style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;" data-step="2" data-intro="Filter transactions by status, customer client, sugar mill supplier, sort order, or text search.">
-    <div class="search-input-wrap" style="flex: 1; min-width: 220px;">
+<form method="get" class="filters-bar mb-3 d-flex flex-wrap align-items-center gap-2 w-100" data-step="2" data-intro="Filter transactions by status, customer client, sugar mill supplier, sort order, or text search.">
+    <div class="search-input-wrap flex-grow-1" style="min-width: 220px; flex: 2 1 240px;">
         <i class="bi bi-search"></i>
         <input type="text" name="q" value="{{ q }}" placeholder="Search by PO code, Customer, or Sugar Mill...">
     </div>
 
-    <div>
-        <select name="status" class="filter-select" onchange="this.form.submit()">
+    <div class="flex-grow-1" style="min-width: 150px; flex: 1 1 150px;">
+        <select name="status" class="filter-select w-100" onchange="this.form.submit()">
             <option value="">All Statuses</option>
             {% for code, label in status_choices %}
             <option value="{{ code }}" {% if current_status == code %}selected{% endif %}>{{ label }}</option>
@@ -77,8 +120,8 @@
         </select>
     </div>
 
-    <div>
-        <select name="client" class="filter-select" onchange="this.form.submit()">
+    <div class="flex-grow-1" style="min-width: 160px; flex: 1 1 160px;">
+        <select name="client" class="filter-select w-100" onchange="this.form.submit()">
             <option value="">All Customers</option>
             {% for client_obj in clients_list %}
             <option value="{{ client_obj.pk }}" {% if current_client == client_obj.pk|stringformat:"s" %}selected{% endif %}>{{ client_obj.name }}</option>
@@ -86,8 +129,8 @@
         </select>
     </div>
 
-    <div>
-        <select name="mill" class="filter-select" onchange="this.form.submit()">
+    <div class="flex-grow-1" style="min-width: 150px; flex: 1 1 150px;">
+        <select name="mill" class="filter-select w-100" onchange="this.form.submit()">
             <option value="">All Suppliers</option>
             {% for mill_obj in mills_list %}
             <option value="{{ mill_obj.pk }}" {% if current_mill == mill_obj.pk|stringformat:"s" %}selected{% endif %}>{{ mill_obj.name }}</option>
@@ -95,8 +138,8 @@
         </select>
     </div>
 
-    <div>
-        <select name="sort" class="filter-select" onchange="this.form.submit()">
+    <div class="flex-grow-1" style="min-width: 160px; flex: 1 1 160px;">
+        <select name="sort" class="filter-select w-100" onchange="this.form.submit()">
             <option value="newest" {% if current_sort == "newest" or not current_sort %}selected{% endif %}>Sort: Newest First</option>
             <option value="oldest" {% if current_sort == "oldest" %}selected{% endif %}>Sort: Oldest First</option>
             <option value="highest_profit" {% if current_sort == "highest_profit" %}selected{% endif %}>Sort: Highest Profit</option>
@@ -105,7 +148,7 @@
     </div>
 
     {% if q or current_status or current_client or current_mill or current_sort and current_sort != 'newest' %}
-    <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; height: 38px; display: inline-flex; align-items: center; gap: 0.3rem;">
+    <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline flex-shrink-0" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; height: 38px; display: inline-flex; align-items: center; gap: 0.3rem;">
         <i class="bi bi-x-circle"></i> Clear Filters
     </a>
     {% endif %}
@@ -178,18 +221,33 @@
                         data-step3-missing="{{ c.get_workflow_steps_info.step3.missing|join:'; ' }}"
                         data-step4-missing="{{ c.get_workflow_steps_info.step4.missing|join:'; ' }}"
                         data-step5-missing="{{ c.get_workflow_steps_info.step5.missing|join:'; ' }}"
-
                         data-received="{{ c.has_received|yesno:'true,false' }}"
                         data-invoiced="{{ c.has_invoice|yesno:'true,false' }}"
                         data-url="{% url 'operations:cluster_detail' c.pk %}"
+                        data-edit-url="{% url 'operations:cluster_edit' c.pk %}"
+                        data-invoice-url="{% url 'operations:add_invoice' c.pk %}"
+                        data-pdf-url="{% url 'operations:download_contract_pdf' c.pk %}"
+                        data-delete-url="{% url 'operations:delete_cluster' c.pk %}"
                         onclick="selectCluster(this)">
                         <td><strong>{{ c.reference_code }}</strong></td>
                         <td>{{ c.client.name }}</td>
                         <td>{{ c.sugar_mill.name }}</td>
                         <td>{{ c.vol_mt|floatformat:3|intcomma }}</td>
                         <td><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></td>
-                        <td>₱{{ c.profit_m|floatformat:2 }}M</td>
-                        <td>{{ c.margin|floatformat:2 }}%</td>
+                        <td>
+                            {% if c.revenue > 0 or c.selling_price > 0 %}
+                                ₱{{ c.profit_m|floatformat:2 }}M
+                            {% else %}
+                                <span class="text-muted fst-italic">Pending Pricing</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if c.revenue > 0 or c.selling_price > 0 %}
+                                {{ c.margin|floatformat:2 }}%
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -211,12 +269,32 @@
     </div>
 
     <div class="detail-pane" id="detailPane" hidden>
-        <div class="flex-between" style="gap:0.75rem;align-items:start;">
-            <div>
-                <h3 id="panelRef">—</h3>
-                <div class="subtitle" id="panelSub">Select an order</div>
-            </div>
+        <!-- Top Drawer Header with Semantic Status Badge -->
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+            <h3 id="panelRef" class="mb-0 fw-bold fs-5 text-dark">—</h3>
             <span class="badge-status draft" id="panelStatusChip">—</span>
+        </div>
+
+        <!-- Persistent Action Bar -->
+        <div class="p-2 mb-3 rounded bg-light border d-flex flex-wrap align-items-center gap-1.5" id="panelPersistentActionBar" style="position: sticky; top: 0; z-index: 5; backdrop-filter: blur(4px);">
+            <!-- Primary Actions -->
+            <a href="#" id="panelActionEdit" class="btn btn-sm btn-primary py-1 px-2.5 d-inline-flex align-items-center gap-1 fs-8 fw-semibold" title="Edit Deal & Commercial Terms">
+                <i class="bi bi-pencil-square"></i> Edit Deal
+            </a>
+            <a href="#" id="panelActionInvoice" class="btn btn-sm btn-success py-1 px-2.5 d-inline-flex align-items-center gap-1 fs-8 fw-semibold" title="Generate Sales Invoice">
+                <i class="bi bi-receipt"></i> Generate Invoice
+            </a>
+
+            <!-- Secondary Actions -->
+            <a href="#" id="panelActionPdf" target="_blank" class="btn btn-sm btn-outline-secondary py-1 px-2 d-inline-flex align-items-center gap-1 fs-8" title="Download & Print Legal Contract PDF">
+                <i class="bi bi-printer"></i> Print Contract
+            </a>
+            <form id="panelCancelForm" method="post" action="#" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel and delete this Purchase Order? This action cannot be undone.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 fs-8" title="Cancel this Purchase Order">
+                    <i class="bi bi-x-circle"></i> Cancel PO
+                </button>
+            </form>
         </div>
 
         <div class="detail-section">
@@ -231,16 +309,32 @@
         </div>
 
         <div class="detail-section">
-            <div class="detail-section-title">Pricing &amp; Profit Breakdown</div>
+            <div class="detail-section-title d-flex justify-content-between align-items-center">
+                <span>Pricing &amp; Profit Breakdown</span>
+            </div>
             <div class="detail-row"><span>Supplier Buying Price</span><span id="panelPurchase">—</span></div>
             <div class="detail-row"><span>Customer Selling Price</span><span id="panelSelling">—</span></div>
             <div class="detail-row"><span>Total Buying Cost</span><span id="panelOrderValue">—</span></div>
             <div class="detail-row"><span>Total Selling Income</span><span id="panelRevenue">—</span></div>
-            <div class="detail-row"><span>Truck Delivery Cost</span><span id="panelTrucking">—</span></div>
-            <div class="detail-row"><span>Barge Delivery Cost</span><span id="panelBarging">—</span></div>
-            <div class="detail-row"><span>Total Delivery Cost</span><span id="panelLogistics" style="font-weight:700;">—</span></div>
-            <div class="detail-row"><span>Net Profit</span><span id="panelProfit" style="color:var(--htc-success);font-weight:700;">—</span></div>
-            <div class="detail-row"><span>Profit Margin</span><span id="panelMargin">—</span></div>
+
+            <!-- Freight Deduction Sub-Matrix with Margin Leakage Indicator -->
+            <div class="mt-2.5 pt-2 border-top">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="fs-8 fw-bold text-uppercase text-muted" style="letter-spacing: 0.5px;">Freight Deductions</span>
+                    <span id="panelFreightLeakageBadge" class="badge bg-danger-subtle text-danger border border-danger-subtle d-none fs-9 py-0.5 px-1.5 fw-bold">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Freight Margin Leakage (&gt;15%)
+                    </span>
+                </div>
+                <div class="detail-row ms-1"><span><i class="bi bi-truck text-muted me-1"></i>Truck Delivery Cost</span><span id="panelTrucking" class="text-danger-emphasis">—</span></div>
+                <div class="detail-row ms-1"><span><i class="bi bi-water text-muted me-1"></i>Barge Delivery Cost</span><span id="panelBarging" class="text-danger-emphasis">—</span></div>
+                <div class="detail-row ms-1 fw-bold bg-light p-1 rounded"><span>Total Freight Deductions</span><span id="panelLogistics" class="text-danger">—</span></div>
+            </div>
+
+            <!-- Net Profit & Margin -->
+            <div class="mt-2.5 pt-2 border-top">
+                <div class="detail-row fw-bold"><span>Net Profit</span><span id="panelProfit" style="color:var(--htc-success);">—</span></div>
+                <div class="detail-row"><span>Profit Margin</span><span id="panelMargin">—</span></div>
+            </div>
         </div>
 
         <div class="detail-section">
@@ -316,7 +410,6 @@
 
         const d = row.dataset;
         document.getElementById('panelRef').textContent = d.ref;
-        document.getElementById('panelSub').textContent = d.customer + ' · ' + d.status;
         document.getElementById('panelCustomer').textContent = d.customer;
         document.getElementById('panelSupplier').textContent = d.supplier;
         document.getElementById('panelPartner').textContent = d.partner;
@@ -324,64 +417,135 @@
         document.getElementById('panelCreated').textContent = d.created;
         document.getElementById('panelUpdated').textContent = d.updated;
         document.getElementById('panelPurchase').textContent = d.purchasePrice;
-        document.getElementById('panelSelling').textContent = d.sellingPrice;
-        document.getElementById('panelRevenue').textContent = d.revenue;
-        document.getElementById('panelTrucking').textContent = d.trucking;
-        document.getElementById('panelBarging').textContent = d.barging;
-        document.getElementById('panelLogistics').textContent = d.logistics;
-        document.getElementById('panelProfit').textContent = d.profit;
         document.getElementById('panelOrderValue').textContent = d.totalValue;
-        document.getElementById('panelMargin').textContent = d.margin;
         document.getElementById('panelVariance').textContent = d.variance;
         document.getElementById('panelNotes').textContent = d.notes;
         document.getElementById('panelInvoice').textContent = d.invoice;
         document.getElementById('panelFullUrl').href = d.url;
         const flowLink1 = document.getElementById('flowLink1');
         if (flowLink1) flowLink1.href = d.url;
-        document.getElementById('panelStatusChip').textContent = row.querySelector('.badge-status').textContent.trim();
-        document.getElementById('panelStatusChip').className = 'badge-status ' + d.status;
 
+        // Wire Persistent Action Bar links
+        const editBtn = document.getElementById('panelActionEdit');
+        if (editBtn) editBtn.href = d.editUrl || d.url;
+
+        const invBtn = document.getElementById('panelActionInvoice');
+        if (invBtn) invBtn.href = d.invoiceUrl || '#';
+
+        const pdfBtn = document.getElementById('panelActionPdf');
+        if (pdfBtn) pdfBtn.href = d.pdfUrl || '#';
+
+        const cancelForm = document.getElementById('panelCancelForm');
+        if (cancelForm) cancelForm.action = d.deleteUrl || '#';
+
+        // Standardized Semantic Status Chip
+        const statusChip = document.getElementById('panelStatusChip');
+        if (statusChip) {
+            statusChip.textContent = row.querySelector('.badge-status').textContent.trim();
+            statusChip.className = 'badge-status ' + d.status;
+        }
+
+        // Numerical parsing for pricing placeholders and unit economics
+        const revNum = parseFloat((d.revenue || '').replace(/[^0-9.-]+/g, '')) || 0;
+        const sellNum = parseFloat((d.sellingPrice || '').replace(/[^0-9.-]+/g, '')) || 0;
+        const profNum = parseFloat((d.profit || '').replace(/[^0-9.-]+/g, '')) || 0;
+        const marginNum = parseFloat((d.margin || '').replace(/[^0-9.-]+/g, '')) || 0;
+        const isPriced = revNum > 0 || sellNum > 0;
+
+        const panelSelling = document.getElementById('panelSelling');
+        const panelRevenue = document.getElementById('panelRevenue');
+        const panelProfit = document.getElementById('panelProfit');
+        const panelMargin = document.getElementById('panelMargin');
+
+        if (!isPriced) {
+            if (panelSelling) panelSelling.innerHTML = '<span class="text-muted fst-italic">Pending Pricing</span>';
+            if (panelRevenue) panelRevenue.innerHTML = '<span class="text-muted fst-italic">Pending Pricing</span>';
+            if (panelProfit) panelProfit.innerHTML = '<span class="text-muted fst-italic">Pending Pricing</span>';
+            if (panelMargin) panelMargin.innerHTML = '<span class="text-muted">—</span>';
+        } else {
+            if (panelSelling) panelSelling.textContent = d.sellingPrice;
+            if (panelRevenue) panelRevenue.textContent = d.revenue;
+            if (panelProfit) panelProfit.textContent = d.profit;
+            if (panelMargin) panelMargin.textContent = d.margin;
+        }
+
+        // Freight Costs Deduction Sub-Matrix & Margin Leakage Badge
+        const truckNum = parseFloat((d.trucking || '').replace(/[^0-9.-]+/g, '')) || 0;
+        const bargeNum = parseFloat((d.barging || '').replace(/[^0-9.-]+/g, '')) || 0;
+        const logNum = parseFloat((d.logistics || '').replace(/[^0-9.-]+/g, '')) || 0;
+        const totalDealVal = revNum > 0 ? revNum : (parseFloat((d.totalValue || '').replace(/[^0-9.-]+/g, '')) || 0);
+
+        const panelTrucking = document.getElementById('panelTrucking');
+        const panelBarging = document.getElementById('panelBarging');
+        const panelLogistics = document.getElementById('panelLogistics');
+
+        if (panelTrucking) panelTrucking.textContent = truckNum > 0 ? '− ₱' + truckNum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '₱0.00';
+        if (panelBarging) panelBarging.textContent = bargeNum > 0 ? '− ₱' + bargeNum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '₱0.00';
+        if (panelLogistics) panelLogistics.textContent = logNum > 0 ? '− ₱' + logNum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '₱0.00';
+
+        const leakageBadge = document.getElementById('panelFreightLeakageBadge');
+        if (leakageBadge) {
+            if (totalDealVal > 0 && (logNum / totalDealVal) > 0.15) {
+                leakageBadge.classList.remove('d-none');
+            } else {
+                leakageBadge.classList.add('d-none');
+            }
+        }
+
+        // Synchronize Progress Bar
         const progress = parseInt(d.progress, 10) || 0;
         document.getElementById('panelProgressBar').style.width = progress + '%';
         document.getElementById('panelProgressLabel').textContent = progress + '%';
 
+        // 5-Step Order Progress Tracker synchronized strictly with order status
         // Step 1: PO Creation
-        setFlowStep('flowStep1', 'is-completed', d.created || 'Registered');
+        if (d.status === 'draft') {
+            setFlowStep('flowStep1', 'is-active', 'Draft PO');
+        } else {
+            setFlowStep('flowStep1', 'is-completed', 'Registered');
+        }
 
         // Step 2: Executive Approval
         if (d.status === 'returned') {
             setFlowStep('flowStep2', 'is-returned', 'Returned');
         } else if (d.status === 'pending_approval') {
             setFlowStep('flowStep2', 'is-active', 'Pending Review');
+        } else if (d.status === 'draft') {
+            setFlowStep('flowStep2', '', 'Pending Review');
         } else {
             setFlowStep('flowStep2', 'is-completed', 'Approved');
         }
 
-        // Step 3: Logistics & Receiving
-        if (d.received === 'true' || d.status === 'delivered' || d.status === 'closed') {
-            setFlowStep('flowStep3', 'is-completed', 'Received');
+        // Step 3: Logistics & Dispatch
+        if (d.status === 'delivered' || d.status === 'closed' || d.received === 'true') {
+            setFlowStep('flowStep3', 'is-completed', 'Delivered');
         } else if (d.status === 'active') {
             setFlowStep('flowStep3', 'is-active', 'In Transit');
+        } else if (d.status === 'approved') {
+            setFlowStep('flowStep3', 'is-active', 'Ready for Dispatch');
         } else {
-            setFlowStep('flowStep3', '', 'Pending');
+            setFlowStep('flowStep3', '', 'Pending Dispatch');
         }
 
-        // Step 4: Invoicing
-        if (d.invoiced === 'true' || d.status === 'closed') {
-            setFlowStep('flowStep4', 'is-completed', 'Issued');
-        } else if (d.received === 'true' || d.status === 'delivered') {
+        // Step 4: Sales Invoicing & Billing
+        if (d.status === 'closed') {
+            setFlowStep('flowStep4', 'is-completed', 'Invoiced & Paid');
+        } else if (d.invoiced === 'true') {
+            setFlowStep('flowStep4', 'is-completed', 'Invoice Issued');
+        } else if (d.status === 'delivered') {
             setFlowStep('flowStep4', 'is-active', 'Ready to Bill');
         } else {
-            setFlowStep('flowStep4', '', 'Pending');
+            // Merely approved or active orders MUST NOT show active/paid
+            setFlowStep('flowStep4', '', 'Pending Billing');
         }
 
-        // Step 5: Settlement
+        // Step 5: Settlement & Closure
         if (d.status === 'closed') {
-            setFlowStep('flowStep5', 'is-completed', 'Closed');
-        } else if (d.invoiced === 'true') {
-            setFlowStep('flowStep5', 'is-active', 'Collection');
+            setFlowStep('flowStep5', 'is-completed', 'Deal Closed');
+        } else if (d.status === 'delivered' && d.invoiced === 'true') {
+            setFlowStep('flowStep5', 'is-active', 'Settlement');
         } else {
-            setFlowStep('flowStep5', '', 'Pending');
+            setFlowStep('flowStep5', '', 'Pending Settlement');
         }
 
         // Update step titles with missing prerequisite soft indicators

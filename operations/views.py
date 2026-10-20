@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import F, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -114,11 +114,19 @@ def cluster_list(request):
         c.barge_fees = fin["barge_fees"]
         c.invoice_number = fin["invoice_number"] or "—"
 
-        c.timeline_progress = 22
-        if c.status == TransactionCluster.Status.ACTIVE:
-            c.timeline_progress = 48
+        c.timeline_progress = 20
+        if c.status == TransactionCluster.Status.DRAFT:
+            c.timeline_progress = 15
+        elif c.status == TransactionCluster.Status.PENDING_APPROVAL:
+            c.timeline_progress = 30
+        elif c.status == TransactionCluster.Status.RETURNED:
+            c.timeline_progress = 25
+        elif c.status == TransactionCluster.Status.APPROVED:
+            c.timeline_progress = 50
+        elif c.status == TransactionCluster.Status.ACTIVE:
+            c.timeline_progress = 70
         elif c.status == TransactionCluster.Status.DELIVERED:
-            c.timeline_progress = 74
+            c.timeline_progress = 85
         elif c.status == TransactionCluster.Status.CLOSED:
             c.timeline_progress = 100
 
@@ -1564,39 +1572,58 @@ def mro_summary_view(request):
             Q(sugar_mill_name__icontains=q)
         )
 
+    # Enforce default descending sort order by release date (YYYY-MM-DD)
+    mro_qs = mro_qs.order_by(F("release_date").desc(nulls_last=True), "-id")
+
     # Compute metric KPIs
     total_tons = mro_qs.aggregate(total=Sum("tons"))["total"] or Decimal("0")
     total_mro_count = mro_qs.values("mro_number").distinct().count()
     distinct_mills_count = mro_qs.values("sugar_mill_name").distinct().count()
     item_count = mro_qs.count()
 
-    # Calculate subtotal per MRO + Supplier + Crop Year group to reproduce column G "TOTAL" in the Excel sheet
+    # Dynamic visible mills for KPI subtitle binding
+    visible_mill_names = list(
+        mro_qs.exclude(sugar_mill_name="")
+        .values_list("sugar_mill_name", flat=True)
+        .distinct()
+        .order_by("sugar_mill_name")
+    )
+    if not visible_mill_names and mill_filter:
+        visible_mill_names = [mill_filter]
+
+    # Calculate subtotal per MRO + Supplier + Crop Year group
     mro_subtotals = {}
+    mro_seen_counts = {}
     for item in mro_qs:
         key = (item.mro_number, item.sugar_mill_name, item.crop_year)
         mro_subtotals[key] = mro_subtotals.get(key, Decimal("0")) + item.tons
+        mro_seen_counts[key] = mro_seen_counts.get(key, 0) + 1
 
-    # Decorate items with group subtotal indicators
+    # Decorate items with group subtotal indicators & allocation drawdown
+    # Preserves the date-descending sort while calculating drawdowns and group boundaries
+    mro_current_counts = {}
     grouped_items = []
-    mro_group_items = {}
 
     for item in mro_qs:
         key = (item.mro_number, item.sugar_mill_name, item.crop_year)
-        if key not in mro_group_items:
-            mro_group_items[key] = []
-        mro_group_items[key].append(item)
-
-    # Build flat list with group totals attached
-    for key, items in mro_group_items.items():
+        mro_current_counts[key] = mro_current_counts.get(key, 0) + 1
+        is_last = (mro_current_counts[key] == mro_seen_counts[key])
         group_subtotal = mro_subtotals[key]
-        for idx, item in enumerate(items):
-            is_last = (idx == len(items) - 1)
-            grouped_items.append({
-                "item": item,
-                "is_last_in_mro": is_last,
-                "mro_group_subtotal": group_subtotal if is_last else None,
-                "rowspan": len(items) if idx == 0 else 0,
-            })
+
+        cluster_vol = Decimal("0")
+        if item.cluster and hasattr(item.cluster, "purchase_order") and item.cluster.purchase_order and item.cluster.purchase_order.volume_mt:
+            cluster_vol = Decimal(str(item.cluster.purchase_order.volume_mt))
+
+        drawdown_target = cluster_vol if cluster_vol > 0 else (group_subtotal if group_subtotal > item.tons else item.tons)
+        drawdown_pct = min(100.0, float((item.tons / drawdown_target) * 100)) if drawdown_target > 0 else 100.0
+
+        grouped_items.append({
+            "item": item,
+            "is_last_in_mro": is_last,
+            "mro_group_subtotal": group_subtotal if is_last else None,
+            "drawdown_target": drawdown_target,
+            "drawdown_pct": drawdown_pct,
+        })
 
     create_form = MolassesReleaseOrderForm(initial={"trader": "HEINDRICH", "crop_year": crop_year_filter or "2024 - 25", "sugar_mill_name": mill_filter or "BUSCO"})
     import_form = MROExcelImportForm(initial={"crop_year_override": crop_year_filter or "2024 - 25"})
@@ -1606,6 +1633,7 @@ def mro_summary_view(request):
         "total_tons": total_tons,
         "total_mro_count": total_mro_count,
         "distinct_mills_count": distinct_mills_count,
+        "visible_mill_names": visible_mill_names,
         "item_count": item_count,
         "available_crop_years": available_crop_years,
         "available_planters": available_planters,
