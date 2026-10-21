@@ -1,0 +1,40 @@
+{% if doc.mro_entries %}
+<div class="collapsible-entry-badges">
+    <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+        {# First 3 badges max to avoid vertical card bloat #}
+        {% for m in doc.mro_entries|slice:":3" %}
+        <span class="badge bg-body text-dark border font-monospace fs-9 py-0.5 px-1.5" title="{{ m.planter_name }} · {{ m.tons|floatformat:2 }} MT">
+            #{{ m.mro_number }} ({{ m.tons|floatformat:1 }} MT{% if m.planter_name %} · {{ m.planter_name|truncatechars:12 }}{% endif %})
+        </span>
+        {% endfor %}
+
+        {# Clickable toggle badge for remaining entries #}
+        {% if doc.mro_entries|length > 3 %}
+        <button type="button" 
+                class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none cursor-pointer d-inline-flex align-items-center gap-1 fs-9 py-0.5 px-2" 
+                data-bs-toggle="collapse" 
+                data-bs-target="#mroCollapse-{{ cat_key }}-{{ doc.id|slugify }}" 
+                aria-expanded="false" 
+                aria-controls="mroCollapse-{{ cat_key }}-{{ doc.id|slugify }}"
+                onclick="event.stopPropagation();"
+                title="Click to view all {{ doc.mro_entries|length }} MRO sub-entries covered by this document">
+            <span>+{{ doc.mro_entries|length|add:"-3" }} more entries</span>
+            <i class="bi bi-chevron-down fs-9"></i>
+        </button>
+        {% endif %}
+    </div>
+
+    {# Collapsible breakdown revealing the rest of the sub-entries #}
+    {% if doc.mro_entries|length > 3 %}
+    <div class="collapse mt-1" id="mroCollapse-{{ cat_key }}-{{ doc.id|slugify }}">
+        <div class="d-flex flex-wrap gap-1 p-2 rounded bg-body-secondary border border-secondary-subtle">
+            {% for m in doc.mro_entries|slice:"3:" %}
+            <span class="badge bg-body text-dark border font-monospace fs-9 py-0.5 px-1.5" title="{{ m.planter_name }} · {{ m.tons|floatformat:2 }} MT">
+                #{{ m.mro_number }} ({{ m.tons|floatformat:1 }} MT{% if m.planter_name %} · {{ m.planter_name|truncatechars:12 }}{% endif %})
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

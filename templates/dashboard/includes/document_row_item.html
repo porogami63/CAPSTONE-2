@@ -1,0 +1,161 @@
+<div class="list-group-item py-2.5 px-3 doc-item-row" 
+     id="docRow-{{ cat_key }}-{{ doc.id|slugify }}"
+     data-doc-id="{{ doc.id }}"
+     data-doc-name="{{ doc.name|lower }}"
+     data-doc-ref="{{ doc.ref|lower }}"
+     data-doc-client="{{ doc.client_name|lower }}"
+     data-doc-mill="{{ doc.mill_name|lower }}"
+     data-doc-category="{{ cat_key }}"
+     data-doc-origin="{{ doc.origin }}"
+     data-has-scan="{{ doc.has_scan|yesno:'true,false' }}"
+     data-search="{{ doc.name|lower }} {{ doc.ref|lower }} {{ doc.client_name|lower }} {{ doc.mill_name|lower }} {{ cat.title|lower }} {{ doc.origin_label|lower }}">
+    <div class="d-flex align-items-start justify-content-between gap-2">
+        <div class="d-flex align-items-start gap-2.5" style="min-width: 0; flex-grow: 1;">
+            <!-- Checkbox for Batch Operations -->
+            <div class="form-check pt-1 m-0 flex-shrink-0">
+                <input class="form-check-input doc-row-check cursor-pointer" 
+                       type="checkbox" 
+                       id="check-{{ cat_key }}-{{ doc.id|slugify }}"
+                       data-doc-id="{{ doc.id }}"
+                       data-doc-name="{{ doc.name }}"
+                       data-doc-category="{{ cat.title }}"
+                       data-doc-origin="{% if doc.origin == 'uploaded' %}{% if doc.has_scan %}Uploaded{% else %}Awaiting Scan{% endif %}{% else %}Generated{% endif %}"
+                       data-doc-ref="{{ doc.ref }}"
+                       data-doc-client="{{ doc.client_name|default:'' }}"
+                       data-doc-date="{{ doc.date|date:'Y-m-d' }}"
+                       data-doc-size="{{ doc.size }}"
+                       data-download-url="{% if doc.scan_url %}{{ doc.scan_url }}{% elif doc.pdf_url %}{{ doc.pdf_url }}{% endif %}"
+                       onchange="updateDocSelectionState(this)"
+                       onclick="event.stopPropagation();">
+            </div>
+
+            <!-- Document Category / Format Icon -->
+            <div class="flex-shrink-0 mt-0.5">
+                {% if doc.origin == 'uploaded' %}
+                    {% if doc.has_scan %}
+                        <i class="bi bi-file-earmark-check-fill text-success fs-3" title="Scanned Soft Copy Stored"></i>
+                    {% else %}
+                        <i class="bi bi-cloud-arrow-up text-warning fs-3" title="Awaiting Scan Upload"></i>
+                    {% endif %}
+                {% else %}
+                    <i class="bi bi-file-earmark-pdf-fill text-primary fs-3" title="Official Generated PDF"></i>
+                {% endif %}
+            </div>
+
+            <!-- Document Main Metadata & Entities -->
+            <div style="min-width: 0; flex-grow: 1;">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="fw-bold text-dark text-truncate doc-title" style="max-width: 280px;" title="{{ doc.name }}">{{ doc.name }}</span>
+                    
+                    {# Standardized Status Badge Tokens #}
+                    {% if doc.origin == 'uploaded' %}
+                        {% if doc.has_scan %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-9">
+                            <i class="bi bi-cloud-arrow-up me-0.5"></i>Uploaded
+                        </span>
+                        {% else %}
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0.5 fs-9">
+                            <i class="bi bi-clock-history me-0.5"></i>Awaiting Scan
+                        </span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 fs-9">
+                            <i class="bi bi-cpu me-0.5"></i>Generated
+                        </span>
+                    {% endif %}
+
+                    {% if doc.ref %}
+                    <span class="badge bg-body-secondary text-secondary border font-monospace px-1.5 py-0.5 fs-9">{{ doc.ref }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="text-muted small mt-0.5">
+                    <i class="bi bi-calendar3 me-1"></i>{{ doc.date|date:"M d, Y" }} · <i class="bi bi-hdd me-1"></i>{{ doc.size }}
+                    {% if doc.client_name %} · <span class="text-secondary fw-semibold"><i class="bi bi-person me-0.5"></i>{{ doc.client_name }}</span>{% endif %}
+                    {% if doc.mill_name %} · <span class="text-muted">({{ doc.mill_name }})</span>{% endif %}
+                </div>
+
+                <!-- CONSOLIDATED SCANNED MRO BREAKDOWN WITH COLLAPSIBLE SUB-ENTRIES -->
+                {% if doc.is_consolidated %}
+                <div class="mt-2 p-2 rounded bg-body-tertiary border" style="font-size: 0.78rem;">
+                    <div class="d-flex align-items-center justify-content-between mb-1.5 flex-wrap gap-1">
+                        <span class="fw-bold text-primary d-inline-flex align-items-center gap-1.5">
+                            <i class="bi bi-layers-fill text-primary"></i> Consolidated Scan (1 File Covers {{ doc.mro_count }} MRO Entries)
+                        </span>
+                        <span class="badge bg-primary text-white font-monospace">{{ doc.total_tons|floatformat:2 }} MT</span>
+                    </div>
+
+                    <!-- Collapsible Sub-Entries (Capped at 3 badges with +N toggle) -->
+                    {% include "dashboard/includes/collapsible_entry_badges.html" with doc=doc cat_key=cat_key %}
+
+                    {% if doc.deliveries_count %}
+                    <div class="text-muted text-xs mt-1">
+                        <i class="bi bi-truck me-1 text-secondary"></i> Fulfills {{ doc.deliveries_count }} delivery batch{{ doc.deliveries_count|pluralize:"es" }} under PO {{ doc.ref }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% elif doc.coverage_summary and cat_key == "release_orders" %}
+                <div class="text-muted text-xs mt-1">
+                    <i class="bi bi-check2-circle text-success me-1"></i>{{ doc.coverage_summary }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- STANDARDIZED ACTION BUTTON TRIGGERS -->
+        <div class="d-flex align-items-center gap-1.5 flex-shrink-0 mt-0.5">
+            {# 1. Uploaded / Generated: Preview & Download Actions #}
+            {% if doc.has_scan and doc.scan_url %}
+                <button type="button" 
+                        class="btn btn-sm btn-outline-success py-1 px-2.5 text-nowrap d-inline-flex align-items-center gap-1 shadow-xs fs-8 fw-semibold" 
+                        title="Preview Scanned Document" 
+                        onclick="previewSoftCopy('{{ doc.scan_url }}', '{{ doc.name|escapejs }}', {{ doc.is_pdf|yesno:'true,false' }})">
+                    <i class="bi bi-eye-fill"></i> Preview
+                </button>
+                <a href="{{ doc.scan_url }}" 
+                   class="btn btn-sm btn-light py-1 px-2 border shadow-xs fs-8" 
+                   title="Download Soft Copy" 
+                   download>
+                    <i class="bi bi-download"></i>
+                </a>
+            {% elif doc.pdf_url %}
+                <button type="button" 
+                        class="btn btn-sm btn-outline-primary py-1 px-2.5 text-nowrap d-inline-flex align-items-center gap-1 shadow-xs fs-8 fw-semibold" 
+                        title="Preview Generated Document" 
+                        onclick="previewSoftCopy('{{ doc.pdf_url }}', '{{ doc.name|escapejs }}', true)">
+                    <i class="bi bi-eye-fill"></i> Preview
+                </button>
+                <a href="{{ doc.pdf_url }}" 
+                   class="btn btn-sm btn-outline-primary py-1 px-2.5 text-nowrap d-inline-flex align-items-center gap-1 shadow-xs fs-8 fw-semibold" 
+                   title="Download Official PDF" 
+                   download>
+                    <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                </a>
+            {% elif not doc.has_scan and doc.origin == 'uploaded' %}
+                {# 2. Awaiting Scan: Explicit Primary CTA #}
+                {% if cat_key == "release_orders" and doc.upload_url %}
+                <button type="button" 
+                        class="btn btn-sm btn-warning text-dark fw-bold py-1 px-2.5 text-nowrap d-inline-flex align-items-center gap-1 shadow-xs fs-8" 
+                        title="Upload Scanned MRO" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#uploadMroModal{{ cat_key }}-{{ forloop.counter }}">
+                    <i class="bi bi-upload"></i> Upload Scan
+                </button>
+                {% else %}
+                <a href="{{ doc.url }}" 
+                   class="btn btn-sm btn-outline-warning py-1 px-2.5 text-nowrap d-inline-flex align-items-center gap-1 shadow-xs fs-8 fw-semibold" 
+                   title="Open Transaction to Attach Scan">
+                    <i class="bi bi-cloud-arrow-up"></i> Request Scan
+                </a>
+                {% endif %}
+            {% endif %}
+
+            {# Detail Link Icon #}
+            {% if doc.url %}
+            <a href="{{ doc.url }}" class="btn btn-sm btn-light py-1 px-2 border shadow-xs fs-8" title="View Transaction Detail">
+                <i class="bi bi-box-arrow-up-right"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>

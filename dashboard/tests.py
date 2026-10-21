@@ -262,3 +262,97 @@ class DocumentStorageAndDistinctionTests(TestCase):
         self.assertContains(res, "Consolidated Document:")
         self.assertContains(res, "MRO-701")
         self.assertContains(res, "MRO-702")
+
+    def test_documents_page_view_switcher_and_table_view(self):
+        """Tests that the View Switcher toggles (Grid vs. Table View) and Master Table are rendered."""
+        self.client.login(username="doc_manager", password="password123")
+        url = reverse("dashboard:documents")
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+
+        # View Switcher buttons
+        self.assertContains(res, 'id="btnViewGrid"')
+        self.assertContains(res, 'id="btnViewTable"')
+
+        # Master Table container and table elements
+        self.assertContains(res, 'id="documentsTableViewContainer"')
+        self.assertContains(res, 'id="documentsMasterTable"')
+        self.assertContains(res, 'id="documentsMasterTableBody"')
+
+        # Table columns
+        self.assertContains(res, "Document Name &amp; Ref")
+        self.assertContains(res, "Linked Entities")
+        self.assertContains(res, "File Size")
+
+    def test_documents_batch_operations_and_action_bar(self):
+        """Tests that Batch Operations controls, checkboxes, and floating batch action bar are present."""
+        self.client.login(username="doc_manager", password="password123")
+        url = reverse("dashboard:documents")
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+
+        # Selection checkboxes
+        self.assertContains(res, 'id="globalSelectAllToggle"')
+        self.assertContains(res, 'cat-select-all')
+        self.assertContains(res, 'doc-row-check')
+
+        # Floating batch action bar and primary actions
+        self.assertContains(res, 'id="floatingBatchActionBar"')
+        self.assertContains(res, 'id="batchSelectedCounter"')
+        self.assertContains(res, 'id="btnBatchDownloadZip"')
+        self.assertContains(res, "Download Selected (ZIP)")
+        self.assertContains(res, 'id="btnBatchExportCsv"')
+        self.assertContains(res, "Export Manifest (CSV)")
+        self.assertContains(res, 'id="btnBatchMarkReviewed"')
+        self.assertContains(res, "Mark as Reviewed")
+
+    def test_sub_entry_badge_collapsing_when_exceeding_three(self):
+        """Tests that cards with >3 sub-entry badges collapse extra tags and render +N more entries."""
+        # Create 2 more MROs to bring total to 4 (exceeding max limit of 3)
+        MolassesReleaseOrder.objects.create(
+            mro_number="MRO-703",
+            cluster=self.cluster,
+            planter=self.planter1,
+            sugar_mill=self.mill,
+            tons=Decimal("500.000"),
+            release_date=date(2026, 10, 11),
+            crop_year="2024 - 2025",
+        )
+        MolassesReleaseOrder.objects.create(
+            mro_number="MRO-704",
+            cluster=self.cluster,
+            planter=self.planter2,
+            sugar_mill=self.mill,
+            tons=Decimal("250.000"),
+            release_date=date(2026, 10, 11),
+            crop_year="2024 - 2025",
+        )
+
+        self.client.login(username="doc_manager", password="password123")
+        url = reverse("dashboard:documents")
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+
+        # Collapsible component is rendered
+        self.assertContains(res, "collapsible-entry-badges")
+        # Counter badge for remaining entries (4 - 3 = 1 more entry)
+        self.assertContains(res, "+1 more entries")
+        # Collapsible drawer target
+        self.assertContains(res, "mroCollapse-release_orders-")
+
+    def test_standardized_actions_and_grid_equalization(self):
+        """Tests that cards use equalized height and rows feature standardized action buttons."""
+        self.client.login(username="doc_manager", password="password123")
+        url = reverse("dashboard:documents")
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+
+        # Grid card equalization class
+        self.assertContains(res, "doc-equalized-card")
+        self.assertContains(res, "doc-category-scroll")
+
+        # Standardized action buttons
+        self.assertContains(res, "Preview")
+        self.assertContains(res, "Download PDF")
+        self.assertContains(res, "Request Scan")
+

@@ -1,41 +1,86 @@
 {% extends "app_base.html" %}
 {% load humanize %}
-{% block title %}Documents & Soft Copies · HTC Core{% endblock %}
-{% block topbar_title %}Document Management & Storage{% endblock %}
+{% block title %}Documents &amp; Soft Copies · HTC Core{% endblock %}
+{% block topbar_title %}Document Management &amp; Storage{% endblock %}
 {% block topbar_subtitle %}Centralized repository distinguishing System-Generated Official PDFs and User-Uploaded Scanned Documents{% endblock %}
+
 {% block content %}
 
-<!-- TOP SEARCH & FILTERS -->
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3" data-step="1" data-intro="Centralized document management repository for searching scanned Molasses Release Orders (MRO), delivery receipts, invoices, and vouchers.">
-    <!-- Origin Filter Pills (Distinguishing Generated vs Uploaded) -->
-    <div class="d-flex align-items-center gap-2">
-        <span class="text-xs fw-bold text-muted text-uppercase" style="letter-spacing: 0.5px;">Filter by Origin:</span>
-        <div class="btn-group btn-group-sm" role="group" id="originFilterGroup">
-            <button type="button" class="btn btn-primary fw-semibold origin-btn active" onclick="filterOrigin('all', this)">
-                <i class="bi bi-collection me-1"></i> All Documents ({{ total_documents }})
-            </button>
-            <button type="button" class="btn btn-outline-success fw-semibold origin-btn" onclick="filterOrigin('uploaded', this)">
-                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Uploaded by User ({{ total_uploaded_count }})
-            </button>
-            <button type="button" class="btn btn-outline-primary fw-semibold origin-btn" onclick="filterOrigin('generated', this)">
-                <i class="bi bi-gear-wide-connected me-1"></i> System Generated ({{ total_generated_count }})
-            </button>
-        </div>
-    </div>
-
-    <!-- Live Search -->
-    <div style="width: 320px;">
-        <form method="get">
-            <div class="search-input-wrap">
-                <i class="bi bi-search"></i>
-                <input class="form-control form-control-sm" type="search" name="q" value="{{ query }}" placeholder="Search PO, MRO #, client, or scan...">
+<!-- TOP SEARCH, FILTERS & VIEW SWITCHER BAR -->
+<div class="d-flex flex-column gap-3 mb-4" data-step="1" data-intro="Centralized document management repository for searching scanned Molasses Release Orders (MRO), delivery receipts, invoices, and vouchers.">
+    <div class="p-3 rounded-3 bg-light border d-flex flex-wrap justify-content-between align-items-center gap-3 shadow-xs">
+        
+        <!-- Left: Origin Filter Pills & Global Select All Toggle -->
+        <div class="d-flex flex-wrap align-items-center gap-2.5">
+            <span class="text-xs fw-bold text-muted text-uppercase" style="letter-spacing: 0.5px;">Filter by Origin:</span>
+            <div class="btn-group btn-group-sm" role="group" id="originFilterGroup">
+                <button type="button" class="btn btn-primary fw-semibold origin-btn active" onclick="filterOrigin('all', this)">
+                    <i class="bi bi-collection me-1"></i> All ({{ total_documents }})
+                </button>
+                <button type="button" class="btn btn-outline-success fw-semibold origin-btn" onclick="filterOrigin('uploaded', this)">
+                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Uploaded by User ({{ total_uploaded_count }})
+                </button>
+                <button type="button" class="btn btn-outline-primary fw-semibold origin-btn" onclick="filterOrigin('generated', this)">
+                    <i class="bi bi-gear-wide-connected me-1"></i> System Generated ({{ total_generated_count }})
+                </button>
             </div>
-        </form>
+
+            <!-- Global Select All Visible Checkbox -->
+            <div class="form-check m-0 d-inline-flex align-items-center gap-1.5 fs-8 text-muted user-select-none bg-body rounded-2 border px-2.5 py-1 shadow-xs ms-lg-2" 
+                 style="cursor: pointer;" 
+                 onclick="document.getElementById('globalSelectAllToggle').click()"
+                 title="Select or deselect all visible document rows">
+                <input class="form-check-input m-0 cursor-pointer" 
+                       type="checkbox" 
+                       id="globalSelectAllToggle" 
+                       onchange="toggleGlobalSelectAll(this)" 
+                       onclick="event.stopPropagation()">
+                <label class="form-check-label cursor-pointer fw-semibold text-dark mb-0" for="globalSelectAllToggle">
+                    Select All Visible
+                </label>
+            </div>
+        </div>
+
+        <!-- Right: Live Search & View Switcher -->
+        <div class="d-flex align-items-center gap-2.5 flex-wrap">
+            <!-- Real-Time Search Bar -->
+            <div class="search-input-wrap" style="width: 320px; max-width: 100%;">
+                <i class="bi bi-search"></i>
+                <input class="form-control form-control-sm" 
+                       type="search" 
+                       id="documentSearchInput" 
+                       name="q" 
+                       value="{{ query }}" 
+                       placeholder="Search PO, MRO #, client, or scan..." 
+                       onkeyup="handleLiveSearch()" 
+                       oninput="handleLiveSearch()">
+            </div>
+
+            <!-- View Switcher (Grid View vs Unified Table View) -->
+            <div class="btn-group btn-group-sm" role="group" id="viewSwitcherGroup">
+                <button type="button" 
+                        class="btn btn-primary active d-inline-flex align-items-center gap-1.5 fw-semibold px-2.5 py-1.5 shadow-xs" 
+                        id="btnViewGrid" 
+                        onclick="switchDocumentView('grid', this)" 
+                        title="Switch to Category-Grouped Grid View">
+                    <i class="bi bi-grid-fill"></i>
+                    <span class="d-none d-sm-inline">Grid</span>
+                </button>
+                <button type="button" 
+                        class="btn btn-outline-primary d-inline-flex align-items-center gap-1.5 fw-semibold px-2.5 py-1.5 shadow-xs" 
+                        id="btnViewTable" 
+                        onclick="switchDocumentView('table', this)" 
+                        title="Switch to Unified Sortable Table View">
+                    <i class="bi bi-table"></i>
+                    <span class="d-none d-sm-inline">Table View</span>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- CATEGORY TABS -->
-<div class="tabs-row mb-4 overflow-auto" data-step="2" data-intro="Filter documents by category tab: Release Orders (MRO), Delivery Receipts & Waybills, Bank Clearances, Contracts, POs, Invoices, or Cash Vouchers.">
+<!-- CATEGORY TABS ROW -->
+<div class="tabs-row mb-4 overflow-auto" data-step="2" data-intro="Filter documents by category tab: Release Orders (MRO), Delivery Receipts &amp; Waybills, Bank Clearances, Contracts, POs, Invoices, or Cash Vouchers.">
     <button type="button" class="tab-btn active" onclick="showCategory('all', this)">
         <i class="bi bi-collection"></i> All Categories
     </button>
@@ -44,9 +89,6 @@
     </button>
     <button type="button" class="tab-btn" onclick="showCategory('delivery_receipts', this)">
         <i class="bi bi-truck text-success"></i> Delivery Receipts ({{ categories.delivery_receipts.items|length }})
-    </button>
-    <button type="button" class="tab-btn" onclick="showCategory('loan_settlements', this)">
-        <i class="bi bi-bank text-success"></i> Bank Loan Clearances ({{ categories.loan_settlements.items|length }})
     </button>
     <button type="button" class="tab-btn" onclick="showCategory('contracts', this)">
         <i class="bi bi-file-earmark-text-fill text-primary"></i> Supply Contracts ({{ categories.contracts.items|length }})
@@ -62,163 +104,66 @@
     </button>
 </div>
 
-<!-- DOCUMENTS GRID -->
+<!-- ======================================================================== -->
+<!-- 1. GRID VIEW: CATEGORY-GROUPED EQUALIZED CARDS                           -->
+<!-- ======================================================================== -->
 <div class="row g-4 mb-4" id="documentsGrid" data-step="3" data-intro="Document cards grid. Distinguishes official system-generated files from user-uploaded scanned documents with instant in-app modal preview.">
     {% for key, cat in categories.items %}
     <div class="col-lg-6 doc-category-col" data-cat="{{ key }}" data-origin="{{ cat.origin }}">
-        <div class="card h-100 border shadow-sm">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2.5 px-3">
+        <div class="card border shadow-sm doc-equalized-card">
+            
+            <!-- Category Header with Select-All-in-Category Toggle -->
+            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2.5 px-3 flex-shrink-0">
                 <div class="d-flex align-items-center gap-2">
                     <h5 class="mb-0 fs-6 fw-bold text-dark">
                         <i class="bi {{ cat.icon }} me-1 {% if cat.origin == 'uploaded' %}text-success{% else %}text-primary{% endif %}"></i> {{ cat.title }}
                     </h5>
                     {% if cat.origin == 'uploaded' %}
-                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5" style="font-size: 0.72rem;">
-                        <i class="bi bi-cloud-arrow-up-fill me-1"></i>User Uploaded
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-9">
+                        <i class="bi bi-cloud-arrow-up-fill me-0.5"></i>User Uploaded
                     </span>
                     {% else %}
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style="font-size: 0.72rem;">
-                        <i class="bi bi-gear-fill me-1"></i>System Generated
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 fs-9">
+                        <i class="bi bi-gear-fill me-0.5"></i>System Generated
                     </span>
                     {% endif %}
                 </div>
-                <span class="badge bg-secondary rounded-pill">{{ cat.items|length }}</span>
+                
+                <div class="d-flex align-items-center gap-2.5">
+                    <!-- Category Select All Checkbox -->
+                    <div class="form-check m-0 d-inline-flex align-items-center gap-1 fs-9 text-muted cursor-pointer" 
+                         title="Select all documents in {{ cat.title }}"
+                         onclick="this.querySelector('.cat-select-all').click();">
+                        <input class="form-check-input m-0 cursor-pointer cat-select-all" 
+                               type="checkbox" 
+                               data-category="{{ key }}"
+                               onchange="toggleCategorySelectAll('{{ key }}', this)"
+                               onclick="event.stopPropagation();">
+                        <label class="form-check-label fs-9 fw-semibold cursor-pointer text-muted mb-0">Select All</label>
+                    </div>
+
+                    <span class="badge bg-secondary rounded-pill cat-count-badge">{{ cat.items|length }}</span>
+                </div>
             </div>
+
+            <!-- Scrollable Equalized Card Body -->
             <div class="card-body p-0">
-                <div class="doc-category-scroll" style="max-height: 440px; overflow-y: auto; scrollbar-width: thin;">
-                    <div class="list-group list-group-flush">
+                <div class="doc-category-scroll">
+                    <div class="list-group list-group-flush" id="catList-{{ key }}">
                         {% for doc in cat.items %}
-                        <div class="list-group-item py-2.5 px-3 doc-item-row" data-origin="{{ doc.origin }}">
-                            <div class="d-flex align-items-start justify-content-between gap-2">
-                                <div class="d-flex align-items-start gap-3" style="min-width: 0; flex-grow: 1;">
-                                    <div class="flex-shrink-0 mt-1">
-                                        {% if doc.origin == 'uploaded' %}
-                                            {% if doc.has_scan %}
-                                                <i class="bi bi-file-earmark-check-fill text-success fs-3" title="Scanned Soft Copy Stored"></i>
-                                            {% else %}
-                                                <i class="bi bi-cloud-arrow-up text-warning fs-3" title="Awaiting Upload"></i>
-                                            {% endif %}
-                                        {% else %}
-                                            <i class="bi bi-file-earmark-pdf-fill text-primary fs-3" title="Official Generated PDF"></i>
-                                        {% endif %}
-                                    </div>
-                                    <div style="min-width: 0; flex-grow: 1;">
-                                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                                            <span class="fw-bold text-dark text-truncate" style="max-width: 280px;" title="{{ doc.name }}">{{ doc.name }}</span>
-                                            <span class="badge {{ doc.badge_class }} px-1.5 py-0.5" style="font-size: 0.68rem;">
-                                                {% if doc.origin == 'uploaded' %}
-                                                    <i class="bi bi-cloud-arrow-up me-0.5"></i>Uploaded
-                                                {% else %}
-                                                    <i class="bi bi-cpu me-0.5"></i>Generated
-                                                {% endif %}
-                                            </span>
-                                            {% if doc.ref %}
-                                            <span class="badge bg-light text-secondary border font-monospace px-1.5 py-0.5" style="font-size: 0.7rem;">{{ doc.ref }}</span>
-                                            {% endif %}
-                                        </div>
-
-                                        <div class="text-muted small mt-0.5">
-                                            {{ doc.date|date:"M d, Y" }} · {{ doc.size }}
-                                            {% if doc.client_name %} · <span class="text-secondary fw-semibold">{{ doc.client_name }}</span>{% endif %}
-                                            {% if doc.mill_name %} · <span class="text-muted">({{ doc.mill_name }})</span>{% endif %}
-                                        </div>
-
-                                        <!-- CONSOLIDATED SCANNED MRO DETAILS (1 Document Covering Multiple MRO Entries) -->
-                                        {% if doc.is_consolidated %}
-                                        <div class="mt-2 p-2 rounded bg-body-tertiary border" style="font-size: 0.78rem;">
-                                            <div class="d-flex align-items-center justify-content-between mb-1.5 flex-wrap gap-1">
-                                                <span class="fw-bold text-primary d-inline-flex align-items-center gap-1.5">
-                                                    <i class="bi bi-layers-fill text-primary"></i> Consolidated Scan (1 File Covers {{ doc.mro_count }} MRO Entries)
-                                                </span>
-                                                <span class="badge bg-primary text-white font-monospace">{{ doc.total_tons|floatformat:2 }} MT</span>
-                                            </div>
-                                            <div class="d-flex flex-wrap gap-1 mb-1">
-                                                {% for m in doc.mro_entries %}
-                                                <span class="badge bg-white text-dark border font-monospace" title="{{ m.planter_name }} · {{ m.tons|floatformat:2 }} MT">
-                                                    #{{ m.mro_number }} ({{ m.tons|floatformat:1 }} MT{% if m.planter_name %} · {{ m.planter_name|truncatechars:14 }}{% endif %})
-                                                </span>
-                                                {% endfor %}
-                                            </div>
-                                            {% if doc.deliveries_count %}
-                                            <div class="text-muted text-xs mt-1">
-                                                <i class="bi bi-truck me-1 text-secondary"></i> Fulfills {{ doc.deliveries_count }} delivery batch{{ doc.deliveries_count|pluralize:"es" }} under PO {{ doc.ref }}
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                        {% elif doc.coverage_summary and key == "release_orders" %}
-                                        <div class="text-muted text-xs mt-1">
-                                            <i class="bi bi-check2-circle text-success me-1"></i>{{ doc.coverage_summary }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                <!-- ACTIONS -->
-                                <div class="d-flex align-items-center gap-1 flex-shrink-0 mt-1">
-                                    {% if doc.has_scan and doc.scan_url %}
-                                        <button type="button" class="btn btn-sm btn-outline-success py-1 px-2 text-nowrap" title="Preview Scanned Document" onclick="previewSoftCopy('{{ doc.scan_url }}', '{{ doc.name|escapejs }}', {{ doc.is_pdf|yesno:'true,false' }})">
-                                            <i class="bi bi-eye-fill me-1"></i> Preview
-                                        </button>
-                                        <a href="{{ doc.scan_url }}" class="btn btn-sm btn-light py-1 px-2 border" title="Download Soft Copy" download>
-                                            <i class="bi bi-download"></i>
-                                        </a>
-                                    {% elif doc.pdf_url %}
-                                        <a href="{{ doc.pdf_url }}" class="btn btn-sm btn-outline-primary py-1 px-2 text-nowrap" title="Download Official PDF" download>
-                                            <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
-                                        </a>
-                                    {% endif %}
-
-                                    {% if key == "release_orders" and doc.upload_url %}
-                                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" title="Upload / Replace Scanned MRO" data-bs-toggle="modal" data-bs-target="#uploadMroModal{{ forloop.counter }}">
-                                            <i class="bi bi-upload"></i>
-                                        </button>
-                                        <!-- Modal for uploading MRO scanned copy -->
-                                        <div class="modal fade" id="uploadMroModal{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog modal-dialog-centered">
-                                                <div class="modal-content">
-                                                    <form method="post" action="{{ doc.upload_url }}" enctype="multipart/form-data">
-                                                        {% csrf_token %}
-                                                        <div class="modal-header">
-                                                            <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-upload text-primary me-2"></i>Upload Scanned MRO Soft Copy</h5>
-                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                        </div>
-                                                        <div class="modal-body text-start">
-                                                            <p class="mb-2 text-xs">
-                                                                Upload the official scanned soft copy (PDF or image) of Molasses Release Order for transaction <strong>{{ doc.ref }}</strong>.
-                                                            </p>
-                                                            <div class="alert alert-info py-2 px-3 text-xs mb-3">
-                                                                <i class="bi bi-info-circle-fill me-1"></i>
-                                                                <strong>Multi-MRO Support:</strong> If this scanned PDF contains multiple MRO entries for multiple batches of deliveries, this 1 document file will be stored once and shared across all those entries without duplicating storage.
-                                                            </div>
-                                                            <div class="mb-3">
-                                                                <label class="form-label font-weight-bold text-xs">Select MRO Soft Copy File (PDF/Image)</label>
-                                                                <input type="file" name="mro_file" class="form-control form-control-sm" accept="application/pdf,image/*" required>
-                                                            </div>
-                                                        </div>
-                                                        <div class="modal-footer">
-                                                            <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
-                                                            <button type="submit" class="btn-htc btn-sm"><i class="bi bi-check-circle me-1"></i> Upload Soft Copy</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    {% endif %}
-
-                                    {% if doc.url %}
-                                    <a href="{{ doc.url }}" class="btn btn-sm btn-outline-secondary py-1 px-2" title="View Transaction Detail">
-                                        <i class="bi bi-box-arrow-up-right"></i>
-                                    </a>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
+                            {% include "dashboard/includes/document_row_item.html" with doc=doc cat_key=key cat=cat %}
                         {% empty %}
                         <div class="list-group-item text-muted text-center py-4 text-xs">
                             <i class="bi bi-folder2-open fs-3 d-block mb-1 text-secondary opacity-50"></i>
                             No documents found in this operational category.
                         </div>
                         {% endfor %}
+
+                        <!-- No Search Match Banner for Category -->
+                        <div class="list-group-item text-muted text-center py-4 text-xs d-none cat-no-search-match">
+                            <i class="bi bi-search fs-4 d-block mb-1 text-secondary opacity-50"></i>
+                            No documents in this category match your search.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -227,7 +172,19 @@
     {% endfor %}
 </div>
 
-<!-- IN-APP PREVIEWER MODAL -->
+<!-- ======================================================================== -->
+<!-- 2. UNIFIED TABLE VIEW COMPONENT                                          -->
+<!-- ======================================================================== -->
+{% include "dashboard/includes/document_table_view.html" %}
+
+<!-- ======================================================================== -->
+<!-- 3. FLOATING BATCH ACTION BAR COMPONENT                                   -->
+<!-- ======================================================================== -->
+{% include "dashboard/includes/batch_action_bar.html" %}
+
+<!-- ======================================================================== -->
+<!-- 4. IN-APP PREVIEWER MODAL                                                -->
+<!-- ======================================================================== -->
 <div class="modal fade" id="previewDocModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 92vw;">
         <div class="modal-content" style="height: 88vh; background: var(--htc-surface);">
@@ -251,7 +208,47 @@
     </div>
 </div>
 
-<!-- BOTTOM STORAGE & STATUS METRICS -->
+<!-- ======================================================================== -->
+<!-- 5. UPLOAD MODALS FOR AWAITING SCANS (Rendered outside overflow cards)     -->
+<!-- ======================================================================== -->
+{% for doc in categories.release_orders.items %}
+    {% if doc.upload_url %}
+    <div class="modal fade" id="uploadMroModalrelease_orders-{{ forloop.counter }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="{{ doc.upload_url }}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-upload text-primary me-2"></i>Upload Scanned MRO Soft Copy</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start">
+                        <p class="mb-2 text-xs">
+                            Upload the official scanned soft copy (PDF or image) of Molasses Release Order for transaction <strong>{{ doc.ref }}</strong>.
+                        </p>
+                        <div class="alert alert-info py-2 px-3 text-xs mb-3">
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            <strong>Multi-MRO Support:</strong> If this scanned PDF contains multiple MRO entries for multiple batches of deliveries, this 1 document file will be stored once and shared across all those entries without duplicating storage.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold text-xs">Select MRO Soft Copy File (PDF/Image)</label>
+                            <input type="file" name="mro_file" class="form-control form-control-sm" accept="application/pdf,image/*" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn-htc btn-sm"><i class="bi bi-check-circle me-1"></i> Upload Soft Copy</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+
+<!-- ======================================================================== -->
+<!-- 6. BOTTOM STORAGE & STATUS METRICS                                       -->
+<!-- ======================================================================== -->
 <div class="metric-grid mb-4">
     <div class="metric-box">
         <div class="label">Total Documents</div>
@@ -275,10 +272,60 @@
     </div>
 </div>
 
+<!-- ======================================================================== -->
+<!-- JAVASCRIPT: JSZIP, STATE MANAGEMENT, SORTING, BATCH OPERATIONS           -->
+<!-- ======================================================================== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
+// Central Selection State Store
+const selectedDocumentsStore = new Map();
+let currentViewMode = 'grid'; // 'grid' | 'table'
 let currentCategory = 'all';
 let currentOrigin = 'all';
+let currentSearchTerm = '';
+let currentSortColumn = -1;
+let currentSortDirection = 'asc';
 
+// --------------------------------------------------------------------------
+// 1. VIEW SWITCHER
+// --------------------------------------------------------------------------
+function switchDocumentView(mode, btn) {
+    currentViewMode = mode;
+    
+    const gridBtn = document.getElementById('btnViewGrid');
+    const tableBtn = document.getElementById('btnViewTable');
+    const gridContainer = document.getElementById('documentsGrid');
+    const tableContainer = document.getElementById('documentsTableViewContainer');
+
+    if (mode === 'grid') {
+        gridBtn.classList.add('active', 'btn-primary');
+        gridBtn.classList.remove('btn-outline-primary');
+        tableBtn.classList.remove('active', 'btn-primary');
+        tableBtn.classList.add('btn-outline-primary');
+
+        gridContainer.classList.remove('d-none');
+        tableContainer.classList.add('d-none');
+    } else {
+        tableBtn.classList.add('active', 'btn-primary');
+        tableBtn.classList.remove('btn-outline-primary');
+        gridBtn.classList.remove('active', 'btn-primary');
+        gridBtn.classList.add('btn-outline-primary');
+
+        gridContainer.classList.add('d-none');
+        tableContainer.classList.remove('d-none');
+    }
+
+    try {
+        localStorage.setItem('htc-doc-view-mode', mode);
+    } catch(e) {}
+
+    // Synchronize filters across current view
+    applyActiveFilters();
+}
+
+// --------------------------------------------------------------------------
+// 2. FILTERING (Origin, Category & Live Search)
+// --------------------------------------------------------------------------
 function filterOrigin(origin, btn) {
     currentOrigin = origin;
     document.querySelectorAll('#originFilterGroup .origin-btn').forEach(b => {
@@ -301,32 +348,390 @@ function filterOrigin(origin, btn) {
             btn.classList.add('btn-primary');
         }
     }
-    applyGridFilters();
+    applyActiveFilters();
 }
 
 function showCategory(catKey, btn) {
     currentCategory = catKey;
     document.querySelectorAll('.tabs-row .tab-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    applyGridFilters();
+    applyActiveFilters();
 }
 
-function applyGridFilters() {
+function handleLiveSearch() {
+    currentSearchTerm = (document.getElementById('documentSearchInput').value || '').toLowerCase().trim();
+    applyActiveFilters();
+}
+
+function applyActiveFilters() {
+    const q = currentSearchTerm;
+    const cat = currentCategory;
+    const origin = currentOrigin;
+
+    // Filter Grid View Elements
     document.querySelectorAll('.doc-category-col').forEach(col => {
-        const cat = col.getAttribute('data-cat');
-        const origin = col.getAttribute('data-origin');
+        const colCat = col.getAttribute('data-cat');
+        const colOrigin = col.getAttribute('data-origin');
 
-        const matchCat = (currentCategory === 'all' || cat === currentCategory);
-        const matchOrigin = (currentOrigin === 'all' || origin === currentOrigin);
+        const catMatches = (cat === 'all' || colCat === cat);
+        const originMatches = (origin === 'all' || colOrigin === origin);
 
-        if (matchCat && matchOrigin) {
+        if (catMatches && originMatches) {
             col.style.display = 'block';
+
+            // Filter individual rows inside this card
+            let visibleInCard = 0;
+            const rows = col.querySelectorAll('.doc-item-row');
+            rows.forEach(row => {
+                const searchData = (row.getAttribute('data-search') || '').toLowerCase();
+                const rowOrigin = row.getAttribute('data-origin');
+                const rowOriginMatches = (origin === 'all' || rowOrigin === origin);
+                const rowSearchMatches = (!q || searchData.includes(q));
+
+                if (rowOriginMatches && rowSearchMatches) {
+                    row.style.display = 'block';
+                    visibleInCard++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Show or hide "No documents in category match" banner
+            const noMatchBanner = col.querySelector('.cat-no-search-match');
+            if (noMatchBanner) {
+                if (visibleInCard === 0 && rows.length > 0) {
+                    noMatchBanner.classList.remove('d-none');
+                } else {
+                    noMatchBanner.classList.add('d-none');
+                }
+            }
         } else {
             col.style.display = 'none';
         }
     });
+
+    // Filter Table View Elements
+    let tableVisibleCount = 0;
+    const tableRows = document.querySelectorAll('.table-doc-row');
+    tableRows.forEach(row => {
+        const rowCat = row.getAttribute('data-doc-category');
+        const rowOrigin = row.getAttribute('data-doc-origin');
+        const searchData = (row.getAttribute('data-search') || '').toLowerCase();
+
+        const catMatches = (cat === 'all' || rowCat === cat);
+        const originMatches = (origin === 'all' || rowOrigin === origin);
+        const searchMatches = (!q || searchData.includes(q));
+
+        if (catMatches && originMatches && searchMatches) {
+            row.style.display = '';
+            tableVisibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const tableNoResults = document.getElementById('tableNoResultsMessage');
+    if (tableNoResults) {
+        if (tableVisibleCount === 0 && tableRows.length > 0) {
+            tableNoResults.classList.remove('d-none');
+        } else {
+            tableNoResults.classList.add('d-none');
+        }
+    }
+
+    const tableCountBadge = document.getElementById('tableTotalCountBadge');
+    if (tableCountBadge) {
+        tableCountBadge.textContent = `${tableVisibleCount} Documents`;
+    }
 }
 
+// --------------------------------------------------------------------------
+// 3. TABLE COLUMN SORTING
+// --------------------------------------------------------------------------
+function sortTableColumn(colIndex, sortType) {
+    const table = document.getElementById('documentsMasterTable');
+    const tbody = document.getElementById('documentsMasterTableBody');
+    const rows = Array.from(tbody.querySelectorAll('tr.table-doc-row'));
+
+    // Toggle direction if same column clicked
+    if (currentSortColumn === colIndex) {
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortColumn = colIndex;
+        currentSortDirection = 'asc';
+    }
+
+    // Reset sort icons
+    document.querySelectorAll('.table-documents thead th i').forEach(icon => {
+        icon.className = 'bi bi-arrow-down-up ms-1 text-muted fs-9';
+    });
+    const activeIcon = document.getElementById(`sortIconCol${colIndex}`);
+    if (activeIcon) {
+        activeIcon.className = currentSortDirection === 'asc' ? 'bi bi-sort-down ms-1 text-primary fs-8' : 'bi bi-sort-up ms-1 text-primary fs-8';
+    }
+
+    rows.sort((a, b) => {
+        let valA, valB;
+        if (colIndex === 1) { // Name
+            valA = a.getAttribute('data-sort-name') || '';
+            valB = b.getAttribute('data-sort-name') || '';
+            return currentSortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else if (colIndex === 2) { // Category
+            valA = a.getAttribute('data-sort-category') || '';
+            valB = b.getAttribute('data-sort-category') || '';
+            return currentSortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else if (colIndex === 5) { // Date
+            valA = parseInt(a.getAttribute('data-sort-date') || '0', 10);
+            valB = parseInt(b.getAttribute('data-sort-date') || '0', 10);
+            return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+        } else if (colIndex === 6) { // Size
+            valA = parseInt(a.getAttribute('data-sort-size') || '0', 10);
+            valB = parseInt(b.getAttribute('data-sort-size') || '0', 10);
+            return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+        }
+        return 0;
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+}
+
+// --------------------------------------------------------------------------
+// 4. CENTRAL SELECTION STATE & BATCH OPERATIONS
+// --------------------------------------------------------------------------
+function updateDocSelectionState(checkbox) {
+    const docId = checkbox.getAttribute('data-doc-id');
+    const isChecked = checkbox.checked;
+
+    if (isChecked) {
+        selectedDocumentsStore.set(docId, {
+            id: docId,
+            name: checkbox.getAttribute('data-doc-name'),
+            category: checkbox.getAttribute('data-doc-category'),
+            origin: checkbox.getAttribute('data-doc-origin'),
+            ref: checkbox.getAttribute('data-doc-ref'),
+            client: checkbox.getAttribute('data-doc-client'),
+            date: checkbox.getAttribute('data-doc-date'),
+            size: checkbox.getAttribute('data-doc-size'),
+            url: checkbox.getAttribute('data-download-url'),
+        });
+    } else {
+        selectedDocumentsStore.delete(docId);
+    }
+
+    // Synchronize all checkboxes across views with this docId
+    document.querySelectorAll(`input.doc-row-check[data-doc-id="${docId}"]`).forEach(cb => {
+        cb.checked = isChecked;
+    });
+
+    // Toggle row highlight
+    document.querySelectorAll(`[data-doc-id="${docId}"]`).forEach(el => {
+        if (el.classList.contains('doc-item-row') || el.classList.contains('table-doc-row')) {
+            el.classList.toggle('selected-row', isChecked);
+        }
+    });
+
+    refreshBatchActionBar();
+}
+
+function refreshBatchActionBar() {
+    const bar = document.getElementById('floatingBatchActionBar');
+    const counterBadge = document.getElementById('batchSelectedCounter');
+    const count = selectedDocumentsStore.size;
+
+    if (counterBadge) {
+        counterBadge.textContent = `${count} Selected`;
+    }
+
+    if (count > 0) {
+        bar.classList.add('visible');
+    } else {
+        bar.classList.remove('visible');
+    }
+}
+
+function clearAllDocSelections() {
+    selectedDocumentsStore.clear();
+    document.querySelectorAll('input.doc-row-check').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.cat-select-all').forEach(cb => cb.checked = false);
+    const globalToggle = document.getElementById('globalSelectAllToggle');
+    if (globalToggle) globalToggle.checked = false;
+    const tableMasterToggle = document.getElementById('masterTableSelectAll');
+    if (tableMasterToggle) tableMasterToggle.checked = false;
+    document.querySelectorAll('.selected-row').forEach(row => row.classList.remove('selected-row'));
+
+    refreshBatchActionBar();
+}
+
+function toggleCategorySelectAll(catKey, masterCheckbox) {
+    const isChecked = masterCheckbox.checked;
+    const col = document.querySelector(`.doc-category-col[data-cat="${catKey}"]`);
+    if (!col) return;
+
+    col.querySelectorAll('input.doc-row-check').forEach(cb => {
+        // Only select if currently visible
+        const row = cb.closest('.doc-item-row');
+        if (row && row.style.display !== 'none') {
+            cb.checked = isChecked;
+            updateDocSelectionState(cb);
+        }
+    });
+}
+
+function toggleGlobalSelectAll(masterCheckbox) {
+    const isChecked = masterCheckbox.checked;
+    
+    // Select all visible items across current view
+    if (currentViewMode === 'grid') {
+        document.querySelectorAll('.doc-item-row').forEach(row => {
+            if (row.style.display !== 'none') {
+                const cb = row.querySelector('input.doc-row-check');
+                if (cb) {
+                    cb.checked = isChecked;
+                    updateDocSelectionState(cb);
+                }
+            }
+        });
+    } else {
+        document.querySelectorAll('.table-doc-row').forEach(row => {
+            if (row.style.display !== 'none') {
+                const cb = row.querySelector('input.doc-row-check');
+                if (cb) {
+                    cb.checked = isChecked;
+                    updateDocSelectionState(cb);
+                }
+            }
+        });
+    }
+}
+
+function toggleTableSelectAll(masterCheckbox) {
+    toggleGlobalSelectAll(masterCheckbox);
+}
+
+// --------------------------------------------------------------------------
+// 5. BATCH ACTION EXECUTION (ZIP, CSV MANIFEST, MARK REVIEWED)
+// --------------------------------------------------------------------------
+async function executeBatchDownloadZip() {
+    if (selectedDocumentsStore.size === 0) return;
+    const btn = document.getElementById('btnBatchDownloadZip');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Compressing ZIP...';
+    btn.disabled = true;
+
+    try {
+        if (typeof JSZip === 'undefined') {
+            throw new Error('JSZip library not available');
+        }
+
+        const zip = new JSZip();
+        const selectedDocs = Array.from(selectedDocumentsStore.values());
+        let filesAdded = 0;
+
+        for (const doc of selectedDocs) {
+            if (doc.url && doc.url.startsWith('http')) {
+                try {
+                    const response = await fetch(doc.url);
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const fileName = doc.name.endsWith('.pdf') ? doc.name : `${doc.name}.pdf`;
+                        zip.file(fileName, blob);
+                        filesAdded++;
+                    }
+                } catch (fetchErr) {
+                    console.warn(`Could not fetch file for ${doc.name}:`, fetchErr);
+                }
+            }
+        }
+
+        // Add a manifest text file inside the ZIP
+        let manifestText = `HTC CORE DOCUMENT REPOSITORY - BATCH EXPORT\n`;
+        manifestText += `Generated: ${new Date().toISOString()}\n`;
+        manifestText += `Total Items Selected: ${selectedDocs.length}\n\n`;
+        selectedDocs.forEach((d, i) => {
+            manifestText += `${i + 1}. [${d.category}] ${d.name} (${d.origin}) - Ref: ${d.ref} - Size: ${d.size} - Client: ${d.client}\n`;
+        });
+        zip.file("EXPORT_MANIFEST.txt", manifestText);
+
+        const content = await zip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = `HTC_Documents_Batch_${new Date().toISOString().slice(0, 10)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+    } catch (err) {
+        console.error("ZIP creation failed, falling back to direct download:", err);
+        // Fallback: trigger direct downloads for URLs
+        selectedDocumentsStore.forEach(doc => {
+            if (doc.url) {
+                const a = document.createElement('a');
+                a.href = doc.url;
+                a.download = doc.name;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        });
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function executeBatchExportCsv() {
+    if (selectedDocumentsStore.size === 0) return;
+
+    const headers = ["Document ID", "Document Name", "Category", "Origin", "Reference Code", "Client", "Date", "File Size", "Download URL"];
+    const rows = [headers];
+
+    selectedDocumentsStore.forEach(doc => {
+        rows.push([
+            `"${doc.id}"`,
+            `"${doc.name.replace(/"/g, '""')}"`,
+            `"${doc.category.replace(/"/g, '""')}"`,
+            `"${doc.origin}"`,
+            `"${doc.ref || ''}"`,
+            `"${(doc.client || '').replace(/"/g, '""')}"`,
+            `"${doc.date || ''}"`,
+            `"${doc.size || ''}"`,
+            `"${doc.url || ''}"`
+        ]);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `HTC_Documents_Manifest_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function executeBatchMarkReviewed() {
+    if (selectedDocumentsStore.size === 0) return;
+
+    selectedDocumentsStore.forEach(doc => {
+        document.querySelectorAll(`[data-doc-id="${doc.id}"]`).forEach(el => {
+            const titleEl = el.querySelector('.doc-title') || el.querySelector('.fw-bold');
+            if (titleEl && !titleEl.parentElement.querySelector('.badge-reviewed')) {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5 fs-9 badge-reviewed ms-1';
+                badge.innerHTML = '<i class="bi bi-check-circle-fill me-0.5"></i>Reviewed';
+                titleEl.parentElement.appendChild(badge);
+            }
+        });
+    });
+
+    alert(`Successfully marked ${selectedDocumentsStore.size} selected document(s) as reviewed.`);
+    clearAllDocSelections();
+}
+
+// --------------------------------------------------------------------------
+// 6. IN-APP MODAL PREVIEWER
+// --------------------------------------------------------------------------
 function previewSoftCopy(url, title, isPdf) {
     document.getElementById('previewModalTitle').innerText = title;
     document.getElementById('previewDownloadBtn').setAttribute('href', url);
@@ -347,6 +752,23 @@ function previewSoftCopy(url, title, isPdf) {
     const modal = new bootstrap.Modal(document.getElementById('previewDocModal'));
     modal.show();
 }
+
+// --------------------------------------------------------------------------
+// 7. INITIALIZATION ON DOM READY
+// --------------------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const savedView = localStorage.getItem('htc-doc-view-mode');
+        if (savedView === 'table') {
+            switchDocumentView('table', document.getElementById('btnViewTable'));
+        }
+    } catch(e) {}
+    
+    // Apply live search if initial query exists
+    if (document.getElementById('documentSearchInput').value) {
+        handleLiveSearch();
+    }
+});
 </script>
 
 {% endblock %}

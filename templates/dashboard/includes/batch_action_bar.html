@@ -1,0 +1,51 @@
+<!-- FLOATING BATCH ACTION BAR COMPONENT -->
+<div class="batch-action-bar shadow" id="floatingBatchActionBar" role="region" aria-label="Batch document actions">
+    <!-- Left: Selection Counter & Reset -->
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-primary text-white rounded-pill px-2.5 py-1.5 fs-8 fw-bold" id="batchSelectedCounter">
+            0 Selected
+        </span>
+        <span class="fw-semibold text-dark fs-8 d-none d-md-inline" id="batchSelectionText">
+            Documents selected across directory
+        </span>
+        <button type="button" 
+                class="btn btn-link btn-sm text-muted p-0 text-decoration-none fs-8 ms-1 fw-semibold" 
+                onclick="clearAllDocSelections()" 
+                title="Deselect all chosen documents">
+            <i class="bi bi-x-circle me-0.5"></i>Clear
+        </button>
+    </div>
+
+    <!-- Right: Batch Action Buttons -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <!-- 1. Download Selected (ZIP) -->
+        <button type="button" 
+                class="btn btn-sm btn-success fw-semibold d-inline-flex align-items-center gap-1.5 shadow-sm px-3 py-1.5 fs-8" 
+                id="btnBatchDownloadZip"
+                onclick="executeBatchDownloadZip()" 
+                title="Bundle all selected document files into a single ZIP archive">
+            <i class="bi bi-file-earmark-zip-fill"></i>
+            <span>Download Selected (ZIP)</span>
+        </button>
+
+        <!-- 2. Export Manifest (CSV) -->
+        <button type="button" 
+                class="btn btn-sm btn-outline-primary fw-semibold d-inline-flex align-items-center gap-1.5 shadow-sm px-3 py-1.5 fs-8 bg-body" 
+                id="btnBatchExportCsv"
+                onclick="executeBatchExportCsv()" 
+                title="Generate and export a CSV audit manifest of selected documents">
+            <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+            <span>Export Manifest (CSV)</span>
+        </button>
+
+        <!-- 3. Mark as Reviewed -->
+        <button type="button" 
+                class="btn btn-sm btn-outline-secondary fw-semibold d-inline-flex align-items-center gap-1.5 shadow-sm px-3 py-1.5 fs-8 bg-body" 
+                id="btnBatchMarkReviewed"
+                onclick="executeBatchMarkReviewed()" 
+                title="Mark selected documents as reviewed in audit logs">
+            <i class="bi bi-check2-all"></i>
+            <span>Mark as Reviewed</span>
+        </button>
+    </div>
+</div>

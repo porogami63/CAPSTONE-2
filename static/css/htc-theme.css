@@ -2715,9 +2715,26 @@ html[data-legibility="high"] .badge {
     padding: 0 !important;
 }
 
-/* Document Category Card Scrollbars */
+/* Document Category Card Scrollbars & Equalized Grid */
+.doc-equalized-card {
+    height: 480px;
+    max-height: 480px;
+    display: flex;
+    flex-direction: column;
+}
+.doc-equalized-card .card-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+.doc-equalized-card .doc-category-scroll {
+    height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+}
+
 .doc-category-scroll {
-    max-height: 380px;
+    max-height: 420px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--htc-border) transparent;
@@ -2738,6 +2755,79 @@ html[data-legibility="high"] .badge {
 
 .doc-category-scroll::-webkit-scrollbar-thumb:hover {
     background-color: var(--htc-primary-light);
+}
+
+.doc-item-row.selected-row {
+    background-color: var(--htc-sidebar-active) !important;
+}
+
+/* Floating Batch Action Bar */
+.batch-action-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(120px);
+    z-index: 1060;
+    width: auto;
+    max-width: 92vw;
+    background: var(--htc-surface);
+    border: 1px solid var(--htc-border);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.1);
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.batch-action-bar.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Document Table View Styling */
+.table-documents {
+    width: 100%;
+    margin-bottom: 0;
+    font-size: 0.8125rem;
+}
+.table-documents thead th {
+    background-color: var(--htc-sidebar-hover);
+    color: var(--htc-text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--htc-border);
+    white-space: nowrap;
+    user-select: none;
+}
+.table-documents thead th.sortable {
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+.table-documents thead th.sortable:hover {
+    color: var(--htc-primary-light);
+}
+.table-documents tbody td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--htc-border);
+    background-color: transparent;
+}
+.table-documents tbody tr {
+    transition: background-color 0.15s ease;
+}
+.table-documents tbody tr:hover {
+    background-color: var(--htc-sidebar-hover);
+}
+.table-documents tbody tr.selected-row {
+    background-color: var(--htc-sidebar-active) !important;
 }
 
 /* Audit Log Formatted Payload Diff Styling */
