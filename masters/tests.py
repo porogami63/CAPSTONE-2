@@ -97,3 +97,62 @@ class MastersViewTests(TestCase):
         follow_res = self.client.get(res.url)
         self.assertEqual(follow_res.status_code, 200)
 
+    def test_partners_tabbed_directory_elements(self):
+        LogisticsPartner.objects.create(name="Solid Shipping Lines", category="barging", fleet_count=5)
+        LogisticsPartner.objects.create(name="FastHaul Trucking", category="trucking", fleet_count=12)
+
+        res = self.client.get("/masters/partners/")
+        self.assertEqual(res.status_code, 200)
+        # Tab navigation and dropdown
+        self.assertContains(res, 'id="partnerTabNav"')
+        self.assertContains(res, 'id="btnAddPartnerDropdown"')
+        self.assertContains(res, "Add Partner")
+        self.assertContains(res, 'id="toggleHideInactive"')
+        self.assertContains(res, "Hide inactive (0 MT)")
+        # Tab panes
+        self.assertContains(res, 'id="tabPaneSuppliers"')
+        self.assertContains(res, 'id="tabPaneCustomers"')
+        self.assertContains(res, 'id="tabPaneLogistics"')
+        # Modals
+        self.assertContains(res, 'id="addBargingModal"')
+        self.assertContains(res, 'id="addTruckingModal"')
+        # Sub-filters
+        self.assertContains(res, 'id="logisticsSubFilterGroup"')
+        self.assertContains(res, "Solid Shipping Lines")
+        self.assertContains(res, "FastHaul Trucking")
+        self.assertContains(res, "On-Time")
+        self.assertContains(res, "Shrinkage")
+
+    def test_create_logistics_partner_views(self):
+        # 1. Test create barging partner
+        res_barge = self.client.post("/masters/logistics/new/", {
+            "name": "Visayas Ocean Transport",
+            "category": "barging",
+            "region": "Visayas - Batangas Marine Lane",
+            "fleet_count": "6",
+            "default_freight_rate": "1150.00",
+            "contact_person": "Capt. John Smith",
+            "contact_phone": "+63 917 888 9999",
+        })
+        self.assertEqual(res_barge.status_code, 302)
+        barge_partner = LogisticsPartner.objects.get(name="Visayas Ocean Transport")
+        self.assertEqual(barge_partner.category, "barging")
+        self.assertEqual(barge_partner.fleet_count, 6)
+        self.assertEqual(float(barge_partner.default_freight_rate), 1150.00)
+
+        # 2. Test create trucking partner
+        res_truck = self.client.post("/masters/logistics/new/", {
+            "name": "Batangas Express Lorries",
+            "category": "trucking",
+            "region": "Batangas Industrial Highway",
+            "fleet_count": "20",
+            "default_freight_rate": "480.00",
+            "contact_person": "Pedro Penduko",
+            "contact_phone": "+63 919 777 6655",
+        })
+        self.assertEqual(res_truck.status_code, 302)
+        truck_partner = LogisticsPartner.objects.get(name="Batangas Express Lorries")
+        self.assertEqual(truck_partner.category, "trucking")
+        self.assertEqual(truck_partner.fleet_count, 20)
+
+

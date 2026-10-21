@@ -638,9 +638,44 @@ input, select, button, a, i, span, div {
     align-items: center;
     gap: var(--htc-space-md);
     padding: var(--htc-space-md) var(--htc-space-lg);
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--htc-border);
+    transition: background-color 0.15s ease;
+}
+.partner-card:hover {
+    background-color: var(--htc-sidebar-hover);
 }
 .partner-card:last-child { border-bottom: none; }
+
+.partner-tab-pane {
+    display: none;
+}
+.partner-tab-pane.active {
+    display: block;
+}
+
+.partner-subfilter-btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    border: 1px solid var(--htc-border);
+    background: transparent;
+    color: var(--htc-text-muted);
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: all 0.15s ease;
+}
+.partner-subfilter-btn:hover {
+    color: var(--htc-text);
+    border-color: var(--htc-primary-light);
+}
+.partner-subfilter-btn.active {
+    background: var(--htc-primary-light);
+    color: #ffffff;
+    border-color: var(--htc-primary-light);
+}
 .partner-icon {
     width: 36px;
     height: 36px;

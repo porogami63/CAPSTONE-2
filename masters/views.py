@@ -35,6 +35,8 @@ def master_list(request):
 )
 def partners(request):
     stats = partner_stats()
+    stats["barging_count"] = sum(1 for p in stats.get("logistics", []) if p.get("category") == "barging")
+    stats["trucking_count"] = sum(1 for p in stats.get("logistics", []) if p.get("category") == "trucking")
     return render(request, "masters/partners.html", stats)
 
 
@@ -259,4 +261,45 @@ def create_supplier(request):
         messages.success(request, f"Supplier '{mill.name}' registered successfully.")
         return redirect("masters:supplier_portfolio", pk=mill.pk)
     return redirect("masters:partners")
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.FINANCE)
+def create_logistics_partner(request):
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        if not name:
+            messages.error(request, "Logistics partner company name is required.")
+            return redirect("masters:partners")
+
+        category = request.POST.get("category", "barging").strip().lower()
+        if category not in ["barging", "trucking"]:
+            category = "barging"
+
+        region = request.POST.get("region", "").strip() or (
+            "Visayas · Batangas Marine Route" if category == "barging" else "Luzon Transport Corridor"
+        )
+        try:
+            fleet_count = int(request.POST.get("fleet_count", "0") or 0)
+        except (ValueError, TypeError):
+            fleet_count = 0
+
+        try:
+            default_rate = Decimal(request.POST.get("default_freight_rate", "0") or "0")
+        except Exception:
+            default_rate = Decimal("0")
+
+        partner = LogisticsPartner.objects.create(
+            name=name,
+            category=category,
+            region=region,
+            fleet_count=fleet_count,
+            default_freight_rate=default_rate,
+            contact_person=request.POST.get("contact_person", "").strip(),
+            contact_phone=request.POST.get("contact_phone", "").strip(),
+        )
+        tag_label = "Barging" if category == "barging" else "Trucking"
+        messages.success(request, f"{tag_label} partner '{partner.name}' registered successfully.")
+        return redirect("masters:partners")
+    return redirect("masters:partners")
+
 

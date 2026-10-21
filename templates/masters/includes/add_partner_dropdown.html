@@ -1,0 +1,58 @@
+<div class="dropdown" id="addPartnerDropdownContainer">
+    <button class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1.5 fw-semibold px-3 py-1.5 shadow-sm dropdown-toggle" 
+            type="button" 
+            id="btnAddPartnerDropdown" 
+            data-bs-toggle="dropdown" 
+            aria-expanded="false" 
+            title="Register a new commercial or transport trading partner">
+        <i class="bi bi-plus-lg"></i>
+        <span>Add Partner</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end shadow-sm border p-1" aria-labelledby="btnAddPartnerDropdown" style="min-width: 220px; font-size: 0.85rem;">
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 px-2.5 rounded" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
+                <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                    <i class="bi bi-building fs-7"></i>
+                </div>
+                <div>
+                    <div class="fw-semibold text-dark">Add Supplier</div>
+                    <small class="text-muted fs-9 d-block">Sugar mill or import source</small>
+                </div>
+            </button>
+        </li>
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 px-2.5 rounded" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                    <i class="bi bi-people fs-7"></i>
+                </div>
+                <div>
+                    <div class="fw-semibold text-dark">Add Customer</div>
+                    <small class="text-muted fs-9 d-block">Buyer client or trade account</small>
+                </div>
+            </button>
+        </li>
+        <li><hr class="dropdown-divider my-1"></li>
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 px-2.5 rounded" data-bs-toggle="modal" data-bs-target="#addBargingModal">
+                <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                    <i class="bi bi-water fs-7"></i>
+                </div>
+                <div>
+                    <div class="fw-semibold text-dark">Add Barging Partner</div>
+                    <small class="text-muted fs-9 d-block">Marine vessel &amp; tanker carrier</small>
+                </div>
+            </button>
+        </li>
+        <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2 px-2.5 rounded" data-bs-toggle="modal" data-bs-target="#addTruckingModal">
+                <div class="rounded-circle bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
+                    <i class="bi bi-truck fs-7"></i>
+                </div>
+                <div>
+                    <div class="fw-semibold text-dark">Add Trucking Partner</div>
+                    <small class="text-muted fs-9 d-block">Land freight &amp; lorry fleet</small>
+                </div>
+            </button>
+        </li>
+    </ul>
+</div>

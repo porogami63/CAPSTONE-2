@@ -19,7 +19,7 @@ ADMIN_OPERATIONAL_NAV = [
     ("operations:deliveries_list", "Deliveries & Trucking", "bi-truck", ("operations:deliveries", "operations:logistics")),
     ("finance:loan_list", "Bank Loans", "bi-bank", ("finance:loan",)),
     ("dashboard:analytics", "Analytics", "bi-graph-up-arrow", ("dashboard:analytics",)),
-    ("masters:partners", "Suppliers & Customers", "bi-building", ("masters:",)),
+    ("masters:partners", "Partners & Directory", "bi-building", ("masters:",)),
     ("dashboard:documents", "Documents", "bi-folder2-open", ("dashboard:documents",)),
 ]
 
@@ -32,7 +32,7 @@ CORE_NAV_ITEMS = [
     ("operations:deliveries_list", "Deliveries & Trucking", "bi-truck", ("operations:deliveries", "operations:logistics")),
     ("finance:loan_list", "Bank Loans", "bi-bank", ("finance:loan",)),
     ("dashboard:analytics", "Analytics", "bi-graph-up-arrow", ("dashboard:analytics",)),
-    ("masters:partners", "Suppliers & Customers", "bi-building", ("masters:",)),
+    ("masters:partners", "Partners & Directory", "bi-building", ("masters:",)),
     ("dashboard:documents", "Documents", "bi-folder2-open", ("dashboard:documents",)),
     ("chat:room", "Team Chat", "bi-chat-dots-fill", ("chat:",)),
     ("audit:list", "Activity History", "bi-journal-text", ("audit:",)),

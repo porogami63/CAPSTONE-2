@@ -1,0 +1,80 @@
+{% load humanize %}
+<div class="partner-card partner-item text-decoration-none" 
+     data-name="{{ p.name|lower }}" 
+     data-search="{{ p.name|lower }} {{ p.region|lower }} {{ p.tag|lower }} {{ p.contact_person|lower }} {{ p.contact_phone|lower }}" 
+     data-type="logistics" 
+     data-category="{{ p.category|lower }}"
+     data-volume="{{ p.total_volume }}"
+     data-completed="{{ p.completed_trips }}"
+     style="color: inherit;">
+    
+    <!-- Partner Avatar -->
+    {% if p.category == 'barging' %}
+    <div class="partner-icon rounded-circle bg-info-subtle text-info border border-info-subtle fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;" title="Marine Barging Carrier">
+        <i class="bi bi-water fs-5"></i>
+    </div>
+    {% else %}
+    <div class="partner-icon rounded-circle bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;" title="Land Trucking Fleet">
+        <i class="bi bi-truck fs-5"></i>
+    </div>
+    {% endif %}
+
+    <!-- Partner Main Information -->
+    <div class="partner-info ms-2 flex-grow-1 min-w-0">
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <span class="name text-dark"><strong>{{ p.name }}</strong></span>
+            
+            {% if p.category == 'barging' %}
+            <span class="badge bg-info-subtle text-info border border-info-subtle d-inline-flex align-items-center gap-1 fs-9 py-0.5 px-2">
+                <i class="bi bi-water"></i> Barging
+            </span>
+            {% else %}
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle d-inline-flex align-items-center gap-1 fs-9 py-0.5 px-2">
+                <i class="bi bi-truck"></i> Trucking
+            </span>
+            {% endif %}
+
+            {% if p.region %}
+            <span class="text-muted fs-8 d-inline-flex align-items-center gap-1">
+                <i class="bi bi-geo-alt"></i> {{ p.region }}
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- Badges & Secondary Metrics -->
+        <div class="mt-1 d-flex flex-wrap align-items-center gap-2">
+            <!-- On-Time Rate Badge -->
+            <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1" style="font-size: 0.7rem;">
+                <i class="bi bi-clock-check"></i> {{ p.ontime_rate|floatformat:1 }}% On-Time
+            </span>
+
+            <!-- Shrinkage Badge -->
+            <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1" style="font-size: 0.7rem;">
+                <i class="bi bi-droplet-half"></i> {{ p.shrinkage_pct|floatformat:2 }}% Shrinkage
+            </span>
+
+            <!-- Fleet Count -->
+            <span class="text-muted fs-8 d-inline-flex align-items-center gap-1 ms-1">
+                <i class="bi bi-boxes"></i> {{ p.fleet_display }}
+            </span>
+
+            <!-- Active Trips -->
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1 fs-9 py-0.5 px-2">
+                <i class="bi bi-send-check"></i> {{ p.active_trips }} Active Trips
+            </span>
+
+            <!-- Contact phone if provided -->
+            {% if p.contact_phone and p.contact_phone != 'N/A' %}
+            <span class="text-muted fs-8 d-none d-md-inline-flex align-items-center gap-1">
+                <i class="bi bi-telephone"></i> {{ p.contact_phone }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Volume Metric (Right-aligned) -->
+    <div class="partner-stats text-end flex-shrink-0 ms-3">
+        <strong class="d-block text-dark" style="font-size: 1.05rem;">{{ p.total_volume|floatformat:3|intcomma }} MT</strong>
+        <span class="text-muted small">{{ p.completed_trips }} completed trips</span>
+    </div>
+</div>

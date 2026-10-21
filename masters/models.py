@@ -40,7 +40,14 @@ class SugarMill(models.Model):
 
 
 class LogisticsPartner(models.Model):
+    class Category(models.TextChoices):
+        BARGING = "barging", "Barging"
+        TRUCKING = "trucking", "Trucking"
+
     name = models.CharField(max_length=200)
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.BARGING, blank=True)
+    region = models.CharField(max_length=150, blank=True, default="Visayas / Luzon Corridor")
+    fleet_count = models.PositiveIntegerField(default=0, help_text="Fleet trucks or vessel barge count")
     default_freight_rate = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     contact_person = models.CharField(max_length=120, blank=True)
     contact_phone = models.CharField(max_length=50, blank=True)

@@ -1,107 +1,278 @@
 {% extends "app_base.html" %}
 {% load humanize %}
-{% block title %}Suppliers & Customers · Molasses Trading{% endblock %}
-{% block topbar_title %}Suppliers & Customers{% endblock %}
-{% block topbar_subtitle %}Manage sugar mill suppliers and buyer client relationships{% endblock %}
+{% block title %}Partners &amp; Directory · Molasses Trading{% endblock %}
+{% block topbar_title %}Partners &amp; Directory{% endblock %}
+{% block topbar_subtitle %}Manage sugar mill suppliers, buyer client relationships, and transport logistics{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-end align-items-center gap-2 mb-3" data-step="1" data-intro="Partner Management Toolbar: Search active trading partners or register new Sugar Mill Suppliers and Buyer Client profiles.">
-    <div class="search-input-wrap" style="width: 240px;">
-        <i class="bi bi-search"></i>
-        <input type="text" id="partnerSearch" placeholder="Search supplier or customer..." class="form-control form-control-sm" onkeyup="filterPartners()" oninput="filterPartners()">
-    </div>
-    <button type="button" class="btn-htc btn-htc-sm" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
-        <i class="bi bi-plus-lg"></i> Add Supplier
-    </button>
-    <button type="button" class="btn-htc btn-htc-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
-        <i class="bi bi-plus-lg"></i> Add Customer
-    </button>
-</div>
+<!-- Partner Directory Master Header & Navigation Controls -->
+<div class="d-flex flex-column gap-3 mb-4" data-step="1" data-intro="Partners &amp; Directory Hub: Switch between Sugar Mill Suppliers, Buyer Clients, and Barging &amp; Trucking Transport Logistics providers.">
+    
+    <!-- Top Row: Tab Switcher & Action Dropdown -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <!-- Tab Navigation Bar Component -->
+        {% include "masters/includes/partner_tab_nav.html" %}
 
-<div class="partners-split">
-    <div class="partner-column" data-step="2" data-intro="Sugar Mill Suppliers: Access detailed supplier portfolios, track volume sourced (MT), supplier reliability ratings, and transit shrinkage performance.">
-        <div class="partner-column-header flex-between align-items-center">
-            <div>
-                <h3>Suppliers ({{ suppliers|length }})</h3>
-                <p>Sugar mills and import sources</p>
-            </div>
-        </div>
-        {% for s in suppliers %}
-        <a href="{% url 'masters:supplier_portfolio' s.id %}" class="partner-card partner-item text-decoration-none" data-name="{{ s.name|lower }}" data-search="{{ s.name|lower }} {{ s.location|lower }} {{ s.contact_person|lower }} {{ s.email|lower }} {{ s.type|lower }}" data-type="supplier" style="color: inherit; cursor: pointer;">
-            {% if s.avatar_url %}
-            <img src="{{ s.avatar_url }}" alt="{{ s.name }}" class="rounded-circle border" style="width: 44px; height: 44px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div class="partner-icon rounded-circle bg-success text-white fw-bold align-items-center justify-content-center" style="width: 44px; height: 44px; display: none;">
-                {{ s.name|slice:":2"|upper }}
-            </div>
-            {% else %}
-            <div class="partner-icon rounded-circle bg-success text-white fw-bold flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                {{ s.name|slice:":2"|upper }}
-            </div>
-            {% endif %}
-            <div class="partner-info ms-2">
-                <div class="name"><strong>{{ s.name }}</strong></div>
-                <div class="type text-muted small">{{ s.type }}{% if s.location %} · {{ s.location }}{% endif %}</div>
-                <div class="mt-1 flex gap-2 align-items-center">
-                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">
-                        <i class="bi bi-shield-check"></i> {{ s.reliability }}% Reliability
-                    </span>
-                    <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
-                        <i class="bi bi-droplet-half"></i> {{ s.shrinkage_pct|floatformat:2 }}% Shrinkage
-                    </span>
-                </div>
-            </div>
-            <div class="partner-stats text-end">
-                <strong class="d-block" style="font-size: 1.05rem;">{{ s.total_volume|floatformat:3|intcomma }} MT</strong>
-                <span class="text-muted small">{{ s.txn_count }} transactions</span>
-            </div>
-        </a>
-        {% empty %}
-        <div class="partner-card text-muted">No suppliers registered yet. Click "Add Supplier" to create one.</div>
-        {% endfor %}
+        <!-- Unified Add Partner Dropdown Component -->
+        {% include "masters/includes/add_partner_dropdown.html" %}
     </div>
 
-    <div class="partner-column" data-step="3" data-intro="Buyer Clients: Access client portfolios, lifetime order volumes, total revenue, and payment promptness scores.">
-        <div class="partner-column-header flex-between align-items-center">
-            <div>
-                <h3>Customers ({{ clients|length }})</h3>
-                <p>Major buyers and trade partners</p>
+    <!-- Second Row: Controls Bar (Search & Filter Toggles) -->
+    <div class="p-2.5 rounded-3 bg-light border d-flex flex-wrap justify-content-between align-items-center gap-2.5 shadow-xs">
+        <div class="d-flex flex-wrap align-items-center gap-2.5 flex-grow-1">
+            <!-- Global Search Bar -->
+            <div class="search-input-wrap" style="width: 320px; max-width: 100%;">
+                <i class="bi bi-search"></i>
+                <input type="text" 
+                       id="partnerSearch" 
+                       placeholder="Search partner name, region, contact, TIN..." 
+                       class="form-control form-control-sm" 
+                       onkeyup="filterPartners()" 
+                       oninput="filterPartners()">
+            </div>
+
+            <!-- Inactive (0 MT) Accounts Filter Toggle -->
+            <div class="form-check form-switch m-0 d-flex align-items-center gap-1.5 fs-8 text-muted user-select-none bg-body rounded-2 border px-3 py-1.5 shadow-xs" 
+                 style="cursor: pointer;" 
+                 onclick="document.getElementById('toggleHideInactive').click()"
+                 title="Filter out accounts with zero recorded historical trade or transport volume">
+                <input class="form-check-input m-0 cursor-pointer" 
+                       type="checkbox" 
+                       id="toggleHideInactive" 
+                       onchange="filterPartners(event)" 
+                       onclick="event.stopPropagation()">
+                <label class="form-check-label cursor-pointer fw-semibold text-dark mb-0 ms-1" for="toggleHideInactive">
+                    Hide inactive (0 MT)
+                </label>
             </div>
         </div>
-        {% for c in clients %}
-        <a href="{% url 'masters:client_portfolio' c.id %}" class="partner-card partner-item text-decoration-none" data-name="{{ c.name|lower }}" data-search="{{ c.name|lower }} {{ c.tin|lower }} {{ c.contact_person|lower }} {{ c.address|lower }} {{ c.type|lower }}" data-type="customer" style="color: inherit; cursor: pointer;">
-            {% if c.avatar_url %}
-            <img src="{{ c.avatar_url }}" alt="{{ c.name }}" class="rounded-circle border" style="width: 44px; height: 44px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div class="partner-icon rounded-circle bg-primary text-white fw-bold align-items-center justify-content-center" style="width: 44px; height: 44px; display: none;">
-                {{ c.name|slice:":2"|upper }}
-            </div>
-            {% else %}
-            <div class="partner-icon rounded-circle bg-primary text-white flex align-items-center justify-content-center fw-bold" style="width: 44px; height: 44px;">
-                {{ c.name|slice:":2"|upper }}
-            </div>
-            {% endif %}
-            <div class="partner-info ms-2">
-                <div class="name"><strong>{{ c.name }}</strong></div>
-                <div class="type text-muted small">{{ c.type }} · TIN: {{ c.tin }}</div>
-                <div class="mt-1 flex gap-2 align-items-center">
-                    <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.7rem;">
-                        <i class="bi bi-cash-stack"></i> ₱{{ c.total_invoiced|floatformat:2|intcomma }} Invoiced
-                    </span>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">
-                        {{ c.paid_ratio|floatformat:2 }}% Paid
-                    </span>
-                </div>
-            </div>
-            <div class="partner-stats text-end">
-                <strong class="d-block" style="font-size: 1.05rem;">{{ c.total_volume|floatformat:3|intcomma }} MT</strong>
-                <span class="text-muted small">{{ c.txn_count }} transactions</span>
-            </div>
-        </a>
-        {% empty %}
-        <div class="partner-card text-muted">No customers registered yet. Click "Add Customer" to create one.</div>
-        {% endfor %}
+
+        <!-- Quick Summary Tag -->
+        <div class="text-muted fs-8 d-none d-md-flex align-items-center gap-1">
+            <i class="bi bi-info-circle text-primary"></i>
+            <span id="partnerDirectoryCounterSummary">Showing all active trading &amp; logistics accounts</span>
+        </div>
     </div>
 </div>
 
-<!-- Add Supplier Modal -->
+<!-- Full-Width Tab Content Panels -->
+<div class="partner-directory-content">
+    
+    <!-- TAB PANE 1: SUPPLIERS (Sugar Mills & Importers) -->
+    <div class="partner-tab-pane active" id="tabPaneSuppliers" role="tabpanel" aria-labelledby="tabBtnSuppliers">
+        <div class="partner-column w-100" data-step="2" data-intro="Sugar Mill Suppliers: Access detailed supplier portfolios, track volume sourced (MT), supplier reliability ratings, and transit shrinkage performance.">
+            <div class="partner-column-header flex-between align-items-center">
+                <div>
+                    <h3 class="d-flex align-items-center gap-2 text-dark">
+                        <i class="bi bi-building text-success"></i>
+                        <span>Sugar Mill Suppliers ({{ suppliers|length }})</span>
+                    </h3>
+                    <p>Sugar mills, regional mill districts, and import sourcing originators</p>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-8 py-1 px-2.5 rounded-pill">
+                        Commercial Supply Network
+                    </span>
+                </div>
+            </div>
+
+            <div class="partner-cards-list" id="supplierCardsList">
+                {% for s in suppliers %}
+                <a href="{% url 'masters:supplier_portfolio' s.id %}" 
+                   class="partner-card partner-item text-decoration-none" 
+                   data-name="{{ s.name|lower }}" 
+                   data-search="{{ s.name|lower }} {{ s.location|lower }} {{ s.contact_person|lower }} {{ s.email|lower }} {{ s.type|lower }} {{ s.contact_phone|lower }}" 
+                   data-type="supplier" 
+                   data-volume="{{ s.total_volume }}"
+                   data-completed="{{ s.txn_count }}"
+                   style="color: inherit; cursor: pointer;">
+                    {% if s.avatar_url %}
+                    <img src="{{ s.avatar_url }}" alt="{{ s.name }}" class="rounded-circle border flex-shrink-0" style="width: 44px; height: 44px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="partner-icon rounded-circle bg-success text-white fw-bold align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; display: none;">
+                        {{ s.name|slice:":2"|upper }}
+                    </div>
+                    {% else %}
+                    <div class="partner-icon rounded-circle bg-success text-white fw-bold flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        {{ s.name|slice:":2"|upper }}
+                    </div>
+                    {% endif %}
+                    <div class="partner-info ms-2 flex-grow-1 min-w-0">
+                        <div class="d-flex align-items-center flex-wrap gap-2">
+                            <span class="name text-dark"><strong>{{ s.name }}</strong></span>
+                            <span class="type text-muted small">{{ s.type }}{% if s.location %} · <i class="bi bi-geo-alt"></i> {{ s.location }}{% endif %}</span>
+                        </div>
+                        <div class="mt-1 d-flex flex-wrap align-items-center gap-2">
+                            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">
+                                <i class="bi bi-shield-check"></i> {{ s.reliability }}% Reliability
+                            </span>
+                            <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
+                                <i class="bi bi-droplet-half"></i> {{ s.shrinkage_pct|floatformat:2 }}% Shrinkage
+                            </span>
+                            {% if s.contact_person and s.contact_person != 'Not specified' %}
+                            <span class="text-muted fs-8 d-none d-md-inline-flex align-items-center gap-1 ms-1">
+                                <i class="bi bi-person"></i> {{ s.contact_person }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="partner-stats text-end flex-shrink-0 ms-3">
+                        <strong class="d-block text-dark" style="font-size: 1.05rem;">{{ s.total_volume|floatformat:3|intcomma }} MT</strong>
+                        <span class="text-muted small">{{ s.txn_count }} transactions</span>
+                    </div>
+                </a>
+                {% empty %}
+                <div class="partner-card text-muted p-4 text-center justify-content-center" id="noSuppliersMsg">
+                    <i class="bi bi-building me-2"></i> No suppliers registered yet. Click "+ Add Partner" &gt; "Add Supplier" to create one.
+                </div>
+                {% endfor %}
+
+                <!-- No Results Filter Feedback (Hidden by default) -->
+                <div class="partner-card text-muted p-4 text-center justify-content-center d-none" id="suppliersNoResults">
+                    <i class="bi bi-search me-2"></i> No suppliers match your active search and filter criteria.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB PANE 2: CUSTOMERS (Buyer Clients) -->
+    <div class="partner-tab-pane" id="tabPaneCustomers" role="tabpanel" aria-labelledby="tabBtnCustomers">
+        <div class="partner-column w-100" data-step="3" data-intro="Buyer Clients: Access client portfolios, lifetime order volumes, total revenue, and payment promptness scores.">
+            <div class="partner-column-header flex-between align-items-center">
+                <div>
+                    <h3 class="d-flex align-items-center gap-2 text-dark">
+                        <i class="bi bi-people text-primary"></i>
+                        <span>Buyer Customers ({{ clients|length }})</span>
+                    </h3>
+                    <p>Major commercial buyers, distilleries, bio-ethanol producers, and trading clients</p>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-1 px-2.5 rounded-pill">
+                        Commercial Offtake Accounts
+                    </span>
+                </div>
+            </div>
+
+            <div class="partner-cards-list" id="customerCardsList">
+                {% for c in clients %}
+                <a href="{% url 'masters:client_portfolio' c.id %}" 
+                   class="partner-card partner-item text-decoration-none" 
+                   data-name="{{ c.name|lower }}" 
+                   data-search="{{ c.name|lower }} {{ c.tin|lower }} {{ c.contact_person|lower }} {{ c.address|lower }} {{ c.type|lower }} {{ c.contact_phone|lower }}" 
+                   data-type="customer" 
+                   data-volume="{{ c.total_volume }}"
+                   data-completed="{{ c.txn_count }}"
+                   style="color: inherit; cursor: pointer;">
+                    {% if c.avatar_url %}
+                    <img src="{{ c.avatar_url }}" alt="{{ c.name }}" class="rounded-circle border flex-shrink-0" style="width: 44px; height: 44px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="partner-icon rounded-circle bg-primary text-white fw-bold align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; display: none;">
+                        {{ c.name|slice:":2"|upper }}
+                    </div>
+                    {% else %}
+                    <div class="partner-icon rounded-circle bg-primary text-white flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 44px; height: 44px;">
+                        {{ c.name|slice:":2"|upper }}
+                    </div>
+                    {% endif %}
+                    <div class="partner-info ms-2 flex-grow-1 min-w-0">
+                        <div class="d-flex align-items-center flex-wrap gap-2">
+                            <span class="name text-dark"><strong>{{ c.name }}</strong></span>
+                            <span class="type text-muted small">{{ c.type }} · TIN: {{ c.tin }}</span>
+                        </div>
+                        <div class="mt-1 d-flex flex-wrap align-items-center gap-2">
+                            <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.7rem;">
+                                <i class="bi bi-cash-stack"></i> ₱{{ c.total_invoiced|floatformat:2|intcomma }} Invoiced
+                            </span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.7rem;">
+                                {{ c.paid_ratio|floatformat:2 }}% Paid
+                            </span>
+                            {% if c.contact_person and c.contact_person != 'Not specified' %}
+                            <span class="text-muted fs-8 d-none d-md-inline-flex align-items-center gap-1 ms-1">
+                                <i class="bi bi-person"></i> {{ c.contact_person }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="partner-stats text-end flex-shrink-0 ms-3">
+                        <strong class="d-block text-dark" style="font-size: 1.05rem;">{{ c.total_volume|floatformat:3|intcomma }} MT</strong>
+                        <span class="text-muted small">{{ c.txn_count }} transactions</span>
+                    </div>
+                </a>
+                {% empty %}
+                <div class="partner-card text-muted p-4 text-center justify-content-center" id="noCustomersMsg">
+                    <i class="bi bi-people me-2"></i> No customers registered yet. Click "+ Add Partner" &gt; "Add Customer" to create one.
+                </div>
+                {% endfor %}
+
+                <!-- No Results Filter Feedback (Hidden by default) -->
+                <div class="partner-card text-muted p-4 text-center justify-content-center d-none" id="customersNoResults">
+                    <i class="bi bi-search me-2"></i> No customers match your active search and filter criteria.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB PANE 3: BARGING & TRUCKING (Logistics & Transport Directory) -->
+    <div class="partner-tab-pane" id="tabPaneLogistics" role="tabpanel" aria-labelledby="tabBtnLogistics">
+        <div class="partner-column w-100" data-step="4" data-intro="Barging &amp; Trucking Logistics: Track marine barge carriers, land freight truckers, on-time arrival rate, shrinkage variance, and total volume hauled.">
+            <!-- Header with Sub-Filter Quick Pills -->
+            <div class="partner-column-header flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
+                <div>
+                    <h3 class="d-flex align-items-center gap-2 text-dark">
+                        <i class="bi bi-truck text-warning"></i>
+                        <span>Barging &amp; Trucking Directory (<span id="logisticsDisplayCount">{{ logistics|length }}</span>)</span>
+                    </h3>
+                    <p>Marine barge vessel carriers, land freight haulers, and multimodal transport logistics providers</p>
+                </div>
+                
+                <!-- Sub-Filter Quick Pills -->
+                <div class="d-flex align-items-center gap-1.5 flex-wrap" id="logisticsSubFilterGroup">
+                    <button type="button" 
+                            class="partner-subfilter-btn active" 
+                            data-subfilter="all" 
+                            onclick="filterLogisticsSubtype('all', this)"
+                            title="Show all marine barging and land trucking partners">
+                        <i class="bi bi-grid-fill"></i> All (<span id="countSubAll">{{ logistics|length }}</span>)
+                    </button>
+                    <button type="button" 
+                            class="partner-subfilter-btn" 
+                            data-subfilter="barging" 
+                            onclick="filterLogisticsSubtype('barging', this)"
+                            title="Show only marine barge haulers">
+                        <i class="bi bi-water"></i> Barging (<span id="countSubBarging">{{ barging_count|default:0 }}</span>)
+                    </button>
+                    <button type="button" 
+                            class="partner-subfilter-btn" 
+                            data-subfilter="trucking" 
+                            onclick="filterLogisticsSubtype('trucking', this)"
+                            title="Show only land freight trucking haulers">
+                        <i class="bi bi-truck"></i> Trucking (<span id="countSubTrucking">{{ trucking_count|default:0 }}</span>)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Transport Partner Cards List -->
+            <div class="partner-cards-list" id="logisticsCardsList">
+                {% for p in logistics %}
+                    {% include "masters/includes/transport_partner_card.html" with p=p %}
+                {% empty %}
+                <div class="partner-card text-muted p-4 text-center justify-content-center" id="noLogisticsMsg">
+                    <i class="bi bi-truck me-2"></i> No barging or trucking partners registered yet. Click "+ Add Partner" &gt; "Add Barging Partner" or "Add Trucking Partner" to register.
+                </div>
+                {% endfor %}
+
+                <!-- No Results Filter Feedback (Hidden by default) -->
+                <div class="partner-card text-muted p-4 text-center justify-content-center d-none" id="logisticsNoResults">
+                    <i class="bi bi-search me-2"></i> No transport logistics partners match your active search and filter criteria.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================== -->
+<!-- MODALS SECTION: ADD SUPPLIER, ADD CUSTOMER, ADD BARGING, ADD TRUCKING   -->
+<!-- ======================================================================== -->
+
+<!-- Add Supplier Modal (Preserved IDs & Fields) -->
 <div class="modal fade" id="addSupplierModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -141,7 +312,7 @@
                         <input type="file" name="avatar" class="form-control" accept="image/*">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Initial Relationship & Supply Notes</label>
+                        <label class="form-label">Initial Relationship &amp; Supply Notes</label>
                         <textarea name="notes" class="form-control" rows="3" placeholder="Enter supply capability, contract terms, or special notes..."></textarea>
                     </div>
                 </div>
@@ -154,7 +325,7 @@
     </div>
 </div>
 
-<!-- Add Customer Modal -->
+<!-- Add Customer Modal (Preserved IDs & Fields) -->
 <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -211,17 +382,245 @@
     </div>
 </div>
 
+<!-- Add Barging Partner Modal -->
+<div class="modal fade" id="addBargingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'masters:create_logistics_partner' %}">
+                {% csrf_token %}
+                <input type="hidden" name="category" value="barging">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-water text-info"></i> Add Marine Barging Partner</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Barging Carrier / Shipping Company Name *</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Solid Shipping Lines / FastCargo" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Operating Sea Lane / Region</label>
+                            <input type="text" name="region" class="form-control" placeholder="e.g. Visayas · Batangas Marine Route" value="Visayas · Batangas Marine Route">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Barges / Tanker Vessel Count</label>
+                            <input type="number" name="fleet_count" class="form-control" min="1" max="100" placeholder="e.g. 4" value="4">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Default Freight Rate (₱/MT)</label>
+                            <input type="number" step="0.01" name="default_freight_rate" class="form-control" placeholder="e.g. 1100.00">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Dispatch Officer / Contact</label>
+                            <input type="text" name="contact_person" class="form-control" placeholder="e.g. Capt. Carlos Vega">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact Phone / Maritime Radio</label>
+                        <input type="text" name="contact_phone" class="form-control" placeholder="e.g. +63 917 555 8899">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info text-white fw-semibold"><i class="bi bi-check-circle"></i> Save Barging Partner</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Trucking Partner Modal -->
+<div class="modal fade" id="addTruckingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'masters:create_logistics_partner' %}">
+                {% csrf_token %}
+                <input type="hidden" name="category" value="trucking">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-truck text-warning"></i> Add Land Trucking Partner</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Trucking Fleet / Hauler Company Name *</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. RL Cargo Services &amp; Logistics" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Operating Route / Highway Corridor</label>
+                            <input type="text" name="region" class="form-control" placeholder="e.g. Batangas &amp; South Luzon Corridor" value="Batangas &amp; South Luzon Corridor">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fleet Tanker Trucks Count</label>
+                            <input type="number" name="fleet_count" class="form-control" min="1" max="500" placeholder="e.g. 18" value="18">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Default Trucking Rate (₱/MT)</label>
+                            <input type="number" step="0.01" name="default_freight_rate" class="form-control" placeholder="e.g. 450.00">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fleet Manager / Contact</label>
+                            <input type="text" name="contact_person" class="form-control" placeholder="e.g. Roberto Lopez">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contact Phone</label>
+                        <input type="text" name="contact_phone" class="form-control" placeholder="e.g. +63 920 444 7722">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning text-dark fw-bold"><i class="bi bi-check-circle"></i> Save Trucking Partner</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- State Management & Interactive Tab Switching Script -->
 <script>
-function filterPartners() {
-    const q = document.getElementById('partnerSearch').value.toLowerCase().trim();
-    document.querySelectorAll('.partner-item').forEach(item => {
+let currentActiveTab = 'suppliers';
+let currentLogisticsSubFilter = 'all';
+
+function switchPartnerTab(tabName, clickedBtn) {
+    currentActiveTab = tabName;
+
+    // Update active tab button
+    document.querySelectorAll('#partnerTabNav .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+    });
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+        clickedBtn.setAttribute('aria-selected', 'true');
+    }
+
+    // Update active tab pane
+    document.querySelectorAll('.partner-tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
+
+    const targetPaneId = tabName === 'suppliers' ? 'tabPaneSuppliers' : (tabName === 'customers' ? 'tabPaneCustomers' : 'tabPaneLogistics');
+    const targetPane = document.getElementById(targetPaneId);
+    if (targetPane) {
+        targetPane.classList.add('active');
+    }
+
+    // Update URL hash without scroll jump
+    if (history.replaceState) {
+        history.replaceState(null, null, '#' + tabName);
+    }
+
+    // Re-run filter on the newly active tab
+    filterPartners();
+}
+
+function filterLogisticsSubtype(subType, clickedBtn) {
+    currentLogisticsSubFilter = subType;
+
+    // Update active sub-filter pill
+    document.querySelectorAll('#logisticsSubFilterGroup .partner-subfilter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+    }
+
+    // Filter partners in logistics tab
+    filterPartners();
+}
+
+function filterPartners(event) {
+    const q = (document.getElementById('partnerSearch').value || '').toLowerCase().trim();
+    const hideInactive = document.getElementById('toggleHideInactive') ? document.getElementById('toggleHideInactive').checked : false;
+
+    // Target the currently active tab's card list
+    let activeContainerId = '';
+    let noResultsBannerId = '';
+
+    if (currentActiveTab === 'suppliers') {
+        activeContainerId = 'supplierCardsList';
+        noResultsBannerId = 'suppliersNoResults';
+    } else if (currentActiveTab === 'customers') {
+        activeContainerId = 'customerCardsList';
+        noResultsBannerId = 'customersNoResults';
+    } else {
+        activeContainerId = 'logisticsCardsList';
+        noResultsBannerId = 'logisticsNoResults';
+    }
+
+    const container = document.getElementById(activeContainerId);
+    if (!container) return;
+
+    let visibleCount = 0;
+    const items = container.querySelectorAll('.partner-item');
+
+    items.forEach(item => {
         const searchText = (item.getAttribute('data-search') || item.getAttribute('data-name') || '').toLowerCase();
-        if (!q || searchText.includes(q)) {
+        const matchesQuery = !q || searchText.includes(q);
+
+        // Check 0 MT inactive toggle
+        let matchesVolume = true;
+        if (hideInactive) {
+            const rawVol = parseFloat(item.getAttribute('data-volume') || '0');
+            if (rawVol <= 0.001) {
+                matchesVolume = false;
+            }
+        }
+
+        // Check logistics category sub-filter
+        let matchesCategory = true;
+        if (currentActiveTab === 'logistics' && currentLogisticsSubFilter !== 'all') {
+            const cat = (item.getAttribute('data-category') || '').toLowerCase();
+            matchesCategory = (cat === currentLogisticsSubFilter);
+        }
+
+        if (matchesQuery && matchesVolume && matchesCategory) {
             item.style.display = 'flex';
+            visibleCount++;
         } else {
             item.style.display = 'none';
         }
     });
+
+    // Toggle No Results feedback
+    const noResultsEl = document.getElementById(noResultsBannerId);
+    if (noResultsEl) {
+        if (visibleCount === 0 && items.length > 0) {
+            noResultsEl.classList.remove('d-none');
+            noResultsEl.style.display = 'flex';
+        } else {
+            noResultsEl.classList.add('d-none');
+            noResultsEl.style.display = 'none';
+        }
+    }
+
+    // Update Counter Summary
+    const summaryEl = document.getElementById('partnerDirectoryCounterSummary');
+    if (summaryEl) {
+        const tabLabel = currentActiveTab === 'suppliers' ? 'Suppliers' : (currentActiveTab === 'customers' ? 'Customers' : 'Barging & Trucking');
+        summaryEl.textContent = `Showing ${visibleCount} of ${items.length} ${tabLabel}`;
+    }
 }
+
+// Restore active tab from URL hash on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+    if (hash === 'customers') {
+        const btn = document.getElementById('tabBtnCustomers');
+        switchPartnerTab('customers', btn);
+    } else if (hash === 'logistics' || hash === 'transport') {
+        const btn = document.getElementById('tabBtnLogistics');
+        switchPartnerTab('logistics', btn);
+    } else {
+        const btn = document.getElementById('tabBtnSuppliers');
+        switchPartnerTab('suppliers', btn);
+    }
+});
 </script>
 {% endblock %}

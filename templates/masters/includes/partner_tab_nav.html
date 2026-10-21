@@ -1,0 +1,35 @@
+<div class="tabs-row m-0 align-items-center" role="tablist" id="partnerTabNav">
+    <button type="button" 
+            class="tab-btn active" 
+            id="tabBtnSuppliers"
+            role="tab"
+            aria-selected="true"
+            aria-controls="tabPaneSuppliers"
+            onclick="switchPartnerTab('suppliers', this)">
+        <i class="bi bi-building"></i>
+        <span>Suppliers</span>
+        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill ms-1 fs-9 py-0.5 px-2" id="badgeCountSuppliers">{{ suppliers|length }}</span>
+    </button>
+    <button type="button" 
+            class="tab-btn" 
+            id="tabBtnCustomers"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabPaneCustomers"
+            onclick="switchPartnerTab('customers', this)">
+        <i class="bi bi-people"></i>
+        <span>Customers</span>
+        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill ms-1 fs-9 py-0.5 px-2" id="badgeCountCustomers">{{ clients|length }}</span>
+    </button>
+    <button type="button" 
+            class="tab-btn" 
+            id="tabBtnLogistics"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabPaneLogistics"
+            onclick="switchPartnerTab('logistics', this)">
+        <i class="bi bi-truck"></i>
+        <span>Barging &amp; Trucking</span>
+        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill ms-1 fs-9 py-0.5 px-2" id="badgeCountLogistics">{{ logistics|length }}</span>
+    </button>
+</div>

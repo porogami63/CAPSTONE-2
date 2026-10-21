@@ -9,6 +9,7 @@ urlpatterns = [
     path("partners/", views.partners, name="partners"),
     path("clients/new/", views.create_client, name="create_client"),
     path("suppliers/new/", views.create_supplier, name="create_supplier"),
+    path("logistics/new/", views.create_logistics_partner, name="create_logistics_partner"),
     path("clients/<int:pk>/", views.client_portfolio, name="client_portfolio"),
     path("suppliers/<int:pk>/", views.supplier_portfolio, name="supplier_portfolio"),
     path("partners/<str:partner_type>/<int:pk>/avatar/", views.update_partner_avatar, name="update_partner_avatar"),
