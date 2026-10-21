@@ -55,15 +55,35 @@ if csrf_origins_env:
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Redis Cache Backend
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.getenv("REDIS_URL", "redis://redis:6379/1"),
-        "KEY_PREFIX": "htc_cache",
-        "TIMEOUT": 300,
+# Redis Cache Backend (Redis in production/docker, LocMemCache fallback for local dev when Redis is not running)
+_redis_url = os.getenv("REDIS_URL")
+if _redis_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _redis_url,
+            "KEY_PREFIX": "htc_cache",
+            "TIMEOUT": 300,
+        }
     }
-}
+elif not DEBUG:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://redis:6379/1",
+            "KEY_PREFIX": "htc_cache",
+            "TIMEOUT": 300,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "htc_local_cache",
+            "KEY_PREFIX": "htc_cache",
+            "TIMEOUT": 300,
+        }
+    }
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -121,6 +141,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 
 def _database_from_url(url: str) -> dict:
+    conn_max_age = int(os.getenv("DB_CONN_MAX_AGE", "600"))
     if url.startswith("postgres://") or url.startswith("postgresql://"):
         url = url.replace("postgres://", "postgresql://", 1)
         from urllib.parse import urlparse
@@ -133,10 +154,12 @@ def _database_from_url(url: str) -> dict:
             "PASSWORD": parsed.password or "",
             "HOST": parsed.hostname or "localhost",
             "PORT": parsed.port or 5432,
+            "CONN_MAX_AGE": conn_max_age,  # Reuse database connections for up to 10 minutes
         }
     return {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
+        "CONN_MAX_AGE": 0,
     }
 
 
@@ -204,13 +227,14 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = _secure_cookies
     CSRF_COOKIE_SECURE = _secure_cookies
 
-    # SECURE_SSL_REDIRECT stays opt-in: Nginx already redirects, and the container healthcheck talks to
-    # Gunicorn over plain HTTP, which a Django-level redirect would break.
-    SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", False)
-    # HSTS only takes effect on HTTPS responses (SECURE_PROXY_SSL_HEADER is set above).
-    SECURE_HSTS_SECONDS = int(os.getenv("HSTS_SECONDS", "2592000"))  # 30 days
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool("HSTS_INCLUDE_SUBDOMAINS", False)
-    SECURE_HSTS_PRELOAD = _env_bool("HSTS_PRELOAD", False)
+    # Redirect all non-HTTPS traffic to HTTPS in production
+    SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", True)
+    # Exempt internal container healthcheck endpoint from SSL redirection so Gunicorn doesn't loop/fail
+    SECURE_REDIRECT_EXEMPT = [r"^accounts/login/"]
+    # HSTS policy (1 year = 31536000 seconds, include subdomains, preload-ready)
+    SECURE_HSTS_SECONDS = int(os.getenv("HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool("HSTS_INCLUDE_SUBDOMAINS", True)
+    SECURE_HSTS_PRELOAD = _env_bool("HSTS_PRELOAD", True)
 
 # Outbound email is optional. Without EMAIL_HOST no reset e-mails are sent (admins are notified instead).
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")

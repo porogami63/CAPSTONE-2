@@ -47,8 +47,15 @@ def cluster_list(request):
 
     clusters_qs = (
         TransactionCluster.objects.filter(is_archived=show_archived)
-        .select_related("client", "sugar_mill", "logistics", "logistics__partner")
-        .prefetch_related("invoices", "purchase_order", "chai_records", "mro_releases")
+        .select_related("client", "sugar_mill", "logistics", "logistics__partner", "purchase_order")
+        .prefetch_related(
+            "invoices",
+            "chai_records",
+            "mro_releases",
+            "purchase_order__deliveries",
+            "purchase_order__deliveries__trucking_partner",
+            "purchase_order__deliveries__barge_partner",
+        )
     )
 
     if q:
@@ -2234,7 +2241,7 @@ def pending_tasks_view(request):
     offspec_chai = CHAIRecord.objects.filter(Q(status="rejected") | Q(chai_value__gte=Decimal("4.0"))).select_related("sugar_mill", "cluster").order_by("-tested_at")
     unbilled_clusters = TransactionCluster.objects.filter(invoices__isnull=True, is_archived=False).select_related("client", "sugar_mill", "purchase_order").order_by("-created_at")
     unpaid_invoices = Invoice.objects.filter(status__in=[Invoice.Status.ISSUED, Invoice.Status.DRAFT], is_archived=False).select_related("cluster", "cluster__client").order_by("-issued_at")
-    open_loans = CapitalLoan.objects.filter(status__in=[CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.PENDING_SETTLEMENT, CapitalLoan.Status.ACTIVE, CapitalLoan.Status.OVERDUE]).select_related("cluster", "cluster__client").order_by("-created_at")
+    open_loans = CapitalLoan.objects.filter(status__in=[CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.PENDING_SETTLEMENT, CapitalLoan.Status.ACTIVE, CapitalLoan.Status.OVERDUE]).select_related("cluster", "cluster__client", "cluster__sugar_mill").order_by("-created_at")
 
     # Scope querysets per role (Operations Manager encompasses all roles finance, invoice, and operations)
     if not (user.is_superuser or role in (User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)):

@@ -747,7 +747,15 @@ def loan_list(request):
             "excess_amount": c_excess,
         })
 
-    loans = list(CapitalLoan.objects.select_related("cluster", "cluster__client", "verified_by").order_by("-created_at"))
+    loans = list(
+        CapitalLoan.objects.select_related(
+            "cluster",
+            "cluster__client",
+            "cluster__sugar_mill",
+            "cluster__purchase_order",
+            "verified_by",
+        ).order_by("-created_at")
+    )
 
     active_exposure = Decimal("0")
     accrued_interest = Decimal("0")
@@ -1048,7 +1056,12 @@ def invoice_list(request):
     client_id = request.GET.get("client", "").strip()
     sort_by = request.GET.get("sort", "newest").strip()
 
-    invoices_qs = Invoice.objects.filter(is_archived=show_archived).select_related("cluster", "cluster__client", "cluster__sugar_mill")
+    invoices_qs = Invoice.objects.filter(is_archived=show_archived).select_related(
+        "cluster",
+        "cluster__client",
+        "cluster__sugar_mill",
+        "cluster__purchase_order",
+    )
 
     if q:
         invoices_qs = invoices_qs.filter(

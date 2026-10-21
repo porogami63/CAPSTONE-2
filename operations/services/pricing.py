@@ -46,9 +46,9 @@ def cluster_financials(cluster) -> dict:
         selling_price = Decimal(str(po.selling_price)) if po.selling_price is not None else (_parse_selling_from_terms(po.terms) or Decimal("0"))
 
     # Batch-based logistics accounting: calculate per delivery batch rather than static upfront blanket
-    has_batches = bool(po and hasattr(po, "deliveries") and po.deliveries.exists())
+    batch_deliveries = list(po.deliveries.all()) if (po and hasattr(po, "deliveries")) else []
+    has_batches = bool(batch_deliveries)
     if has_batches:
-        batch_deliveries = list(po.deliveries.all())
         loaded_vol = po.total_delivered_mt
         received_vol = po.total_delivered_mt
         tracking_fees = sum((d.trucking_cost for d in batch_deliveries), Decimal("0.00"))
