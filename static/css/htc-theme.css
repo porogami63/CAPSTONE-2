@@ -2567,8 +2567,117 @@ html[data-legibility="high"] .badge {
     background: var(--htc-surface);
 }
 
+.fs-7 {
+    font-size: 0.8125rem !important;
+}
+
 .fs-8 {
     font-size: 0.72rem !important;
+}
+
+.fs-9 {
+    font-size: 0.65rem !important;
+}
+
+.text-xs {
+    font-size: 0.75rem !important;
+}
+
+.font-bold,
+.font-weight-bold {
+    font-weight: 700 !important;
+}
+
+.shadow-xs {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.tracking-wider {
+    letter-spacing: 0.05em !important;
+}
+
+.tracking-wide {
+    letter-spacing: 0.025em !important;
+}
+
+/* Fractional Spacing Utilities (Gap) */
+.gap-0\.5 { gap: 0.125rem !important; }
+.gap-1\.5 { gap: 0.375rem !important; }
+.gap-2\.5 { gap: 0.625rem !important; }
+.gap-3\.5 { gap: 0.875rem !important; }
+
+/* Fractional Spacing Utilities (Padding) */
+.p-0\.5 { padding: 0.125rem !important; }
+.p-1\.5 { padding: 0.375rem !important; }
+.p-2\.5 { padding: 0.625rem !important; }
+.p-3\.5 { padding: 0.875rem !important; }
+
+.px-0\.5 { padding-left: 0.125rem !important; padding-right: 0.125rem !important; }
+.px-1\.5 { padding-left: 0.375rem !important; padding-right: 0.375rem !important; }
+.px-2\.5 { padding-left: 0.625rem !important; padding-right: 0.625rem !important; }
+.px-3\.5 { padding-left: 0.875rem !important; padding-right: 0.875rem !important; }
+
+.py-0\.5 { padding-top: 0.125rem !important; padding-bottom: 0.125rem !important; }
+.py-1\.5 { padding-top: 0.375rem !important; padding-bottom: 0.375rem !important; }
+.py-2\.5 { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
+.py-3\.5 { padding-top: 0.875rem !important; padding-bottom: 0.875rem !important; }
+
+.pt-0\.5 { padding-top: 0.125rem !important; }
+.pt-1\.5 { padding-top: 0.375rem !important; }
+.pt-2\.5 { padding-top: 0.625rem !important; }
+.pb-0\.5 { padding-bottom: 0.125rem !important; }
+.pb-1\.5 { padding-bottom: 0.375rem !important; }
+.pb-2\.5 { padding-bottom: 0.625rem !important; }
+.ps-0\.5 { padding-left: 0.125rem !important; }
+.ps-1\.5 { padding-left: 0.375rem !important; }
+.ps-2\.5 { padding-left: 0.625rem !important; }
+.pe-0\.5 { padding-right: 0.125rem !important; }
+.pe-1\.5 { padding-right: 0.375rem !important; }
+.pe-2\.5 { padding-right: 0.625rem !important; }
+
+/* Fractional Spacing Utilities (Margin) */
+.m-0\.5 { margin: 0.125rem !important; }
+.m-1\.5 { margin: 0.375rem !important; }
+.m-2\.5 { margin: 0.625rem !important; }
+.m-3\.5 { margin: 0.875rem !important; }
+
+.mx-0\.5 { margin-left: 0.125rem !important; margin-right: 0.125rem !important; }
+.mx-1\.5 { margin-left: 0.375rem !important; margin-right: 0.375rem !important; }
+.mx-2\.5 { margin-left: 0.625rem !important; margin-right: 0.625rem !important; }
+
+.my-0\.5 { margin-top: 0.125rem !important; margin-bottom: 0.125rem !important; }
+.my-1\.5 { margin-top: 0.375rem !important; margin-bottom: 0.375rem !important; }
+.my-2\.5 { margin-top: 0.625rem !important; margin-bottom: 0.625rem !important; }
+
+.mt-0\.5 { margin-top: 0.125rem !important; }
+.mt-1\.5 { margin-top: 0.375rem !important; }
+.mt-2\.5 { margin-top: 0.625rem !important; }
+
+.mb-0\.5 { margin-bottom: 0.125rem !important; }
+.mb-1\.5 { margin-bottom: 0.375rem !important; }
+.mb-2\.5 { margin-bottom: 0.625rem !important; }
+
+.ms-0\.5 { margin-left: 0.125rem !important; }
+.ms-1\.5 { margin-left: 0.375rem !important; }
+.ms-2\.5 { margin-left: 0.625rem !important; }
+
+.me-0\.5 { margin-right: 0.125rem !important; }
+.me-1\.5 { margin-right: 0.375rem !important; }
+.me-2\.5 { margin-right: 0.625rem !important; }
+
+/* Dedicated Footnote & Drawer Action Bar Spacing */
+.copilot-financial-footnote {
+    padding: 0.85rem 1.15rem !important;
+}
+
+#panelPersistentActionBar {
+    gap: 0.5rem !important;
+}
+
+#panelPersistentActionBar #panelCancelForm {
+    display: inline-flex !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* Document Category Card Scrollbars */

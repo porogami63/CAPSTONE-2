@@ -276,22 +276,22 @@
         </div>
 
         <!-- Persistent Action Bar -->
-        <div class="p-2 mb-3 rounded bg-light border d-flex flex-wrap align-items-center gap-1.5" id="panelPersistentActionBar" style="position: sticky; top: 0; z-index: 5; backdrop-filter: blur(4px);">
+        <div class="p-2.5 mb-3 rounded-3 bg-light border d-flex flex-wrap align-items-center gap-2" id="panelPersistentActionBar" style="position: sticky; top: 0; z-index: 5; backdrop-filter: blur(4px);">
             <!-- Primary Actions -->
-            <a href="#" id="panelActionEdit" class="btn btn-sm btn-primary py-1 px-2.5 d-inline-flex align-items-center gap-1 fs-8 fw-semibold" title="Edit Deal & Commercial Terms">
+            <a href="#" id="panelActionEdit" class="btn btn-sm btn-primary py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-semibold shadow-xs" title="Edit Deal & Commercial Terms">
                 <i class="bi bi-pencil-square"></i> Edit Deal
             </a>
-            <a href="#" id="panelActionInvoice" class="btn btn-sm btn-success py-1 px-2.5 d-inline-flex align-items-center gap-1 fs-8 fw-semibold" title="Generate Sales Invoice">
+            <a href="#" id="panelActionInvoice" class="btn btn-sm btn-success py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-semibold shadow-xs" title="Generate Sales Invoice">
                 <i class="bi bi-receipt"></i> Generate Invoice
             </a>
 
             <!-- Secondary Actions -->
-            <a href="#" id="panelActionPdf" target="_blank" class="btn btn-sm btn-outline-secondary py-1 px-2 d-inline-flex align-items-center gap-1 fs-8" title="Download & Print Legal Contract PDF">
+            <a href="#" id="panelActionPdf" target="_blank" class="btn btn-sm btn-outline-secondary py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 shadow-xs" title="Download & Print Legal Contract PDF">
                 <i class="bi bi-printer"></i> Print Contract
             </a>
-            <form id="panelCancelForm" method="post" action="#" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel and delete this Purchase Order? This action cannot be undone.');">
+            <form id="panelCancelForm" method="post" action="#" class="d-inline-flex m-0 p-0" onsubmit="return confirm('Are you sure you want to cancel and delete this Purchase Order? This action cannot be undone.');">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2 d-inline-flex align-items-center gap-1 fs-8" title="Cancel this Purchase Order">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 shadow-xs" title="Cancel this Purchase Order">
                     <i class="bi bi-x-circle"></i> Cancel PO
                 </button>
             </form>

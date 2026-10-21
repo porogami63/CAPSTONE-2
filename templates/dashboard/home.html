@@ -830,20 +830,20 @@
         </div>
 
         <!-- HTC Copilot (Local ORM) Explanation Footnote -->
-        <div class="copilot-financial-footnote mt-3 p-2.5 rounded bg-light border border-primary-subtle d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2" id="financialCopilotFootnote">
-            <div class="d-flex align-items-start gap-2">
-                <div class="badge bg-primary text-white p-1.5 rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
-                    <i class="bi bi-robot fs-7"></i>
+        <div class="copilot-financial-footnote mt-3 p-3 rounded-3 bg-light border border-primary-subtle d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3" id="financialCopilotFootnote">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px;">
+                    <i class="bi bi-robot fs-6"></i>
                 </div>
                 <div>
-                    <div class="d-flex align-items-center gap-2 mb-0.5">
+                    <div class="d-flex align-items-center gap-2 mb-1">
                         <span class="fw-bold fs-8 text-primary">HTC Copilot (Local ORM Aggregation)</span>
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-9 py-0 px-1.5" id="copilotActiveCadenceBadge">Monthly Cadence</span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-9 py-0.5 px-2" id="copilotActiveCadenceBadge">Monthly Cadence</span>
                     </div>
-                    <p class="mb-0 fs-8 text-muted" id="copilotExplanationText">{{ financial_intervals.monthly.copilot_text }}</p>
+                    <p class="mb-0 fs-8 text-muted" id="copilotExplanationText" style="line-height: 1.45;">{{ financial_intervals.monthly.copilot_text }}</p>
                 </div>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-primary text-nowrap d-flex align-items-center gap-1 fs-8 fw-semibold align-self-md-center align-self-start" id="btnAskCopilotFinancial" onclick="askCopilotCurrentFinancials()">
+            <button type="button" class="btn btn-sm btn-outline-primary text-nowrap d-flex align-items-center gap-1.5 fs-8 fw-semibold px-3 py-1.5 flex-shrink-0 align-self-md-center align-self-start" id="btnAskCopilotFinancial" onclick="askCopilotCurrentFinancials()">
                 <i class="bi bi-chat-dots-fill"></i> Explain with HTC Copilot
             </button>
         </div>
