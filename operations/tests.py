@@ -1245,3 +1245,61 @@ class CopilotFinancialLocalORMTests(TestCase):
 
 
 
+
+
+class ClusterFinancialsMultipleInvoicesTests(TestCase):
+    def test_cluster_financials_aggregates_multiple_invoices(self):
+        from decimal import Decimal
+        from datetime import date
+        from masters.models import Client, SugarMill
+        from operations.models import TransactionCluster, PurchaseOrder
+        from finance.models import Invoice
+        from operations.services.pricing import cluster_financials
+
+        client = Client.objects.create(name="Absolute Distillers Inc.")
+        mill = SugarMill.objects.create(name="AABC Mill")
+
+        cluster = TransactionCluster.objects.create(
+            reference_code="PO-20261029-TEST",
+            client=client,
+            sugar_mill=mill,
+            status=TransactionCluster.Status.DELIVERED,
+        )
+
+        PurchaseOrder.objects.create(
+            cluster=cluster,
+            po_reference_number="PO-20261029-TEST",
+            volume_mt=Decimal("1000.000"),
+            unit_price=Decimal("12500.00"),
+            selling_price=Decimal("17500.00"),
+        )
+
+        # Tranche 1 invoice: 3,500,000
+        Invoice.objects.create(
+            cluster=cluster,
+            invoice_number="SI-20261029-001",
+            amount=Decimal("3500000.00"),
+            issued_at=date.today(),
+            status=Invoice.Status.ISSUED,
+        )
+
+        # Tranche 2 invoice: 14,500,000
+        Invoice.objects.create(
+            cluster=cluster,
+            invoice_number="SI-20261029-002",
+            amount=Decimal("14500000.00"),
+            issued_at=date.today(),
+            status=Invoice.Status.ISSUED,
+        )
+
+        fin = cluster_financials(cluster)
+
+        # Verify revenue sums both invoices: 3.5M + 14.5M = 18.0M
+        self.assertEqual(fin["revenue"], 18000000.0)
+        self.assertEqual(fin["purchase_total"], 12500000.0)
+        # Net profit = 18M - 12.5M = 5.5M (no logistics in test)
+        self.assertEqual(fin["profit"], 5500000.0)
+        self.assertEqual(fin["invoices_count"], 2)
+        self.assertIn("SI-20261029-001", fin["invoice_number"])
+        self.assertIn("SI-20261029-002", fin["invoice_number"])
+        self.assertIn("2 Invoices", fin["sales_formula"])

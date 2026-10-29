@@ -24,7 +24,9 @@ def cluster_financials(cluster) -> dict:
     po = getattr(cluster, "purchase_order", None)
     logistics = getattr(cluster, "logistics", None)
     invoices = list(cluster.invoices.all()) if hasattr(cluster, "invoices") else []
-    primary_invoice = invoices[0] if invoices else None
+    # Consider all non-returned invoices with an amount
+    valid_invoices = [inv for inv in invoices if inv.amount and getattr(inv, "status", None) != "returned"]
+    primary_invoice = valid_invoices[0] if valid_invoices else (invoices[0] if invoices else None)
 
     volume = Decimal("0")
     purchase_price = Decimal("0")
@@ -88,11 +90,11 @@ def cluster_financials(cluster) -> dict:
     ewt_amount = Decimal("0")
     net_after_tax = Decimal("0")
 
-    if primary_invoice and primary_invoice.amount:
-        revenue = primary_invoice.amount
-        vat_amount = primary_invoice.vat_amount
-        ewt_amount = primary_invoice.ewt_amount
-        net_after_tax = primary_invoice.net_amount_after_tax
+    if valid_invoices:
+        revenue = sum((Decimal(str(inv.amount)) for inv in valid_invoices), Decimal("0"))
+        vat_amount = sum((Decimal(str(inv.vat_amount)) for inv in valid_invoices if inv.vat_amount is not None), Decimal("0"))
+        ewt_amount = sum((Decimal(str(inv.ewt_amount)) for inv in valid_invoices if inv.ewt_amount is not None), Decimal("0"))
+        net_after_tax = sum((Decimal(str(inv.net_amount_after_tax)) for inv in valid_invoices if inv.net_amount_after_tax is not None), Decimal("0"))
         if volume > 0 and selling_price <= 0:
             selling_price = revenue / volume
     elif selling_price > 0 and volume > 0:
@@ -118,11 +120,38 @@ def cluster_financials(cluster) -> dict:
     # Derivations (Step-by-step arithmetic formulas)
     sourcing_formula = f"{volume:,.3f} MT × ₱{purchase_price:,.2f}/MT = ₱{purchase_total:,.2f}"
     freight_formula = f"₱{tracking_fees:,.2f} (Trucking) + ₱{barge_fees:,.2f} (Barging) = ₱{logistics_cost:,.2f}"
-    sales_formula = f"{received_vol:,.3f} MT × ₱{selling_price:,.2f}/MT = ₱{revenue:,.2f}"
+    if len(valid_invoices) > 1:
+        inv_breakdown = " + ".join(f"₱{inv.amount:,.2f} [{inv.invoice_number}]" for inv in valid_invoices)
+        sales_formula = f"{inv_breakdown} = ₱{revenue:,.2f} ({len(valid_invoices)} Invoices)"
+    elif len(valid_invoices) == 1 and selling_price > 0:
+        expected_calc = (received_vol * selling_price).quantize(Decimal("0.01")) if received_vol > 0 else Decimal("0")
+        if expected_calc > 0 and abs(revenue - expected_calc) <= Decimal("1.00"):
+            sales_formula = f"{received_vol:,.3f} MT × ₱{selling_price:,.2f}/MT = ₱{revenue:,.2f}"
+        else:
+            sales_formula = f"{valid_invoices[0].invoice_number}: ₱{revenue:,.2f}"
+    else:
+        sales_formula = f"{received_vol:,.3f} MT × ₱{selling_price:,.2f}/MT = ₱{revenue:,.2f}"
+
     vat_formula = f"₱{revenue:,.2f} × (12 / 112) = ₱{vat_amount:,.2f}"
     ewt_formula = f"(₱{revenue:,.2f} / 1.12) × 1% = ₱{ewt_amount:,.2f}"
     net_sales_formula = f"₱{revenue:,.2f} - ₱{ewt_amount:,.2f} = ₱{net_after_tax:,.2f}"
     profit_formula = f"₱{revenue:,.2f} - ₱{purchase_total:,.2f} - ₱{logistics_cost:,.2f} = ₱{profit:,.2f}"
+
+    invoice_numbers = [inv.invoice_number for inv in valid_invoices if inv.invoice_number] or [inv.invoice_number for inv in invoices if inv.invoice_number]
+    invoice_number_display = ", ".join(invoice_numbers) if invoice_numbers else (primary_invoice.invoice_number if primary_invoice else None)
+
+    if len(valid_invoices) > 1:
+        statuses = set(inv.status for inv in valid_invoices)
+        if len(statuses) == 1:
+            invoice_status = valid_invoices[0].get_status_display()
+        elif any(inv.status == "paid" for inv in valid_invoices):
+            invoice_status = "Partially Paid"
+        else:
+            invoice_status = "Multiple Invoices"
+    elif primary_invoice:
+        invoice_status = primary_invoice.get_status_display()
+    else:
+        invoice_status = None
 
     return {
         "volume_mt": float(volume),
@@ -147,8 +176,9 @@ def cluster_financials(cluster) -> dict:
         "profit_m": float(profit) / 1_000_000,
         "margin": float(margin),
         "order_value": float(purchase_total),
-        "invoice_status": primary_invoice.get_status_display() if primary_invoice else None,
-        "invoice_number": primary_invoice.invoice_number if primary_invoice else None,
+        "invoice_status": invoice_status,
+        "invoice_number": invoice_number_display,
+        "invoices_count": len(valid_invoices) if valid_invoices else len(invoices),
 
         # Formula strings for debrief transparency
         "sourcing_formula": sourcing_formula,
@@ -395,4 +425,3 @@ def get_po_logistics_summary(cluster) -> dict:
         "projected_total": projected_total,
         "batch_count": len(deliveries),
     }
-
