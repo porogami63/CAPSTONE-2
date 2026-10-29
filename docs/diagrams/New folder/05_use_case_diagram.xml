@@ -1,0 +1,227 @@
+<?xml version="1.0" ?>
+<mxfile host="app.diagrams.net" modified="2026-10-23T13:30:00.000Z" agent="HTC Core Architecture Generator" version="24.0.0" type="device">
+  <diagram id="use_case" name="05. Use Case Diagram &amp; Actor Matrix">
+    <mxGraphModel dx="1422" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1400" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="OpsStaff" value="👤 Operations Staff&lt;br/&gt;&lt;font style='font-size:9.5px;font-weight:normal;'&gt;(Role: operations)&lt;/font&gt;" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#0f172a;strokeColor=#38bdf8;strokeWidth=2;fontColor=#0f172a;fontSize=11;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="40" y="180" width="90" height="110"/>
+        </mxCell>
+        <mxCell id="OpsMgr" value="👤 Operations Manager&lt;br/&gt;&lt;font style='font-size:9.5px;font-weight:normal;'&gt;(Role: operations_management)&lt;/font&gt;" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#0f172a;strokeColor=#38bdf8;strokeWidth=2;fontColor=#0f172a;fontSize=11;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="40" y="360" width="90" height="110"/>
+        </mxCell>
+        <mxCell id="HTCSystem" value="⚙️ HTC CORE PLATFORM SYSTEM BOUNDARY" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=28;collapsible=0;rounded=1;shadow=0;fillColor=#f8fafc;strokeColor=#0284c7;strokeWidth=2;fontColor=#0f172a;fontSize=13;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="180" y="40" width="1140" height="960"/>
+          <mxCell id="OpsDomain" value="📦 SOURCING &amp; LOGISTICS DOMAIN" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=24;collapsible=0;rounded=1;shadow=0;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontColor=#0369a1;fontSize=11.5;" parent="HTCSystem" vertex="1">
+            <mxGeometry as="geometry" x="20" y="40" width="1100" height="420"/>
+            <mxCell id="Pkg1" value="1. Sourcing Deals &amp; PO Contracts" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=22;collapsible=0;rounded=1;fillColor=#f8fafc;strokeColor=#cbd5e1;strokeWidth=1;fontColor=#334155;fontSize=10.5;" parent="OpsDomain" vertex="1">
+              <mxGeometry as="geometry" x="20" y="35" width="1060" height="80"/>
+              <mxCell id="UC1" value="UC-01: Formulate Deal Cluster &amp;amp; PO" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg1" vertex="1">
+                <mxGeometry as="geometry" x="30" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC2" value="UC-02: Review / Return Deal Cluster" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg1" vertex="1">
+                <mxGeometry as="geometry" x="300" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC3" value="UC-03: Bulk Excel Operations Intake" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg1" vertex="1">
+                <mxGeometry as="geometry" x="570" y="26" width="240" height="44"/>
+              </mxCell>
+            </mxCell>
+            <mxCell id="Pkg2" value="2. Multi-Batch Logistics &amp; Disputes" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=22;collapsible=0;rounded=1;fillColor=#f8fafc;strokeColor=#cbd5e1;strokeWidth=1;fontColor=#334155;fontSize=10.5;" parent="OpsDomain" vertex="1">
+              <mxGeometry as="geometry" x="20" y="125" width="1060" height="130"/>
+              <mxCell id="UC4" value="UC-04: Dispatch Batch with Dual Freight" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg2" vertex="1">
+                <mxGeometry as="geometry" x="30" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC5" value="UC-05: Enforce Over-Delivery Guard" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg2" vertex="1">
+                <mxGeometry as="geometry" x="300" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC6" value="UC-06: Flag &gt;1.0% Transit Shrinkage" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg2" vertex="1">
+                <mxGeometry as="geometry" x="30" y="75" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC7" value="UC-07: Resolve Transit Variance Dispute" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg2" vertex="1">
+                <mxGeometry as="geometry" x="300" y="75" width="240" height="44"/>
+              </mxCell>
+            </mxCell>
+            <mxCell id="Pkg3" value="3. MRO Permits &amp; Lab Quality" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=22;collapsible=0;rounded=1;fillColor=#f8fafc;strokeColor=#cbd5e1;strokeWidth=1;fontColor=#334155;fontSize=10.5;" parent="OpsDomain" vertex="1">
+              <mxGeometry as="geometry" x="20" y="265" width="1060" height="140"/>
+              <mxCell id="UC8" value="UC-08: Upload Scanned MRO Quota PDF" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg3" vertex="1">
+                <mxGeometry as="geometry" x="20" y="26" width="230" height="44"/>
+              </mxCell>
+              <mxCell id="UC9" value="UC-09: Trigger Textract OCR Extraction" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg3" vertex="1">
+                <mxGeometry as="geometry" x="270" y="26" width="230" height="44"/>
+              </mxCell>
+              <mxCell id="Textract" value="☁️ AWS Textract AI&lt;br/&gt;&lt;font style='font-size:9.5px;font-weight:normal;'&gt;Cloud Document OCR&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2e1065;strokeColor=#a855f7;strokeWidth=2;fontColor=#ffffff;fontSize=10.5;fontStyle=1;align=center;" parent="Pkg3" vertex="1">
+                <mxGeometry as="geometry" x="520" y="26" width="170" height="44"/>
+              </mxCell>
+              <mxCell id="UC10" value="UC-10: Verify &amp;amp; Link MRO to Deal" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg3" vertex="1">
+                <mxGeometry as="geometry" x="710" y="26" width="230" height="44"/>
+              </mxCell>
+              <mxCell id="UC11" value="UC-11: Record Laboratory CHAI Grade &amp;amp; Brix" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg3" vertex="1">
+                <mxGeometry as="geometry" x="270" y="80" width="260" height="44"/>
+              </mxCell>
+            </mxCell>
+          </mxCell>
+          <mxCell id="FinGovDomain" value="💳 TREASURY, INVOICING &amp; GOVERNANCE DOMAIN" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=24;collapsible=0;rounded=1;shadow=0;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontColor=#0369a1;fontSize=11.5;" parent="HTCSystem" vertex="1">
+            <mxGeometry as="geometry" x="20" y="475" width="1100" height="470"/>
+            <mxCell id="Pkg4" value="4. Billing &amp; Sales Invoicing Engine" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=22;collapsible=0;rounded=1;fillColor=#f8fafc;strokeColor=#cbd5e1;strokeWidth=1;fontColor=#334155;fontSize=10.5;" parent="FinGovDomain" vertex="1">
+              <mxGeometry as="geometry" x="20" y="35" width="1060" height="80"/>
+              <mxCell id="UC12" value="UC-12: Generate Suggestive Delivery Invoice" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg4" vertex="1">
+                <mxGeometry as="geometry" x="30" y="26" width="250" height="44"/>
+              </mxCell>
+              <mxCell id="UC13" value="UC-13: Compute 12% VAT &amp;amp; 1% EWT Base" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg4" vertex="1">
+                <mxGeometry as="geometry" x="310" y="26" width="250" height="44"/>
+              </mxCell>
+              <mxCell id="UC14" value="UC-14: Export Official Billing PDF Statement" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg4" vertex="1">
+                <mxGeometry as="geometry" x="590" y="26" width="250" height="44"/>
+              </mxCell>
+            </mxCell>
+            <mxCell id="Pkg5" value="5. Sourcing Capital Loans &amp; Treasury" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=22;collapsible=0;rounded=1;fillColor=#f8fafc;strokeColor=#cbd5e1;strokeWidth=1;fontColor=#334155;fontSize=10.5;" parent="FinGovDomain" vertex="1">
+              <mxGeometry as="geometry" x="20" y="125" width="1060" height="140"/>
+              <mxCell id="UC15" value="UC-15: Initiate Sourcing Capital Loan" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg5" vertex="1">
+                <mxGeometry as="geometry" x="30" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC16" value="UC-16: Dual-Auth Loan Creation Approval" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg5" vertex="1">
+                <mxGeometry as="geometry" x="300" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC17" value="UC-17: Track Daily Dynamic Accruals" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg5" vertex="1">
+                <mxGeometry as="geometry" x="570" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC18" value="UC-18: Submit Bank Settlement Advice" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg5" vertex="1">
+                <mxGeometry as="geometry" x="30" y="80" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC19" value="UC-19: Dual-Auth Verify &amp;amp; Close Loan" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg5" vertex="1">
+                <mxGeometry as="geometry" x="300" y="80" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC20" value="UC-20: 3-Step Match &amp;amp; Auto-Disburse Vouchers" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg5" vertex="1">
+                <mxGeometry as="geometry" x="570" y="80" width="260" height="44"/>
+              </mxCell>
+            </mxCell>
+            <mxCell id="Pkg6" value="6. Identity, Catalogs &amp; Audit Governance" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=22;collapsible=0;rounded=1;fillColor=#f8fafc;strokeColor=#cbd5e1;strokeWidth=1;fontColor=#334155;fontSize=10.5;" parent="FinGovDomain" vertex="1">
+              <mxGeometry as="geometry" x="20" y="275" width="1060" height="180"/>
+              <mxCell id="UC21" value="UC-21: Self-Register Account &amp;amp; Setup 2FA" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg6" vertex="1">
+                <mxGeometry as="geometry" x="30" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC22" value="UC-22: Approve User &amp;amp; Assign RBAC Role" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg6" vertex="1">
+                <mxGeometry as="geometry" x="300" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC23" value="UC-23: Maintain Master Entity Catalogs" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg6" vertex="1">
+                <mxGeometry as="geometry" x="570" y="26" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC24" value="UC-24: Query HTC Copilot ORM Assistant" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg6" vertex="1">
+                <mxGeometry as="geometry" x="160" y="80" width="240" height="44"/>
+              </mxCell>
+              <mxCell id="UC25" value="UC-25: Inspect Append-Only Audit Trail" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=1.5;fontColor=#ffffff;fontSize=10.5;fontStyle=0;align=center;" parent="Pkg6" vertex="1">
+                <mxGeometry as="geometry" x="440" y="80" width="240" height="44"/>
+              </mxCell>
+            </mxCell>
+          </mxCell>
+        </mxCell>
+        <mxCell id="Inv" value="🧾 Invoicing Specialist&lt;br/&gt;&lt;font style='font-size:9.5px;font-weight:normal;'&gt;(Role: invoicing)&lt;/font&gt;" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#0f172a;strokeColor=#38bdf8;strokeWidth=2;fontColor=#0f172a;fontSize=11;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="1370" y="560" width="90" height="110"/>
+        </mxCell>
+        <mxCell id="Fin" value="💳 Finance Specialist&lt;br/&gt;&lt;font style='font-size:9.5px;font-weight:normal;'&gt;(Role: finance)&lt;/font&gt;" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#0f172a;strokeColor=#38bdf8;strokeWidth=2;fontColor=#0f172a;fontSize=11;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="1370" y="700" width="90" height="110"/>
+        </mxCell>
+        <mxCell id="Admin" value="🛡️ System Administrator&lt;br/&gt;&lt;font style='font-size:9.5px;font-weight:normal;'&gt;(Role: administrator)&lt;/font&gt;" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#0f172a;strokeColor=#38bdf8;strokeWidth=2;fontColor=#0f172a;fontSize=11;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="1370" y="850" width="90" height="110"/>
+        </mxCell>
+        <mxCell id="uc_e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="OpsStaff" target="UC1">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="OpsStaff" target="UC3">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="OpsStaff" target="UC4">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="OpsStaff" target="UC8">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="OpsMgr" target="UC2">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="OpsMgr" target="UC7">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="OpsMgr" target="UC10">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="OpsMgr" target="UC11">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i1" value="«include»" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#64748b;strokeWidth=1.5;fontSize=10;fontColor=#475569;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="UC4" target="UC5">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i2" value="«include»" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#64748b;strokeWidth=1.5;fontSize=10;fontColor=#475569;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="UC4" target="UC6">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i3" value="«extend» (&gt;1.0%)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#64748b;strokeWidth=1.5;fontSize=10;fontColor=#475569;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="UC6" target="UC7">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i4" value="«include»" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#64748b;strokeWidth=1.5;fontSize=10;fontColor=#475569;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="UC8" target="UC9">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i5" value="OCR API" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC9" target="Textract">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i6" value="«include»" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#64748b;strokeWidth=1.5;fontSize=10;fontColor=#475569;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="UC9" target="UC10">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i7" value="«include»" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#64748b;strokeWidth=1.5;fontSize=10;fontColor=#475569;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="UC12" target="UC13">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i8" value="«include»" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#64748b;strokeWidth=1.5;fontSize=10;fontColor=#475569;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="UC15" target="UC16">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i9" value="«include»" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#64748b;strokeWidth=1.5;fontSize=10;fontColor=#475569;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="UC15" target="UC17">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_i10" value="«include»" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#64748b;strokeWidth=1.5;fontSize=10;fontColor=#475569;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="UC18" target="UC19">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC12" target="Inv">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC13" target="Inv">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC14" target="Inv">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC15" target="Fin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC16" target="Fin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC17" target="Fin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC18" target="Fin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC19" target="Fin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC20" target="Fin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC21" target="Admin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC22" target="Admin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC23" target="Admin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC24" target="Admin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="uc_r14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=1.5;fontSize=10;" parent="1" edge="1" source="UC25" target="Admin">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

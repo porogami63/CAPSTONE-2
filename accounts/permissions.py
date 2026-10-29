@@ -78,7 +78,7 @@ PERMISSIONS = {
     "add_voucher": FINANCE_ADMIN,
     "add_loan": FINANCE_ADMIN,
     "view_loans": FINANCE_ADMIN,
-    "verify_loan": {Role.ADMINISTRATOR},
+    "verify_loan": {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT},
     "reconcile_payments": FINANCE_ADMIN,
     "add_match": FINANCE_ADMIN,
     "view_reconciliation": FINANCE_ADMIN,

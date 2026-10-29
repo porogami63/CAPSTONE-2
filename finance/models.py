@@ -186,6 +186,14 @@ class CapitalLoan(models.Model):
     )
     verified_at = models.DateTimeField(null=True, blank=True)
     verification_notes = models.TextField(blank=True, help_text="Audit notes on loan creation or settlement verification")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_loans",
+        help_text="Finance user or team member who created this loan facility proposal",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

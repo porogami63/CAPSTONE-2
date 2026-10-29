@@ -130,7 +130,7 @@ class LoanVerificationTests(TestCase):
 		self.assertEqual(loan.verified_by, self.admin_user)
 		self.assertEqual(loan.verification_notes, "Contract verified, approval granted.")
 
-	def test_ops_manager_cannot_verify_loan_creation(self):
+	def test_ops_manager_can_verify_loan_creation(self):
 		loan = CapitalLoan.objects.create(
 			cluster=self.cluster,
 			bank_name="Security Bank",
@@ -138,8 +138,30 @@ class LoanVerificationTests(TestCase):
 			interest_rate_annual=10,
 			start_date=date.today(),
 			due_date=date.today() + timedelta(days=60),
+			created_by=self.finance_user,
 		)
 		self.client.login(username="ops_manager", password="password123")
+		response = self.client.post(
+			reverse("finance:verify_loan_creation", kwargs={"pk": loan.pk}),
+			{"action": "approve", "verification_notes": "Operations Management approved loan created by Finance."},
+		)
+		self.assertRedirects(response, reverse("finance:loan_list"))
+		loan.refresh_from_db()
+		self.assertEqual(loan.status, CapitalLoan.Status.ACTIVE)
+		self.assertEqual(loan.verified_by, self.ops_manager)
+		self.assertEqual(loan.verification_notes, "Operations Management approved loan created by Finance.")
+
+	def test_operations_role_cannot_verify_loan_creation(self):
+		loan = CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="Security Bank",
+			principal=1000000,
+			interest_rate_annual=10,
+			start_date=date.today(),
+			due_date=date.today() + timedelta(days=60),
+			created_by=self.finance_user,
+		)
+		self.client.login(username="ops_user", password="password123")
 		response = self.client.post(
 			reverse("finance:verify_loan_creation", kwargs={"pk": loan.pk}),
 			{"action": "approve"},
@@ -208,6 +230,27 @@ class LoanVerificationTests(TestCase):
 		self.assertEqual(loan.status, CapitalLoan.Status.CLOSED)
 		self.assertEqual(loan.verified_by, self.admin_user)
 
+	def test_ops_manager_can_verify_loan_settlement(self):
+		loan = CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="BPI",
+			principal=500000,
+			interest_rate_annual=8,
+			start_date=date.today() - timedelta(days=30),
+			due_date=date.today() + timedelta(days=30),
+			status=CapitalLoan.Status.PENDING_SETTLEMENT,
+			settlement_receipt_number="BRA-99120",
+		)
+		self.client.login(username="ops_manager", password="password123")
+		response = self.client.post(
+			reverse("finance:verify_loan_settlement", kwargs={"pk": loan.pk}),
+			{"action": "approve", "verification_notes": "Official release advice verified by Ops Management."},
+		)
+		self.assertRedirects(response, reverse("finance:loan_list"))
+		loan.refresh_from_db()
+		self.assertEqual(loan.status, CapitalLoan.Status.CLOSED)
+		self.assertEqual(loan.verified_by, self.ops_manager)
+
 	def test_finance_user_cannot_verify_loan(self):
 		loan = CapitalLoan.objects.create(
 			cluster=self.cluster,
@@ -217,12 +260,17 @@ class LoanVerificationTests(TestCase):
 			start_date=date.today(),
 			due_date=date.today() + timedelta(days=45),
 			status=CapitalLoan.Status.PENDING_CREATION,
+			created_by=self.finance_user,
 		)
 		self.client.login(username="finance_user", password="password123")
 		response = self.client.post(
 			reverse("finance:verify_loan_creation", kwargs={"pk": loan.pk}),
 			{"action": "approve"},
 		)
+		self.assertEqual(response.status_code, 403)
+		loan.refresh_from_db()
+		self.assertEqual(loan.status, CapitalLoan.Status.PENDING_CREATION)
+
 	def test_finance_creates_standalone_loan_linked_to_transaction(self):
 		self.client.login(username="finance_user", password="password123")
 		response = self.client.post(
@@ -241,6 +289,7 @@ class LoanVerificationTests(TestCase):
 		self.assertIsNotNone(loan)
 		self.assertEqual(loan.principal, 2500000)
 		self.assertEqual(loan.status, CapitalLoan.Status.PENDING_CREATION)
+		self.assertEqual(loan.created_by, self.finance_user)
 
 
 class SuggestiveInvoicePricingTests(TestCase):

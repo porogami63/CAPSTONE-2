@@ -2,6 +2,7 @@ import json
 from decimal import Decimal
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -589,6 +590,8 @@ def loan_list(request):
             form = StandaloneLoanForm(request.POST, user=request.user)
             if form.is_valid():
                 loan = form.save(commit=False)
+                if not loan.created_by:
+                    loan.created_by = request.user
                 if loan.status == CapitalLoan.Status.ACTIVE:
                     loan.verified_by = request.user
                     loan.verified_at = timezone.now()
@@ -754,6 +757,7 @@ def loan_list(request):
             "cluster__sugar_mill",
             "cluster__purchase_order",
             "verified_by",
+            "created_by",
         ).order_by("-created_at")
     )
 
@@ -931,8 +935,11 @@ def settle_loan(request, pk):
     return redirect("finance:loan_list")
 
 
-@role_required(User.Role.ADMINISTRATOR)
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
 def verify_loan_creation(request, pk):
+    from accounts.permissions import user_has_perm
+    if not user_has_perm(request.user, "verify_loan"):
+        raise PermissionDenied("You do not have permission to verify loans.")
     loan = get_object_or_404(CapitalLoan, pk=pk)
     if request.method == "POST":
         if loan.status != CapitalLoan.Status.PENDING_CREATION:
@@ -981,8 +988,11 @@ def verify_loan_creation(request, pk):
     return redirect("finance:loan_list")
 
 
-@role_required(User.Role.ADMINISTRATOR)
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
 def verify_loan_settlement(request, pk):
+    from accounts.permissions import user_has_perm
+    if not user_has_perm(request.user, "verify_loan"):
+        raise PermissionDenied("You do not have permission to verify loan settlements.")
     loan = get_object_or_404(CapitalLoan, pk=pk)
     if request.method == "POST":
         if loan.status != CapitalLoan.Status.PENDING_SETTLEMENT:

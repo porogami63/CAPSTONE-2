@@ -122,7 +122,8 @@ Following discovery interviews and subsequent operational clarifications with tr
 | `SuggestiveInvoicePricingTests` | Full Finance Suite | Backward-compatible suggestion calculation and partial invoice billing | **PASS** |
 | `test_ops_manager_cannot_access_finance_loan_list` | RBAC Endpoints | Operations role accessing `/finance/loans/` is denied with HTTP 403 | **PASS** |
 | `test_ops_manager_cannot_access_reconciliation` | RBAC Endpoints | Operations role accessing `/finance/reconciliation/` is denied with HTTP 403 | **PASS** |
-| `test_ops_manager_cannot_verify_loan_creation` | RBAC Governance | Operations role cannot approve/verify loan creation (HTTP 403) | **PASS** |
+| `test_operations_role_cannot_verify_loan_creation` | RBAC Governance | Operations role cannot approve/verify loan creation (HTTP 403) | **PASS** |
+| `test_ops_manager_can_verify_loan_creation` | Manager Sign-off | Operations Management role can review & approve loans made by Finance (HTTP 200/302) | **PASS** |
 | `test_admin_approves_loan_creation` | Executive Dual Auth | Administrator successfully approves loan facility creation | **PASS** |
 | **All Operations & Finance Tests (48 Tests)** | Core Platform | System regression check across all workflows, loans, and accounting | **PASS (48/48)** |
 

@@ -1,0 +1,95 @@
+<?xml version="1.0" ?>
+<mxfile host="app.diagrams.net" modified="2026-10-23T13:30:00.000Z" agent="HTC Core Architecture Generator" version="24.0.0" type="device">
+  <diagram id="dfd2" name="04. DFD Level 2 - Multi-Batch Logistics">
+    <mxGraphModel dx="1422" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1400" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="StartInput" value="👤 Operations Coordinator&lt;br/&gt;&lt;font style='font-size:10px;font-weight:normal;'&gt;(Submits Delivery Batch Payload)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0f172a;strokeColor=#38bdf8;strokeWidth=2;fontColor=#ffffff;fontSize=11;fontStyle=1;align=center;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="380" y="40" width="240" height="60"/>
+        </mxCell>
+        <mxCell id="P51" value="5.1 Parse Batch Parameters&lt;br/&gt;&lt;font style='font-size:10px;font-weight:normal;'&gt;(PO, Sourcing Mill, Dest, MT, Dual Freight Rates)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0284c7;strokeColor=#38bdf8;strokeWidth=2;fontColor=#ffffff;fontSize=11;fontStyle=1;align=center;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="370" y="135" width="260" height="65"/>
+        </mxCell>
+        <mxCell id="POStore1" value="D3: PurchaseOrder Store&lt;br/&gt;&lt;font style='font-size:9.5px;font-weight:normal;'&gt;total_contracted_mt &amp;amp; deliveries&lt;/font&gt;" style="shape=partialRectangle;top=0;bottom=0;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=2;fontColor=#e0f2fe;fontStyle=1;fontSize=10.5;align=center;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="680" y="225" width="210" height="60"/>
+        </mxCell>
+        <mxCell id="P52" value="5.2 Balance Guard&lt;br/&gt;delivered_mt &amp;lt;= remaining_mt?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#b91c1c;strokeColor=#f87171;strokeWidth=2;fontColor=#ffffff;fontSize=11;fontStyle=1;align=center;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="395" y="230" width="210" height="85"/>
+        </mxCell>
+        <mxCell id="ErrBlock" value="❌ Over-Delivery Validation Error&lt;br/&gt;&lt;font style='font-size:10px;font-weight:normal;'&gt;(Transaction Rejected &amp;amp; Blocked)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#991b1b;strokeColor=#fca5a5;strokeWidth=2;fontColor=#ffffff;fontSize=11;fontStyle=1;align=center;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="120" y="242" width="210" height="60"/>
+        </mxCell>
+        <mxCell id="P53" value="5.3 Compute Dual-Mode Freight Economics&lt;br/&gt;&lt;font style='font-size:10px;font-weight:normal;'&gt;Trucking = (Delivered MT × Rate) + Flat Fee&lt;br/&gt;Barging = (Delivered MT × Rate) + Flat Fee&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0284c7;strokeColor=#38bdf8;strokeWidth=2;fontColor=#ffffff;fontSize=11;fontStyle=1;align=center;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="360" y="345" width="280" height="75"/>
+        </mxCell>
+        <mxCell id="P54" value="5.4 Write DeliveryLedger Batch Entry&lt;br/&gt;&lt;font style='font-size:10px;font-weight:normal;'&gt;(Store Timestamps, Plates, MDR &amp;amp; Waybill #)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0284c7;strokeColor=#38bdf8;strokeWidth=2;fontColor=#ffffff;fontSize=11;fontStyle=1;align=center;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="370" y="450" width="260" height="60"/>
+        </mxCell>
+        <mxCell id="DelStore" value="D4: DeliveryLedger Store&lt;br/&gt;&lt;font style='font-size:9.5px;font-weight:normal;'&gt;[UUIDv4 Primary Key]&lt;/font&gt;" style="shape=partialRectangle;top=0;bottom=0;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=2;fontColor=#e0f2fe;fontStyle=1;fontSize=10.5;align=center;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="120" y="450" width="200" height="60"/>
+        </mxCell>
+        <mxCell id="sync_box" value="⚡ Automated Post-Delivery Synchronization" style="swimlane;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=top;startSize=26;collapsible=0;rounded=1;shadow=0;fillColor=#f8fafc;strokeColor=#0284c7;strokeWidth=1.5;fontColor=#0f172a;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="80" y="540" width="840" height="140"/>
+          <mxCell id="P55" value="5.5 Update PO Fulfillment State&lt;br/&gt;&lt;font style='font-size:10px;font-weight:normal;'&gt;(Open / Partially Fulfilled / Completed)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0284c7;strokeColor=#38bdf8;strokeWidth=2;fontColor=#ffffff;fontSize=11;fontStyle=1;align=center;" parent="sync_box" vertex="1">
+            <mxGeometry as="geometry" x="25" y="45" width="230" height="65"/>
+          </mxCell>
+          <mxCell id="P56" value="5.6 Synchronize LogisticsLedger&lt;br/&gt;&lt;font style='font-size:10px;font-weight:normal;'&gt;(Aggregate Origin/Destination MT &amp;amp; Fees)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0284c7;strokeColor=#38bdf8;strokeWidth=2;fontColor=#ffffff;fontSize=11;fontStyle=1;align=center;" parent="sync_box" vertex="1">
+            <mxGeometry as="geometry" x="295" y="45" width="240" height="65"/>
+          </mxCell>
+          <mxCell id="P57" value="5.7 Trigger Auto-Voucher Outlays&lt;br/&gt;&lt;font style='font-size:10px;font-weight:normal;'&gt;(Generate CV-DEL-*-TRK / BRG &amp;amp; 3-Step Match)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#15803d;strokeColor=#4ade80;strokeWidth=2;fontColor=#ffffff;fontSize=11;fontStyle=1;align=center;" parent="sync_box" vertex="1">
+            <mxGeometry as="geometry" x="575" y="45" width="240" height="65"/>
+          </mxCell>
+        </mxCell>
+        <mxCell id="POStore2" value="D3: PurchaseOrder Store" style="shape=partialRectangle;top=0;bottom=0;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=2;fontColor=#e0f2fe;fontStyle=1;fontSize=10.5;align=center;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="120" y="715" width="200" height="55"/>
+        </mxCell>
+        <mxCell id="LogStore" value="D4B: LogisticsLedger Store" style="shape=partialRectangle;top=0;bottom=0;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=2;fontColor=#e0f2fe;fontStyle=1;fontSize=10.5;align=center;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="395" y="715" width="200" height="55"/>
+        </mxCell>
+        <mxCell id="FinStore" value="D7: Treasury &amp;amp; Voucher Store" style="shape=partialRectangle;top=0;bottom=0;fillColor=#1e293b;strokeColor=#0ea5e9;strokeWidth=2;fontColor=#e0f2fe;fontStyle=1;fontSize=10.5;align=center;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry as="geometry" x="675" y="715" width="200" height="55"/>
+        </mxCell>
+        <mxCell id="dfd2_e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="StartInput" target="P51">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P51" target="P52">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e3" value="Read Remaining Balance" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="POStore1" target="P52">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e4" value="NO: Exceeds Quota" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#b91c1c;strokeWidth=2;fontSize=10;fontColor=#b91c1c;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P52" target="ErrBlock">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e5" value="YES: Within Quota" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P52" target="P53">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P53" target="P54">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e7" value="Insert Record" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P54" target="DelStore">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P54" target="P55">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P54" target="P56">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P54" target="P57">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e11" value="Update Status" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P55" target="POStore2">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e12" value="Update Totals" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P56" target="LogStore">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+        <mxCell id="dfd2_e13" value="Record Vouchers" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0284c7;strokeWidth=2;fontSize=10;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1" source="P57" target="FinStore">
+          <mxGeometry as="geometry" relative="1"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

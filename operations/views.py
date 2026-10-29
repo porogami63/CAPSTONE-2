@@ -1008,6 +1008,8 @@ def add_loan(request, pk):
         if form.is_valid():
             loan = form.save(commit=False)
             loan.cluster = cluster
+            if not loan.created_by:
+                loan.created_by = request.user
             loan._audit_user = request.user
 
             # If user is authorized (Admin / Ops Mgmt) and explicitly selected ACTIVE, verify immediately.
