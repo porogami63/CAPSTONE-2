@@ -1035,3 +1035,169 @@ class LogisticsTwoMilestoneAndBatchReconciliationTests(TestCase):
 		self.assertContains(res, "Milestone 2: 50% Post-Delivery Balance")
 		self.assertContains(res, "Shipment Batches Received &amp; Balance Reconciliation")
 		self.assertContains(res, "Match 50%")
+
+
+class DynamicSuggestedLogisticsPaymentAndOpExAuditTests(TestCase):
+	"""Tests for dynamic suggested logistics payment calculation, 50% post-DP capping,
+	variable batch payout limits, Executive Financial Summary, and OpEx Audit Logging.
+	"""
+
+	def setUp(self):
+		from operations.models import DeliveryLedger
+		self.user = User.objects.create_user(
+			username="finance_dyn_officer",
+			password="password123",
+			role=User.Role.FINANCE,
+		)
+		self.client.login(username="finance_dyn_officer", password="password123")
+
+		self.client_entity = Client.objects.create(name="San Miguel Corp")
+		self.mill = SugarMill.objects.create(name="BUSCO Sugar Milling", location="Bukidnon")
+
+		self.cluster = TransactionCluster.objects.create(
+			client=self.client_entity,
+			sugar_mill=self.mill,
+			status=TransactionCluster.Status.ACTIVE,
+		)
+
+		self.po = PurchaseOrder.objects.create(
+			cluster=self.cluster,
+			customer=self.client_entity,
+			po_reference_number="PO-DYNAMIC-2026",
+			volume_mt=Decimal("1000.000"),
+			unit_price=Decimal("12500.00"),
+			selling_price=Decimal("17500.00"),
+		)
+
+		self.logistics_partner = LogisticsPartner.objects.create(name="FastTrack Haulers")
+		self.logistics = LogisticsLedger.objects.create(
+			cluster=self.cluster,
+			partner=self.logistics_partner,
+			loaded_volume_mt=Decimal("1000.000"),
+			received_volume_mt=Decimal("1000.000"),
+			tracking_fees=Decimal("450000.00"),
+			barge_fees=Decimal("1388000.00"),
+		)
+
+		# Add 1 delivery batch covering 1000 MT
+		self.deliv = DeliveryLedger.objects.create(
+			purchase_order=self.po,
+			supplier=self.mill,
+			carrier=self.logistics_partner,
+			trucking_partner=self.logistics_partner,
+			barge_partner=self.logistics_partner,
+			delivered_mt=Decimal("1000.000"),
+			trucking_rate_per_mt=Decimal("450.00"),
+			barge_rate_per_mt=Decimal("1388.00"),
+			receiving_location="Davao Port Terminal",
+			delivery_date=timezone.localdate(),
+		)
+
+		self.loan = CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="BDO Unibank",
+			principal=Decimal("14338000.00"),
+			interest_rate_annual=Decimal("10.00"),
+			start_date=timezone.localdate(),
+			due_date=timezone.localdate() + timezone.timedelta(days=60),
+			status=CapitalLoan.Status.ACTIVE,
+		)
+
+	def test_pre_downpayment_suggestions_show_50_percent_advance(self):
+		"""Pre-Down Payment: suggestions must show 50% Trucking Advance and 50% Barge Advance."""
+		res = self.client.get(reverse("finance:po_workspace", args=[self.cluster.pk]))
+		self.assertEqual(res.status_code, 200)
+		suggs = res.context["quick_match_suggestions"]
+		sugg_map = {s["label"]: s["amount"] for s in suggs}
+
+		# 50% of 450,000 is 225,000
+		self.assertIn("50% Trucking Advance", sugg_map)
+		self.assertEqual(sugg_map["50% Trucking Advance"], 225000.0)
+
+		# 50% of 1,388,000 is 694,000
+		self.assertIn("50% Barge Advance", sugg_map)
+		self.assertEqual(sugg_map["50% Barge Advance"], 694000.0)
+
+	def test_post_downpayment_suggestions_cap_at_50_percent_balance(self):
+		"""Post-Down Payment (Reconciled): do NOT suggest 100% of the logistics fee.
+		Must dynamically suggest only the remaining 50% post-delivery balance (Net 50% Max).
+		"""
+		recon, _ = FinancialReconciliation.objects.get_or_create(cluster=self.cluster)
+
+		# Reconcile 50% Trucking DP (225,000.00)
+		PaymentExpenseMatch.objects.create(
+			reconciliation=recon,
+			payment_reference=f"DEP-TRK-{self.po.po_reference_number}",
+			expense_type=PaymentExpenseMatch.ExpenseType.TRUCKING,
+			amount=Decimal("225000.00"),
+		)
+		# Reconcile 50% Barge DP (694,000.00)
+		PaymentExpenseMatch.objects.create(
+			reconciliation=recon,
+			payment_reference=f"DEP-BRG-{self.po.po_reference_number}",
+			expense_type=PaymentExpenseMatch.ExpenseType.BARGE,
+			amount=Decimal("694000.00"),
+		)
+
+		res = self.client.get(reverse("finance:po_workspace", args=[self.cluster.pk]))
+		self.assertEqual(res.status_code, 200)
+		suggs = res.context["quick_match_suggestions"]
+		sugg_map = {s["label"]: s["amount"] for s in suggs}
+
+		short_id = str(self.deliv.delivery_id)[:8].upper()
+		trk_label = f"Batch #{short_id} Trucking"
+		brg_label = f"Batch #{short_id} Barge"
+
+		# Must suggest 225,000 (50% remaining balance), NOT 450,000 (100%)!
+		self.assertIn(trk_label, sugg_map)
+		self.assertEqual(sugg_map[trk_label], 225000.0)
+
+		# Must suggest 694,000 (50% remaining balance), NOT 1,388,000 (100%)!
+		self.assertIn(brg_label, sugg_map)
+		self.assertEqual(sugg_map[brg_label], 694000.0)
+
+	def test_executive_financial_summary_and_opex_audit_log_schema(self):
+		"""Verifies Executive Financial Summary metrics and 8-field OpEx Audit Log schema."""
+		from operations.services.pricing import get_executive_financial_summary, get_opex_audit_log
+
+		recon, _ = FinancialReconciliation.objects.get_or_create(cluster=self.cluster)
+		PaymentExpenseMatch.objects.create(
+			reconciliation=recon,
+			payment_reference=f"DEP-TRK-{self.po.po_reference_number}",
+			expense_type=PaymentExpenseMatch.ExpenseType.TRUCKING,
+			amount=Decimal("225000.00"),
+		)
+
+		# Executive Summary Check
+		summary = get_executive_financial_summary(self.cluster)
+		self.assertEqual(summary["sourcing_budget"], Decimal("12500000.00"))
+		self.assertEqual(summary["logistics_budget"], Decimal("1838000.00"))
+		self.assertEqual(summary["total_budget"], Decimal("14338000.00"))
+		self.assertEqual(summary["logistics_reconciled"], Decimal("225000.00"))
+
+		# OpEx Audit Log Schema Check
+		audit_log = get_opex_audit_log(self.cluster)
+		self.assertGreaterEqual(len(audit_log), 2)
+
+		required_keys = {
+			"timestamp",
+			"event_type",
+			"line_item",
+			"gross_amount",
+			"reconciled_amount",
+			"cumulative_reconciled",
+			"net_remaining_pool",
+			"status",
+		}
+		for row in audit_log:
+			self.assertTrue(required_keys.issubset(row.keys()), f"Missing keys in OpEx log row: {row}")
+
+		# First row must be Loan Origination
+		self.assertEqual(audit_log[0]["event_type"], "Loan Origination")
+		self.assertEqual(audit_log[0]["gross_amount"], 14338000.0)
+		self.assertIn(audit_log[0]["status"], ["Initialized", "Pending"])
+
+		# Second row must be DP Reconciliation
+		self.assertEqual(audit_log[1]["event_type"], "DP Reconciliation")
+		self.assertEqual(audit_log[1]["reconciled_amount"], 225000.0)
+		self.assertEqual(audit_log[1]["status"], "Reconciled")

@@ -1,4 +1,6 @@
 from io import BytesIO
+from decimal import Decimal
+from django.utils import timezone
 
 from django.contrib.messages import get_messages
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -8,7 +10,7 @@ from django.urls import reverse
 
 from accounts.models import User
 from masters.models import Client, SugarMill
-from operations.models import TransactionCluster
+from operations.models import TransactionCluster, PurchaseOrder
 
 
 def build_workbook_bytes():
@@ -1303,3 +1305,172 @@ class ClusterFinancialsMultipleInvoicesTests(TestCase):
         self.assertIn("SI-20261029-001", fin["invoice_number"])
         self.assertIn("SI-20261029-002", fin["invoice_number"])
         self.assertIn("2 Invoices", fin["sales_formula"])
+
+
+class PriceValidationAndMarginAnomalyTests(TestCase):
+    def setUp(self):
+        self.client_entity = Client.objects.create(name="Absolute Distillers Inc.", address="Balayan, Batangas")
+        self.mill = SugarMill.objects.create(name="Victorias Milling Company", location="Negros Occidental")
+
+    def test_negative_margin_alert(self):
+        """Buying Price > Selling Price triggers CRITICAL / HARD WARNING."""
+        from operations.forms import TransactionClusterForm
+        from operations.services.stats_services import check_price_margin_anomalies
+
+        # 1. Direct service function check
+        res = check_price_margin_anomalies(unit_price_val=25000.0, selling_price_val=22000.0)
+        self.assertTrue(res["has_negative_margin"])
+        self.assertEqual(res["delta"], 3000.0)
+        self.assertEqual(res["negative_delta"], -3000.0)
+        self.assertIn("CRITICAL / HARD WARNING", res["warnings"][0]["type"])
+        self.assertIn("Negative margin detected", res["warnings"][0]["message"])
+
+        # 2. Form check without confirmation: must fail validation
+        form = TransactionClusterForm(data={
+            "reference_code": "PO-TEST-NEG-001",
+            "client": self.client_entity.pk,
+            "sugar_mill": self.mill.pk,
+            "volume_mt": "100.000",
+            "unit_price": "25000.00",
+            "selling_price": "22000.00",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("selling_price", form.errors)
+        self.assertIn("Negative margin detected", form.errors["selling_price"][0])
+
+        # 3. Form check with underwriter override / confirmation: passes
+        form_confirmed = TransactionClusterForm(data={
+            "reference_code": "PO-TEST-NEG-001",
+            "client": self.client_entity.pk,
+            "sugar_mill": self.mill.pk,
+            "volume_mt": "100.000",
+            "unit_price": "25000.00",
+            "selling_price": "22000.00",
+            "confirmed_outlier": "true",
+        })
+        self.assertTrue(form_confirmed.is_valid(), form_confirmed.errors)
+
+    def test_inverted_ratio_warning(self):
+        """Extreme spread or inverted ratio triggers DATA ENTRY ANOMALY WARNING."""
+        from operations.forms import TransactionClusterForm
+        from operations.services.stats_services import check_price_margin_anomalies
+
+        # Swapped/inverted ratio (e.g. buying 25,000, selling 10,000 -> ratio 0.40)
+        res = check_price_margin_anomalies(unit_price_val=25000.0, selling_price_val=10000.0)
+        self.assertTrue(res["has_irregular_ratio"])
+        self.assertIn("DATA ENTRY ANOMALY WARNING", [w["type"] for w in res["warnings"]])
+
+        # Extreme spread (e.g. buying 10,000, selling 35,000 -> ratio 3.50)
+        res_high = check_price_margin_anomalies(unit_price_val=10000.0, selling_price_val=35000.0)
+        self.assertTrue(res_high["has_irregular_ratio"])
+
+        form = TransactionClusterForm(data={
+            "reference_code": "PO-TEST-RATIO-001",
+            "client": self.client_entity.pk,
+            "sugar_mill": self.mill.pk,
+            "volume_mt": "100.000",
+            "unit_price": "10000.00",
+            "selling_price": "35000.00",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("selling_price", form.errors)
+        self.assertIn("Price ratio deviates significantly", form.errors["selling_price"][0])
+
+
+class DeliveryBatchCustomerImmutabilityAndOriginTests(TestCase):
+    def setUp(self):
+        self.client_luzon = Client.objects.create(
+            name="Absolute Distillers Inc.",
+            address="Balayan, Batangas, Luzon",
+        )
+        self.unrelated_client = Client.objects.create(
+            name="Unrelated Corp",
+            address="Cebu City, Visayas",
+        )
+        self.mill_a = SugarMill.objects.create(name="Central Azucarera Don Pedro", location="Batangas")
+        self.mill_b = SugarMill.objects.create(name="Hawaiian-Philippine Company", location="Silay, Negros")
+
+        self.cluster = TransactionCluster.objects.create(
+            reference_code="PO-20261104-IMMUTABLE",
+            client=self.client_luzon,
+            sugar_mill=self.mill_a,
+            status=TransactionCluster.Status.ACTIVE,
+        )
+        self.po = PurchaseOrder.objects.create(
+            cluster=self.cluster,
+            customer=self.client_luzon,
+            po_reference_number="PO-20261104-IMMUTABLE",
+            volume_mt=Decimal("5000.000"),
+            unit_price=Decimal("18000.00"),
+            selling_price=Decimal("22000.00"),
+        )
+
+    def test_customer_immutability_lock(self):
+        """Receiving Customer is strictly locked to PO.Customer; dropdown override is disabled."""
+        from operations.forms import DeliveryLedgerForm
+
+        # Instantiate form with initial_po
+        form = DeliveryLedgerForm(initial_po=self.po)
+        self.assertTrue(form.fields["receiving_customer"].disabled)
+        self.assertEqual(form.fields["receiving_customer"].initial, self.client_luzon)
+
+        # Attempt to submit delivery with an unrelated customer in POST data
+        now = timezone.localdate()
+        submit_data = {
+            "purchase_order": self.po.pk,
+            "supplier": self.mill_b.pk,  # Sourced from Mill B (flexible sugar mill)
+            "delivered_mt": "500.000",
+            "receiving_location": "Batangas Main Site",
+            "delivery_date": now.isoformat(),
+            "receiving_customer": self.unrelated_client.pk,  # Attacking override attempt
+        }
+        bound_form = DeliveryLedgerForm(data=submit_data)
+        self.assertTrue(bound_form.is_valid(), bound_form.errors)
+
+        # Verify cleaned_data strictly forced PO customer
+        self.assertEqual(bound_form.cleaned_data["receiving_customer"], self.client_luzon)
+
+        # Save and verify DeliveryLedger instance
+        delivery = bound_form.save()
+        self.assertEqual(delivery.receiving_customer, self.client_luzon)
+        self.assertNotEqual(delivery.receiving_customer, self.unrelated_client)
+
+    def test_origin_indicator_allocation(self):
+        """Origin indicator is determined by Receiving Customer destination specs, NOT the sugar mill."""
+        from operations.models import DeliveryLedger
+
+        # Client Luzon origin indicator
+        self.assertEqual(self.client_luzon.origin_indicator, "Luzon Hub / Destination Spec")
+
+        # Create delivery sourced from Mill B in Negros (Visayas) delivered to Luzon client
+        delivery = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill_b,  # Sugar mill in Negros
+            delivered_mt=Decimal("1000.000"),
+            receiving_location="Balayan Plant",
+            delivery_date=timezone.localdate(),
+        )
+        # Origin indicator must tag the Receiving Customer, NOT the supplier sugar mill
+        self.assertEqual(delivery.origin_indicator, "Luzon Hub / Destination Spec")
+        self.assertEqual(delivery.supplier.location, "Silay, Negros")
+
+    def test_opex_audit_log_schema(self):
+        """OpEx Audit Log schema contains all 8 required fields."""
+        from operations.services.pricing import get_opex_audit_log
+
+        audit_log = get_opex_audit_log(self.cluster)
+        self.assertGreater(len(audit_log), 0)
+
+        first_entry = audit_log[0]
+        self.assertIn("timestamp", first_entry)
+        self.assertIn("event_type", first_entry)
+        self.assertIn("line_item", first_entry)
+        self.assertIn("receiving_customer", first_entry)
+        self.assertIn("origin_indicator", first_entry)
+        self.assertIn("gross_amount", first_entry)
+        self.assertIn("remaining_balance_pool", first_entry)
+        self.assertIn("status", first_entry)
+
+        self.assertEqual(first_entry["receiving_customer"], self.client_luzon.name)
+        self.assertEqual(first_entry["origin_indicator"], "Luzon Hub / Destination Spec")
+        self.assertIn(first_entry["status"], ["Pending", "Reconciled", "Partial Release", "Warning Flagged"])

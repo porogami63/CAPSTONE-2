@@ -1175,6 +1175,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var clusterSelect = document.getElementById('id_standalone_loan_cluster');
     var suggCard = document.getElementById('suggestiveLoanCard');
     var principalInput = document.getElementById('id_principal');
+    if (principalInput) { principalInput.addEventListener('input', function() { this.dataset.manualEdit = 'true'; }); }
     var startDateInput = document.getElementById('id_start_date');
     var dueDateInput = document.getElementById('id_due_date');
     var chequeDateInput = document.getElementById('id_cheque_date');
@@ -1238,7 +1239,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 suggCard.style.display = 'block';
 
-                if (!principalInput.value || parseFloat(principalInput.value) <= 0) {
+                if (!principalInput.value || parseFloat(principalInput.value) <= 0 || !principalInput.dataset.manualEdit) {
                     principalInput.value = defaultLoanAmt.toFixed(2);
                 }
             })

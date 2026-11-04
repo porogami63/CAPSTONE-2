@@ -482,6 +482,7 @@ def cluster_create(request):
 
                 po = PurchaseOrder.objects.create(
                     cluster=cluster,
+                    customer=cluster.client,
                     volume_mt=form.cleaned_data["volume_mt"],
                     unit_price=form.cleaned_data["unit_price"],
                     selling_price=form.cleaned_data.get("selling_price"),
@@ -490,6 +491,18 @@ def cluster_create(request):
                     chai_specs=chai_formatted,
                     approved_at=timezone.now(),
                 )
+
+                # Record underwriter price warning override note if applicable
+                u_price = form.cleaned_data.get("unit_price")
+                s_price = form.cleaned_data.get("selling_price")
+                if u_price and s_price and u_price > s_price:
+                    delta = u_price - s_price
+                    override_note = f"[Price Warning Override: Underwriter approved negative margin (Buying ₱{u_price:,.2f} > Selling ₱{s_price:,.2f}, -₱{delta:,.2f})]"
+                    if cluster.contract_notes:
+                        cluster.contract_notes = f"{cluster.contract_notes}\n{override_note}"
+                    else:
+                        cluster.contract_notes = override_note
+                    cluster.save(update_fields=["contract_notes"])
 
                 if chai_val:
                     try:

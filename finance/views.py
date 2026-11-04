@@ -413,7 +413,7 @@ def po_financial_workspace(request, pk):
         delivery.sync_delivery_expense_vouchers()
 
     reconciliation, _ = FinancialReconciliation.objects.get_or_create(cluster=cluster)
-    from operations.services.pricing import cluster_financials, loan_requirement_data
+    from operations.services.pricing import cluster_financials, loan_requirement_data, get_executive_financial_summary, get_opex_audit_log
     financials = cluster_financials(cluster)
     loan_req = loan_requirement_data(cluster)
     loans = list(cluster.loans.select_related("verified_by").order_by("-created_at"))
@@ -435,83 +435,138 @@ def po_financial_workspace(request, pk):
     else:
         recon_pct = 100.0 if matched_amount > 0 else 0.0
 
-    # Build Quick Match suggestions STRICTLY for this PO and its deliveries
+    # Calculate dynamic budgets & reconciled payouts
+    two = Decimal("0.01")
+    total_trucking = Decimal(str(loan_req.get("trucking_total", 0) or financials.get("tracking_fees", 0))).quantize(two)
+    total_barge = Decimal(str(loan_req.get("freight_total", 0) or financials.get("barge_fees", 0))).quantize(two)
+    total_sourcing = Decimal(str(financials.get("purchase_total", 0))).quantize(two)
+
+    # Reconciled tracking & pools
+    matched_trk_total = reconciliation.matches.filter(expense_type__in=["trucking", "tracking"]).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+    matched_trk_dp = reconciliation.matches.filter(payment_reference__startswith="DEP-TRK-").aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+    trucking_dp_target = (total_trucking * Decimal("0.50")).quantize(two)
+    rem_trucking_pool = max(Decimal("0.00"), total_trucking - matched_trk_total)
+    is_trk_dp_reconciled = matched_trk_dp >= (trucking_dp_target - two) and trucking_dp_target > Decimal("0.00")
+
+    matched_brg_total = reconciliation.matches.filter(expense_type=PaymentExpenseMatch.ExpenseType.BARGE).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+    matched_brg_dp = reconciliation.matches.filter(payment_reference__startswith="DEP-BRG-").aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+    barge_dp_target = (total_barge * Decimal("0.50")).quantize(two)
+    rem_barge_pool = max(Decimal("0.00"), total_barge - matched_brg_total)
+    is_brg_dp_reconciled = matched_brg_dp >= (barge_dp_target - two) and barge_dp_target > Decimal("0.00")
+
+    matched_sourcing = reconciliation.matches.filter(expense_type=PaymentExpenseMatch.ExpenseType.SOURCING).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
+    rem_sourcing_pool = max(Decimal("0.00"), total_sourcing - matched_sourcing)
+
+    # Build Quick Match suggestions dynamically based on historical payouts
     existing_match_refs = set(m.payment_reference for m in matches)
     quick_match_suggestions = []
 
-    # 1. Delivery batches for THIS PO only
-    for d in po.deliveries.all().order_by("-delivery_date", "-created_at"):
-        short_id = str(d.delivery_id)[:8].upper()
-
-        # Delivery Sourcing Outlay
-        src_cost = (Decimal(str(d.delivered_mt)) * Decimal(str(po.unit_price))).quantize(Decimal("0.01")) if (po.unit_price and d.delivered_mt) else Decimal("0.00")
-        src_ref = f"CV-DEL-{short_id}-SRC"
-        if src_cost > Decimal("0.00") and src_ref not in existing_match_refs:
-            quick_match_suggestions.append({
-                "type": PaymentExpenseMatch.ExpenseType.SOURCING,
-                "amount": float(src_cost),
-                "ref": src_ref,
-                "label": f"Batch #{short_id} Sourcing",
-                "notes": f"Delivery Batch #{short_id} Sugar Sourcing ({d.delivered_mt:,.3f} MT @ ₱{po.unit_price:,.2f})",
-            })
-
-        # Delivery Land Trucking
-        if d.trucking_cost > Decimal("0.00"):
-            trk_ref = f"CV-DEL-{short_id}-TRK"
-            if trk_ref not in existing_match_refs:
-                quick_match_suggestions.append({
-                    "type": PaymentExpenseMatch.ExpenseType.TRUCKING,
-                    "amount": float(d.trucking_cost),
-                    "ref": trk_ref,
-                    "label": f"Batch #{short_id} Trucking",
-                    "notes": f"Delivery Batch #{short_id} Land Trucking ({d.delivered_mt:,.3f} MT @ ₱{d.trucking_rate_per_mt:,.2f})",
-                })
-
-        # Delivery Marine Barging
-        if d.barge_cost > Decimal("0.00"):
-            brg_ref = f"CV-DEL-{short_id}-BRG"
-            if brg_ref not in existing_match_refs:
-                quick_match_suggestions.append({
-                    "type": PaymentExpenseMatch.ExpenseType.BARGE,
-                    "amount": float(d.barge_cost),
-                    "ref": brg_ref,
-                    "label": f"Batch #{short_id} Barge",
-                    "notes": f"Delivery Batch #{short_id} Marine Barging ({d.delivered_mt:,.3f} MT @ ₱{d.barge_rate_per_mt:,.2f})",
-                })
-
-    # 2. General PO contract allocations (if remaining balance exists)
-    matched_sourcing = reconciliation.matches.filter(expense_type=PaymentExpenseMatch.ExpenseType.SOURCING).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
-    contract_sourcing_rem = max(Decimal(str(financials["purchase_total"])) - matched_sourcing, Decimal("0.00"))
-    if contract_sourcing_rem > Decimal("0.00") and not any(s["type"] == PaymentExpenseMatch.ExpenseType.SOURCING for s in quick_match_suggestions):
-        quick_match_suggestions.append({
-            "type": PaymentExpenseMatch.ExpenseType.SOURCING,
-            "amount": float(contract_sourcing_rem),
-            "ref": f"PO-SRC-{po.po_reference_number or cluster.reference_code}",
-            "label": f"PO Sourcing Remainder",
-            "notes": f"Contract Sourcing Balance ({cluster.sugar_mill.name})",
-        })
-
-    if loan_req.get("trucking_down_payment", 0) > 0:
-        matched_trk = reconciliation.matches.filter(expense_type__in=["trucking", "tracking"]).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
-        if matched_trk < Decimal(str(loan_req["trucking_down_payment"])):
+    # 1. Pre-Down Payment suggestions (suggest 50% DP upfront if not yet reconciled)
+    if not is_trk_dp_reconciled and trucking_dp_target > Decimal("0.00"):
+        unpaid_trk_dp = max(Decimal("0.00"), trucking_dp_target - matched_trk_dp)
+        trk_dp_ref = f"DEP-TRK-{po.po_reference_number or cluster.reference_code}"
+        if unpaid_trk_dp > Decimal("0.00") and trk_dp_ref not in existing_match_refs:
             quick_match_suggestions.append({
                 "type": PaymentExpenseMatch.ExpenseType.TRUCKING,
-                "amount": float(loan_req["trucking_down_payment"]),
-                "ref": f"DEP-TRK-{po.po_reference_number or cluster.reference_code}",
+                "amount": float(min(unpaid_trk_dp, rem_trucking_pool)),
+                "ref": trk_dp_ref,
                 "label": "50% Trucking Advance",
                 "notes": "50% Advance Trucking Deposit",
             })
 
-    if loan_req.get("freight_down_payment", 0) > 0:
-        matched_brg = reconciliation.matches.filter(expense_type=PaymentExpenseMatch.ExpenseType.BARGE).aggregate(t=Sum("amount"))["t"] or Decimal("0.00")
-        if matched_brg < Decimal(str(loan_req["freight_down_payment"])):
+    if not is_brg_dp_reconciled and barge_dp_target > Decimal("0.00"):
+        unpaid_brg_dp = max(Decimal("0.00"), barge_dp_target - matched_brg_dp)
+        brg_dp_ref = f"DEP-BRG-{po.po_reference_number or cluster.reference_code}"
+        if unpaid_brg_dp > Decimal("0.00") and brg_dp_ref not in existing_match_refs:
             quick_match_suggestions.append({
                 "type": PaymentExpenseMatch.ExpenseType.BARGE,
-                "amount": float(loan_req["freight_down_payment"]),
-                "ref": f"DEP-BRG-{po.po_reference_number or cluster.reference_code}",
+                "amount": float(min(unpaid_brg_dp, rem_barge_pool)),
+                "ref": brg_dp_ref,
                 "label": "50% Barge Advance",
                 "notes": "50% Advance Marine Barging Deposit",
             })
+
+    # 2. Delivery batches for THIS PO (Post-Down Payment: capped at remaining 50% balance pool pro-rata)
+    running_rem_trk = rem_trucking_pool
+    running_rem_brg = rem_barge_pool
+    running_rem_src = rem_sourcing_pool
+
+    for d in po.deliveries.all().order_by("-delivery_date", "-created_at"):
+        short_id = str(d.delivery_id)[:8].upper()
+
+        # Delivery Sourcing Outlay
+        src_cost = (Decimal(str(d.delivered_mt)) * Decimal(str(po.unit_price))).quantize(two) if (po.unit_price and d.delivered_mt) else Decimal("0.00")
+        src_ref = f"CV-DEL-{short_id}-SRC"
+        if src_cost > Decimal("0.00") and src_ref not in existing_match_refs and running_rem_src > Decimal("0.00"):
+            batch_src_sugg = min(src_cost, running_rem_src)
+            quick_match_suggestions.append({
+                "type": PaymentExpenseMatch.ExpenseType.SOURCING,
+                "amount": float(batch_src_sugg),
+                "ref": src_ref,
+                "label": f"Batch #{short_id} Sourcing",
+                "notes": f"Delivery Batch #{short_id} Sugar Sourcing ({d.delivered_mt:,.3f} MT @ ₱{po.unit_price:,.2f})",
+            })
+            running_rem_src -= batch_src_sugg
+
+        # Delivery Land Trucking:
+        # Rule: Do not suggest 100% of logistics if DP was disbursed. Cap at 50% batch share and remaining pool!
+        if d.trucking_cost > Decimal("0.00") and running_rem_trk > Decimal("0.00"):
+            trk_ref = f"CV-DEL-{short_id}-TRK"
+            if trk_ref not in existing_match_refs:
+                if is_trk_dp_reconciled:
+                    batch_trk_pro_rata = (d.trucking_cost * Decimal("0.50")).quantize(two)
+                    batch_trk_sugg = min(batch_trk_pro_rata, running_rem_trk)
+                    lbl = f"Batch #{short_id} Trucking"
+                    note = f"Delivery Batch #{short_id} Land Trucking 50% Post-Delivery Balance ({d.delivered_mt:,.3f} MT @ ₱{d.trucking_rate_per_mt:,.2f})"
+                else:
+                    batch_trk_sugg = min(d.trucking_cost, running_rem_trk)
+                    lbl = f"Batch #{short_id} Trucking"
+                    note = f"Delivery Batch #{short_id} Land Trucking ({d.delivered_mt:,.3f} MT @ ₱{d.trucking_rate_per_mt:,.2f})"
+
+                if batch_trk_sugg > Decimal("0.00"):
+                    quick_match_suggestions.append({
+                        "type": PaymentExpenseMatch.ExpenseType.TRUCKING,
+                        "amount": float(batch_trk_sugg),
+                        "ref": trk_ref,
+                        "label": lbl,
+                        "notes": note,
+                    })
+                    running_rem_trk -= batch_trk_sugg
+
+        # Delivery Marine Barging:
+        # Rule: Do not suggest 100% of logistics if DP was disbursed. Cap at 50% batch share and remaining pool!
+        if d.barge_cost > Decimal("0.00") and running_rem_brg > Decimal("0.00"):
+            brg_ref = f"CV-DEL-{short_id}-BRG"
+            if brg_ref not in existing_match_refs:
+                if is_brg_dp_reconciled:
+                    batch_brg_pro_rata = (d.barge_cost * Decimal("0.50")).quantize(two)
+                    batch_brg_sugg = min(batch_brg_pro_rata, running_rem_brg)
+                    lbl = f"Batch #{short_id} Barge"
+                    note = f"Delivery Batch #{short_id} Marine Barging 50% Post-Delivery Balance ({d.delivered_mt:,.3f} MT @ ₱{d.barge_rate_per_mt:,.2f})"
+                else:
+                    batch_brg_sugg = min(d.barge_cost, running_rem_brg)
+                    lbl = f"Batch #{short_id} Barge"
+                    note = f"Delivery Batch #{short_id} Marine Barging ({d.delivered_mt:,.3f} MT @ ₱{d.barge_rate_per_mt:,.2f})"
+
+                if batch_brg_sugg > Decimal("0.00"):
+                    quick_match_suggestions.append({
+                        "type": PaymentExpenseMatch.ExpenseType.BARGE,
+                        "amount": float(batch_brg_sugg),
+                        "ref": brg_ref,
+                        "label": lbl,
+                        "notes": note,
+                    })
+                    running_rem_brg -= batch_brg_sugg
+
+    # 3. General PO Sourcing Remainder (if contract balance remains and not already suggested in batches)
+    if running_rem_src > Decimal("0.00") and not any(s["type"] == PaymentExpenseMatch.ExpenseType.SOURCING for s in quick_match_suggestions):
+        quick_match_suggestions.append({
+            "type": PaymentExpenseMatch.ExpenseType.SOURCING,
+            "amount": float(running_rem_src),
+            "ref": f"PO-SRC-{po.po_reference_number or cluster.reference_code}",
+            "label": "PO Sourcing Remainder",
+            "notes": f"Contract Sourcing Balance ({cluster.sugar_mill.name if cluster.sugar_mill else 'Supplier'})",
+        })
 
     # Ensure robust numeric keys for template rendering
     loan_req["logistics_down_payment"] = Decimal(str(loan_req.get("trucking_down_payment", 0))) + Decimal(str(loan_req.get("freight_down_payment", 0)))
@@ -535,14 +590,24 @@ def po_financial_workspace(request, pk):
         ]
     ).exists()
 
+    suggested_principal = (
+        loan_req.get("remaining_required")
+        if (loan_req.get("remaining_required") and loan_req.get("remaining_required") > Decimal("0.00"))
+        else (loan_req.get("suggested_loan_amount") or loan_req.get("required") or Decimal("0.00"))
+    )
+    if isinstance(suggested_principal, Decimal):
+        suggested_principal = suggested_principal.quantize(Decimal("0.01"))
+    elif suggested_principal:
+        suggested_principal = Decimal(str(suggested_principal)).quantize(Decimal("0.01"))
+
     match_form = PaymentExpenseMatchForm()
     loan_form = StandaloneLoanForm(
         user=request.user,
         initial={
             "cluster": cluster,
-            "principal": target_loan.principal if target_loan else expected_sales,
-            "bank_name": target_loan.bank_name if target_loan else "",
-            "interest_rate_annual": target_loan.interest_rate_annual if target_loan else "",
+            "principal": suggested_principal,
+            "bank_name": "",
+            "interest_rate_annual": "",
         },
     )
 
@@ -591,6 +656,8 @@ def po_financial_workspace(request, pk):
             "match_form": match_form,
             "loan_form": loan_form,
             "quick_match_suggestions": quick_match_suggestions,
+            "exec_summary": get_executive_financial_summary(cluster),
+            "opex_audit_log": get_opex_audit_log(cluster),
             "linked_mros": linked_mros,
             "deliveries": deliveries,
             "total_mro_tons": total_mro_tons,

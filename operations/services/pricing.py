@@ -628,3 +628,260 @@ def get_po_logistics_summary(cluster) -> dict:
         "projected_total": projected_total,
         "batch_count": len(deliveries),
     }
+
+
+def get_executive_financial_summary(cluster) -> dict:
+    """Computes an executive financial summary covering Sourcing, Logistics, and Total PO:
+    - Total Approved Budget
+    - Reconciled to Date
+    - Current Suggested Payout (Logistics capped at Net 50% Max post-DP)
+    - Remaining Balance Pool
+    """
+    fin = cluster_financials(cluster)
+    two = Decimal("0.01")
+    sourcing_budget = Decimal(str(fin["purchase_total"])).quantize(two)
+    trucking_budget = Decimal(str(fin["tracking_fees"])).quantize(two)
+    barge_budget = Decimal(str(fin["barge_fees"])).quantize(two)
+    logistics_budget = (trucking_budget + barge_budget).quantize(two)
+    total_budget = (sourcing_budget + logistics_budget).quantize(two)
+
+    reconciliation = getattr(cluster, "reconciliation", None)
+    matches = list(reconciliation.matches.all()) if reconciliation else []
+
+    # Sourcing Reconciled
+    sourcing_matches = [
+        m for m in matches
+        if m.expense_type == "sourcing"
+        or m.payment_reference.startswith("PO-SRC-")
+        or "-SRC" in m.payment_reference
+    ]
+    sourcing_reconciled = sum((m.amount for m in sourcing_matches), Decimal("0.00")).quantize(two)
+    sourcing_remaining_pool = max(Decimal("0.00"), sourcing_budget - sourcing_reconciled)
+
+    # Logistics Reconciled
+    logistics_matches = [m for m in matches if m not in sourcing_matches]
+    logistics_reconciled = sum((m.amount for m in logistics_matches), Decimal("0.00")).quantize(two)
+    logistics_remaining_pool = max(Decimal("0.00"), logistics_budget - logistics_reconciled)
+
+    # DP status & Post-delivery balance
+    dp_target = (logistics_budget * Decimal("0.50")).quantize(two)
+    dp_paid = sum(
+        (m.amount for m in logistics_matches if m.payment_reference.startswith("DEP-") or m.expense_type == "logistics_deposit"),
+        Decimal("0.00"),
+    ).quantize(two)
+    dp_reconciled = dp_paid >= (dp_target - two) and dp_target > Decimal("0.00")
+
+    # Current Suggested Payout for Logistics:
+    if not dp_reconciled and dp_target > Decimal("0.00"):
+        logistics_suggested = min(max(Decimal("0.00"), dp_target - dp_paid), logistics_remaining_pool)
+        dp_note = "50% Down Payment"
+    else:
+        # Post-DP: capped at remaining 50% balance pool (Net 50% Max)
+        net_50_max = (logistics_budget * Decimal("0.50")).quantize(two)
+        logistics_suggested = min(logistics_remaining_pool, net_50_max)
+        dp_note = "Net 50% Max"
+
+    sourcing_suggested = sourcing_remaining_pool
+    total_reconciled = (sourcing_reconciled + logistics_reconciled).quantize(two)
+    total_suggested = (sourcing_suggested + logistics_suggested).quantize(two)
+    total_remaining_pool = max(Decimal("0.00"), total_budget - total_reconciled)
+
+    return {
+        "sourcing_budget": sourcing_budget,
+        "sourcing_reconciled": sourcing_reconciled,
+        "sourcing_suggested": sourcing_suggested,
+        "sourcing_remaining_pool": sourcing_remaining_pool,
+
+        "logistics_budget": logistics_budget,
+        "logistics_reconciled": logistics_reconciled,
+        "logistics_suggested": logistics_suggested,
+        "logistics_remaining_pool": logistics_remaining_pool,
+        "dp_paid": dp_paid,
+        "dp_target": dp_target,
+        "dp_reconciled": dp_reconciled,
+        "dp_note": dp_note,
+
+        "total_budget": total_budget,
+        "total_reconciled": total_reconciled,
+        "total_suggested": total_suggested,
+        "total_remaining_pool": total_remaining_pool,
+    }
+
+
+def get_opex_audit_log(cluster) -> list[dict]:
+    """Generates a chronological, timestamped Operational Expense Audit Log according to schema:
+    1. Timestamp: YYYY-MM-DD HH:MM:SS UTC
+    2. Event Type: [Loan Origination | DP Reconciliation | Batch Delivery Payout | Price Warning Override]
+    3. Line Item: Category / vendor name
+    4. Receiving Customer: Linked customer name (locked to linked PO)
+    5. Origin Indicator: Tagged to the Receiving Customer location/destination
+    6. Gross / Reconciled Amount: Initial loan origination / transaction disbursement
+    7. Remaining Balance Pool: Outstanding funds after event deduction
+    8. Status: [Pending | Reconciled | Partial Release | Warning Flagged]
+    """
+    fin = cluster_financials(cluster)
+    two = Decimal("0.01")
+    sourcing_budget = Decimal(str(fin["purchase_total"])).quantize(two)
+    trucking_budget = Decimal(str(fin["tracking_fees"])).quantize(two)
+    barge_budget = Decimal(str(fin["barge_fees"])).quantize(two)
+    logistics_budget = (trucking_budget + barge_budget).quantize(two)
+    total_budget = (sourcing_budget + logistics_budget).quantize(two)
+
+    po = getattr(cluster, "purchase_order", None)
+    customer_obj = getattr(po, "customer", None) or getattr(cluster, "client", None)
+    receiving_customer_name = customer_obj.name if customer_obj else "—"
+    origin_indicator_tag = getattr(customer_obj, "origin_indicator", f"{receiving_customer_name} Destination Zone") if customer_obj else "Destination Zone"
+
+    loans = list(cluster.loans.all().order_by("created_at")) if hasattr(cluster, "loans") else []
+    first_loan = loans[0] if loans else None
+    if first_loan and getattr(first_loan, "created_at", None):
+        origination_time = first_loan.created_at
+    elif cluster and getattr(cluster, "created_at", None):
+        origination_time = cluster.created_at
+    elif po and getattr(po, "po_date", None):
+        origination_time = timezone.datetime.combine(po.po_date, timezone.datetime.min.time(), tzinfo=timezone.utc)
+    else:
+        origination_time = timezone.now()
+
+    reconciliation = getattr(cluster, "reconciliation", None)
+    matches = list(reconciliation.matches.all().order_by("matched_at", "id")) if reconciliation else []
+
+    audit_log = []
+    cum_reconciled = Decimal("0.00")
+    net_remaining = total_budget
+
+    # 1. Price Warning Override Event (if flagged on cluster or PO)
+    has_price_override = False
+    override_reason = ""
+    if po and po.unit_price and po.selling_price and po.unit_price > po.selling_price:
+        has_price_override = True
+        delta = po.unit_price - po.selling_price
+        override_reason = f"Negative Margin Override (Buying ₱{po.unit_price:,.2f} > Selling ₱{po.selling_price:,.2f}, -₱{delta:,.2f})"
+    elif cluster and "Price Warning Override" in (cluster.contract_notes or ""):
+        has_price_override = True
+        override_reason = "Underwriter Price Warning Override Logged"
+
+    if has_price_override:
+        audit_log.append({
+            "timestamp": origination_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "timestamp_raw": origination_time,
+            "event_type": "Price Warning Override",
+            "line_item": f"Pricing Exception: {override_reason}",
+            "receiving_customer": receiving_customer_name,
+            "origin_indicator": origin_indicator_tag,
+            "gross_amount": float(total_budget),
+            "reconciled_amount": 0.0,
+            "cumulative_reconciled": 0.0,
+            "net_remaining_pool": float(net_remaining),
+            "remaining_balance_pool": float(net_remaining),
+            "status": "Warning Flagged",
+            "badge": "danger",
+        })
+
+    # 2. Loan Origination Event
+    audit_log.append({
+        "timestamp": origination_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "timestamp_raw": origination_time,
+        "event_type": "Loan Origination",
+        "line_item": f"Approved PO ({po.po_reference_number if po else cluster.reference_code})",
+        "receiving_customer": receiving_customer_name,
+        "origin_indicator": origin_indicator_tag,
+        "gross_amount": float(total_budget),
+        "reconciled_amount": 0.0,
+        "cumulative_reconciled": 0.0,
+        "net_remaining_pool": float(net_remaining),
+        "remaining_balance_pool": float(net_remaining),
+        "status": "Pending",
+        "badge": "secondary",
+    })
+
+    # 3. Historical Reconciled Payments
+    for m in matches:
+        amt = m.amount.quantize(two)
+        cum_reconciled = (cum_reconciled + amt).quantize(two)
+        net_remaining = max(Decimal("0.00"), total_budget - cum_reconciled).quantize(two)
+
+        ref = m.payment_reference or ""
+        exp_type = m.expense_type or ""
+        event_time = m.matched_at or m.created_at or origination_time
+
+        if ref.startswith("DEP-") or exp_type == "logistics_deposit":
+            event_type = "DP Reconciliation"
+            if "TRK" in ref or exp_type == "trucking":
+                line_item = "Trucking & Land Delivery (50% DP)"
+                gross = trucking_budget
+            elif "BRG" in ref or exp_type == "barge":
+                line_item = "Marine Barging & Vessel Charter (50% DP)"
+                gross = barge_budget
+            else:
+                line_item = "Trucking & Barging (50% DP)"
+                gross = logistics_budget
+            status = "Reconciled"
+            badge = "primary"
+        elif ref.startswith("BAL-DEL-") or ref.startswith("CV-DEL-") or exp_type == "logistics_balance":
+            event_type = "Batch Delivery Payout"
+            short_id = ref.replace("BAL-DEL-", "").replace("CV-DEL-", "").split("-")[0]
+            if "TRK" in ref or exp_type == "trucking":
+                line_item = f"Trucking - Batch #{short_id}"
+                gross = trucking_budget
+            elif "BRG" in ref or exp_type == "barge":
+                line_item = f"Barging - Batch #{short_id}"
+                gross = barge_budget
+            elif "SRC" in ref or exp_type == "sourcing":
+                line_item = f"Sourcing - Batch #{short_id}"
+                gross = sourcing_budget
+            else:
+                line_item = f"Delivery Balance - Batch #{short_id}"
+                gross = logistics_budget
+            status = "Reconciled"
+            badge = "success"
+        elif exp_type == "sourcing" or ref.startswith("PO-SRC-"):
+            event_type = "Sourcing Settlement"
+            line_item = f"Sourcing Vendor ({cluster.sugar_mill.name if cluster.sugar_mill else 'Supplier'})"
+            gross = sourcing_budget
+            status = "Reconciled"
+            badge = "success"
+        else:
+            event_type = "Adjustment"
+            line_item = f"{m.get_expense_type_display()} ({ref})"
+            gross = amt
+            status = "Reconciled"
+            badge = "info"
+
+        audit_log.append({
+            "timestamp": event_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "timestamp_raw": event_time,
+            "event_type": event_type,
+            "line_item": line_item,
+            "receiving_customer": receiving_customer_name,
+            "origin_indicator": origin_indicator_tag,
+            "gross_amount": float(gross),
+            "reconciled_amount": float(amt),
+            "cumulative_reconciled": float(cum_reconciled),
+            "net_remaining_pool": float(net_remaining),
+            "remaining_balance_pool": float(net_remaining),
+            "status": status,
+            "badge": badge,
+        })
+
+    # 4. Payout Suggestions (Pending post-delivery balance)
+    exec_summary = get_executive_financial_summary(cluster)
+    if exec_summary["logistics_suggested"] > Decimal("0.00"):
+        sugg_time = timezone.now()
+        audit_log.append({
+            "timestamp": sugg_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "timestamp_raw": sugg_time,
+            "event_type": "Payout Suggestion",
+            "line_item": f"Post-Delivery Balance ({exec_summary['dp_note']})",
+            "receiving_customer": receiving_customer_name,
+            "origin_indicator": origin_indicator_tag,
+            "gross_amount": float(exec_summary["logistics_budget"]),
+            "reconciled_amount": 0.0,
+            "cumulative_reconciled": float(cum_reconciled),
+            "net_remaining_pool": float(exec_summary["logistics_remaining_pool"]),
+            "remaining_balance_pool": float(exec_summary["logistics_remaining_pool"]),
+            "status": "Pending",
+            "badge": "warning",
+        })
+
+    return audit_log

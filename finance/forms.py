@@ -324,6 +324,10 @@ class StandaloneLoanForm(LoanRulesMixin, forms.ModelForm):
             req = loan_requirement_data(target_cluster)
             sugg_principal = req.get("remaining_required") or req.get("required")
             if sugg_principal and sugg_principal > 0:
+                if isinstance(sugg_principal, Decimal):
+                    sugg_principal = sugg_principal.quantize(Decimal("0.01"))
+                else:
+                    sugg_principal = Decimal(str(sugg_principal)).quantize(Decimal("0.01"))
                 self.initial["principal"] = sugg_principal
 
         self.fields["cluster"].queryset = (
@@ -394,6 +398,10 @@ class CapitalLoanForm(LoanRulesMixin, forms.ModelForm):
             req = loan_requirement_data(self.cluster)
             sugg_principal = req.get("remaining_required") or req.get("required")
             if sugg_principal and sugg_principal > 0:
+                if isinstance(sugg_principal, Decimal):
+                    sugg_principal = sugg_principal.quantize(Decimal("0.01"))
+                else:
+                    sugg_principal = Decimal(str(sugg_principal)).quantize(Decimal("0.01"))
                 self.initial["principal"] = sugg_principal
 
         self.fields["cheque_number"].required = False

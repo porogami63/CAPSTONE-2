@@ -470,6 +470,27 @@ class DeliveryLedger(models.Model):
         verbose_name_plural = "Delivery Ledger Entries"
 
     @property
+    def receiving_customer(self):
+        """Strictly inherited from parent Purchase Order customer (PO Link Lock)."""
+        if self.purchase_order:
+            return self.purchase_order.customer or (self.purchase_order.cluster.client if self.purchase_order.cluster else None)
+        return None
+
+    @property
+    def origin_indicator(self):
+        """
+        Origin Indicator Attribute: Strictly attached to and determined by the
+        Receiving Customer (destination specifications/zone), NOT the sugar mill.
+        Sugar Mill source is flexible and unconstrained.
+        """
+        cust = self.receiving_customer
+        if cust:
+            return getattr(cust, "origin_indicator", f"{cust.name} Destination Zone")
+        if self.receiving_location:
+            return f"{self.receiving_location} (Destination Spec)"
+        return "Destination Zone Unspecified"
+
+    @property
     def trucking_cost(self):
         """Calculated land freight cost for this batch (rate per MT + flat fee)."""
         rate_cost = Decimal("0.00")

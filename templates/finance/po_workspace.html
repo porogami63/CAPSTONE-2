@@ -209,6 +209,65 @@
     </div>
 </div>
 
+<!-- EXECUTIVE FINANCIAL SUMMARY -->
+<div class="workspace-card p-0 mb-4 overflow-hidden shadow-xs">
+    <div class="d-flex justify-content-between align-items-center p-3.5 border-bottom flex-wrap gap-2" style="background: var(--htc-surface-variant, #f8fafc);">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold text-dark fs-6">Executive Financial Summary</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 px-2 py-0.5 fw-semibold">
+                100% Sourcing + 100% Logistics Rule
+            </span>
+        </div>
+        <span class="text-xs text-muted">Real-time disbursements &amp; pool tracking</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 fs-7">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4 py-2.5">Metric</th>
+                    <th class="text-end py-2.5">Sourcing</th>
+                    <th class="text-end py-2.5">Logistics (Trucking &amp; Barging)</th>
+                    <th class="text-end pe-4 py-2.5">Total PO</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="ps-4 py-2.5 fw-bold text-dark">Total Approved Budget</td>
+                    <td class="text-end py-2.5 font-monospace text-dark">₱{{ exec_summary.sourcing_budget|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace text-dark">₱{{ exec_summary.logistics_budget|floatformat:2|intcomma }}</td>
+                    <td class="text-end pe-4 py-2.5 font-monospace fw-bold text-dark">₱{{ exec_summary.total_budget|floatformat:2|intcomma }}</td>
+                </tr>
+                <tr>
+                    <td class="ps-4 py-2.5 fw-bold text-dark">
+                        Reconciled to Date
+                        {% if exec_summary.dp_paid > 0 %}
+                        <span class="text-xs text-muted fw-normal ms-1">(₱{{ exec_summary.dp_paid|floatformat:2|intcomma }} DP)</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end py-2.5 font-monospace text-success">₱{{ exec_summary.sourcing_reconciled|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace text-success">₱{{ exec_summary.logistics_reconciled|floatformat:2|intcomma }}</td>
+                    <td class="text-end pe-4 py-2.5 font-monospace fw-bold text-success">₱{{ exec_summary.total_reconciled|floatformat:2|intcomma }}</td>
+                </tr>
+                <tr style="background: rgba(37, 99, 235, 0.04);">
+                    <td class="ps-4 py-2.5 fw-bold text-primary">
+                        Current Suggested Payout
+                        <span class="badge bg-primary text-white ms-1 fs-9">{{ exec_summary.dp_note }}</span>
+                    </td>
+                    <td class="text-end py-2.5 font-monospace text-primary fw-semibold">₱{{ exec_summary.sourcing_suggested|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace text-primary fw-bold">₱{{ exec_summary.logistics_suggested|floatformat:2|intcomma }}</td>
+                    <td class="text-end pe-4 py-2.5 font-monospace fw-bold text-primary">₱{{ exec_summary.total_suggested|floatformat:2|intcomma }}</td>
+                </tr>
+                <tr>
+                    <td class="ps-4 py-2.5 fw-bold text-dark">Remaining Balance Pool</td>
+                    <td class="text-end py-2.5 font-monospace text-secondary">₱{{ exec_summary.sourcing_remaining_pool|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace text-secondary">₱{{ exec_summary.logistics_remaining_pool|floatformat:2|intcomma }}</td>
+                    <td class="text-end pe-4 py-2.5 font-monospace fw-bold text-secondary">₱{{ exec_summary.total_remaining_pool|floatformat:2|intcomma }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <!-- ANALYTICAL ROW: 2 BALANCED CARDS WITH GENEROUS SPACING -->
 <div class="row g-4 mb-4">
     <!-- Card 1: Capital Financing Requirements -->
@@ -749,6 +808,89 @@
     </div>
 </div>
 
+<!-- OPERATIONAL EXPENSE (OPEX) AUDIT LOG SECTION -->
+<div class="workspace-card p-0 mt-4 mb-4 overflow-hidden shadow-xs">
+    <div class="d-flex justify-content-between align-items-center p-4 border-bottom flex-wrap gap-2" style="background: var(--htc-surface-variant, #f8fafc);">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold text-dark fs-6">Operational Expense (OpEx) Audit Log</span>
+            <span class="badge bg-secondary-subtle text-secondary border fs-8 px-2 py-0.5">{{ opex_audit_log|length }} Records</span>
+        </div>
+        <span class="text-xs text-muted">Timestamped sequential ledger · Immutable financial tracking (UTC)</span>
+    </div>
+    <div class="p-0">
+        <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
+            <table class="table table-hover align-middle mb-0 fs-7">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th class="ps-4 py-3">Timestamp (UTC)</th>
+                        <th class="py-3">Event Type</th>
+                        <th class="py-3">Line Item / Service</th>
+                        <th class="py-3">Receiving Customer</th>
+                        <th class="py-3">Origin Indicator</th>
+                        <th class="text-end py-3">Gross Amount</th>
+                        <th class="text-end py-3">Reconciled / Paid</th>
+                        <th class="text-end py-3">Remaining Balance Pool</th>
+                        <th class="pe-4 text-center py-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in opex_audit_log %}
+                    <tr>
+                        <td class="ps-4 py-2.5 font-monospace text-nowrap text-muted fs-8">
+                            {{ row.timestamp }}
+                        </td>
+                        <td class="py-2.5 fw-semibold text-dark text-nowrap">
+                            <span class="badge bg-{{ row.badge }}-subtle text-{{ row.badge }} border border-{{ row.badge }}-subtle px-2 py-1 fs-8">
+                                {{ row.event_type }}
+                            </span>
+                        </td>
+                        <td class="py-2.5 text-dark fw-medium">
+                            {{ row.line_item }}
+                        </td>
+                        <td class="py-2.5 text-dark fw-semibold text-nowrap">
+                            <i class="bi bi-lock-fill text-muted me-1 fs-9" title="Locked to PO Customer"></i>{{ row.receiving_customer }}
+                        </td>
+                        <td class="py-2.5 text-secondary fs-8 text-nowrap">
+                            <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ row.origin_indicator }}</span>
+                        </td>
+                        <td class="text-end py-2.5 font-monospace text-muted">
+                            ₱{{ row.gross_amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="text-end py-2.5 font-monospace fw-bold {% if row.reconciled_amount > 0 %}text-success{% else %}text-muted{% endif %}">
+                            ₱{{ row.reconciled_amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="text-end py-2.5 font-monospace fw-bold text-secondary">
+                            ₱{{ row.remaining_balance_pool|floatformat:2|intcomma }}
+                        </td>
+                        <td class="pe-4 text-center py-2.5 text-nowrap">
+                            {% if row.status == 'Reconciled' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-8 fw-semibold">Reconciled</span>
+                            {% elif row.status == 'Completed' %}
+                            <span class="badge bg-success text-white px-2 py-0.5 fs-8 fw-semibold">Completed</span>
+                            {% elif row.status == 'Partial Release' %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0.5 fs-8 fw-semibold">Partial Release</span>
+                            {% elif row.status == 'Warning Flagged' %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 fs-8 fw-bold">Warning Flagged</span>
+                            {% elif row.status == 'Pending' %}
+                            <span class="badge bg-warning text-dark px-2 py-0.5 fs-8 fw-semibold">Pending</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5 fs-8">{{ row.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            No OpEx audit records generated yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- COMPREHENSIVE AUDIT LOG SECTION (EMBEDDED BENEATH BANK LOANS & MATCHING) -->
 <div class="workspace-card p-0 mt-4 mb-4 overflow-hidden">
     <div class="d-flex justify-content-between align-items-center p-4 border-bottom" style="background: var(--htc-surface-variant, #f8fafc);">
@@ -900,6 +1042,12 @@
                         <div class="col-md-6">
                             <label class="form-label font-semibold text-sm">Loan Amount (₱) <span class="text-danger">*</span></label>
                             {{ loan_form.principal }}
+                            <div class="form-text text-xs text-muted mt-1">
+                                Suggested Loan (100% Sourcing + 100% Logistics): <strong class="text-success font-monospace">₱{{ loan_req.required|floatformat:2|intcomma }}</strong>
+                                {% if loan_req.remaining_required < loan_req.required %}
+                                (Remaining: <strong class="text-primary font-monospace">₱{{ loan_req.remaining_required|floatformat:2|intcomma }}</strong>)
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label font-semibold text-sm">Yearly Interest Rate (%) <span class="text-danger">*</span></label>

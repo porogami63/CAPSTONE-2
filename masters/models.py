@@ -20,6 +20,25 @@ class Client(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def origin_indicator(self):
+        """
+        Origin Indicator Attribute: Strictly attached to and determined by the
+        Receiving Customer (destination specifications/zone), NOT the sugar mill.
+        """
+        addr = (self.address or "").lower()
+        name = (self.name or "").lower()
+        text = f"{name} {addr}"
+        if any(k in text for k in ["batangas", "balayan", "luzon", "manila", "quezon", "laguna", "pampanga", "adi", "absolute distillers"]):
+            return "Luzon Hub / Destination Spec"
+        elif any(k in text for k in ["negros", "visayas", "cebu", "bacolod", "iloilo"]):
+            return "Visayas Corridor / Destination Spec"
+        elif any(k in text for k in ["davao", "mindanao", "cagayan", "bukidnon"]):
+            return "Mindanao Terminal / Destination Spec"
+        elif self.address:
+            return f"{self.address.strip()} (Customer Spec)"
+        return f"{self.name} Destination Zone"
+
 
 class SugarMill(models.Model):
     name = models.CharField(max_length=200)

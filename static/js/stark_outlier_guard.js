@@ -194,6 +194,88 @@
     }
 
     /**
+     * Clear price anomaly notice from an input.
+     */
+    function clearPriceAnomalyNotice(input) {
+        const noticeId = "priceAnomalyNotice_" + (input.name || input.id);
+        const existing = document.getElementById(noticeId);
+        if (existing) existing.remove();
+    }
+
+    /**
+     * Render Negative Margin Alert (CRITICAL / HARD WARNING).
+     */
+    function renderNegativeMarginNotice(input, bPrice, sPrice) {
+        clearPriceAnomalyNotice(input);
+        const delta = bPrice - sPrice;
+        const noticeId = "priceAnomalyNotice_" + (input.name || input.id);
+        let noticeEl = document.createElement("div");
+        noticeEl.id = noticeId;
+        noticeEl.className = "outlier-field-notice mt-1";
+        noticeEl.setAttribute("role", "alert");
+
+        const msg = `Warning: Buying Price (₱${bPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}) is set higher than Selling Price (₱${sPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}). Negative margin detected (-₱${delta.toLocaleString('en-US', {minimumFractionDigits: 2})}). Prompt user confirmation or underwriter override required.`;
+
+        noticeEl.innerHTML = `
+            <div class="outlier-notice-pill" style="border: 1px solid #dc3545; background-color: #fff5f5; color: #b02a37; border-radius: 6px; padding: 6px 10px;">
+                <div class="outlier-body" style="display: flex; align-items: center; gap: 8px;">
+                    <span class="outlier-badge-tag fw-bold" style="color: #dc3545; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="bi bi-x-octagon-fill"></i>
+                        <span>CRITICAL / HARD WARNING:</span>
+                    </span>
+                    <span class="outlier-stats-text" style="font-size: 0.82rem; font-weight: 500;">
+                        ${escapeHtml(msg)}
+                    </span>
+                </div>
+            </div>
+        `;
+
+        const addonGroup = input.closest(".input-addon-group");
+        const targetContainer = addonGroup || input;
+        if (targetContainer.nextSibling) {
+            targetContainer.parentNode.insertBefore(noticeEl, targetContainer.nextSibling);
+        } else {
+            targetContainer.parentNode.appendChild(noticeEl);
+        }
+    }
+
+    /**
+     * Render Inverted / Irregular Ratio Warning (DATA ENTRY ANOMALY WARNING).
+     */
+    function renderIrregularRatioNotice(input, bPrice, sPrice, ratio) {
+        clearPriceAnomalyNotice(input);
+        const noticeId = "priceAnomalyNotice_" + (input.name || input.id);
+        let noticeEl = document.createElement("div");
+        noticeEl.id = noticeId;
+        noticeEl.className = "outlier-field-notice mt-1";
+        noticeEl.setAttribute("role", "alert");
+
+        const msg = `Warning: Price ratio (${ratio.toFixed(2)}x) deviates significantly from historical mean baseline. Verify input values before proceeding.`;
+
+        noticeEl.innerHTML = `
+            <div class="outlier-notice-pill" style="border: 1px solid #ffc107; background-color: #fffdf5; color: #664d03; border-radius: 6px; padding: 6px 10px;">
+                <div class="outlier-body" style="display: flex; align-items: center; gap: 8px;">
+                    <span class="outlier-badge-tag fw-bold" style="color: #b58105; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>DATA ENTRY ANOMALY WARNING:</span>
+                    </span>
+                    <span class="outlier-stats-text" style="font-size: 0.82rem; font-weight: 500;">
+                        ${escapeHtml(msg)}
+                    </span>
+                </div>
+            </div>
+        `;
+
+        const addonGroup = input.closest(".input-addon-group");
+        const targetContainer = addonGroup || input;
+        if (targetContainer.nextSibling) {
+            targetContainer.parentNode.insertBefore(noticeEl, targetContainer.nextSibling);
+        } else {
+            targetContainer.parentNode.appendChild(noticeEl);
+        }
+    }
+
+    /**
      * Evaluate single input against statistical thresholds.
      */
     function evaluateInput(input, operationalStats) {
@@ -217,6 +299,31 @@
             renderInputNotice(input, fieldKey, statInfo, enteredVal);
         } else {
             clearInputNotice(input);
+        }
+
+        // Real-time Margin & Price Ratio Analysis
+        const form = input.closest("form");
+        if (form && (fieldKey === "unit_price" || fieldKey === "selling_price")) {
+            const unitInput = form.querySelector('input[name="unit_price"], input#id_unit_price');
+            const sellInput = form.querySelector('input[name="selling_price"], input#id_selling_price');
+            if (unitInput && sellInput) {
+                const bPrice = parseNumericValue(unitInput.value);
+                const sPrice = parseNumericValue(sellInput.value);
+                if (bPrice !== null && sPrice !== null && bPrice > 0 && sPrice > 0) {
+                    if (bPrice > sPrice) {
+                        renderNegativeMarginNotice(sellInput, bPrice, sPrice);
+                    } else {
+                        const ratio = sPrice / bPrice;
+                        if (ratio < 0.90 || ratio > 2.50) {
+                            renderIrregularRatioNotice(sellInput, bPrice, sPrice, ratio);
+                        } else {
+                            clearPriceAnomalyNotice(sellInput);
+                        }
+                    }
+                } else {
+                    clearPriceAnomalyNotice(sellInput);
+                }
+            }
         }
     }
 

@@ -55,6 +55,8 @@ class TransactionClusterForm(forms.ModelForm):
         help_text="Payment conditions (e.g. 'Net 30 days')",
         widget=forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Net 30 days"}),
     )
+    confirmed_outlier = forms.CharField(required=False, widget=forms.HiddenInput())
+    price_warning_override = forms.CharField(required=False, widget=forms.HiddenInput())
     brix_level = forms.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -146,8 +148,27 @@ class TransactionClusterForm(forms.ModelForm):
         if selling_price is not None:
             if selling_price <= 0:
                 self.add_error("selling_price", "Customer selling price must be a positive amount in ₱/MT.")
-            elif unit_price is not None and selling_price < unit_price:
-                self.add_error("selling_price", "Customer selling price cannot be lower than supplier sourcing price (selling below cost).")
+            elif unit_price is not None:
+                from operations.services.stats_services import check_price_margin_anomalies
+                margin_analysis = check_price_margin_anomalies(unit_price, selling_price)
+                confirmed = (
+                    self.data.get("confirmed_outlier") in ("true", "True", True, "1", 1)
+                    or self.data.get("price_warning_override") in ("true", "True", True, "1", 1)
+                    or cleaned_data.get("confirmed_outlier") in ("true", "True", True, "1", 1)
+                    or cleaned_data.get("price_warning_override") in ("true", "True", True, "1", 1)
+                )
+
+                if margin_analysis["has_negative_margin"] and not confirmed:
+                    delta = margin_analysis["delta"]
+                    self.add_error(
+                        "selling_price",
+                        f"Warning: Buying Price (₱{unit_price:,.2f}) is set higher than Selling Price (₱{selling_price:,.2f}). Negative margin detected (-₱{delta:,.2f}). Prompt user confirmation or underwriter override required.",
+                    )
+                elif margin_analysis["has_irregular_ratio"] and not confirmed:
+                    self.add_error(
+                        "selling_price",
+                        "Warning: Price ratio deviates significantly from historical mean baseline. Verify input values before proceeding.",
+                    )
 
         brix_level = cleaned_data.get("brix_level")
         if brix_level is not None and (brix_level < 0 or brix_level > 100):
@@ -391,6 +412,13 @@ class DeliveryLedgerForm(forms.ModelForm):
 
         clients_qs = Client.objects.filter(is_active=True).order_by("name")
         self.fields["receiving_customer"].queryset = clients_qs
+        # Customer Immutability (PO Link Lock)
+        self.fields["receiving_customer"].disabled = True
+        self.fields["receiving_customer"].widget.attrs.update({
+            "class": "form-select-htc bg-slate-100 cursor-not-allowed pointer-events-none",
+            "title": "Customer is strictly locked to the linked Purchase Order (PO Link Lock)",
+        })
+        self.fields["receiving_customer"].help_text = "Locked to linked PO customer (PO Link Lock)"
 
         from operations.models import MolassesReleaseOrder
         self.fields["mro_permit"].required = False
@@ -410,12 +438,16 @@ class DeliveryLedgerForm(forms.ModelForm):
             mill = getattr(initial_po.cluster, "sugar_mill", None) if hasattr(initial_po, "cluster") and initial_po.cluster else None
             if mill:
                 self.fields["supplier"].initial = mill
+        elif self.instance and getattr(self.instance, "purchase_order", None):
+            inst_po = self.instance.purchase_order
+            cust = inst_po.customer or (inst_po.cluster.client if getattr(inst_po, "cluster", None) else None)
+            if cust:
+                self.fields["receiving_customer"].initial = cust
 
     def clean(self):
         cleaned_data = super().clean()
         po = cleaned_data.get("purchase_order")
         delivered_mt = cleaned_data.get("delivered_mt")
-        rec_cust = cleaned_data.get("receiving_customer")
         rec_loc = cleaned_data.get("receiving_location")
         supplier = cleaned_data.get("supplier")
         delivery_date = cleaned_data.get("delivery_date")
@@ -426,11 +458,22 @@ class DeliveryLedgerForm(forms.ModelForm):
         barge_rate = cleaned_data.get("barge_rate_per_mt")
         flat_barge = cleaned_data.get("flat_barge_fee")
 
-        # 1. Purchase Order Validation
+        # 1. Customer Immutability (PO Link Lock):
+        # Receiving Customer MUST strictly match the Customer associated with the linked Purchase Order.
+        if po:
+            po_customer = po.customer or (po.cluster.client if getattr(po, "cluster", None) else None)
+            if po_customer:
+                cleaned_data["receiving_customer"] = po_customer
+                if not po.customer:
+                    po.customer = po_customer
+                    po.save(update_fields=["customer"])
+        rec_cust = cleaned_data.get("receiving_customer")
+
+        # 2. Purchase Order Validation
         if not po:
             self.add_error("purchase_order", "Please select a valid Purchase Order contract.")
 
-        # 2. Receiving Location Validation & Auto-Fill
+        # 3. Receiving Location Validation & Auto-Fill
         if rec_cust and (not rec_loc or not rec_loc.strip()):
             rec_loc = f"{rec_cust.name} Main Facility"
             cleaned_data["receiving_location"] = rec_loc
