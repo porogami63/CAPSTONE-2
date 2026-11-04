@@ -276,32 +276,12 @@
     }
 
     /**
-     * Evaluate single input against statistical thresholds.
+     * Evaluate single input against statistical thresholds and price anomalies.
      */
     function evaluateInput(input, operationalStats) {
         const fieldKey = input.name || input.id;
-        const statKey = FIELD_PARAM_MAP[fieldKey];
-        if (!statKey || !operationalStats || !operationalStats[statKey]) {
-            clearInputNotice(input);
-            return;
-        }
 
-        const statInfo = operationalStats[statKey];
-        const enteredVal = parseNumericValue(input.value);
-
-        if (enteredVal === null) {
-            clearInputNotice(input);
-            return;
-        }
-
-        // Statistical threshold check: must have prior records and exceed high threshold
-        if (statInfo.count >= 2 && statInfo.high_threshold > 0 && enteredVal > statInfo.high_threshold) {
-            renderInputNotice(input, fieldKey, statInfo, enteredVal);
-        } else {
-            clearInputNotice(input);
-        }
-
-        // Real-time Margin & Price Ratio Analysis
+        // 1. Real-time Margin & Price Ratio Analysis (Immediate, 0ms, standalone)
         const form = input.closest("form");
         if (form && (fieldKey === "unit_price" || fieldKey === "selling_price")) {
             const unitInput = form.querySelector('input[name="unit_price"], input#id_unit_price');
@@ -324,6 +304,28 @@
                     clearPriceAnomalyNotice(sellInput);
                 }
             }
+        }
+
+        // 2. Statistical Outlier Check against operational mean/median/mode
+        const statKey = FIELD_PARAM_MAP[fieldKey];
+        if (!statKey || !operationalStats || !operationalStats[statKey]) {
+            clearInputNotice(input);
+            return;
+        }
+
+        const statInfo = operationalStats[statKey];
+        const enteredVal = parseNumericValue(input.value);
+
+        if (enteredVal === null) {
+            clearInputNotice(input);
+            return;
+        }
+
+        // Statistical threshold check: must have prior records and exceed high threshold
+        if (statInfo.count >= 2 && statInfo.high_threshold > 0 && enteredVal > statInfo.high_threshold) {
+            renderInputNotice(input, fieldKey, statInfo, enteredVal);
+        } else {
+            clearInputNotice(input);
         }
     }
 
@@ -359,33 +361,38 @@
         const forms = document.querySelectorAll('form[data-outlier-guard="true"]');
         if (!forms.length) return;
 
+        // Bind immediate input listeners without waiting for network API
+        forms.forEach(form => {
+            Object.keys(FIELD_PARAM_MAP).forEach(fieldName => {
+                const selector = `input[name="${fieldName}"], input#id_${fieldName}`;
+                const inputs = form.querySelectorAll(selector);
+
+                inputs.forEach(input => {
+                    const debouncedEval = debounce(() => evaluateInput(input, cachedOperationalStats), 80);
+
+                    input.addEventListener("input", debouncedEval);
+                    input.addEventListener("change", () => evaluateInput(input, cachedOperationalStats));
+                    input.addEventListener("blur", () => evaluateInput(input, cachedOperationalStats));
+
+                    // Initial check for pre-filled / edit forms
+                    if (input.value && input.value.trim() !== "") {
+                        evaluateInput(input, cachedOperationalStats);
+                    }
+                });
+            });
+        });
+
+        // Prefetch stats in background and re-evaluate with server thresholds
         getOperationalStats().then(stats => {
             forms.forEach(form => {
-                // Ensure form can submit without modal blockage
-                ensureConfirmedHiddenField(form, "true");
-
-                // Find all monitored inputs in this form
                 Object.keys(FIELD_PARAM_MAP).forEach(fieldName => {
                     const selector = `input[name="${fieldName}"], input#id_${fieldName}`;
                     const inputs = form.querySelectorAll(selector);
-
                     inputs.forEach(input => {
-                        const debouncedEval = debounce(() => evaluateInput(input, stats), 180);
-
-                        input.addEventListener("input", debouncedEval);
-                        input.addEventListener("change", () => evaluateInput(input, stats));
-                        input.addEventListener("blur", () => evaluateInput(input, stats));
-
-                        // Initial check for pre-filled / edit forms
                         if (input.value && input.value.trim() !== "") {
                             evaluateInput(input, stats);
                         }
                     });
-                });
-
-                // Smooth submission without modal interface
-                form.addEventListener("submit", function () {
-                    ensureConfirmedHiddenField(form, "true");
                 });
             });
         });

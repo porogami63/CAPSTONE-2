@@ -24,6 +24,8 @@
 
 <form method="post" data-outlier-guard="true" style="max-width: 860px; margin: 0 auto;">
     {% csrf_token %}
+    {{ form.confirmed_outlier }}
+    {{ form.price_warning_override }}
 
     <!-- Card 1: Order Details & Parties -->
     <div class="form-section-card" data-step="1" data-intro="Order Details: Set PO number, customer, and supplier sugar mill.">
@@ -107,6 +109,7 @@
                     {{ form.selling_price }}
                 </div>
                 <div class="form-text text-xs text-muted mt-1">Price billed to Customer per MT (₱/MT).</div>
+                <div id="priceMarginAnomalyAlert" class="mt-2"></div>
                 {% if form.selling_price.errors %}<div class="text-danger text-xs mt-1">{{ form.selling_price.errors|striptags }}</div>{% endif %}
             </div>
         </div>
@@ -240,6 +243,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const calcTotalLogistics = document.getElementById('calcTotalLogistics');
     const calcGrossMargin = document.getElementById('calcGrossMargin');
 
+    window.handlePriceOverrideChange = function(isChecked) {
+        const overrideInput = document.getElementById('id_price_warning_override') || document.querySelector('input[name="price_warning_override"]');
+        const outlierInput = document.getElementById('id_confirmed_outlier') || document.querySelector('input[name="confirmed_outlier"]');
+        const val = isChecked ? 'true' : '';
+        if (overrideInput) overrideInput.value = val;
+        if (outlierInput) outlierInput.value = val;
+    };
+
     function updateLiveCalculation() {
         const vol = parseFloat(volInput ? volInput.value : 0) || 0;
         const costPrice = parseFloat(costPriceInput ? costPriceInput.value : 0) || 0;
@@ -259,12 +270,72 @@ document.addEventListener('DOMContentLoaded', function() {
         if (calcTotalLogistics) calcTotalLogistics.textContent = 'Configured per batch';
 
         if (calcGrossMargin) {
-            calcGrossMargin.textContent = `₱${netProfit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             if (netProfit < 0) {
+                calcGrossMargin.innerHTML = `<span class="badge bg-danger text-white px-2 py-0.5 fs-8 me-1">NEGATIVE MARGIN</span> ₱${netProfit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 calcGrossMargin.style.color = 'var(--htc-danger)';
             } else {
+                calcGrossMargin.textContent = `₱${netProfit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                 calcGrossMargin.style.color = 'var(--htc-success)';
             }
+        }
+
+        // Live Price Anomaly & Negative Margin Warning Banner
+        const priceAlertEl = document.getElementById('priceMarginAnomalyAlert');
+        const overrideInput = document.getElementById('id_price_warning_override') || document.querySelector('input[name="price_warning_override"]');
+
+        if (costPrice > 0 && sellPrice > 0) {
+            if (costPrice > sellPrice) {
+                const delta = costPrice - sellPrice;
+                if (priceAlertEl) {
+                    const isChecked = (overrideInput && overrideInput.value === 'true') ? 'checked' : '';
+                    priceAlertEl.innerHTML = `
+                        <div class="p-2.5 rounded border border-danger bg-danger-subtle text-danger shadow-xs" style="font-size: 0.8rem; line-height: 1.4;">
+                            <div class="fw-bold d-flex align-items-center gap-1.5 mb-1 text-danger">
+                                <i class="bi bi-x-octagon-fill text-danger fs-6"></i>
+                                <span class="badge bg-danger text-white px-2 py-0.5 fs-8">CRITICAL / HARD WARNING</span>
+                            </div>
+                            <div class="text-danger fw-semibold">
+                                Warning: Buying Price (₱${costPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}) is set higher than Selling Price (₱${sellPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}). Negative margin detected (-₱${delta.toLocaleString('en-US', {minimumFractionDigits: 2})}/MT). Prompt user confirmation or underwriter override required.
+                            </div>
+                            <div class="form-check mt-2 pt-1 border-top border-danger-subtle">
+                                <input class="form-check-input border-danger" type="checkbox" id="chk_price_override" ${isChecked} onchange="window.handlePriceOverrideChange(this.checked)">
+                                <label class="form-check-label text-danger fs-8 fw-bold" for="chk_price_override">
+                                    Underwriter Override: Confirm negative margin order
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                const ratio = sellPrice / costPrice;
+                if (ratio < 0.90 || ratio > 2.20) {
+                    if (priceAlertEl) {
+                        const isChecked = (overrideInput && overrideInput.value === 'true') ? 'checked' : '';
+                        priceAlertEl.innerHTML = `
+                            <div class="p-2.5 rounded border border-warning bg-warning-subtle text-dark shadow-xs" style="font-size: 0.8rem; line-height: 1.4;">
+                                <div class="fw-bold d-flex align-items-center gap-1.5 mb-1 text-warning-emphasis">
+                                    <i class="bi bi-exclamation-triangle-fill text-warning fs-6"></i>
+                                    <span class="badge bg-warning text-dark px-2 py-0.5 fs-8">DATA ENTRY ANOMALY WARNING</span>
+                                </div>
+                                <div class="text-dark fw-medium">
+                                    Warning: Price ratio (${ratio.toFixed(2)}x) deviates significantly from historical mean baseline. Verify input values before proceeding.
+                                </div>
+                                <div class="form-check mt-2 pt-1 border-top border-warning-subtle">
+                                    <input class="form-check-input border-warning" type="checkbox" id="chk_price_override" ${isChecked} onchange="window.handlePriceOverrideChange(this.checked)">
+                                    <label class="form-check-label text-dark fs-8 fw-semibold" for="chk_price_override">
+                                        Underwriter Override: Verify ratio variance is intentional
+                                    </label>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    if (priceAlertEl) priceAlertEl.innerHTML = '';
+                    if (overrideInput && overrideInput.value === 'true' && (!costPriceInput.value || !sellPriceInput.value)) overrideInput.value = '';
+                }
+            }
+        } else {
+            if (priceAlertEl) priceAlertEl.innerHTML = '';
         }
     }
 
@@ -367,5 +438,5 @@ function fetchAutoRef() {
         });
 }
 </script>
-<script src="{% static 'js/stark_outlier_guard.js' %}"></script>
+<script src="{% static 'js/stark_outlier_guard.js' %}?v=20261104-5"></script>
 {% endblock %}
