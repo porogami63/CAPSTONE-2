@@ -19,6 +19,14 @@
 <body>
     <script>
         (function() {
+            try {
+                for (var i = localStorage.length - 1; i >= 0; i--) {
+                    var k = localStorage.key(i);
+                    if (k && (k.indexOf('htc_form_draft_v1:') === 0 || k.indexOf('/operations/deliveries') !== -1)) {
+                        localStorage.removeItem(k);
+                    }
+                }
+            } catch (e) {}
             var theme = localStorage.getItem('htc-theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
             document.documentElement.setAttribute('data-bs-theme', theme);
@@ -687,7 +695,7 @@
             window.addEventListener('pageshow', finishLoading);
         })();
     </script>
-    <script src="{% static 'js/form_draft_cache.js' %}"></script>
+    <script src="{% static 'js/form_draft_cache.js' %}?v=2"></script>
 </body>
 </html>
 

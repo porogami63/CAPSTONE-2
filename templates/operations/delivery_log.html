@@ -223,7 +223,7 @@
                 <span class="fs-8 text-muted">Incremental Fulfillment</span>
             </div>
             <div class="panel-body p-4">
-                <form method="post" action="{% url 'operations:log_delivery' %}" id="deliveryForm" class="form-stack" autocomplete="off">
+                <form method="post" action="{% url 'operations:log_delivery' %}" id="deliveryForm" class="form-stack" autocomplete="off" data-no-cache="true">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}">
 
@@ -765,7 +765,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.customer_id) {
                     const custSelect = document.getElementById('id_receiving_customer_select');
                     if (custSelect) {
+                        let hasOpt = Array.from(custSelect.options).some(o => o.value === String(data.customer_id));
+                        if (!hasOpt && data.customer_name) {
+                            const newOpt = document.createElement('option');
+                            newOpt.value = String(data.customer_id);
+                            newOpt.textContent = data.customer_name;
+                            custSelect.appendChild(newOpt);
+                        }
                         custSelect.value = String(data.customer_id);
+                        Array.from(custSelect.options).forEach(o => {
+                            o.selected = (o.value === String(data.customer_id));
+                        });
                     }
                     const custOriginPill = document.getElementById('customerOriginPill');
                     const custOriginText = document.getElementById('customerOriginPillText');
@@ -798,7 +808,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.preferred_supplier_id) {
                     const supSelect = document.getElementById('id_delivery_supplier');
                     if (supSelect) {
-                        supSelect.value = data.preferred_supplier_id;
+                        supSelect.value = String(data.preferred_supplier_id);
+                        Array.from(supSelect.options).forEach(o => {
+                            o.selected = (o.value === String(data.preferred_supplier_id));
+                        });
                     }
                 }
 

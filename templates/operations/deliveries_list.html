@@ -526,7 +526,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
             </div>
-            <form method="post" action="{% url 'operations:log_delivery' %}" id="modalDeliveryForm" autocomplete="off">
+            <form method="post" action="{% url 'operations:log_delivery' %}" id="modalDeliveryForm" autocomplete="off" data-no-cache="true">
                 {% csrf_token %}
                 <input type="hidden" name="purchase_order" value="{{ focused_po.pk }}">
                 <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}?po={% if focused_po.po_reference_number %}{{ focused_po.po_reference_number }}{% else %}{{ focused_po.cluster.reference_code }}{% endif %}">
@@ -768,9 +768,15 @@ document.addEventListener('DOMContentLoaded', function() {
     function syncModalToPoCustomer() {
         if (custSelect && poCustomerId) {
             custSelect.value = poCustomerId;
+            Array.from(custSelect.options).forEach(opt => {
+                opt.selected = (opt.value === String(poCustomerId));
+            });
         }
-        if (supSelect && poMillId && !supSelect.value) {
+        if (supSelect && poMillId) {
             supSelect.value = poMillId;
+            Array.from(supSelect.options).forEach(opt => {
+                opt.selected = (opt.value === String(poMillId));
+            });
         }
         if (locInput && poCustomerName) {
             const curVal = (locInput.value || '').trim();
@@ -781,9 +787,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     syncModalToPoCustomer();
+    window.addEventListener('pageshow', syncModalToPoCustomer);
     const modalElForSync = document.getElementById('logBatchModal');
     if (modalElForSync) {
         modalElForSync.addEventListener('show.bs.modal', syncModalToPoCustomer);
+        modalElForSync.addEventListener('shown.bs.modal', syncModalToPoCustomer);
     }
 
     function updateFreightCalculations() {

@@ -471,6 +471,8 @@ class DeliveryLedgerForm(forms.ModelForm):
             self.initial["purchase_order"] = initial_po.pk
             cust = (initial_po.cluster.client if hasattr(initial_po, "cluster") and initial_po.cluster and initial_po.cluster.client else None) or initial_po.customer
             if cust:
+                self.fields["receiving_customer"].queryset = Client.objects.filter(pk=cust.pk)
+                self.fields["receiving_customer"].empty_label = None
                 self.fields["receiving_customer"].initial = cust
                 self.initial["receiving_customer"] = cust.pk
                 if not self.initial.get("receiving_location"):
@@ -480,7 +482,10 @@ class DeliveryLedgerForm(forms.ModelForm):
             mill = getattr(initial_po.cluster, "sugar_mill", None) if hasattr(initial_po, "cluster") and initial_po.cluster else None
             if mill:
                 self.fields["supplier"].initial = mill
-                self.initial.setdefault("supplier", mill.pk)
+                if not self.is_bound:
+                    self.initial["supplier"] = mill.pk
+                else:
+                    self.initial.setdefault("supplier", mill.pk)
         elif self.instance and getattr(self.instance, "purchase_order_id", None):
             inst_po = self.instance.purchase_order
             cust = (inst_po.cluster.client if getattr(inst_po, "cluster", None) and inst_po.cluster.client else None) or inst_po.customer

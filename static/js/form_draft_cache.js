@@ -19,7 +19,8 @@
         return;
     }
 
-    const STORAGE_PREFIX = "htc_form_draft_v1:";
+    const STORAGE_PREFIX = "htc_form_draft_v2:";
+    const LEGACY_PREFIX = "htc_form_draft_v1:";
     const DRAFT_MAX_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
 
     // Fields that must NEVER be cached under any circumstances
@@ -90,6 +91,10 @@
         if (form.hasAttribute("data-no-cache") || form.classList.contains("no-cache")) {
             return false;
         }
+        const currentPath = (window.location.pathname || "").toLowerCase();
+        if (currentPath.includes("/operations/deliveries")) {
+            return false;
+        }
         if (isAuthForm(form)) {
             return false;
         }
@@ -101,6 +106,7 @@
      */
     function isFieldCacheable(input, form) {
         if (!input) return false;
+        if (input.disabled || input.readOnly) return false;
 
         const type = (input.type || "text").toLowerCase();
 
@@ -141,7 +147,7 @@
      * Generate a unique storage key for a form on the current page.
      */
     function getFormStorageKey(form, index) {
-        const path = window.location.pathname;
+        const path = window.location.pathname + (window.location.search || "");
         const formId = form.id || form.getAttribute("name") || form.getAttribute("action") || ("form_" + index);
         return STORAGE_PREFIX + path + ":" + formId;
     }
@@ -410,8 +416,13 @@
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
-                if (key && key.startsWith(STORAGE_PREFIX)) {
-                    if (key.includes("/finance/loans") || key.includes(":form_") || key.includes("?")) {
+                if (!key) continue;
+                if (key.startsWith(LEGACY_PREFIX)) {
+                    keysToRemove.push(key);
+                    continue;
+                }
+                if (key.startsWith(STORAGE_PREFIX)) {
+                    if (key.includes("/finance/loans") || key.includes("/operations/deliveries") || key.includes(":form_")) {
                         keysToRemove.push(key);
                         continue;
                     }
@@ -447,12 +458,14 @@
 
             form.addEventListener("input", function (e) {
                 if (isFieldCacheable(e.target, form)) {
+                    form._isDirty = true;
                     debouncedSave();
                 }
             });
 
             form.addEventListener("change", function (e) {
                 if (isFieldCacheable(e.target, form)) {
+                    form._isDirty = true;
                     saveFormDraft(form, index);
                 }
             });
@@ -468,15 +481,16 @@
             // Clear draft when form is reset
             form.addEventListener("reset", function () {
                 form._isSubmitting = true;
+                form._isDirty = false;
                 clearFormDraft(form, index);
                 setTimeout(() => { if (form) form._isSubmitting = false; }, 200);
             });
         });
 
-        // Flush save before page unload / navigation swap (only for unsubmitted drafts)
+        // Flush save before page unload / navigation swap (only for user-modified unsubmitted drafts)
         window.addEventListener("beforeunload", function () {
             forms.forEach((form, index) => {
-                if (isEligibleForm(form) && !form._isSubmitting) {
+                if (isEligibleForm(form) && form._isDirty && !form._isSubmitting) {
                     saveFormDraft(form, index);
                 }
             });
@@ -484,7 +498,7 @@
 
         window.addEventListener("pagehide", function () {
             forms.forEach((form, index) => {
-                if (isEligibleForm(form) && !form._isSubmitting) {
+                if (isEligibleForm(form) && form._isDirty && !form._isSubmitting) {
                     saveFormDraft(form, index);
                 }
             });
