@@ -5,123 +5,448 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Two-Factor Verification · HTC Core</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/htc-logo.png' %}">
+    <link rel="shortcut icon" href="{% static 'img/htc-logo.png' %}">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="{% static 'css/htc-theme.css' %}?v=8" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        .login-error-banner {
-            background: rgba(220, 53, 69, 0.12);
-            border: 1px solid rgba(220, 53, 69, 0.35);
-            color: #f8d7da;
-            padding: 0.85rem 1rem;
-            border-radius: 12px;
-            margin-bottom: 1.25rem;
-            font-size: 0.88rem;
+        /* Base page reset */
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* City photograph background container */
+        .page-bg-container {
+            min-height: 100vh;
+            background: url("{% static 'img/login-bg.jpg' %}") center/cover no-repeat fixed;
+            position: relative;
             display: flex;
-            align-items: flex-start;
-            gap: 0.65rem;
-            text-align: left;
-            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.1);
-            animation: fadeInDown 0.25s ease-out;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem 1rem;
         }
-        [data-theme="light"] .login-error-banner {
-            background: #f8d7da;
-            border-color: #f5c2c7;
-            color: #842029;
+
+        /* Subtle dark/neutral tint overlay over city image */
+        .city-tint-overlay {
+            position: absolute;
+            inset: 0;
+            background-color: rgba(2, 6, 23, 0.30); /* bg-slate-950/30 */
+            pointer-events: none;
+            z-index: 1;
         }
-        @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-8px); }
+
+        /* Glassmorphic card styling & dark mode adaptability */
+        .twofactor-card {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 440px;
+            transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        [data-theme="dark"] .twofactor-card {
+            background-color: rgba(15, 23, 42, 0.90) !important;
+            border-color: rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+        }
+        [data-theme="dark"] .card-heading {
+            color: #f8fafc !important;
+        }
+        [data-theme="dark"] .card-subtext {
+            color: #94a3b8 !important;
+        }
+        [data-theme="dark"] .user-pill {
+            background-color: #1e293b !important;
+            color: #60a5fa !important;
+            border-color: #334155 !important;
+        }
+        [data-theme="dark"] .otp-slot {
+            background-color: #0f172a !important;
+            border-color: #334155 !important;
+            color: #f8fafc !important;
+        }
+        [data-theme="dark"] .otp-slot:focus {
+            border-color: transparent !important;
+            box-shadow: 0 0 0 2px #3b82f6 !important;
+        }
+        [data-theme="dark"] .back-link {
+            color: #94a3b8 !important;
+        }
+        [data-theme="dark"] .back-link:hover {
+            color: #f1f5f9 !important;
+        }
+
+        /* Input slot number arrows reset */
+        .otp-slot {
+            appearance: none;
+            -moz-appearance: textfield;
+            font-variant-numeric: tabular-nums;
+        }
+        .otp-slot::-webkit-outer-spin-button,
+        .otp-slot::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Fade in animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
     </style>
+
+    <script>
+        (function() {
+            var theme = localStorage.getItem('htc-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
 </head>
-<script>
-    (function() {
-        var theme = localStorage.getItem('htc-theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', theme);
-        document.documentElement.setAttribute('data-bs-theme', theme);
-    })();
-</script>
-<body>
-    <div class="login-page-wrapper">
-        <div class="glass-login-card">
-            <div class="login-brand-badge">
-                <i class="bi bi-shield-lock-fill text-primary fs-2"></i>
+<body class="antialiased">
+
+    <!-- Viewport Top-Right Theme Toggle: fixed top-6 right-6 -->
+    <div class="fixed top-6 right-6 z-50">
+        <button type="button" 
+                id="themeToggleBtn" 
+                class="flex items-center justify-center w-10 h-10 rounded-full bg-slate-900/40 hover:bg-slate-900/60 text-white backdrop-blur-md border border-white/20 shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer" 
+                title="Toggle Theme" 
+                aria-label="Toggle theme">
+            <i class="bi bi-moon-stars-fill text-base" id="themeIcon"></i>
+        </button>
+    </div>
+
+    <!-- Background & Overlay Integration -->
+    <div class="page-bg-container">
+        <!-- City Background Overlay: subtle dark tint overlay -->
+        <div class="city-tint-overlay bg-slate-950/30"></div>
+
+        <!-- Glassmorphic Card -->
+        <div class="twofactor-card bg-white/90 backdrop-blur-xl border border-white/40 shadow-2xl rounded-2xl p-8 sm:p-10">
+
+            <!-- Shield Icon Badge -->
+            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <i class="bi bi-shield-lock-fill text-xl"></i>
             </div>
-            
-            <h2 class="login-company-name mb-1">Two-Factor Authentication</h2>
-            <p class="text-muted fs-7 mb-4" style="line-height: 1.5;">
-                Enter the 6-digit code generated by your Authenticator app or a backup recovery code for <strong class="text-primary">@{{ target_user.username }}</strong>.
+
+            <!-- Typography & Instructions -->
+            <h1 class="card-heading text-slate-900 font-bold text-xl text-center mb-1.5 tracking-tight">Two-Factor Authentication</h1>
+            <p class="card-subtext text-slate-600 text-sm text-center mb-6 leading-relaxed">
+                Enter the 6-digit code generated by your Authenticator app or a backup recovery code for 
+                <span class="user-pill inline-flex items-center bg-slate-100 text-blue-700 px-2 py-0.5 rounded-md font-mono text-xs border border-slate-200 font-medium">@{{ target_user.username|default:"ops_mgmt" }}</span>.
             </p>
 
+            <!-- Authentication Error Notification Banner -->
             {% if error_message %}
-            <div class="login-error-banner" role="alert">
-                <i class="bi bi-exclamation-triangle-fill text-danger fs-5 flex-shrink-0"></i>
-                <div class="flex-grow-1">
-                    <strong class="d-block mb-1">Authentication Failed</strong>
-                    <div>{{ error_message }}</div>
+            <div class="mb-5 p-3.5 rounded-xl bg-red-50/95 border border-red-200 text-red-700 text-sm flex items-start gap-3 shadow-sm animate-fade-in" role="alert">
+                <i class="bi bi-exclamation-circle-fill text-red-500 text-lg flex-shrink-0 mt-0.5"></i>
+                <div class="flex-1 text-left leading-snug">
+                    <strong class="font-semibold block mb-0.5 text-red-800 text-xs uppercase tracking-wide">Authentication Failed</strong>
+                    <div class="text-red-700 text-xs">{{ error_message }}</div>
                 </div>
             </div>
             {% endif %}
 
-            <form method="post" action="{% url 'accounts:two_factor_verify' %}">
+            <!-- Verification Form -->
+            <form method="post" action="{% url 'accounts:two_factor_verify' %}" id="twoFactorForm">
                 {% csrf_token %}
-                <div class="mb-4 text-start">
-                    <label for="id_otp_token" class="form-label font-weight-bold text-uppercase fs-8 text-muted mb-2 d-block text-center" style="letter-spacing: 0.5px;">
-                        Authenticator Code / Backup Code
-                    </label>
-                    {{ form.otp_token }}
-                    {% if form.otp_token.errors %}
-                        <div class="text-danger mt-1 text-center small">
-                            {{ form.otp_token.errors.0 }}
-                        </div>
-                    {% endif %}
+
+                <!-- Hidden Input Bound to Django Form -->
+                <input type="hidden" name="otp_token" id="id_otp_token" value="{{ form.otp_token.value|default:'' }}">
+
+                <!-- Modern 6-Digit OTP Pin Layout -->
+                <div class="mb-4" id="otpPinSection">
+                    <div class="grid grid-cols-6 gap-2 sm:gap-2.5 mb-2" id="otpGrid">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="0" autofocus>
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="1">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="2">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="3">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="4">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="5">
+                    </div>
                 </div>
 
-                <button type="submit" class="btn-htc-primary shadow-sm mb-3">
-                    <i class="bi bi-shield-check me-2"></i> Verify &amp; Sign In
+                <!-- Backup Recovery Code Alternative Input Field (Toggleable) -->
+                <div class="mb-4 hidden" id="backupCodeSection">
+                    <label for="backupCodeField" class="block text-center text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        Backup Recovery Code
+                    </label>
+                    <input type="text" 
+                           id="backupCodeField" 
+                           maxlength="10" 
+                           placeholder="e.g. BACKUP123" 
+                           class="w-full px-4 py-3 text-center font-mono font-bold text-base text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm uppercase">
+                </div>
+
+                <!-- Django Field Validation Errors -->
+                {% if form.otp_token.errors %}
+                <div class="text-red-500 text-xs text-center mb-4 font-medium">
+                    {{ form.otp_token.errors.0 }}
+                </div>
+                {% endif %}
+
+                <!-- Subtle Toggle Between 6-digit Code & Backup Code -->
+                <div class="text-center mb-6">
+                    <button type="button" 
+                            id="toggleModeBtn" 
+                            class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors focus:outline-none underline decoration-blue-300 underline-offset-4 cursor-pointer">
+                        Use a backup recovery code instead
+                    </button>
+                </div>
+
+                <!-- Primary Action Button -->
+                <button type="submit" 
+                        id="submitBtn" 
+                        class="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 cursor-pointer">
+                    <i class="bi bi-shield-check text-base"></i>
+                    <span>Verify &amp; Sign In</span>
                 </button>
             </form>
 
-            <div class="pt-3 mt-4 border-top text-center" style="border-color: var(--htc-border) !important;">
-                <a href="{% url 'accounts:login' %}" class="text-muted fs-7 text-decoration-none hover-underline">
-                    <i class="bi bi-arrow-left me-1"></i> Back to Primary Login
+            <!-- Actions & Clean Footer (No harsh divider line) -->
+            <div class="mt-6 text-center">
+                <a href="{% url 'accounts:login' %}" 
+                   class="back-link inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-sm font-medium transition-colors">
+                    <span class="text-base leading-none">&larr;</span>
+                    <span>Back to Primary Login</span>
                 </a>
             </div>
 
-            <div style="margin-top: 1.25rem;">
-                <button type="button" class="btn-theme-toggle" id="themeToggleBtn" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;" title="Toggle Theme">
-                    <i class="bi bi-moon-stars-fill"></i>
-                </button>
-            </div>
         </div>
     </div>
 
+    <!-- Scripts: 6-Digit Pin Navigation, Pasting, Form Sync, and Theme Toggle -->
     <script>
-        // Theme toggle logic
-        const themeToggleBtn = document.getElementById('themeToggleBtn');
-        const htmlTag = document.documentElement;
-        
-        function updateThemeIcon() {
-            if (htmlTag.getAttribute('data-theme') === 'light') {
-                themeToggleBtn.innerHTML = '<i class="bi bi-moon-stars-fill"></i>';
-            } else {
-                themeToggleBtn.innerHTML = '<i class="bi bi-sun-fill"></i>';
+        (function() {
+            const slots = Array.from(document.querySelectorAll('.otp-slot'));
+            const hiddenToken = document.getElementById('id_otp_token');
+            const otpForm = document.getElementById('twoFactorForm');
+            const otpSection = document.getElementById('otpPinSection');
+            const backupSection = document.getElementById('backupCodeSection');
+            const backupField = document.getElementById('backupCodeField');
+            const toggleBtn = document.getElementById('toggleModeBtn');
+            let isBackupMode = false;
+
+            // Synchronize individual slots into the hidden input
+            function syncSlotsToHidden() {
+                if (isBackupMode) {
+                    hiddenToken.value = backupField.value.trim();
+                } else {
+                    hiddenToken.value = slots.map(s => s.value).join('');
+                }
             }
-        }
-        
-        if (themeToggleBtn) {
-            updateThemeIcon();
-            themeToggleBtn.addEventListener('click', function() {
-                const currentTheme = htmlTag.getAttribute('data-theme') || 'dark';
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                htmlTag.setAttribute('data-theme', newTheme);
-                htmlTag.setAttribute('data-bs-theme', newTheme);
-                localStorage.setItem('htc-theme', newTheme);
-                updateThemeIcon();
+
+            // Keyboard navigation & typing handler for the 6 digit slots
+            slots.forEach((slot, index) => {
+                slot.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace') {
+                        if (slot.value === '') {
+                            if (index > 0) {
+                                slots[index - 1].focus();
+                                slots[index - 1].value = '';
+                                syncSlotsToHidden();
+                                e.preventDefault();
+                            }
+                        } else {
+                            slot.value = '';
+                            syncSlotsToHidden();
+                            e.preventDefault();
+                        }
+                    } else if (e.key === 'ArrowLeft' && index > 0) {
+                        slots[index - 1].focus();
+                        slots[index - 1].select();
+                        e.preventDefault();
+                    } else if (e.key === 'ArrowRight' && index < slots.length - 1) {
+                        slots[index + 1].focus();
+                        slots[index + 1].select();
+                        e.preventDefault();
+                    }
+                });
+
+                slot.addEventListener('input', function(e) {
+                    // Extract only numbers
+                    const val = slot.value.replace(/[^0-9]/g, '');
+                    if (val.length > 0) {
+                        slot.value = val[val.length - 1]; // Keep single digit
+                        syncSlotsToHidden();
+                        if (index < slots.length - 1) {
+                            slots[index + 1].focus();
+                            slots[index + 1].select();
+                        }
+                    } else {
+                        slot.value = '';
+                        syncSlotsToHidden();
+                    }
+                });
+
+                slot.addEventListener('focus', function() {
+                    slot.select();
+                });
+
+                // Paste support across all 6 slots
+                slot.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const pastedData = (e.clipboardData || window.clipboardData).getData('text').trim();
+                    const cleanDigits = pastedData.replace(/[^0-9]/g, '');
+
+                    if (cleanDigits.length >= 6) {
+                        for (let i = 0; i < 6; i++) {
+                            slots[i].value = cleanDigits[i];
+                        }
+                        syncSlotsToHidden();
+                        slots[5].focus();
+                    } else if (pastedData.length >= 6 && /[A-Za-z]/.test(pastedData)) {
+                        // Alphanumeric backup recovery code pasted
+                        switchToBackupMode();
+                        backupField.value = pastedData;
+                        syncSlotsToHidden();
+                        backupField.focus();
+                    } else if (cleanDigits.length > 0) {
+                        // Partial digits
+                        for (let i = 0; i < cleanDigits.length && (index + i) < slots.length; i++) {
+                            slots[index + i].value = cleanDigits[i];
+                        }
+                        syncSlotsToHidden();
+                        const nextIdx = Math.min(index + cleanDigits.length, slots.length - 1);
+                        slots[nextIdx].focus();
+                    }
+                });
             });
-        }
+
+            // Backup code input handler
+            if (backupField) {
+                backupField.addEventListener('input', function() {
+                    syncSlotsToHidden();
+                });
+            }
+
+            // Mode switcher function
+            function switchToBackupMode() {
+                isBackupMode = true;
+                otpSection.classList.add('hidden');
+                backupSection.classList.remove('hidden');
+                toggleBtn.textContent = 'Use authenticator app code instead';
+                backupField.focus();
+                syncSlotsToHidden();
+            }
+
+            function switchToOtpMode() {
+                isBackupMode = false;
+                backupSection.classList.add('hidden');
+                otpSection.classList.remove('hidden');
+                toggleBtn.textContent = 'Use a backup recovery code instead';
+                slots[0].focus();
+                syncSlotsToHidden();
+            }
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', function() {
+                    if (isBackupMode) {
+                        switchToOtpMode();
+                    } else {
+                        switchToBackupMode();
+                    }
+                });
+            }
+
+            // Ensure hidden field is populated on submit
+            if (otpForm) {
+                otpForm.addEventListener('submit', function() {
+                    syncSlotsToHidden();
+                });
+            }
+
+            // Pre-fill slots if initial value exists in hidden field
+            if (hiddenToken && hiddenToken.value) {
+                const initVal = hiddenToken.value.trim();
+                if (/^[0-9]{6}$/.test(initVal)) {
+                    for (let i = 0; i < 6; i++) {
+                        slots[i].value = initVal[i];
+                    }
+                } else if (initVal) {
+                    switchToBackupMode();
+                    backupField.value = initVal;
+                }
+            }
+
+            // Theme toggle logic (Viewport Top-Right)
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            const themeIcon = document.getElementById('themeIcon');
+            const htmlTag = document.documentElement;
+
+            function updateThemeIcon() {
+                const isDark = htmlTag.getAttribute('data-theme') === 'dark';
+                if (themeIcon) {
+                    themeIcon.className = isDark ? 'bi bi-sun-fill text-base' : 'bi bi-moon-stars-fill text-base';
+                }
+                if (isDark) {
+                    htmlTag.classList.add('dark');
+                } else {
+                    htmlTag.classList.remove('dark');
+                }
+            }
+
+            if (themeToggleBtn) {
+                updateThemeIcon();
+                themeToggleBtn.addEventListener('click', function() {
+                    const currentTheme = htmlTag.getAttribute('data-theme') || 'dark';
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    htmlTag.setAttribute('data-theme', newTheme);
+                    htmlTag.setAttribute('data-bs-theme', newTheme);
+                    localStorage.setItem('htc-theme', newTheme);
+                    updateThemeIcon();
+                });
+            }
+        })();
     </script>
 </body>
 </html>
