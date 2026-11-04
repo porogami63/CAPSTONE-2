@@ -41,10 +41,7 @@ def reconciliation_detail(request, pk):
     loan_req = loan_requirement_data(cluster)
 
     loans_qs = cluster.loans.all()
-    if loans_qs.exists():
-        total_target = loans_qs.aggregate(total=Sum("principal"))["total"] or Decimal("0")
-    else:
-        total_target = Decimal(str(loan_req.get("required") or fin["purchase_total"]))
+    total_target = Decimal(str(loan_req.get("required") or fin["purchase_total"])).quantize(Decimal("0.01"))
 
     sourcing_total = Decimal(str(fin["purchase_total"]))
     trucking_total = Decimal(str(fin["tracking_fees"]))
@@ -256,13 +253,11 @@ def add_match(request, pk):
                         except Exception:
                             pass
 
-                # Check if total matches exceed reconciliation target
-                loans_qs = cluster.loans.all()
-                if loans_qs.exists():
-                    target = sum(l.principal for l in loans_qs)
-                else:
-                    c_po = getattr(cluster, "purchase_order", None)
-                    target = c_po.total_value if c_po else Decimal("0")
+                # Check if total matches exceed reconciliation target (Initial Loan Amount)
+                from operations.services.pricing import loan_requirement_data
+                loan_req = loan_requirement_data(cluster)
+                c_po = getattr(cluster, "purchase_order", None)
+                target = Decimal(str(loan_req.get("required") or (c_po.total_value if c_po else "0"))).quantize(Decimal("0.01"))
 
                 new_total = reconciliation.matched_payment_amount
                 if target > Decimal("0") and new_total > target:
@@ -420,10 +415,7 @@ def po_financial_workspace(request, pk):
     matches = list(reconciliation.matches.all().order_by("-matched_at"))
     vouchers = list(cluster.cash_vouchers.all().order_by("-issued_at"))
 
-    if loans:
-        recon_target = Decimal(str(sum(l.principal for l in loans)))
-    else:
-        recon_target = Decimal(str(financials["purchase_total"]))
+    recon_target = Decimal(str(loan_req.get("required") or financials["purchase_total"])).quantize(Decimal("0.01"))
 
     matched_amount = reconciliation.matches.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
     remaining_balance = max(recon_target - matched_amount, Decimal("0.00"))
@@ -806,7 +798,9 @@ def loan_list(request):
         c_active = any(l.status in [CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_SETTLEMENT] for l in c_loans)
         c_recon = getattr(c, "reconciliation", None)
         c_matched = c_recon.matched_payment_amount if c_recon else Decimal("0.00")
-        c_target = c_principal if c_principal > 0 else (c_po.total_value if c_po else Decimal("0.00"))
+        from operations.services.pricing import loan_requirement_data
+        c_loan_req = loan_requirement_data(c)
+        c_target = Decimal(str(c_loan_req.get("required") or (c_po.total_value if c_po else "0.00"))).quantize(Decimal("0.01"))
         c_pct = round(float(c_matched) / float(c_target) * 100, 1) if c_target > 0 else 0.0
         c_is_over = c_matched > c_target if c_target > 0 else False
         c_excess = max(c_matched - c_target, Decimal("0.00")) if c_target > 0 else Decimal("0.00")

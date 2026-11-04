@@ -510,10 +510,13 @@
                 <div>
                     <h6 class="modal-title fw-bold mb-0 text-white" id="logBatchModalLabel">Log Delivery Batch</h6>
                     <div class="fs-8 text-white-75 d-flex align-items-center flex-wrap gap-2 mt-0.5">
-                        <span>PO #{% if focused_po.po_reference_number %}{{ focused_po.po_reference_number }}{% else %}{{ focused_po.cluster.reference_code }}{% endif %} — {% if focused_po.customer %}{{ focused_po.customer.name }}{% elif focused_po.cluster.client %}{{ focused_po.cluster.client.name }}{% else %}—{% endif %}</span>
+                        <span>PO #{% if focused_po.po_reference_number %}{{ focused_po.po_reference_number }}{% else %}{{ focused_po.cluster.reference_code }}{% endif %} — {% if focused_po.cluster.client %}{{ focused_po.cluster.client.name }}{% elif focused_po.customer %}{{ focused_po.customer.name }}{% else %}—{% endif %}</span>
+                        <span class="badge bg-white bg-opacity-25 text-white border-0 py-0.5 px-2">
+                            <i class="bi bi-person-check-fill me-1 text-info"></i>Customer Origin: {% if focused_po.cluster.client %}{{ focused_po.cluster.client.origin_indicator|default:focused_po.cluster.client.name }}{% elif focused_po.customer %}{{ focused_po.customer.origin_indicator|default:focused_po.customer.name }}{% else %}—{% endif %}
+                        </span>
                         {% if focused_po.cluster.sugar_mill %}
                         <span class="badge bg-white bg-opacity-25 text-white border-0 py-0.5 px-2">
-                            <i class="bi bi-geo-alt-fill me-1 text-warning"></i>PO Origin: {{ focused_po.cluster.sugar_mill.name }}
+                            <i class="bi bi-geo-alt-fill me-1 text-warning"></i>Mill Source: {{ focused_po.cluster.sugar_mill.name }}
                         </span>
                         {% endif %}
                     </div>
@@ -523,7 +526,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
             </div>
-            <form method="post" action="{% url 'operations:log_delivery' %}" id="modalDeliveryForm">
+            <form method="post" action="{% url 'operations:log_delivery' %}" id="modalDeliveryForm" autocomplete="off">
                 {% csrf_token %}
                 <input type="hidden" name="purchase_order" value="{{ focused_po.pk }}">
                 <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}?po={% if focused_po.po_reference_number %}{{ focused_po.po_reference_number }}{% else %}{{ focused_po.cluster.reference_code }}{% endif %}">
@@ -561,16 +564,21 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <div class="form-field-symmetric">
-                                <label>Receiving Customer <span class="text-danger">*</span></label>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="mb-0">Receiving Customer <span class="text-danger">*</span></label>
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-8 py-0.5 px-2" title="Origin Indicator determined by PO Customer">
+                                        Customer Origin: {% if focused_po.cluster.client %}{{ focused_po.cluster.client.origin_indicator|default:focused_po.cluster.client.name }}{% elif focused_po.customer %}{{ focused_po.customer.origin_indicator|default:focused_po.customer.name }}{% else %}—{% endif %}
+                                    </span>
+                                </div>
                                 {{ form.receiving_customer }}
-                                <div class="field-help">Customer receiving delivery.</div>
+                                <div class="field-help">Strictly locked to PO Customer ({% if focused_po.cluster.client %}{{ focused_po.cluster.client.name }}{% elif focused_po.customer %}{{ focused_po.customer.name }}{% endif %}).</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-field-symmetric">
                                 <label>Delivery Location / Site</label>
                                 {{ form.receiving_location }}
-                                <div class="field-help">Destination plant, terminal, or warehouse.</div>
+                                <div class="field-help">Defaults to {% if focused_po.cluster.client %}{{ focused_po.cluster.client.name }}{% elif focused_po.customer %}{{ focused_po.customer.name }}{% endif %} Main Site.</div>
                             </div>
                         </div>
                     </div>
@@ -751,6 +759,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnSubmit = document.getElementById('btnModalSubmit');
     const custSelect = document.querySelector('#logBatchModal select[name="receiving_customer"]');
     const locInput = document.querySelector('#logBatchModal input[name="receiving_location"]');
+    const supSelect = document.querySelector('#logBatchModal select[name="supplier"]');
+
+    const poCustomerId = "{{ focused_po.cluster.client_id|default:focused_po.customer_id }}";
+    const poCustomerName = "{% if focused_po.cluster.client %}{{ focused_po.cluster.client.name|escapejs }}{% elif focused_po.customer %}{{ focused_po.customer.name|escapejs }}{% endif %}";
+    const poMillId = "{{ focused_po.cluster.sugar_mill_id|default:'' }}";
+
+    function syncModalToPoCustomer() {
+        if (custSelect && poCustomerId) {
+            custSelect.value = poCustomerId;
+        }
+        if (supSelect && poMillId && !supSelect.value) {
+            supSelect.value = poMillId;
+        }
+        if (locInput && poCustomerName) {
+            const curVal = (locInput.value || '').trim();
+            const isDefaultSite = curVal.endsWith('Main Site') || curVal.endsWith('Main Facility');
+            if (!curVal || (isDefaultSite && !curVal.toLowerCase().startsWith(poCustomerName.toLowerCase()))) {
+                locInput.value = poCustomerName + ' Main Site';
+            }
+        }
+    }
+    syncModalToPoCustomer();
+    const modalElForSync = document.getElementById('logBatchModal');
+    if (modalElForSync) {
+        modalElForSync.addEventListener('show.bs.modal', syncModalToPoCustomer);
+    }
 
     function updateFreightCalculations() {
         const mt = parseFloat(mtInput?.value) || 0;

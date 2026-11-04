@@ -795,7 +795,7 @@ def get_executive_financial_summary(cluster) -> dict:
         )
         brg_partner_name = (
             d.barge_partner.name if d.barge_partner
-            else (d.barge_vessel or "Marine Barge")
+            else (getattr(d, "vessel_or_barge_name", "") or "Marine Barge")
         )
 
         batch_expenses.append({

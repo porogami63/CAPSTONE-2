@@ -1,230 +1,231 @@
 {% extends "app_base.html" %}
 {% load humanize role_tags %}
 {% block title %}Payment Matching · {{ cluster.reference_code }} · HTC Core{% endblock %}
-{% block topbar_title %}Payment &amp; Expense Matching Workspace{% endblock %}
+{% block topbar_title %}Payment &amp; Expense Reconciler{% endblock %}
 {% block topbar_subtitle %}{{ cluster.reference_code }} — {{ cluster.client.name }} [{{ cluster.sugar_mill.name }}]{% endblock %}
 
 {% block content %}
-<!-- Top Financial Match Overview Card -->
-<div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border-radius: 12px;" data-step="1" data-intro="Financial Reconciliation Header: Monitors overall reconciliation status, contract details, and remaining balances to match.">
-    <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <span class="badge bg-{{ match_badge }} fs-7 px-3 py-1 mb-1">{{ match_status }}</span>
-                <h4 class="fw-bold mb-0 text-dark">{{ cluster.reference_code }} Payment &amp; Expense Matching</h4>
-                <small class="text-muted">Customer: <strong>{{ cluster.client.name }}</strong> | Supplier: <strong>{{ cluster.sugar_mill.name }}</strong> | Volume: <strong>{{ cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</strong></small>
+<style>
+.recon-card {
+    background: var(--htc-surface, #ffffff);
+    border: 1px solid var(--htc-border, #e2e8f0);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.recon-kpi-tile {
+    background: var(--htc-surface-variant, #f8fafc);
+    border: 1px solid var(--htc-border, #e2e8f0);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.recon-kpi-tile.clickable {
+    cursor: pointer;
+}
+.recon-kpi-tile.clickable:hover {
+    border-color: var(--htc-primary, #2563eb);
+    background: rgba(37, 99, 235, 0.03);
+}
+#reconCategoryTabs .nav-link {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--htc-text-secondary, #475569);
+    border: 1px solid var(--htc-border, #e2e8f0);
+    background: var(--htc-surface-variant, #f8fafc);
+    border-radius: 8px;
+    padding: 0.45rem 0.65rem;
+    transition: all 0.15s ease;
+}
+#reconCategoryTabs .nav-link:hover {
+    border-color: #93c5fd;
+    color: #1e40af;
+}
+#reconCategoryTabs .nav-link.active {
+    background-color: var(--htc-primary, #1e40af) !important;
+    border-color: var(--htc-primary, #1e40af) !important;
+    color: #ffffff !important;
+}
+.recon-history-tabs .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--htc-text-muted, #64748b);
+    font-weight: 600;
+    font-size: 0.84rem;
+    padding: 0.65rem 1rem;
+    background: transparent;
+}
+.recon-history-tabs .nav-link.active {
+    color: var(--htc-primary, #2563eb);
+    border-bottom-color: var(--htc-primary, #2563eb);
+    background: transparent;
+}
+</style>
+
+<!-- Clean Header & 4-KPI Summary Strip -->
+<div class="recon-card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h4 class="fw-bold mb-0 text-dark">{{ cluster.reference_code }} Reconciler</h4>
+                <span class="badge bg-{{ match_badge }}-subtle text-{{ match_badge }} border border-{{ match_badge }}-subtle px-2.5 py-1 fw-semibold" style="font-size: 0.75rem;">
+                    {{ match_status }} · {{ match_pct }}% Matched
+                </span>
             </div>
-            <div class="text-end">
-                <a href="{% url 'operations:cluster_detail' cluster.pk %}" class="btn-htc-outline btn-sm"><i class="bi bi-arrow-left me-1"></i> Back to Order Details</a>
+            <div class="text-muted" style="font-size: 0.84rem;">
+                Customer: <strong class="text-dark">{{ cluster.client.name }}</strong>
+                <span class="mx-1.5 opacity-50">·</span>
+                Origin Mill: <strong class="text-dark">{{ cluster.sugar_mill.name }}</strong>
+                <span class="mx-1.5 opacity-50">·</span>
+                Contract Volume: <strong class="text-dark font-monospace">{{ cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</strong>
             </div>
         </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-sm btn-outline-secondary px-3">
+                <i class="bi bi-bank me-1"></i> Finance Workspace
+            </a>
+            <a href="{% url 'operations:cluster_detail' cluster.pk %}" class="btn btn-sm btn-outline-secondary px-3">
+                <i class="bi bi-arrow-left me-1"></i> Order Details
+            </a>
+        </div>
+    </div>
 
-        <!-- Matching Progress Bar -->
-        <div class="mb-2" data-step="2" data-intro="Matching Progress Deck: Visual progress bar tracking percentage matched across customer invoices, supplier sourcing costs, and freight expenses.">
-            <div class="d-flex justify-content-between fs-7 font-weight-bold mb-1">
-                <span>Matching Progress</span>
-                <span class="text-{{ match_badge }}">{{ match_pct }}% Matched (₱{{ total_matched|floatformat:2|intcomma }} of ₱{{ total_target|floatformat:2|intcomma }})</span>
-            </div>
-            <div class="progress" style="height: 10px; border-radius: 5px; background: rgba(0,0,0,0.06);">
-                <div class="progress-bar bg-{{ match_badge }}" role="progressbar" style="width: {{ match_pct }}%;" aria-valuenow="{{ match_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+    <!-- Progress Bar -->
+    <div class="progress mb-3" style="height: 7px; border-radius: 4px; background: #e2e8f0;">
+        <div class="progress-bar bg-{{ match_badge }}" role="progressbar" style="width: {{ match_pct }}%;" aria-valuenow="{{ match_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+
+    <!-- Streamlined 4-Card KPI Row -->
+    <div class="row g-3">
+        <div class="col-md-3 col-6">
+            <div class="recon-kpi-tile h-100">
+                <div class="text-xs text-muted text-uppercase fw-bold mb-1">Initial Loan Target (100%)</div>
+                <div class="fs-5 fw-bold text-dark font-monospace">₱{{ total_target|floatformat:2|intcomma }}</div>
+                <div class="text-xs text-muted mt-1">100% Sourcing + 100% Logistics</div>
             </div>
         </div>
-
-        <!-- Financial Breakdown KPI Card Grid (Uniform Height & Clean Category Titles) -->
-        <div class="row g-2 mt-2 align-items-stretch">
-            <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Bank Loan Amount</small>
-                    <span class="fs-6 font-weight-bold text-primary my-1">₱{{ total_target|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Total Loan Approved</small>
+        <div class="col-md-3 col-6">
+            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('sourcing')" title="Click to select Supplier Sourcing">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-xs text-muted text-uppercase fw-bold">Supplier Sourcing</span>
+                    <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">100%</span>
                 </div>
+                <div class="fs-5 fw-bold text-dark font-monospace">₱{{ sourcing_total|floatformat:2|intcomma }}</div>
+                <div class="text-xs text-muted mt-1">Unmatched: <strong class="text-primary font-monospace">₱{{ rem_sourcing|floatformat:2|intcomma }}</strong></div>
             </div>
-            <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('sourcing')" data-bs-toggle="tooltip" title="Click to select Supplier Purchase Cost in payment matching">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Supplier Purchase Cost</small>
-                    <span class="fs-6 font-weight-bold text-danger my-1">₱{{ sourcing_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_sourcing|floatformat:2|intcomma }}</strong></small>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('logistics_deposit')" title="Click to select Logistics">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-xs text-muted text-uppercase fw-bold">Total Logistics</span>
+                    <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">50% DP / 50% Bal</span>
                 </div>
+                <div class="fs-5 fw-bold text-dark font-monospace">₱{{ logistics_total|floatformat:2|intcomma }}</div>
+                <div class="text-xs text-muted mt-1">Undisbursed: <strong class="text-primary font-monospace">₱{{ rem_freight|floatformat:2|intcomma }}</strong></div>
             </div>
-            <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light border-warning h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="background-color: rgba(255,193,7,0.05); cursor: pointer;" onclick="selectReconCategory('logistics_deposit')" data-bs-toggle="tooltip" title="Click to select 50% Delivery Advance in payment matching">
-                    <small class="text-dark d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-clock-history me-1 text-warning"></i>50% Delivery Advance</small>
-                    <span class="fs-6 font-weight-bold text-danger my-1">₱{{ deposit_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_deposit|floatformat:2|intcomma }}</strong></small>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="recon-kpi-tile h-100" style="background: rgba(16, 185, 129, 0.04); border-color: rgba(16, 185, 129, 0.25);">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-xs text-success text-uppercase fw-bold">Matched Outlays</span>
+                    <span class="text-xs fw-bold text-success">{{ match_pct }}%</span>
                 </div>
-            </div>
-            <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('logistics_balance')" data-bs-toggle="tooltip" title="Click to select 50% Post-Delivery Balance in payment matching">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-shield-check me-1 text-success"></i>50% Delivery Balance</small>
-                    <span class="fs-6 font-weight-bold text-success my-1">₱{{ balance_pool_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_balance|floatformat:2|intcomma }}</strong></small>
-                </div>
-            </div>
-            <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('trucking')" data-bs-toggle="tooltip" title="Click to view total logistics cost">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-truck me-1 text-primary"></i>Total Logistics Price</small>
-                    <span class="fs-6 font-weight-bold text-dark my-1">₱{{ logistics_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Undisbursed: <strong class="text-primary">₱{{ rem_freight|floatformat:2|intcomma }}</strong></small>
-                </div>
-            </div>
-            <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Total Payments Matched</small>
-                    <span class="fs-6 font-weight-bold text-success my-1">₱{{ total_matched|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Total Expenses Recorded</small>
-                </div>
-            </div>
-            <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('other')" data-bs-toggle="tooltip" title="Click to select Other Expenses in payment matching">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">Remaining to Match</small>
-                    <span class="fs-6 font-weight-bold {% if remaining_balance > 0 %}text-warning{% else %}text-muted{% endif %} my-1">₱{{ remaining_balance|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Unmatched Expense</small>
-                </div>
+                <div class="fs-5 fw-bold text-success font-monospace">₱{{ total_matched|floatformat:2|intcomma }}</div>
+                <div class="text-xs text-muted mt-1">Remaining Target: <strong class="text-dark font-monospace">₱{{ remaining_balance|floatformat:2|intcomma }}</strong></div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="row g-4">
-    <!-- Step-by-Step Payment Matching Form -->
-    <div class="col-md-5" data-step="3" data-intro="Payment Matching Controls: Match customer receipts or supplier disbursements to bank vouchers with automatic capital loan facility reconciliation.">
+    <!-- Left Column: Clean Payment & Expense Match Form -->
+    <div class="col-lg-5">
         {% if not cluster.loans.all %}
-        <div class="alert alert-danger shadow-sm mb-3 p-3" style="border-radius: 10px; background: rgba(220,53,69,0.08); border: 1px solid rgba(220,53,69,0.3);">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-shield-exclamation fs-4 text-danger"></i>
-                <div>
-                    <strong style="font-size: 0.88rem; color: #dc3545;">Helpful Notice: Link a Bank Loan First</strong>
-                    <p class="mb-0 text-xs text-muted" style="font-size: 0.78rem;">Linking an active Bank Loan to this order enables automatic cash voucher creation when you match expenses.</p>
-                </div>
+        <div class="alert alert-warning d-flex align-items-center justify-content-between gap-2 py-2.5 px-3 mb-3 border-warning-subtle rounded-3" style="font-size: 0.82rem;">
+            <div>
+                <i class="bi bi-exclamation-circle-fill text-warning me-1.5"></i>
+                <strong>No Bank Loan Linked:</strong> Link a loan to auto-generate cash vouchers.
             </div>
-            <div class="mt-2">
-                <a href="{% url 'finance:loan_list' %}" class="btn btn-sm btn-danger py-1 px-3 fs-7 font-weight-bold">
-                    <i class="bi bi-plus-circle-fill me-1"></i> Add &amp; Link Bank Loan
-                </a>
-            </div>
+            <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-xs btn-warning fw-semibold py-1 px-2.5 text-nowrap">Link Loan</a>
         </div>
         {% endif %}
 
-        <div class="card border-0 shadow-sm" style="border-radius: 12px; background: var(--htc-surface);">
-            <div class="card-header bg-primary text-white py-3">
-                <h6 class="mb-0 font-weight-bold"><i class="bi bi-patch-check-fill me-2"></i>Record Payment &amp; Expense Match</h6>
+        <div class="recon-card overflow-hidden">
+            <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center" style="background: var(--htc-surface-variant, #f8fafc);">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-check2-circle text-primary me-2"></i>Record Payment &amp; Expense Match</h6>
+                <span class="text-xs text-muted">Auto-Voucher Enabled</span>
             </div>
-            <div class="card-body p-4">
-                <form method="post" action="{% url 'finance:add_match' cluster.pk %}" class="form-stack" id="paymentMatchForm">{% csrf_token %}
-                    
-                    <!-- Quick Allocation Tabs -->
+            <div class="p-4">
+                <form method="post" action="{% url 'finance:add_match' cluster.pk %}" id="paymentMatchForm">
+                    {% csrf_token %}
+
+                    <!-- Category Quick-Select Pills -->
                     <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-1.5">
-                            <label class="form-label font-semibold text-xs text-uppercase text-muted mb-0">
-                                <i class="bi bi-segmented-nav me-1"></i> Quick Expense Categories
-                            </label>
-                            <span class="text-xs text-primary fw-medium">Based on Actual Costs</span>
+                        <label class="form-label fw-semibold text-xs text-uppercase text-muted mb-1.5">1. Select Expense Category</label>
+                        <div class="d-flex flex-wrap gap-1.5" id="reconCategoryTabs" role="tablist">
+                            <button type="button" class="nav-link active" data-recon-cat="sourcing">Supplier Cost</button>
+                            <button type="button" class="nav-link" data-recon-cat="trucking">Trucking</button>
+                            <button type="button" class="nav-link" data-recon-cat="barge">Barge</button>
+                            <button type="button" class="nav-link" data-recon-cat="logistics_deposit">50% Advance</button>
+                            <button type="button" class="nav-link" data-recon-cat="logistics_balance">50% Balance</button>
+                            <button type="button" class="nav-link" data-recon-cat="other">Other</button>
                         </div>
-                        <div class="nav nav-pills nav-fill gap-1 bg-light p-1 rounded-3 border" id="reconCategoryTabs" role="tablist">
-                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold active rounded-2" data-recon-cat="sourcing">
-                                <i class="bi bi-shop me-1"></i> Supplier Cost
-                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_sourcing|floatformat:0|intcomma }} rem</span>
-                            </button>
-                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="trucking">
-                                <i class="bi bi-truck me-1"></i> Truck Delivery
-                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_trucking|floatformat:0|intcomma }} rem</span>
-                            </button>
-                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="barge">
-                                <i class="bi bi-water me-1"></i> Barge Delivery
-                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_barge|floatformat:0|intcomma }} rem</span>
-                            </button>
-                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="logistics_deposit">
-                                <i class="bi bi-percent me-1"></i> 50% Advance
-                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_deposit|floatformat:0|intcomma }} rem</span>
-                            </button>
-                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="logistics_balance">
-                                <i class="bi bi-shield-check me-1"></i> 50% Balance
-                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_balance|floatformat:0|intcomma }} rem</span>
-                            </button>
-                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="other">
-                                <i class="bi bi-three-dots me-1"></i> Other
-                                <span class="d-block text-xs fw-normal opacity-75">₱{{ remaining_balance|floatformat:0|intcomma }} rem</span>
-                            </button>
+                        <div class="d-none">
+                            {{ form.expense_type }}
                         </div>
                     </div>
 
-                    <!-- Step 1: Payment Reference -->
-                    <div class="form-field mb-3">
-                        <label for="{{ form.payment_reference.id_for_label }}" class="form-label font-semibold text-sm">
-                            {{ form.payment_reference.label }} <span class="text-danger">*</span>
-                        </label>
-                        {{ form.payment_reference }}
-                        {% if form.payment_reference.help_text %}<div class="field-help text-xs text-muted mt-1">{{ form.payment_reference.help_text }}</div>{% endif %}
-                        {% if form.payment_reference.errors %}<div class="field-error text-xs text-danger mt-1">{{ form.payment_reference.errors|striptags }}</div>{% endif %}
-                    </div>
-
-                    <!-- Step 2: Allocation Category Dropdown -->
-                    <div class="form-field mb-2">
-                        <label for="{{ form.expense_type.id_for_label }}" class="form-label font-semibold text-sm">
-                            {{ form.expense_type.label }} <span class="text-danger">*</span>
-                        </label>
-                        {{ form.expense_type }}
-                        {% if form.expense_type.help_text %}<div class="field-help text-xs text-muted mt-1">{{ form.expense_type.help_text }}</div>{% endif %}
-                        {% if form.expense_type.errors %}<div class="field-error text-xs text-danger mt-1">{{ form.expense_type.errors|striptags }}</div>{% endif %}
-                    </div>
-
-                    <!-- LIVE SUGGESTIVE INCURRED ALLOCATION CARD -->
-                    <div class="p-3 my-2 border rounded-3 bg-primary-subtle border-primary-subtle shadow-sm" id="reconSuggestiveCard">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold text-primary text-uppercase fs-7">
-                                <i class="bi bi-lightbulb-fill text-warning me-1"></i> Suggested Amount: <span id="suggCatName">Supplier Purchase Cost</span>
-                            </span>
+                    <!-- Compact Suggested Allocation Bar -->
+                    <div class="p-3 mb-3 rounded-3 border" style="background: rgba(37, 99, 235, 0.04); border-color: rgba(37, 99, 235, 0.2) !important;" id="reconSuggestiveCard">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1.5">
+                            <div>
+                                <span class="text-xs text-muted d-block" id="suggCatName">Supplier Purchase Cost</span>
+                                <div class="d-flex align-items-baseline gap-2">
+                                    <span class="text-xs text-muted">Remaining:</span>
+                                    <strong id="suggRemainingAmt" class="text-primary fs-6 font-monospace">₱0.00</strong>
+                                    <span class="text-xs text-muted">of <span id="suggIncurredAmt" class="font-monospace">₱0.00</span></span>
+                                </div>
+                            </div>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-7 fw-bold" id="btnApplyReconRemaining" title="Auto-fill remaining unmatched cost">
-                                    <i class="bi bi-magic me-1"></i> Apply Remaining
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 fs-7" id="btnApplyReconFull" title="Auto-fill 100% full cost">
-                                    100%
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 fs-7" id="btnApplyRecon50" title="Auto-fill 50% portion">
-                                    50%
-                                </button>
+                                <button type="button" class="btn btn-sm btn-primary py-0.5 px-2.5 fs-8 fw-semibold" id="btnApplyReconRemaining">Apply Remaining</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0.5 px-2 fs-8" id="btnApplyRecon50">50%</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0.5 px-2 fs-8" id="btnApplyReconFull">100%</button>
                             </div>
                         </div>
-                        <div class="row g-2 fs-7 text-dark mb-1">
-                            <div class="col-6">
-                                <span class="text-muted d-block text-xs">Total Cost:</span>
-                                <strong id="suggIncurredAmt" class="fs-6 text-dark">₱0.00</strong>
-                            </div>
-                            <div class="col-6 text-end">
-                                <span class="text-muted d-block text-xs">Remaining to Match:</span>
-                                <strong id="suggRemainingAmt" class="text-primary fs-6">₱0.00</strong>
-                            </div>
-                            <div class="col-12 mt-1 pt-1 border-top border-primary-subtle d-flex justify-content-between text-xs">
-                                <span>Already Matched: <strong id="suggMatchedAmt" class="text-success">₱0.00</strong> (<span id="suggMatchedPct">0</span>%)</span>
-                                <span id="suggStatusBadge" class="badge bg-secondary">Unmatched</span>
-                            </div>
+                        <div class="d-flex justify-content-between align-items-center text-xs text-muted pt-1 border-top" style="border-color: rgba(37, 99, 235, 0.12) !important;">
+                            <span>Matched: <strong id="suggMatchedAmt" class="text-success font-monospace">₱0.00</strong> (<span id="suggMatchedPct">0</span>%)</span>
+                            <span id="suggStatusBadge" class="badge bg-secondary" style="font-size: 0.65rem;">Unmatched</span>
                         </div>
-                        <div class="text-muted text-xs fst-italic mt-1" id="suggDescription">Select an expense category to view remaining balance.</div>
+                        <div class="d-none" id="suggDescription"></div>
                     </div>
 
-                    <!-- Step 3: Allocated Amount -->
-                    <div class="form-field mb-3">
-                        <label for="{{ form.amount.id_for_label }}" class="form-label font-semibold text-sm">
-                            {{ form.amount.label }} <span class="text-danger">*</span>
-                        </label>
-                        <div id="reconAmountWrap" data-bs-toggle="tooltip" data-bs-placement="top" title="Enter payment amount in PHP">
-                            {{ form.amount }}
+                    <!-- Payment Reference & Amount Row -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <label for="{{ form.payment_reference.id_for_label }}" class="form-label fw-semibold text-xs text-uppercase text-muted mb-1">
+                                2. Payment Ref # <span class="text-danger">*</span>
+                            </label>
+                            {{ form.payment_reference }}
+                            {% if form.payment_reference.errors %}<div class="text-xs text-danger mt-1">{{ form.payment_reference.errors|striptags }}</div>{% endif %}
                         </div>
-                        <div id="reconAmountFeedback" class="form-text text-xs mt-1 text-primary fw-medium" style="display: none;"></div>
-                        {% if form.amount.help_text %}<div class="field-help text-xs text-muted mt-1">{{ form.amount.help_text }}</div>{% endif %}
-                        {% if form.amount.errors %}<div class="field-error text-xs text-danger mt-1">{{ form.amount.errors|striptags }}</div>{% endif %}
+                        <div class="col-sm-6">
+                            <label for="{{ form.amount.id_for_label }}" class="form-label fw-semibold text-xs text-uppercase text-muted mb-1">
+                                3. Amount (₱) <span class="text-danger">*</span>
+                            </label>
+                            <div id="reconAmountWrap">
+                                {{ form.amount }}
+                            </div>
+                            {% if form.amount.errors %}<div class="text-xs text-danger mt-1">{{ form.amount.errors|striptags }}</div>{% endif %}
+                        </div>
                     </div>
+                    <div id="reconAmountFeedback" class="text-xs mb-3 text-primary fw-medium" style="display: none;"></div>
 
                     <!-- Notes -->
-                    <div class="form-field mb-3">
-                        <label for="{{ form.notes.id_for_label }}" class="form-label font-semibold text-sm">{{ form.notes.label }}</label>
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label fw-semibold text-xs text-uppercase text-muted mb-1">Notes (Optional)</label>
                         {{ form.notes }}
-                        {% if form.notes.help_text %}<div class="field-help text-xs text-muted mt-1">{{ form.notes.help_text }}</div>{% endif %}
-                        {% if form.notes.errors %}<div class="field-error text-xs text-danger mt-1">{{ form.notes.errors|striptags }}</div>{% endif %}
                     </div>
 
-                    <button type="submit" class="btn-htc w-100 mt-2 py-2">
+                    <button type="submit" class="btn-htc w-100 py-2 fw-semibold">
                         <i class="bi bi-check-circle-fill me-1"></i> Save Payment Match
                     </button>
                 </form>
@@ -232,125 +233,101 @@
         </div>
     </div>
 
-    <!-- Audit Ledger of Recorded Matches -->
-    <div class="col-md-7">
-        <!-- Dedicated Logistics Milestone Breakdown & Dynamic Batch Reconciliation Ledger Card -->
-        <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: var(--htc-surface); border-left: 4px solid var(--htc-primary) !important;">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <!-- Right Column: Milestone & Batch Ledger + Tabbed Match & Voucher History -->
+    <div class="col-lg-7">
+        <!-- Logistics Milestone & Batch Reconciliation Ledger -->
+        <div class="recon-card overflow-hidden mb-4">
+            <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: var(--htc-surface-variant, #f8fafc);">
                 <div>
-                    <h6 class="mb-0 fw-bold text-dark">
-                        <i class="bi bi-diagram-3-fill text-primary me-2"></i>Logistics Milestone &amp; Batch Reconciliation Ledger
-                    </h6>
-                    <small class="text-muted text-xs">2-Milestone Rule: 50% Down Payment upfront + 50% Post-Delivery Balance released upon physical receipt.</small>
+                    <h6 class="mb-0 fw-bold text-dark">Logistics Milestone &amp; Batch Reconciliation Ledger</h6>
+                    <small class="text-muted text-xs">50% Down Payment upfront · 50% Post-Delivery Balance released per confirmed batch</small>
                 </div>
-                <span class="badge bg-light text-dark border">Total Logistics: ₱{{ ledger.total_logistics_budget|floatformat:2|intcomma }}</span>
+                <span class="badge bg-white text-dark border font-monospace">Undisbursed: ₱{{ ledger.total_undisbursed_funds|floatformat:2|intcomma }}</span>
             </div>
-            <div class="card-body p-3">
-                <!-- Milestone 1 vs Milestone 2 Overview Deck -->
-                <div class="row g-2 mb-3">
+
+            <div class="p-3.5">
+                <!-- Milestone 1 & 2 Compact Cards -->
+                <div class="row g-2.5 mb-3">
                     <div class="col-md-6">
-                        <div class="p-2.5 rounded-3 border bg-light h-100">
+                        <div class="p-3 rounded-3 border bg-light h-100">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="text-xs fw-bold text-uppercase text-muted"><i class="bi bi-clock-history text-warning me-1"></i>Milestone 1: 50% Down Payment</span>
-                                <span class="badge bg-{{ ledger.down_payment_badge }} text-white text-xs">{{ ledger.down_payment_status }}</span>
+                                <span class="text-xs fw-bold text-uppercase text-muted">Milestone 1: 50% Down Payment</span>
+                                <span class="badge bg-{{ ledger.down_payment_badge }} text-white" style="font-size: 0.65rem;">{{ ledger.down_payment_status }}</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-baseline">
-                                <strong class="fs-6 text-dark">₱{{ ledger.down_payment_paid|floatformat:2|intcomma }}</strong>
-                                <small class="text-muted text-xs">Budget: ₱{{ ledger.down_payment_budget|floatformat:2|intcomma }}</small>
+                                <strong class="fs-6 text-dark font-monospace">₱{{ ledger.down_payment_paid|floatformat:2|intcomma }}</strong>
+                                <small class="text-muted text-xs font-monospace">of ₱{{ ledger.down_payment_budget|floatformat:2|intcomma }}</small>
                             </div>
-                            <div class="progress mt-1.5" style="height: 6px;">
-                                <div class="progress-bar bg-{{ ledger.down_payment_badge }}" style="width: {{ ledger.down_payment_pct_paid }}%;"></div>
-                            </div>
-                            <div class="d-flex justify-content-between text-xs text-muted mt-1">
+                            <div class="d-flex justify-content-between text-xs text-muted mt-1.5 pt-1.5 border-top">
                                 <span>Paid: {{ ledger.down_payment_pct_paid }}%</span>
-                                <span>Rem: <strong class="text-primary">₱{{ ledger.down_payment_remaining|floatformat:2|intcomma }}</strong></span>
+                                <span>Rem: <strong class="text-primary font-monospace">₱{{ ledger.down_payment_remaining|floatformat:2|intcomma }}</strong></span>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="p-2.5 rounded-3 border bg-light h-100">
+                        <div class="p-3 rounded-3 border bg-light h-100">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="text-xs fw-bold text-uppercase text-muted"><i class="bi bi-shield-check text-success me-1"></i>Milestone 2: 50% Post-Delivery Balance</span>
-                                <span class="badge bg-{{ ledger.balance_pool_badge }} text-white text-xs">{{ ledger.balance_pool_status }}</span>
+                                <span class="text-xs fw-bold text-uppercase text-muted">Milestone 2: 50% Post-Delivery Balance</span>
+                                <span class="badge bg-{{ ledger.balance_pool_badge }} text-white" style="font-size: 0.65rem;">{{ ledger.balance_pool_status }}</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-baseline">
-                                <strong class="fs-6 text-dark">₱{{ ledger.balance_pool_reconciled|floatformat:2|intcomma }}</strong>
-                                <small class="text-muted text-xs">Pool Budget: ₱{{ ledger.final_balance_pool|floatformat:2|intcomma }}</small>
+                                <strong class="fs-6 text-dark font-monospace">₱{{ ledger.balance_pool_reconciled|floatformat:2|intcomma }}</strong>
+                                <small class="text-muted text-xs font-monospace">of ₱{{ ledger.final_balance_pool|floatformat:2|intcomma }}</small>
                             </div>
-                            <div class="progress mt-1.5" style="height: 6px;">
-                                <div class="progress-bar bg-{{ ledger.balance_pool_badge }}" style="width: {{ ledger.balance_pool_pct_reconciled }}%;"></div>
-                            </div>
-                            <div class="d-flex justify-content-between text-xs text-muted mt-1">
+                            <div class="d-flex justify-content-between text-xs text-muted mt-1.5 pt-1.5 border-top">
                                 <span>Reconciled: {{ ledger.balance_pool_pct_reconciled }}%</span>
-                                <span>Remaining Pool: <strong class="text-primary">₱{{ ledger.balance_pool_remaining|floatformat:2|intcomma }}</strong></span>
+                                <span>Pool Rem: <strong class="text-primary font-monospace">₱{{ ledger.balance_pool_remaining|floatformat:2|intcomma }}</strong></span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Running Undisbursed Logistics Funds Banner -->
-                <div class="p-2 px-3 rounded-2 bg-primary-subtle border border-primary-subtle d-flex justify-content-between align-items-center text-xs mb-3">
-                    <span><i class="bi bi-wallet2 text-primary me-1.5"></i><strong>Remaining Undisbursed Logistics Funds:</strong></span>
-                    <span class="fw-bold fs-7 text-primary">₱{{ ledger.total_undisbursed_funds|floatformat:2|intcomma }} <small class="text-muted fw-normal">of ₱{{ ledger.total_logistics_budget|floatformat:2|intcomma }}</small></span>
+                <!-- Shipment Batches Received & Balance Reconciliation -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold text-dark" style="font-size: 0.82rem;">Shipment Batches Received &amp; Balance Reconciliation</span>
+                    <span class="badge bg-secondary-subtle text-secondary border" style="font-size: 0.7rem;">{{ ledger.batches_count }} Batch{{ ledger.batches_count|pluralize:"es" }}</span>
                 </div>
-
-                <!-- Dynamic Delivery Batches Table -->
-                <h6 class="fw-bold text-dark fs-7 mb-2 d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-truck me-1.5 text-warning"></i>Shipment Batches Received &amp; Balance Reconciliation</span>
-                    <span class="badge bg-secondary text-xs">{{ ledger.batches_count }} Batches</span>
-                </h6>
-                <div class="table-responsive border rounded-2">
+                <div class="table-responsive border rounded-3">
                     <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.8rem;">
                         <thead class="table-light">
                             <tr class="text-muted text-uppercase" style="font-size: 0.68rem;">
-                                <th>Batch Ref</th>
-                                <th>Delivered MT</th>
-                                <th>Confirmation Date</th>
+                                <th class="ps-3">Batch</th>
+                                <th>Volume</th>
                                 <th class="text-end">100% Freight</th>
-                                <th class="text-end">50% DP Covered</th>
-                                <th class="text-end">50% Post-Delivery Balance</th>
-                                <th class="text-end">Reconciled Balance</th>
+                                <th class="text-end">50% Balance Due</th>
+                                <th class="text-end">Reconciled</th>
                                 <th>Status</th>
-                                <th class="text-center">Action</th>
+                                <th class="text-end pe-3">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for b in ledger.batches %}
                             <tr>
-                                <td>
+                                <td class="ps-3">
                                     <strong class="font-monospace text-primary">#{{ b.short_id }}</strong>
-                                    <div class="text-muted" style="font-size: 0.72rem;">{{ b.location }}</div>
+                                    <div class="text-muted" style="font-size: 0.7rem;">{{ b.location }}</div>
                                 </td>
-                                <td><strong>{{ b.delivered_mt|floatformat:3|intcomma }} MT</strong></td>
-                                <td>
-                                    {% if b.is_confirmed %}
-                                    <span class="text-success fw-medium"><i class="bi bi-check-circle-fill me-1"></i>{{ b.confirmation_date_display }}</span>
-                                    {% else %}
-                                    <span class="text-muted fst-italic"><i class="bi bi-hourglass-split me-1"></i>In Transit</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end font-monospace">₱{{ b.batch_logistics_cost|floatformat:2|intcomma }}</td>
-                                <td class="text-end font-monospace text-muted">₱{{ b.batch_downpayment_covered|floatformat:2|intcomma }}</td>
+                                <td class="font-monospace fw-semibold">{{ b.delivered_mt|floatformat:2|intcomma }} MT</td>
+                                <td class="text-end font-monospace text-muted">₱{{ b.batch_logistics_cost|floatformat:2|intcomma }}</td>
                                 <td class="text-end font-monospace fw-bold text-dark">₱{{ b.batch_balance_due|floatformat:2|intcomma }}</td>
                                 <td class="text-end font-monospace fw-bold text-success">₱{{ b.reconciled_amount|floatformat:2|intcomma }}</td>
-                                <td><span class="badge bg-{{ b.badge }} text-white text-xs">{{ b.status }}</span></td>
-                                <td class="text-center">
+                                <td><span class="badge bg-{{ b.badge }} text-white" style="font-size: 0.65rem;">{{ b.status }}</span></td>
+                                <td class="text-end pe-3">
                                     {% if b.remaining_due > 0 and b.is_confirmed %}
                                     <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-8 fw-semibold" onclick="selectBatchRecon('{{ b.short_id }}', '{{ b.suggested_match_ref }}', {{ b.remaining_due }}, '{{ b.location|escapejs }}', '{{ b.delivered_mt }}')">
-                                        <i class="bi bi-magic me-1"></i> Match 50%
+                                        Match 50%
                                     </button>
                                     {% elif b.remaining_due <= 0 and b.batch_balance_due > 0 %}
-                                    <span class="badge bg-success-subtle text-success border border-success text-xs"><i class="bi bi-check2"></i> Reconciled</span>
+                                    <span class="text-success fw-semibold" style="font-size: 0.74rem;"><i class="bi bi-check2-all"></i> Done</span>
                                     {% else %}
-                                    <span class="text-muted text-xs">Pending Delivery</span>
+                                    <span class="text-muted text-xs">Pending</span>
                                     {% endif %}
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-3">
-                                    <i class="bi bi-info-circle me-1"></i> No shipment delivery batches recorded for this order yet.
-                                    As shipments are received, their 50% post-delivery balances will automatically appear here for reconciliation.
+                                <td colspan="7" class="text-center text-muted py-3">
+                                    No shipment batches recorded yet.
                                 </td>
                             </tr>
                             {% endfor %}
@@ -360,141 +337,106 @@
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm" style="border-radius: 12px; background: var(--htc-surface);">
-            <div class="card-header bg-white py-3 flex-between">
-                <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-list-check text-primary me-2"></i>Recorded Payment Matches History</h6>
-                <span class="badge bg-secondary">Total: ₱{{ total_matched|floatformat:2|intcomma }}</span>
+        <!-- Unified Tabbed Card: Recorded Matches & Cash Vouchers -->
+        <div class="recon-card overflow-hidden">
+            <div class="px-3 pt-1 border-bottom d-flex justify-content-between align-items-center flex-wrap" style="background: var(--htc-surface-variant, #f8fafc);">
+                <ul class="nav nav-tabs recon-history-tabs border-0" id="reconHistoryTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="matches-tab" data-bs-toggle="tab" data-bs-target="#matchesPane" type="button" role="tab">
+                            Recorded Payment Matches <span class="badge bg-secondary-subtle text-secondary ms-1">{{ reconciliation.matches.count }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="vouchers-tab" data-bs-toggle="tab" data-bs-target="#vouchersPane" type="button" role="tab">
+                            Generated Cash Vouchers <span class="badge bg-secondary-subtle text-secondary ms-1">{{ cluster.cash_vouchers.count }}</span>
+                        </button>
+                    </li>
+                </ul>
+                <span class="text-xs text-muted pe-2 font-monospace">Total Matched: <strong class="text-success">₱{{ total_matched|floatformat:2|intcomma }}</strong></span>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
-                    <thead class="table-light">
-                        <tr class="text-uppercase text-muted" style="font-size: 0.72rem; letter-spacing: 0.5px;">
-                            <th>Payment Ref #</th>
-                            <th>Expense Category</th>
-                            <th class="text-end">Amount Paid</th>
-                            <th>Date</th>
-                            {% if user|has_perm:"verify_loan" or user.is_superuser %}
-                            <th class="text-end">Action</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for m in reconciliation.matches.all %}
-                        <tr>
-                            <td><strong class="text-primary font-monospace">{{ m.payment_reference }}</strong></td>
-                            <td><span class="badge bg-light text-dark border">{{ m.get_expense_type_display }}</span></td>
-                            <td class="text-end font-weight-bold text-success">₱{{ m.amount|floatformat:2|intcomma }}</td>
-                            <td class="text-muted font-monospace" style="font-size: 0.8rem;">{{ m.matched_at|date:"M d, Y H:i:s" }} PST</td>
-                            {% if user|has_perm:"verify_loan" or user.is_superuser %}
-                            <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 fs-7" data-bs-toggle="modal" data-bs-target="#deleteMatchModal{{ m.pk }}" title="Delete / Remove Payment Match">
-                                    <i class="bi bi-trash-fill"></i>
-                                </button>
 
-                                <!-- Confirmation Modal for Match Removal -->
-                                <div class="modal fade text-start" id="deleteMatchModal{{ m.pk }}" tabindex="-1" aria-labelledby="deleteMatchModalLabel{{ m.pk }}" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
-                                        <div class="modal-content" style="border-radius: 12px; background: var(--htc-surface);">
-                                            <div class="modal-header bg-danger text-white py-3">
-                                                <h6 class="modal-title font-weight-bold mb-0" id="deleteMatchModalLabel{{ m.pk }}">
-                                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirm Removal of Payment Match
-                                                </h6>
-                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body p-4">
-                                                <div class="alert alert-warning mb-3 p-3 text-xs" style="border-radius: 8px;">
-                                                    <strong>CAUTION (Management / Admin Action):</strong> Removing this matched payment entry will adjust totals and cancel any linked auto-generated cash voucher.
-                                                </div>
-                                                <div class="mb-2 fs-7">
-                                                    <div>Payment Reference: <strong class="font-monospace text-primary">{{ m.payment_reference }}</strong></div>
-                                                    <div>Expense Category: <strong>{{ m.get_expense_type_display }}</strong></div>
-                                                    <div>Amount: <strong class="text-danger">₱{{ m.amount|floatformat:2|intcomma }}</strong></div>
-                                                </div>
-                                                <p class="text-muted text-xs mb-0 mt-3">Are you sure you want to proceed with deleting this record?</p>
-                                            </div>
-                                            <div class="modal-footer bg-light py-2">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
-                                                <form method="post" action="{% url 'finance:delete_match' cluster.pk m.pk %}" class="d-inline">{% csrf_token %}
-                                                    <button type="submit" class="btn btn-sm btn-danger px-3 font-weight-bold">
-                                                        <i class="bi bi-trash-fill me-1"></i> Delete Payment Match
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            {% endif %}
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-4">No payment matches recorded yet. Use the form on the left to match payments with expenses.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="tab-content">
+                <!-- Tab 1: Recorded Payment Matches -->
+                <div class="tab-pane fade show active" id="matchesPane" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.82rem;">
+                            <thead class="table-light">
+                                <tr class="text-uppercase text-muted" style="font-size: 0.7rem;">
+                                    <th class="ps-3.5">Payment Ref #</th>
+                                    <th>Category</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Date</th>
+                                    {% if user|has_perm:"verify_loan" or user.is_superuser %}
+                                    <th class="text-end pe-3.5">Action</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in reconciliation.matches.all %}
+                                <tr>
+                                    <td class="ps-3.5"><strong class="text-primary font-monospace">{{ m.payment_reference }}</strong></td>
+                                    <td><span class="badge bg-light text-dark border">{{ m.get_expense_type_display }}</span></td>
+                                    <td class="text-end fw-bold text-success font-monospace">₱{{ m.amount|floatformat:2|intcomma }}</td>
+                                    <td class="text-muted font-monospace" style="font-size: 0.76rem;">{{ m.matched_at|date:"M d, Y H:i" }}</td>
+                                    {% if user|has_perm:"verify_loan" or user.is_superuser %}
+                                    <td class="text-end pe-3.5">
+                                        <form method="post" action="{% url 'finance:delete_match' cluster.pk m.pk %}" class="d-inline" onsubmit="return confirm('Remove payment match {{ m.payment_reference }} (₱{{ m.amount|floatformat:2|intcomma }})?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.74rem;" title="Delete Payment Match">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No payment matches recorded yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Generated Cash Vouchers -->
+                <div class="tab-pane fade" id="vouchersPane" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.82rem;">
+                            <thead class="table-light">
+                                <tr class="text-uppercase text-muted" style="font-size: 0.7rem;">
+                                    <th class="ps-3.5">Voucher #</th>
+                                    <th>Date</th>
+                                    <th>Purpose</th>
+                                    <th class="text-end pe-3.5">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for v in cluster.cash_vouchers.all %}
+                                <tr>
+                                    <td class="ps-3.5">
+                                        <strong class="text-dark font-monospace">{{ v.voucher_number }}</strong>
+                                        <a href="{% url 'finance:download_voucher_pdf' v.pk %}" class="btn btn-sm btn-outline-danger ms-1.5 py-0 px-1.5" style="font-size: 0.68rem;">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                                        </a>
+                                    </td>
+                                    <td class="text-muted" style="font-size: 0.78rem;">{{ v.issued_at|date:"M d, Y" }}</td>
+                                    <td class="text-muted">{{ v.purpose }}</td>
+                                    <td class="text-end pe-3.5 fw-bold font-monospace">₱{{ v.amount|floatformat:2|intcomma }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">No cash vouchers generated yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <!-- Generated Cash Vouchers List -->
-        <div class="card border-0 shadow-sm mt-4" style="border-radius: 12px; background: var(--htc-surface);">
-            <div class="card-header bg-white py-3">
-                <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-receipt-cutoff text-success me-2"></i>Generated Cash Vouchers</h6>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
-                    <thead class="table-light">
-                        <tr class="text-uppercase text-muted" style="font-size: 0.72rem; letter-spacing: 0.5px;">
-                            <th>Voucher #</th>
-                            <th>Date</th>
-                            <th>Purpose</th>
-                            <th class="text-end">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for v in cluster.cash_vouchers.all %}
-                        <tr>
-                            <td>
-                                <strong class="text-dark font-monospace">{{ v.voucher_number }}</strong>
-                                <a href="{% url 'finance:download_voucher_pdf' v.pk %}" class="btn btn-sm btn-outline-danger ms-2 py-0 px-2" style="font-size: 0.7rem;" title="Download Official Voucher PDF">
-                                    <i class="bi bi-file-earmark-pdf-fill"></i> PDF
-                                </a>
-                            </td>
-                            <td class="text-muted" style="font-size: 0.8rem;">{{ v.issued_at|date:"M d, Y" }}</td>
-                            <td><span class="text-muted">{{ v.purpose }}</span></td>
-                            <td class="text-end font-weight-bold">₱{{ v.amount|floatformat:2|intcomma }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-4">No cash vouchers generated yet. Matching an expense will automatically generate one.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
     </div>
 </div>
-
-<style>
-.recon-kpi-clickable {
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-}
-.recon-kpi-clickable:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-    border-color: var(--htc-primary-light) !important;
-}
-#reconCategoryTabs .nav-link {
-    transition: all 0.2s ease;
-}
-#reconCategoryTabs .nav-link.active {
-    background-color: var(--htc-primary, #1e40af) !important;
-    color: #ffffff !important;
-    box-shadow: 0 2px 6px rgba(30, 64, 175, 0.25);
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -538,23 +480,18 @@ document.addEventListener('DOMContentLoaded', function() {
     window.selectReconCategory = function(catKey) {
         if (!suggestions || !suggestions[catKey]) return;
 
-        // 1. Sync dropdown
         if (dropdown && dropdown.value !== catKey) {
             dropdown.value = catKey;
         }
 
-        // 2. Sync category tabs
         tabButtons.forEach(function(btn) {
             if (btn.getAttribute('data-recon-cat') === catKey) {
                 btn.classList.add('active');
-                btn.classList.remove('text-dark');
             } else {
                 btn.classList.remove('active');
-                btn.classList.add('text-dark');
             }
         });
 
-        // 3. Update Suggestive Card
         const data = suggestions[catKey];
         const nameEl = document.getElementById('suggCatName');
         const incurredEl = document.getElementById('suggIncurredAmt');
@@ -584,20 +521,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // 4. Update Amount Input attributes & auto-suggestion
         if (amountInput) {
-            const tip = 'Suggested Remaining for ' + data.name + ': ' + fmt(data.suggested) + ' (Incurred: ' + fmt(data.incurred) + ')';
             amountInput.setAttribute('placeholder', 'Suggested: ' + fmt(data.suggested));
-            if (amountWrap) {
-                amountWrap.setAttribute('data-bs-original-title', tip);
-                amountWrap.setAttribute('title', tip);
-            }
             if (!amountInput.value || parseFloat(amountInput.value) <= 0) {
                 amountInput.value = data.suggested.toFixed(2);
             }
         }
 
-        // 5. Update Live Feedback
         updateFeedback();
     };
 
@@ -615,19 +545,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         amountFeedback.style.display = 'block';
         if (data.incurred > 0 && Math.abs(val - data.remaining) < 0.01) {
-            amountFeedback.className = 'form-text text-xs mt-1 text-success fw-bold';
-            amountFeedback.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Exact Remaining Match: Matches 100% of remaining ' + data.name + ' (' + fmt(data.remaining) + ').';
-        } else if (data.incurred > 0 && Math.abs(val - data.incurred) < 0.01) {
-            amountFeedback.className = 'form-text text-xs mt-1 text-primary fw-bold';
-            amountFeedback.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i> Full Amount: 100% of total ' + data.name + ' (' + fmt(data.incurred) + ').';
+            amountFeedback.className = 'text-xs mb-3 text-success fw-semibold';
+            amountFeedback.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Matches 100% of remaining ' + data.name + ' (' + fmt(data.remaining) + ').';
         } else if (data.incurred > 0) {
             const pct = (val / data.incurred * 100).toFixed(1);
             const afterRem = Math.max(0, data.remaining - val);
-            amountFeedback.className = 'form-text text-xs mt-1 text-primary fw-medium';
-            amountFeedback.innerHTML = 'Portion: <strong>' + pct + '%</strong> of total cost. Remaining to match after this: <strong>' + fmt(afterRem) + '</strong>.';
+            amountFeedback.className = 'text-xs mb-3 text-primary fw-medium';
+            amountFeedback.innerHTML = 'Covers <strong>' + pct + '%</strong> of category cost · Remaining after match: <strong>' + fmt(afterRem) + '</strong>.';
         } else {
-            amountFeedback.className = 'form-text text-xs mt-1 text-muted';
-            amountFeedback.textContent = 'Amount: ' + fmt(val);
+            amountFeedback.style.display = 'none';
         }
     }
 
@@ -639,13 +565,11 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFeedback();
     }
 
-    // Quick suggestion buttons
     const btnRem = document.getElementById('btnApplyReconRemaining');
     if (btnRem) {
         btnRem.addEventListener('click', function(e) {
             e.preventDefault();
-            const catKey = getSelectedCategory();
-            const data = suggestions[catKey];
+            const data = suggestions[getSelectedCategory()];
             if (data) applyAmount(data.suggested);
         });
     }
@@ -654,8 +578,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnFull) {
         btnFull.addEventListener('click', function(e) {
             e.preventDefault();
-            const catKey = getSelectedCategory();
-            const data = suggestions[catKey];
+            const data = suggestions[getSelectedCategory()];
             if (data) applyAmount(data.incurred);
         });
     }
@@ -664,34 +587,28 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btn50) {
         btn50.addEventListener('click', function(e) {
             e.preventDefault();
-            const catKey = getSelectedCategory();
-            const data = suggestions[catKey];
+            const data = suggestions[getSelectedCategory()];
             if (data) applyAmount(data.suggested_50);
         });
     }
 
-    // Tab buttons listener
     tabButtons.forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
-            const catKey = this.getAttribute('data-recon-cat');
-            selectReconCategory(catKey);
+            selectReconCategory(this.getAttribute('data-recon-cat'));
         });
     });
 
-    // Dropdown change listener
     if (dropdown) {
         dropdown.addEventListener('change', function() {
             selectReconCategory(this.value);
         });
     }
 
-    // Amount input listener
     if (amountInput) {
         amountInput.addEventListener('input', updateFeedback);
     }
 
-    // Initial load
     const initialCat = dropdown ? dropdown.value : 'sourcing';
     selectReconCategory(initialCat || 'sourcing');
 });

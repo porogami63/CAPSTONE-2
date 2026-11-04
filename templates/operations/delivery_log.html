@@ -223,7 +223,7 @@
                 <span class="fs-8 text-muted">Incremental Fulfillment</span>
             </div>
             <div class="panel-body p-4">
-                <form method="post" action="{% url 'operations:log_delivery' %}" id="deliveryForm" class="form-stack">
+                <form method="post" action="{% url 'operations:log_delivery' %}" id="deliveryForm" class="form-stack" autocomplete="off">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}">
 
@@ -280,11 +280,16 @@
                         <!-- Field 4: Receiving Customer & Destination -->
                         <div class="col-md-6">
                             <div class="form-field-symmetric">
-                                <label for="{{ form.receiving_customer.id_for_label }}">
-                                    {{ form.receiving_customer.label }} <span class="text-danger">*</span>
-                                </label>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="{{ form.receiving_customer.id_for_label }}" class="mb-0">
+                                        {{ form.receiving_customer.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-8 py-0.5 px-2 d-none" id="customerOriginPill">
+                                        Customer Origin: <span id="customerOriginPillText"></span>
+                                    </span>
+                                </div>
                                 {{ form.receiving_customer }}
-                                <div class="field-help">Customer receiving delivery.</div>
+                                <div class="field-help" id="customerLockHelp">Strictly locked to the selected PO's Customer.</div>
                                 {% if form.receiving_customer.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1">{{ form.receiving_customer.errors|striptags }}</div>
                                 {% endif %}
@@ -760,11 +765,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.customer_id) {
                     const custSelect = document.getElementById('id_receiving_customer_select');
                     if (custSelect) {
-                        custSelect.value = data.customer_id;
+                        custSelect.value = String(data.customer_id);
+                    }
+                    const custOriginPill = document.getElementById('customerOriginPill');
+                    const custOriginText = document.getElementById('customerOriginPillText');
+                    if (custOriginPill && custOriginText) {
+                        custOriginText.textContent = data.customer_origin_indicator || data.customer_name;
+                        custOriginPill.classList.remove('d-none');
+                    }
+                    const custLockHelp = document.getElementById('customerLockHelp');
+                    if (custLockHelp && data.customer_name) {
+                        custLockHelp.textContent = `Strictly locked to PO Customer (${data.customer_name}).`;
                     }
                     const locInput = document.getElementById('id_delivery_location');
-                    if (locInput && (!locInput.value || locInput.value.includes('Main Site') || locInput.value.includes('Main Facility'))) {
-                        locInput.value = data.customer_name + ' Main Facility';
+                    if (locInput && data.customer_name) {
+                        const curLoc = (locInput.value || '').trim();
+                        if (!curLoc || curLoc.includes('Main Site') || curLoc.includes('Main Facility')) {
+                            locInput.value = data.customer_name + ' Main Site';
+                        }
                     }
                 }
 

@@ -359,11 +359,11 @@ class DeliveryLedgerForm(forms.ModelForm):
             "notes": "Notes / Remarks",
         }
         widgets = {
-            "purchase_order": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_po"}),
-            "supplier": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_supplier"}),
-            "mro_permit": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_mro"}),
-            "delivered_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "e.g. 2000.000", "id": "id_delivery_mt"}),
-            "receiving_location": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Main Plant, Warehouse 2, Silo A", "id": "id_delivery_location"}),
+            "purchase_order": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_po", "autocomplete": "off"}),
+            "supplier": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_supplier", "autocomplete": "off"}),
+            "mro_permit": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_mro", "autocomplete": "off"}),
+            "delivered_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "e.g. 2000.000", "id": "id_delivery_mt", "autocomplete": "off"}),
+            "receiving_location": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Main Plant, Warehouse 2, Silo A", "id": "id_delivery_location", "autocomplete": "off"}),
             "delivery_date": forms.DateInput(attrs={"type": "date", "class": "form-control-htc", "id": "id_delivery_date"}),
             "dispatched_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control-htc", "id": "id_dispatched_at"}),
             "received_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control-htc", "id": "id_received_at"}),
@@ -456,21 +456,37 @@ class DeliveryLedgerForm(forms.ModelForm):
         else:
             self.fields["mro_permit"].queryset = MolassesReleaseOrder.objects.all().order_by("-created_at")[:50]
 
+        if not initial_po and self.data and self.data.get("purchase_order"):
+            try:
+                initial_po = PurchaseOrder.objects.select_related("cluster", "customer", "cluster__client", "cluster__sugar_mill").filter(pk=int(self.data.get("purchase_order"))).first()
+            except (ValueError, TypeError):
+                pass
+
         if initial_po:
+            if hasattr(initial_po, "cluster") and initial_po.cluster and initial_po.cluster.client_id:
+                if initial_po.customer_id != initial_po.cluster.client_id:
+                    initial_po.customer = initial_po.cluster.client
+                    initial_po.save(update_fields=["customer"])
             self.fields["purchase_order"].initial = initial_po
-            cust = initial_po.customer or (initial_po.cluster.client if hasattr(initial_po, "cluster") and initial_po.cluster else None)
+            self.initial["purchase_order"] = initial_po.pk
+            cust = (initial_po.cluster.client if hasattr(initial_po, "cluster") and initial_po.cluster and initial_po.cluster.client else None) or initial_po.customer
             if cust:
                 self.fields["receiving_customer"].initial = cust
+                self.initial["receiving_customer"] = cust.pk
                 if not self.initial.get("receiving_location"):
-                    self.fields["receiving_location"].initial = f"{cust.name} Main Site"
+                    default_site = f"{cust.name} Main Site"
+                    self.fields["receiving_location"].initial = default_site
+                    self.initial["receiving_location"] = default_site
             mill = getattr(initial_po.cluster, "sugar_mill", None) if hasattr(initial_po, "cluster") and initial_po.cluster else None
             if mill:
                 self.fields["supplier"].initial = mill
-        elif self.instance and getattr(self.instance, "purchase_order", None):
+                self.initial.setdefault("supplier", mill.pk)
+        elif self.instance and getattr(self.instance, "purchase_order_id", None):
             inst_po = self.instance.purchase_order
-            cust = inst_po.customer or (inst_po.cluster.client if getattr(inst_po, "cluster", None) else None)
+            cust = (inst_po.cluster.client if getattr(inst_po, "cluster", None) and inst_po.cluster.client else None) or inst_po.customer
             if cust:
                 self.fields["receiving_customer"].initial = cust
+                self.initial["receiving_customer"] = cust.pk
 
     def clean(self):
         cleaned_data = super().clean()
@@ -489,10 +505,10 @@ class DeliveryLedgerForm(forms.ModelForm):
         # 1. Customer Immutability (PO Link Lock):
         # Receiving Customer MUST strictly match the Customer associated with the linked Purchase Order.
         if po:
-            po_customer = po.customer or (po.cluster.client if getattr(po, "cluster", None) else None)
+            po_customer = (po.cluster.client if getattr(po, "cluster", None) and po.cluster.client else None) or po.customer
             if po_customer:
                 cleaned_data["receiving_customer"] = po_customer
-                if not po.customer:
+                if po.customer_id != po_customer.pk:
                     po.customer = po_customer
                     po.save(update_fields=["customer"])
         rec_cust = cleaned_data.get("receiving_customer")
@@ -501,10 +517,21 @@ class DeliveryLedgerForm(forms.ModelForm):
         if not po:
             self.add_error("purchase_order", "Please select a valid Purchase Order contract.")
 
-        # 3. Receiving Location Validation & Auto-Fill
-        if rec_cust and (not rec_loc or not rec_loc.strip()):
-            rec_loc = f"{rec_cust.name} Main Facility"
-            cleaned_data["receiving_location"] = rec_loc
+        # 3. Receiving Location Validation & Auto-Fill (also prevent stale default site from another customer)
+        if rec_cust:
+            loc_str = (rec_loc or "").strip()
+            is_stale_other_customer_site = False
+            if loc_str and not loc_str.lower().startswith(rec_cust.name.lower()):
+                lower_loc = loc_str.lower()
+                if lower_loc.endswith("main site") or lower_loc.endswith("main facility"):
+                    other_clients = Client.objects.exclude(pk=rec_cust.pk).values_list("name", flat=True)
+                    for oc_name in other_clients:
+                        if oc_name and lower_loc.startswith(oc_name.lower()):
+                            is_stale_other_customer_site = True
+                            break
+            if not loc_str or is_stale_other_customer_site:
+                rec_loc = f"{rec_cust.name} Main Site"
+                cleaned_data["receiving_location"] = rec_loc
 
         if not rec_loc or not rec_loc.strip():
             self.add_error("receiving_location", "Delivery drop-off destination / receiving site is required.")

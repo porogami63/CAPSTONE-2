@@ -575,6 +575,7 @@ def cluster_edit(request, pk):
                 if po:
                     chai_val = form.cleaned_data.get("chai_specs", "").strip()
                     chai_formatted = f"CHAI {chai_val}" if (chai_val and not chai_val.startswith("CHAI")) else chai_val
+                    po.customer = cluster.client
                     po.volume_mt = form.cleaned_data["volume_mt"]
                     po.unit_price = form.cleaned_data["unit_price"]
                     po.selling_price = form.cleaned_data.get("selling_price")
@@ -2453,15 +2454,21 @@ def po_status_api(request, po_reference_number):
     if not po:
         return JsonResponse({"error": "PO_NOT_FOUND", "message": f"Purchase order '{po_reference_number}' not found."}, status=404)
 
-    customer_name = po.customer.name if po.customer else (po.cluster.client.name if po.cluster else "Unknown")
+    po_client = (po.cluster.client if po.cluster and po.cluster.client else None) or po.customer
+    if po_client and po.customer_id != po_client.pk:
+        po.customer = po_client
+        po.save(update_fields=["customer"])
+    customer_name = po_client.name if po_client else "Unknown"
+    customer_origin_indicator = getattr(po_client, "origin_indicator", "") or (f"{customer_name} Zone" if po_client else "")
     contracted = po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or Decimal("0"))
     delivered = po.total_delivered_mt
     remaining = po.remaining_mt
 
     return JsonResponse({
         "po_reference_number": po.po_reference_number or po.cluster.reference_code,
-        "customer_id": po.customer_id or (po.cluster.client_id if po.cluster else None),
+        "customer_id": po_client.pk if po_client else None,
         "customer_name": customer_name,
+        "customer_origin_indicator": customer_origin_indicator,
         "total_contracted_mt": f"{contracted:.3f}",
         "total_delivered_mt": f"{delivered:.3f}",
         "remaining_mt": f"{remaining:.3f}",
@@ -2499,7 +2506,17 @@ def log_delivery_view(request):
                 return redirect(next_url)
     else:
         po_id = request.GET.get("po_id")
-        initial_po = get_object_or_404(PurchaseOrder, pk=po_id) if po_id else None
+        po_ref_param = (request.GET.get("po") or "").strip()
+        initial_po = None
+        if po_id and str(po_id).isdigit():
+            initial_po = PurchaseOrder.objects.select_related("cluster", "customer", "cluster__client", "cluster__sugar_mill").filter(pk=int(po_id)).first()
+        elif po_ref_param:
+            initial_po = PurchaseOrder.objects.select_related("cluster", "customer", "cluster__client", "cluster__sugar_mill").filter(
+                Q(po_reference_number__iexact=po_ref_param) |
+                Q(cluster__reference_code__iexact=po_ref_param)
+            ).first()
+            if not initial_po and po_ref_param.isdigit():
+                initial_po = PurchaseOrder.objects.select_related("cluster", "customer", "cluster__client", "cluster__sugar_mill").filter(pk=int(po_ref_param)).first()
         form = DeliveryLedgerForm(initial_po=initial_po)
 
     recent_deliveries = DeliveryLedger.objects.select_related("purchase_order", "purchase_order__customer", "supplier", "carrier", "trucking_partner", "barge_partner").order_by("-delivery_date", "-created_at")[:20]
@@ -2574,9 +2591,12 @@ def deliveries_list_view(request):
         focused_po = PurchaseOrder.objects.filter(
             Q(po_reference_number__iexact=po_ref) |
             Q(cluster__reference_code__iexact=po_ref)
-        ).select_related("cluster", "customer", "cluster__client").first()
+        ).select_related("cluster", "customer", "cluster__client", "cluster__sugar_mill").first()
         if not focused_po and str(po_ref).isdigit():
-            focused_po = PurchaseOrder.objects.filter(pk=int(po_ref)).select_related("cluster", "customer", "cluster__client").first()
+            focused_po = PurchaseOrder.objects.filter(pk=int(po_ref)).select_related("cluster", "customer", "cluster__client", "cluster__sugar_mill").first()
+        if focused_po and focused_po.cluster and focused_po.cluster.client_id and focused_po.customer_id != focused_po.cluster.client_id:
+            focused_po.customer = focused_po.cluster.client
+            focused_po.save(update_fields=["customer"])
 
     total_delivered_mt = deliveries_qs.aggregate(total=Sum("delivered_mt"))["total"] or Decimal("0")
     total_deliveries_count = deliveries_qs.count()
