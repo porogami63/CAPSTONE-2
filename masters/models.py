@@ -80,6 +80,110 @@ class LogisticsPartner(models.Model):
         return self.name
 
 
+DEFAULT_LUZON_TRUCKING_COMPANIES = [
+    {
+        "name": "Royal Cargo Inc. (Tanker & Bulk Land Transport)",
+        "category": LogisticsPartner.Category.TRUCKING,
+        "region": "Metro Manila (Parañaque) · Batangas · Subic · Greater Luzon",
+        "fleet_count": 85,
+        "default_freight_rate": "450.00",
+        "contact_person": "Luzon Tanker Dispatch",
+        "contact_phone": "+63 (02) 8333-3000",
+    },
+    {
+        "name": "Fast Logistics (FastCargo Land Haulage)",
+        "category": LogisticsPartner.Category.TRUCKING,
+        "region": "Metro Manila · Calabarzon · Central Luzon Corridor",
+        "fleet_count": 120,
+        "default_freight_rate": "420.00",
+        "contact_person": "Greater Luzon Fleet Control",
+        "contact_phone": "+63 (02) 8784-3278",
+    },
+    {
+        "name": "2GO Express Land Transport & Tanker Hauling",
+        "category": LogisticsPartner.Category.TRUCKING,
+        "region": "Port of Manila · Batangas · Laguna · Greater Luzon",
+        "fleet_count": 95,
+        "default_freight_rate": "460.00",
+        "contact_person": "Bulk Liquid Haulage Desk",
+        "contact_phone": "+63 (02) 8528-7000",
+    },
+    {
+        "name": "Airspeed International Corp. (Luzon Land Freight)",
+        "category": LogisticsPartner.Category.TRUCKING,
+        "region": "Metro Manila (Pasay) · Southern & Northern Luzon",
+        "fleet_count": 60,
+        "default_freight_rate": "440.00",
+        "contact_person": "Land Freight Dispatch",
+        "contact_phone": "+63 (02) 8854-1284",
+    },
+    {
+        "name": "Magsaysay Transport & Logistics (MTLC Trucking)",
+        "category": LogisticsPartner.Category.TRUCKING,
+        "region": "Manila North Harbor · Cavite · Batangas · Bulacan",
+        "fleet_count": 70,
+        "default_freight_rate": "435.00",
+        "contact_person": "Luzon Fleet Operations",
+        "contact_phone": "+63 (02) 8526-8888",
+    },
+    {
+        "name": "RV Marzan International Forwarders & Trucking",
+        "category": LogisticsPartner.Category.TRUCKING,
+        "region": "Manila Port Area · Bulacan · Pampanga · Tarlac",
+        "fleet_count": 55,
+        "default_freight_rate": "410.00",
+        "contact_person": "Heavy Hauling Dispatch",
+        "contact_phone": "+63 (02) 8527-6111",
+    },
+    {
+        "name": "Gothong Southern Land Transport (Luzon Hub)",
+        "category": LogisticsPartner.Category.TRUCKING,
+        "region": "Tondo Manila · Calamba · Batangas Industrial Corridor",
+        "fleet_count": 48,
+        "default_freight_rate": "425.00",
+        "contact_person": "Luzon Trucking Desk",
+        "contact_phone": "+63 (02) 8245-1100",
+    },
+    {
+        "name": "F2 Logistics Philippines Inc. (Land Freight)",
+        "category": LogisticsPartner.Category.TRUCKING,
+        "region": "Metro Manila (Taguig) · Batangas · Greater Luzon",
+        "fleet_count": 90,
+        "default_freight_rate": "445.00",
+        "contact_person": "Luzon Operations Center",
+        "contact_phone": "+63 (02) 8887-3256",
+    },
+]
+
+
+def ensure_default_trucking_partners():
+    """Ensures sample popular Metro Manila & Greater Luzon trucking companies exist
+    so Trucking Partner dropdowns are populated and separated from Barging partners.
+    """
+    from decimal import Decimal
+    try:
+        existing_trucking = LogisticsPartner.objects.filter(
+            category=LogisticsPartner.Category.TRUCKING,
+            is_active=True,
+        ).count()
+        if existing_trucking < 3:
+            for item in DEFAULT_LUZON_TRUCKING_COMPANIES:
+                LogisticsPartner.objects.update_or_create(
+                    name=item["name"],
+                    defaults={
+                        "category": item["category"],
+                        "region": item["region"],
+                        "fleet_count": item["fleet_count"],
+                        "default_freight_rate": Decimal(item["default_freight_rate"]),
+                        "contact_person": item["contact_person"],
+                        "contact_phone": item["contact_phone"],
+                        "is_active": True,
+                    },
+                )
+    except Exception:
+        pass
+
+
 class PartnerNote(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, null=True, blank=True, related_name="activity_notes")
     sugar_mill = models.ForeignKey(SugarMill, on_delete=models.CASCADE, null=True, blank=True, related_name="activity_notes")

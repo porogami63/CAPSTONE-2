@@ -806,16 +806,13 @@
                     <span class="badge bg-warning text-dark">{{ invoice_suggestion_data.remaining_pct }}% Remaining</span>
                 </div>
                 {% endif %}
-                {% if invoice_suggestion_data.total_delivered_mt > 0 and invoice_suggestion_data.selling_price > 0 %}
+                {% if invoice_suggestion_data.total_delivered_mt > 0 and invoice_suggestion_data.selling_price > 0 and not invoice_suggestion_data.has_existing_invoice and invoice_suggestion_data.has_deliveries_to_bill %}
                 <div class="alert alert-info py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-sm" style="background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.25);">
                     <div>
                         <i class="bi bi-box-seam-fill text-primary me-1.5"></i>
                         <strong>Auto-Suggested from Recorded Deliveries:</strong>
                         {{ invoice_suggestion_data.total_delivered_mt|floatformat:3|intcomma }} MT delivered &times; ₱{{ invoice_suggestion_data.selling_price|floatformat:2|intcomma }}/MT =
                         <span class="fw-bold text-primary">₱{{ invoice_suggestion_data.delivered_total|floatformat:2|intcomma }}</span>
-                        {% if invoice_suggestion_data.already_invoiced > 0 %}
-                        <span class="text-muted">(Unbilled Delivered: <strong>₱{{ invoice_suggestion_data.remaining_received_balance|floatformat:2|intcomma }}</strong>)</span>
-                        {% endif %}
                     </div>
                     <div class="d-flex gap-1">
                         <button type="button" class="btn btn-sm btn-primary py-0.5 px-2 fs-8 fw-semibold" onclick="const inp = document.querySelector('#addInvoiceForm input[name=\'amount\']'); if(inp){ inp.value='{{ invoice_suggestion_data.suggested_delivered|floatformat:2 }}'; inp.dispatchEvent(new Event('input')); }">
@@ -904,15 +901,18 @@
 
                     const amtInput = getDetailInput();
                     if (amtInput && data && data.selling_price > 0) {
-                        const tipText = (data.has_deliveries_to_bill)
-                            ? ('Suggested from Deliveries (' + data.total_delivered_mt.toLocaleString() + ' MT): ' + fmt(data.suggested_delivered))
-                            : ((data.already_invoiced > 0)
-                                ? ('Remaining PO Balance: ' + fmt(data.remaining_balance) + ' (' + data.remaining_pct + '% of Target ' + fmt(data.contract_total) + ')')
-                                : ('Suggested Contract Target: ' + fmt(data.suggested_full)));
-                        amtInput.setAttribute('title', tipText);
-                        amtInput.setAttribute('placeholder', (data.has_deliveries_to_bill ? 'From Deliveries: ' : (data.already_invoiced > 0 ? 'Remaining: ' : 'Suggested: ')) + fmt(data.suggested_full));
-                        if (!amtInput.value || parseFloat(amtInput.value) <= 0) {
-                            amtInput.value = data.suggested_full.toFixed(2);
+                        if (data.has_existing_invoice) {
+                            amtInput.removeAttribute('title');
+                            amtInput.setAttribute('placeholder', 'Enter invoice amount (₱)');
+                        } else {
+                            const tipText = (data.has_deliveries_to_bill)
+                                ? ('Suggested from Deliveries (' + data.total_delivered_mt.toLocaleString() + ' MT): ' + fmt(data.suggested_delivered))
+                                : ('Suggested Contract Target: ' + fmt(data.suggested_full));
+                            amtInput.setAttribute('title', tipText);
+                            amtInput.setAttribute('placeholder', (data.has_deliveries_to_bill ? 'From Deliveries: ' : 'Suggested: ') + fmt(data.suggested_full));
+                            if (!amtInput.value || parseFloat(amtInput.value) <= 0) {
+                                amtInput.value = data.suggested_full.toFixed(2);
+                            }
                         }
                     }
 

@@ -436,11 +436,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const tipText = (currentSuggestion.already_invoiced > 0)
-            ? ('Remaining Balance to Issue: ' + formatPHP(currentSuggestion.remaining_balance) + ' (' + currentSuggestion.remaining_pct + '% of PO Target ' + formatPHP(currentSuggestion.contract_total) + ')')
-            : ('Suggested Contract Target: ' + formatPHP(currentSuggestion.suggested_full) + ' (100% of PO contract value)');
+        if (currentSuggestion.has_existing_invoice) {
+            amtInput.removeAttribute('title');
+            amtInput.setAttribute('placeholder', 'Enter invoice amount (₱)');
+            amtInput.value = '';
+            if (liveFeedback) liveFeedback.style.display = 'none';
+            return;
+        }
+
+        const tipText = 'Suggested Contract Target: ' + formatPHP(currentSuggestion.suggested_full) + ' (100% of PO contract value)';
         amtInput.setAttribute('title', tipText);
-        amtInput.setAttribute('placeholder', (currentSuggestion.already_invoiced > 0 ? 'Remaining: ' : 'Suggested: ') + formatPHP(currentSuggestion.suggested_full));
+        amtInput.setAttribute('placeholder', 'Suggested: ' + formatPHP(currentSuggestion.suggested_full));
         if (!amtInput.value || parseFloat(amtInput.value) <= 0) {
             amtInput.value = currentSuggestion.suggested_full.toFixed(2);
         }

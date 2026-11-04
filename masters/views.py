@@ -34,6 +34,8 @@ def master_list(request):
     User.Role.FINANCE,
 )
 def partners(request):
+    from .models import ensure_default_trucking_partners
+    ensure_default_trucking_partners()
     stats = partner_stats()
     stats["barging_count"] = sum(1 for p in stats.get("logistics", []) if p.get("category") == "barging")
     stats["trucking_count"] = sum(1 for p in stats.get("logistics", []) if p.get("category") == "trucking")

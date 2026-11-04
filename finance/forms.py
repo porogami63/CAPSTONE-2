@@ -116,10 +116,11 @@ class InvoiceForm(forms.ModelForm):
         if self.cluster and not self.initial.get("amount"):
             from operations.services.pricing import get_invoice_suggestion_data
             sugg = get_invoice_suggestion_data(self.cluster)
-            if sugg.get("suggested_full") and sugg["suggested_full"] > 0:
-                self.initial["amount"] = Decimal(str(sugg["suggested_full"]))
-            if sugg.get("remaining_batch_logistics") and sugg["remaining_batch_logistics"] > 0:
-                self.initial["logistics_fee"] = Decimal(str(sugg["remaining_batch_logistics"]))
+            if not sugg.get("has_existing_invoice"):
+                if sugg.get("suggested_full") and sugg["suggested_full"] > 0:
+                    self.initial["amount"] = Decimal(str(sugg["suggested_full"]))
+                if sugg.get("remaining_batch_logistics") and sugg["remaining_batch_logistics"] > 0:
+                    self.initial["logistics_fee"] = Decimal(str(sugg["remaining_batch_logistics"]))
 
     def clean_invoice_number(self):
         num = self.cleaned_data.get("invoice_number", "").strip()

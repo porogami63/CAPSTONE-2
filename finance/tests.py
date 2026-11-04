@@ -355,6 +355,21 @@ class SuggestiveInvoicePricingTests(TestCase):
 		self.assertIn("invoice_suggestion_data", res.context)
 		self.assertContains(res, "Suggested Contract Balance")
 
+	def test_suggestive_invoice_pricing_removed_when_invoice_already_issued(self):
+		from finance.forms import InvoiceForm
+		Invoice.objects.create(
+			cluster=self.cluster,
+			invoice_number="SI-ISSUED-001",
+			amount=1500000.0,
+			issued_at=date.today(),
+			status=Invoice.Status.ISSUED,
+		)
+		form = InvoiceForm(cluster=self.cluster)
+		self.assertIsNone(form.initial.get("amount"))
+		res = self.client.get(reverse("operations:cluster_detail", kwargs={"pk": self.cluster.pk}))
+		self.assertEqual(res.status_code, 200)
+		self.assertNotContains(res, "Auto-Suggested from Recorded Deliveries:")
+
 
 class LoanValidationTests(TestCase):
 	def setUp(self):

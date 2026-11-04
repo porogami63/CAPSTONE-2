@@ -206,16 +206,38 @@ class LogisticsUpdateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        partners_qs = LogisticsPartner.objects.filter(is_active=True)
+        from masters.models import ensure_default_trucking_partners
+        ensure_default_trucking_partners()
+
+        partners_qs = LogisticsPartner.objects.filter(is_active=True).order_by("name")
+        trucking_q = models.Q(category=LogisticsPartner.Category.TRUCKING)
+        barge_q = models.Q(category=LogisticsPartner.Category.BARGING)
+
+        if self.instance and getattr(self.instance, "trucking_partner_id", None):
+            trucking_q |= models.Q(pk=self.instance.trucking_partner_id)
+        if self.data and self.data.get("trucking_partner"):
+            try:
+                trucking_q |= models.Q(pk=int(self.data.get("trucking_partner")))
+            except (ValueError, TypeError):
+                pass
+
+        if self.instance and getattr(self.instance, "barge_partner_id", None):
+            barge_q |= models.Q(pk=self.instance.barge_partner_id)
+        if self.data and self.data.get("barge_partner"):
+            try:
+                barge_q |= models.Q(pk=int(self.data.get("barge_partner")))
+            except (ValueError, TypeError):
+                pass
+
         self.fields["partner"].queryset = partners_qs
         self.fields["partner"].required = False
         self.fields["partner"].empty_label = "-- Primary Logistics Partner --"
-        self.fields["trucking_partner"].queryset = partners_qs
+        self.fields["trucking_partner"].queryset = partners_qs.filter(trucking_q).order_by("name")
         self.fields["trucking_partner"].required = False
-        self.fields["trucking_partner"].empty_label = "-- Select Trucking Partner --"
-        self.fields["barge_partner"].queryset = partners_qs
+        self.fields["trucking_partner"].empty_label = "-- Select Trucking Partner (Metro Manila / Greater Luzon) --"
+        self.fields["barge_partner"].queryset = partners_qs.filter(barge_q).order_by("name")
         self.fields["barge_partner"].required = False
-        self.fields["barge_partner"].empty_label = "-- Select Barging Partner --"
+        self.fields["barge_partner"].empty_label = "-- Select Barging Partner (Marine Transport) --"
 
     def clean(self):
         cleaned_data = super().clean()
@@ -381,18 +403,40 @@ class DeliveryLedgerForm(forms.ModelForm):
         self.fields["supplier"].queryset = SugarMill.objects.filter(is_active=True).order_by("name")
         self.fields["supplier"].empty_label = "-- Select Sugar Mill --"
         
+        from masters.models import ensure_default_trucking_partners
+        ensure_default_trucking_partners()
+
         logistics_qs = LogisticsPartner.objects.filter(is_active=True).order_by("name")
+        trucking_q = models.Q(category=LogisticsPartner.Category.TRUCKING)
+        barge_q = models.Q(category=LogisticsPartner.Category.BARGING)
+
+        if self.instance and getattr(self.instance, "trucking_partner_id", None):
+            trucking_q |= models.Q(pk=self.instance.trucking_partner_id)
+        if self.data and self.data.get("trucking_partner"):
+            try:
+                trucking_q |= models.Q(pk=int(self.data.get("trucking_partner")))
+            except (ValueError, TypeError):
+                pass
+
+        if self.instance and getattr(self.instance, "barge_partner_id", None):
+            barge_q |= models.Q(pk=self.instance.barge_partner_id)
+        if self.data and self.data.get("barge_partner"):
+            try:
+                barge_q |= models.Q(pk=int(self.data.get("barge_partner")))
+            except (ValueError, TypeError):
+                pass
+
         self.fields["carrier"].queryset = logistics_qs
         self.fields["carrier"].required = False
         self.fields["carrier"].empty_label = "-- Select Carrier (Optional) --"
 
-        self.fields["trucking_partner"].queryset = logistics_qs
+        self.fields["trucking_partner"].queryset = logistics_qs.filter(trucking_q).order_by("name")
         self.fields["trucking_partner"].required = False
-        self.fields["trucking_partner"].empty_label = "-- Select Trucking Partner --"
+        self.fields["trucking_partner"].empty_label = "-- Select Trucking Partner (Metro Manila / Greater Luzon) --"
 
-        self.fields["barge_partner"].queryset = logistics_qs
+        self.fields["barge_partner"].queryset = logistics_qs.filter(barge_q).order_by("name")
         self.fields["barge_partner"].required = False
-        self.fields["barge_partner"].empty_label = "-- Select Barging Partner --"
+        self.fields["barge_partner"].empty_label = "-- Select Barging Partner (Marine Transport) --"
 
         clients_qs = Client.objects.filter(is_active=True).order_by("name")
         self.fields["receiving_customer"].queryset = clients_qs

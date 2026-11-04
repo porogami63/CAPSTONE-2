@@ -19,6 +19,20 @@ class MastersModelTests(TestCase):
         partner = LogisticsPartner.objects.create(name="Fastcat Logistics")
         self.assertEqual(str(partner), "Fastcat Logistics")
 
+    def test_separated_barging_and_trucking_dropdowns_with_luzon_samples(self):
+        from operations.forms import DeliveryLedgerForm
+        LogisticsPartner.objects.create(name="Oceanic Barge Corp", category=LogisticsPartner.Category.BARGING)
+        form = DeliveryLedgerForm()
+        trucking_qs = list(form.fields["trucking_partner"].queryset)
+        barge_qs = list(form.fields["barge_partner"].queryset)
+
+        self.assertGreaterEqual(len(trucking_qs), 8)
+        self.assertTrue(all(p.category == LogisticsPartner.Category.TRUCKING for p in trucking_qs))
+        self.assertTrue(all(p.category == LogisticsPartner.Category.BARGING for p in barge_qs))
+        trucking_names = [p.name for p in trucking_qs]
+        self.assertTrue(any("Royal Cargo" in n for n in trucking_names))
+        self.assertTrue(any("Fast Logistics" in n for n in trucking_names))
+
     def test_protected_deletion_on_cluster_reference(self):
         client = Client.objects.create(name="San Miguel Corp")
         mill = SugarMill.objects.create(name="SONEDCO")

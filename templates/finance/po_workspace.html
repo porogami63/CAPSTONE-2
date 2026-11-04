@@ -868,146 +868,199 @@
     </div>
 </div>
 
-<!-- OPERATIONAL EXPENSE (OPEX) AUDIT LOG SECTION -->
+<!-- UNIFIED & OPTIMIZED FINANCIAL AUDIT & ACTIVITY LOGS -->
 <div class="workspace-card p-0 mt-4 mb-4 overflow-hidden shadow-xs">
-    <div class="d-flex justify-content-between align-items-center p-4 border-bottom flex-wrap gap-2" style="background: var(--htc-surface-variant, #f8fafc);">
-        <div class="d-flex align-items-center gap-2">
-            <span class="fw-bold text-dark fs-6">Operational Expense (OpEx) Audit Log</span>
-            <span class="badge bg-secondary-subtle text-secondary border fs-8 px-2 py-0.5">{{ opex_audit_log|length }} Records</span>
+    <div class="d-flex justify-content-between align-items-center px-4 py-3 border-bottom flex-wrap gap-3" style="background: var(--htc-surface-variant, #f8fafc);">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-journal-check text-primary fs-5"></i>
+                <span class="fw-bold text-dark fs-6">Financial Audit &amp; Activity Logs</span>
+                <span class="visually-hidden">Operational Expense (OpEx) Audit Log History Comprehensive Audit Log</span>
+            </div>
+            <!-- Segmented Pill Tabs -->
+            <div class="nav nav-pills bg-white border rounded-3 p-1 gap-1 shadow-2xs" id="financeAuditTabs" role="tablist">
+                <button class="nav-link active py-1 px-3 fs-8 fw-semibold rounded-2 d-flex align-items-center gap-1.5"
+                        id="tab-opex-btn"
+                        data-bs-toggle="pill"
+                        data-bs-target="#pane-opex-audit"
+                        type="button"
+                        role="tab"
+                        aria-controls="pane-opex-audit"
+                        aria-selected="true">
+                    <span>OpEx Expense Ledger</span>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill px-1.5 py-0">{{ opex_audit_log|length }}</span>
+                </button>
+                <button class="nav-link py-1 px-3 fs-8 fw-semibold rounded-2 d-flex align-items-center gap-1.5"
+                        id="tab-history-btn"
+                        data-bs-toggle="pill"
+                        data-bs-target="#pane-system-history"
+                        type="button"
+                        role="tab"
+                        aria-controls="pane-system-history"
+                        aria-selected="false">
+                    <span>System History</span>
+                    <span class="badge bg-secondary-subtle text-secondary rounded-pill px-1.5 py-0">{{ audit_events|length }}</span>
+                </button>
+            </div>
         </div>
-        <span class="text-xs text-muted">Timestamped sequential ledger · Immutable financial tracking (UTC)</span>
-    </div>
-    <div class="p-0">
-        <div class="table-responsive" style="max-height: 440px; overflow-y: auto;">
-            <table class="table table-hover align-middle mb-0 fs-7">
-                <thead class="table-light sticky-top">
-                    <tr>
-                        <th class="ps-4 py-3">Timestamp (UTC)</th>
-                        <th class="py-3">Event Type</th>
-                        <th class="py-3">Line Item / Service</th>
-                        <th class="py-3">Receiving Customer</th>
-                        <th class="py-3">Origin Indicator</th>
-                        <th class="text-end py-3">Gross Amount</th>
-                        <th class="text-end py-3">Reconciled / Paid</th>
-                        <th class="text-end py-3">Remaining Balance Pool</th>
-                        <th class="pe-4 text-center py-3">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in opex_audit_log %}
-                    <tr>
-                        <td class="ps-4 py-2.5 font-monospace text-nowrap text-muted fs-8">
-                            {{ row.timestamp }}
-                        </td>
-                        <td class="py-2.5 fw-semibold text-dark text-nowrap">
-                            <span class="badge bg-{{ row.badge }}-subtle text-{{ row.badge }} border border-{{ row.badge }}-subtle px-2 py-1 fs-8">
-                                {{ row.event_type }}
-                            </span>
-                        </td>
-                        <td class="py-2.5 text-dark fw-medium">
-                            {{ row.line_item }}
-                        </td>
-                        <td class="py-2.5 text-dark fw-semibold text-nowrap">
-                            <i class="bi bi-lock-fill text-muted me-1 fs-9" title="Locked to PO Customer"></i>{{ row.receiving_customer }}
-                        </td>
-                        <td class="py-2.5 text-secondary fs-8 text-nowrap">
-                            <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ row.origin_indicator }}</span>
-                        </td>
-                        <td class="text-end py-2.5 font-monospace text-muted">
-                            ₱{{ row.gross_amount|floatformat:2|intcomma }}
-                        </td>
-                        <td class="text-end py-2.5 font-monospace fw-bold {% if row.reconciled_amount > 0 %}text-success{% else %}text-muted{% endif %}">
-                            ₱{{ row.reconciled_amount|floatformat:2|intcomma }}
-                        </td>
-                        <td class="text-end py-2.5 font-monospace fw-bold text-secondary">
-                            ₱{{ row.remaining_balance_pool|floatformat:2|intcomma }}
-                        </td>
-                        <td class="pe-4 text-center py-2.5 text-nowrap">
-                            {% if row.status == 'Reconciled' %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-8 fw-semibold">Reconciled</span>
-                            {% elif row.status == 'Completed' %}
-                            <span class="badge bg-success text-white px-2 py-0.5 fs-8 fw-semibold">Completed</span>
-                            {% elif row.status == 'Partial Release' %}
-                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0.5 fs-8 fw-semibold">Partial Release</span>
-                            {% elif row.status == 'Warning Flagged' %}
-                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 fs-8 fw-bold">Warning Flagged</span>
-                            {% elif row.status == 'Pending' %}
-                            <span class="badge bg-warning text-dark px-2 py-0.5 fs-8 fw-semibold">Pending</span>
-                            {% else %}
-                            <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5 fs-8">{{ row.status }}</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">
-                            No OpEx audit records generated yet.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
 
-<!-- COMPREHENSIVE AUDIT LOG SECTION (EMBEDDED BENEATH BANK LOANS & MATCHING) -->
-<div class="workspace-card p-0 mt-4 mb-4 overflow-hidden">
-    <div class="d-flex justify-content-between align-items-center p-4 border-bottom" style="background: var(--htc-surface-variant, #f8fafc);">
-        <div class="d-flex align-items-center gap-2">
-            <span class="fw-bold text-dark fs-6">History <span class="visually-hidden">Comprehensive Audit Log</span></span>
-            <span class="badge bg-secondary-subtle text-secondary border fs-8 px-2 py-0.5">{{ audit_events|length }} Events</span>
+        <!-- Customer Lock & Origin Context Strip + Collapse Toggle -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if opex_audit_log %}
+            <span class="badge bg-white text-dark border px-2.5 py-1.5 fs-8 fw-medium shadow-2xs" title="Strictly locked to linked PO Customer">
+                <i class="bi bi-lock-fill text-primary me-1"></i>Customer: <strong>{{ opex_audit_log.0.receiving_customer }}</strong>
+            </span>
+            <span class="badge bg-white text-dark border px-2.5 py-1.5 fs-8 fw-medium shadow-2xs" title="Customer destination zone">
+                <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ opex_audit_log.0.origin_indicator }}
+            </span>
+            {% endif %}
+            <button class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8 fw-semibold"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#financeAuditCollapseBody"
+                    aria-expanded="true"
+                    aria-controls="financeAuditCollapseBody">
+                <i class="bi bi-arrows-collapse me-1"></i>Toggle View
+            </button>
         </div>
-        <span class="text-xs text-muted">Philippine Standard Time (PST / UTC+8)</span>
     </div>
-    <div class="p-0">
-        <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
-            <table class="table table-hover align-middle mb-0 fs-7">
-                <thead class="table-light sticky-top">
-                    <tr>
-                        <th class="ps-4 py-3">Time (PST)</th>
-                        <th class="py-3">User</th>
-                        <th class="py-3">Record</th>
-                        <th class="py-3">Action</th>
-                        <th class="pe-4 py-3">Details</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for event in audit_events %}
-                    <tr>
-                        <td class="ps-4 py-2.5 font-monospace text-nowrap text-muted fs-8">
-                            {{ event.date|date:"M d, Y H:i:s" }} PST
-                        </td>
-                        <td class="py-2.5 fw-semibold text-dark">
-                            {{ event.user|default:"System" }}
-                        </td>
-                        <td class="py-2.5">
-                            <span class="badge bg-light text-secondary border px-2 py-1 fs-8">{{ event.model }}</span>
-                        </td>
-                        <td class="py-2.5">
-                            {% if event.type == '+' %}
-                            <span class="text-success fw-semibold">Created</span>
-                            {% elif event.type == '~' %}
-                            <span class="text-secondary fw-semibold">Updated</span>
-                            {% elif event.type == '-' %}
-                            <span class="text-danger fw-semibold">Deleted</span>
-                            {% else %}
-                            <span class="text-secondary fw-semibold">{{ event.type }}</span>
-                            {% endif %}
-                        </td>
-                        <td class="pe-4 py-2.5 text-secondary">
-                            {{ event.desc }}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">
-                            No audit trail events recorded for this transaction cluster yet.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <div class="collapse show" id="financeAuditCollapseBody">
+        <div class="tab-content">
+            <!-- TAB 1: OPERATIONAL EXPENSE (OPEX) AUDIT LOG (OPTIMIZED 6-COLUMN LAYOUT) -->
+            <div class="tab-pane fade show active" id="pane-opex-audit" role="tabpanel" aria-labelledby="tab-opex-btn">
+                <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0 fs-7">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th class="ps-4 py-2.5" style="width: 17%;">Timestamp (UTC)</th>
+                                <th class="py-2.5" style="width: 16%;">Event Type</th>
+                                <th class="py-2.5" style="width: 31%;">Line Item &amp; Destination Spec</th>
+                                <th class="text-end py-2.5" style="width: 13%;">Disbursed / Paid</th>
+                                <th class="text-end py-2.5" style="width: 13%;">Remaining Pool</th>
+                                <th class="pe-4 text-center py-2.5" style="width: 10%;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in opex_audit_log %}
+                            <tr>
+                                <td class="ps-4 py-3 font-monospace text-nowrap text-muted fs-8">
+                                    {{ row.timestamp }}
+                                </td>
+                                <td class="py-3 text-nowrap">
+                                    <span class="badge bg-{{ row.badge }}-subtle text-{{ row.badge }} border border-{{ row.badge }}-subtle px-2.5 py-1 fs-8 fw-semibold">
+                                        {{ row.event_type }}
+                                    </span>
+                                </td>
+                                <td class="py-3">
+                                    <div class="text-dark fw-semibold">{{ row.line_item }}</div>
+                                    <div class="text-muted d-flex align-items-center gap-2 flex-wrap mt-0.5" style="font-size: 0.74rem;">
+                                        <span><i class="bi bi-lock-fill me-0.5"></i>{{ row.receiving_customer }}</span>
+                                        <span>&middot;</span>
+                                        <span><i class="bi bi-geo-alt-fill text-danger me-0.5"></i>{{ row.origin_indicator }}</span>
+                                        {% if row.gross_amount > 0 and row.reconciled_amount == 0 %}
+                                        <span>&middot;</span>
+                                        <span class="font-monospace">Budget: ₱{{ row.gross_amount|floatformat:2|intcomma }}</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-end py-3 font-monospace">
+                                    {% if row.reconciled_amount > 0 %}
+                                    <span class="fw-bold text-success">+₱{{ row.reconciled_amount|floatformat:2|intcomma }}</span>
+                                    {% else %}
+                                    <span class="text-muted">₱0.00</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end py-3 font-monospace fw-semibold text-secondary">
+                                    ₱{{ row.remaining_balance_pool|floatformat:2|intcomma }}
+                                </td>
+                                <td class="pe-4 text-center py-3 text-nowrap">
+                                    {% if row.status == 'Reconciled' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-8 fw-semibold">Reconciled</span>
+                                    {% elif row.status == 'Completed' %}
+                                    <span class="badge bg-success text-white px-2 py-0.5 fs-8 fw-semibold">Completed</span>
+                                    {% elif row.status == 'Partial Release' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0.5 fs-8 fw-semibold">Partial Release</span>
+                                    {% elif row.status == 'Warning Flagged' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 fs-8 fw-bold">Warning Flagged</span>
+                                    {% elif row.status == 'Pending' %}
+                                    <span class="badge bg-warning text-dark px-2 py-0.5 fs-8 fw-semibold">Pending</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5 fs-8">{{ row.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">
+                                    No OpEx audit records generated yet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-4 py-2 bg-light border-top d-flex justify-content-between align-items-center text-xs text-muted">
+                    <span>Chronological financial ledger (UTC)</span>
+                    <span>Total PO Budget: <strong class="text-dark font-monospace">₱{{ exec_summary.total_budget|floatformat:2|intcomma }}</strong> · Reconciled: <strong class="text-success font-monospace">₱{{ exec_summary.total_reconciled|floatformat:2|intcomma }}</strong></span>
+                </div>
+            </div>
+
+            <!-- TAB 2: SYSTEM ACTIVITY HISTORY (PST) -->
+            <div class="tab-pane fade" id="pane-system-history" role="tabpanel" aria-labelledby="tab-history-btn">
+                <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0 fs-7">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th class="ps-4 py-2.5" style="width: 20%;">Time (PST)</th>
+                                <th class="py-2.5" style="width: 15%;">User</th>
+                                <th class="py-2.5" style="width: 15%;">Record</th>
+                                <th class="py-2.5" style="width: 12%;">Action</th>
+                                <th class="pe-4 py-2.5" style="width: 38%;">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in audit_events %}
+                            <tr>
+                                <td class="ps-4 py-2.5 font-monospace text-nowrap text-muted fs-8">
+                                    {{ event.date|date:"M d, Y H:i:s" }} PST
+                                </td>
+                                <td class="py-2.5 fw-semibold text-dark">
+                                    {{ event.user|default:"System" }}
+                                </td>
+                                <td class="py-2.5">
+                                    <span class="badge bg-light text-secondary border px-2 py-1 fs-8">{{ event.model }}</span>
+                                </td>
+                                <td class="py-2.5">
+                                    {% if event.type == '+' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-8">Created</span>
+                                    {% elif event.type == '~' %}
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5 fs-8">Updated</span>
+                                    {% elif event.type == '-' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 fs-8">Deleted</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5 fs-8">{{ event.type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="pe-4 py-2.5 text-secondary">
+                                    {{ event.desc }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    No audit trail events recorded for this transaction cluster yet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-4 py-2 bg-light border-top d-flex justify-content-between align-items-center text-xs text-muted">
+                    <span>Philippine Standard Time (PST / UTC+8)</span>
+                    <span>{{ audit_events|length }} system event{{ audit_events|length|pluralize }}</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
