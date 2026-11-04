@@ -209,63 +209,123 @@
     </div>
 </div>
 
-<!-- EXECUTIVE FINANCIAL SUMMARY -->
+<!-- EXECUTIVE FINANCIAL SUMMARY: TOTAL PO EXPENSE AUDIT -->
 <div class="workspace-card p-0 mb-4 overflow-hidden shadow-xs">
     <div class="d-flex justify-content-between align-items-center p-3.5 border-bottom flex-wrap gap-2" style="background: var(--htc-surface-variant, #f8fafc);">
         <div class="d-flex align-items-center gap-2">
             <span class="fw-bold text-dark fs-6">Executive Financial Summary</span>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 px-2 py-0.5 fw-semibold">
-                100% Sourcing + 100% Logistics Rule
+            <span class="badge bg-secondary-subtle text-secondary border fs-8 px-2 py-0.5 fw-semibold">
+                Total PO Expense Audit · {{ exec_summary.batch_count }} Delivery Batch{{ exec_summary.batch_count|pluralize:"es" }}
             </span>
         </div>
-        <span class="text-xs text-muted">Real-time disbursements &amp; pool tracking</span>
+        <span class="text-xs text-muted">Audit of money spent on Sourcing, Delivery (Trucking) &amp; Barge</span>
     </div>
+
+    <!-- Category Expense Audit Table: Sourcing | Delivery (Trucking) | Barge | Total PO -->
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 fs-7">
             <thead class="table-light">
                 <tr>
-                    <th class="ps-4 py-2.5">Metric</th>
-                    <th class="text-end py-2.5">Sourcing</th>
-                    <th class="text-end py-2.5">Logistics (Trucking &amp; Barging)</th>
-                    <th class="text-end pe-4 py-2.5">Total PO</th>
+                    <th class="ps-4 py-2.5">Expense Audit Metric</th>
+                    <th class="text-end py-2.5">Sourcing (Sugar Mill)</th>
+                    <th class="text-end py-2.5">Delivery (Trucking)</th>
+                    <th class="text-end py-2.5">Barge (Marine Freight)</th>
+                    <th class="text-end pe-4 py-2.5">Total PO Expenses</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td class="ps-4 py-2.5 fw-bold text-dark">Total Approved Budget</td>
+                    <td class="ps-4 py-2.5 fw-bold text-dark">
+                        Total Incurred / Allocated Expense
+                        <div class="text-xs text-muted fw-normal">Contracted sourcing &amp; batch delivery/barge fees</div>
+                    </td>
                     <td class="text-end py-2.5 font-monospace text-dark">₱{{ exec_summary.sourcing_budget|floatformat:2|intcomma }}</td>
-                    <td class="text-end py-2.5 font-monospace text-dark">₱{{ exec_summary.logistics_budget|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace text-dark">₱{{ exec_summary.trucking_budget|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace text-dark">₱{{ exec_summary.barge_budget|floatformat:2|intcomma }}</td>
                     <td class="text-end pe-4 py-2.5 font-monospace fw-bold text-dark">₱{{ exec_summary.total_budget|floatformat:2|intcomma }}</td>
+                </tr>
+                <tr style="background: rgba(16, 185, 129, 0.05);">
+                    <td class="ps-4 py-2.5 fw-bold text-success">
+                        Money Spent (Reconciled / Disbursed)
+                        <div class="text-xs text-muted fw-normal">
+                            Actual payments disbursed to date
+                            {% if exec_summary.dp_paid > 0 %}(incl. ₱{{ exec_summary.dp_paid|floatformat:2|intcomma }} 50% DP){% endif %}
+                        </div>
+                    </td>
+                    <td class="text-end py-2.5 font-monospace fw-bold text-success">₱{{ exec_summary.sourcing_reconciled|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace fw-bold text-success">₱{{ exec_summary.trucking_reconciled|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace fw-bold text-success">₱{{ exec_summary.barge_reconciled|floatformat:2|intcomma }}</td>
+                    <td class="text-end pe-4 py-2.5 font-monospace fw-bold text-success">₱{{ exec_summary.total_reconciled|floatformat:2|intcomma }}</td>
                 </tr>
                 <tr>
                     <td class="ps-4 py-2.5 fw-bold text-dark">
-                        Reconciled to Date
-                        {% if exec_summary.dp_paid > 0 %}
-                        <span class="text-xs text-muted fw-normal ms-1">(₱{{ exec_summary.dp_paid|floatformat:2|intcomma }} DP)</span>
-                        {% endif %}
+                        Remaining Unpaid Expense Balance
+                        <div class="text-xs text-muted fw-normal">Outstanding balance pool to be settled</div>
                     </td>
-                    <td class="text-end py-2.5 font-monospace text-success">₱{{ exec_summary.sourcing_reconciled|floatformat:2|intcomma }}</td>
-                    <td class="text-end py-2.5 font-monospace text-success">₱{{ exec_summary.logistics_reconciled|floatformat:2|intcomma }}</td>
-                    <td class="text-end pe-4 py-2.5 font-monospace fw-bold text-success">₱{{ exec_summary.total_reconciled|floatformat:2|intcomma }}</td>
-                </tr>
-                <tr style="background: rgba(37, 99, 235, 0.04);">
-                    <td class="ps-4 py-2.5 fw-bold text-primary">
-                        Current Suggested Payout
-                        <span class="badge bg-primary text-white ms-1 fs-9">{{ exec_summary.dp_note }}</span>
-                    </td>
-                    <td class="text-end py-2.5 font-monospace text-primary fw-semibold">₱{{ exec_summary.sourcing_suggested|floatformat:2|intcomma }}</td>
-                    <td class="text-end py-2.5 font-monospace text-primary fw-bold">₱{{ exec_summary.logistics_suggested|floatformat:2|intcomma }}</td>
-                    <td class="text-end pe-4 py-2.5 font-monospace fw-bold text-primary">₱{{ exec_summary.total_suggested|floatformat:2|intcomma }}</td>
-                </tr>
-                <tr>
-                    <td class="ps-4 py-2.5 fw-bold text-dark">Remaining Balance Pool</td>
                     <td class="text-end py-2.5 font-monospace text-secondary">₱{{ exec_summary.sourcing_remaining_pool|floatformat:2|intcomma }}</td>
-                    <td class="text-end py-2.5 font-monospace text-secondary">₱{{ exec_summary.logistics_remaining_pool|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace text-secondary">₱{{ exec_summary.trucking_remaining_pool|floatformat:2|intcomma }}</td>
+                    <td class="text-end py-2.5 font-monospace text-secondary">₱{{ exec_summary.barge_remaining_pool|floatformat:2|intcomma }}</td>
                     <td class="text-end pe-4 py-2.5 font-monospace fw-bold text-secondary">₱{{ exec_summary.total_remaining_pool|floatformat:2|intcomma }}</td>
                 </tr>
             </tbody>
         </table>
     </div>
+
+    <!-- Per-Delivery-Batch Expense Reference Breakdown -->
+    {% if exec_summary.batch_expenses %}
+    <div class="border-top px-4 py-2.5 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: var(--htc-surface-variant, #f8fafc);">
+        <span class="fw-bold text-dark fs-7">Delivery Batch Expense Breakdown (Reference Ledger)</span>
+        <span class="text-xs text-muted">Total Delivered: <strong class="text-dark font-monospace">{{ exec_summary.total_delivered_mt|floatformat:3|intcomma }} MT</strong> across {{ exec_summary.batch_count }} batch{{ exec_summary.batch_count|pluralize:"es" }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 fs-8">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4 py-2">Delivery Batch / DR #</th>
+                    <th class="py-2">Supplier Mill &amp; Volume</th>
+                    <th class="text-end py-2">Sourcing Expense (Spent / Cost)</th>
+                    <th class="text-end py-2">Delivery / Trucking (Spent / Cost)</th>
+                    <th class="text-end py-2">Barge / Marine (Spent / Cost)</th>
+                    <th class="text-end py-2">Total Batch Spent</th>
+                    <th class="text-center pe-4 py-2">Audit Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in exec_summary.batch_expenses %}
+                <tr>
+                    <td class="ps-4 py-2">
+                        <div class="fw-bold text-dark font-monospace">Batch #{{ b.short_id }}</div>
+                        <div class="text-muted" style="font-size: 0.72rem;">{{ b.dr_number }} · {{ b.delivery_date|date:"M d, Y" }}</div>
+                    </td>
+                    <td class="py-2">
+                        <div class="fw-semibold text-dark">{{ b.supplier_name }}</div>
+                        <div class="text-muted font-monospace" style="font-size: 0.72rem;">{{ b.delivered_mt|floatformat:3|intcomma }} MT &rarr; {{ b.receiving_location }}</div>
+                    </td>
+                    <td class="text-end py-2 font-monospace">
+                        <div class="fw-semibold {% if b.sourcing_spent > 0 %}text-success{% else %}text-muted{% endif %}">₱{{ b.sourcing_spent|floatformat:2|intcomma }}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">of ₱{{ b.sourcing_cost|floatformat:2|intcomma }}</div>
+                    </td>
+                    <td class="text-end py-2 font-monospace">
+                        <div class="fw-semibold {% if b.trucking_spent > 0 %}text-success{% else %}text-muted{% endif %}">₱{{ b.trucking_spent|floatformat:2|intcomma }}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">of ₱{{ b.trucking_cost|floatformat:2|intcomma }} ({{ b.trucking_partner_name }})</div>
+                    </td>
+                    <td class="text-end py-2 font-monospace">
+                        <div class="fw-semibold {% if b.barge_spent > 0 %}text-success{% else %}text-muted{% endif %}">₱{{ b.barge_spent|floatformat:2|intcomma }}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">of ₱{{ b.barge_cost|floatformat:2|intcomma }} ({{ b.barge_partner_name }})</div>
+                    </td>
+                    <td class="text-end py-2 font-monospace">
+                        <div class="fw-bold {% if b.total_batch_spent > 0 %}text-success{% else %}text-dark{% endif %}">₱{{ b.total_batch_spent|floatformat:2|intcomma }}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">Total Cost: ₱{{ b.total_batch_cost|floatformat:2|intcomma }}</div>
+                    </td>
+                    <td class="text-center pe-4 py-2">
+                        <span class="badge bg-{{ b.badge }}-subtle text-{{ b.badge }} border border-{{ b.badge }}-subtle px-2 py-0.5">{{ b.status }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
 </div>
 
 <!-- ANALYTICAL ROW: 2 BALANCED CARDS WITH GENEROUS SPACING -->

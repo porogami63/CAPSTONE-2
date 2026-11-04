@@ -282,8 +282,13 @@
         const fieldKey = input.name || input.id;
 
         // 1. Real-time Margin & Price Ratio Analysis (Immediate, 0ms, standalone)
+        // If #priceMarginAnomalyAlert exists on the page (e.g. cluster_form.html), defer to that full-width banner to prevent duplicate warnings.
         const form = input.closest("form");
-        if (form && (fieldKey === "unit_price" || fieldKey === "selling_price")) {
+        const hasDedicatedBanner = Boolean(document.getElementById("priceMarginAnomalyAlert"));
+        if (form) {
+            ensureConfirmedHiddenField(form, "true");
+        }
+        if (form && !hasDedicatedBanner && (fieldKey === "unit_price" || fieldKey === "selling_price")) {
             const unitInput = form.querySelector('input[name="unit_price"], input#id_unit_price');
             const sellInput = form.querySelector('input[name="selling_price"], input#id_selling_price');
             if (unitInput && sellInput) {
@@ -304,6 +309,9 @@
                     clearPriceAnomalyNotice(sellInput);
                 }
             }
+        } else if (hasDedicatedBanner && form) {
+            const sellInput = form.querySelector('input[name="selling_price"], input#id_selling_price');
+            if (sellInput) clearPriceAnomalyNotice(sellInput);
         }
 
         // 2. Statistical Outlier Check against operational mean/median/mode

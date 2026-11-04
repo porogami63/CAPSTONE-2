@@ -109,10 +109,11 @@
                     {{ form.selling_price }}
                 </div>
                 <div class="form-text text-xs text-muted mt-1">Price billed to Customer per MT (₱/MT).</div>
-                <div id="priceMarginAnomalyAlert" class="mt-2"></div>
                 {% if form.selling_price.errors %}<div class="text-danger text-xs mt-1">{{ form.selling_price.errors|striptags }}</div>{% endif %}
             </div>
         </div>
+
+        <div id="priceMarginAnomalyAlert" class="mt-3"></div>
 
         <!-- Live Profit Summary (compact, always visible) -->
         <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 0.75rem 1.25rem; margin-top: 1.25rem; cursor: pointer;" onclick="document.getElementById('calcExpandedDetails').classList.toggle('d-none'); this.querySelector('.calc-chevron').classList.toggle('bi-chevron-down'); this.querySelector('.calc-chevron').classList.toggle('bi-chevron-up');">
@@ -279,29 +280,25 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Live Price Anomaly & Negative Margin Warning Banner
+        // Live Price Anomaly & Negative Margin Indicator Banner (non-blocking indicator only)
         const priceAlertEl = document.getElementById('priceMarginAnomalyAlert');
         const overrideInput = document.getElementById('id_price_warning_override') || document.querySelector('input[name="price_warning_override"]');
+        const outlierInput = document.getElementById('id_confirmed_outlier') || document.querySelector('input[name="confirmed_outlier"]');
 
         if (costPrice > 0 && sellPrice > 0) {
             if (costPrice > sellPrice) {
                 const delta = costPrice - sellPrice;
+                if (overrideInput) overrideInput.value = 'true';
+                if (outlierInput) outlierInput.value = 'true';
                 if (priceAlertEl) {
-                    const isChecked = (overrideInput && overrideInput.value === 'true') ? 'checked' : '';
                     priceAlertEl.innerHTML = `
-                        <div class="p-2.5 rounded border border-danger bg-danger-subtle text-danger shadow-xs" style="font-size: 0.8rem; line-height: 1.4;">
-                            <div class="fw-bold d-flex align-items-center gap-1.5 mb-1 text-danger">
-                                <i class="bi bi-x-octagon-fill text-danger fs-6"></i>
-                                <span class="badge bg-danger text-white px-2 py-0.5 fs-8">CRITICAL / HARD WARNING</span>
-                            </div>
-                            <div class="text-danger fw-semibold">
-                                Warning: Buying Price (₱${costPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}) is set higher than Selling Price (₱${sellPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}). Negative margin detected (-₱${delta.toLocaleString('en-US', {minimumFractionDigits: 2})}/MT). Prompt user confirmation or underwriter override required.
-                            </div>
-                            <div class="form-check mt-2 pt-1 border-top border-danger-subtle">
-                                <input class="form-check-input border-danger" type="checkbox" id="chk_price_override" ${isChecked} onchange="window.handlePriceOverrideChange(this.checked)">
-                                <label class="form-check-label text-danger fs-8 fw-bold" for="chk_price_override">
-                                    Underwriter Override: Confirm negative margin order
-                                </label>
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2.5 rounded-3 border border-danger bg-danger-subtle text-danger shadow-xs" style="font-size: 0.84rem; line-height: 1.45;">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-x-octagon-fill text-danger fs-5"></i>
+                                <div>
+                                    <span class="badge bg-danger text-white px-2 py-0.5 me-1.5" style="font-size: 0.7rem; letter-spacing: 0.03em;">CRITICAL / HARD WARNING</span>
+                                    <span class="fw-semibold">Warning: Buying Price (₱${costPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}) is set higher than Selling Price (₱${sellPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}). Negative margin detected (-₱${delta.toLocaleString('en-US', {minimumFractionDigits: 2})}/MT).</span>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -309,29 +306,23 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 const ratio = sellPrice / costPrice;
                 if (ratio < 0.90 || ratio > 2.20) {
+                    if (overrideInput) overrideInput.value = 'true';
+                    if (outlierInput) outlierInput.value = 'true';
                     if (priceAlertEl) {
-                        const isChecked = (overrideInput && overrideInput.value === 'true') ? 'checked' : '';
                         priceAlertEl.innerHTML = `
-                            <div class="p-2.5 rounded border border-warning bg-warning-subtle text-dark shadow-xs" style="font-size: 0.8rem; line-height: 1.4;">
-                                <div class="fw-bold d-flex align-items-center gap-1.5 mb-1 text-warning-emphasis">
-                                    <i class="bi bi-exclamation-triangle-fill text-warning fs-6"></i>
-                                    <span class="badge bg-warning text-dark px-2 py-0.5 fs-8">DATA ENTRY ANOMALY WARNING</span>
-                                </div>
-                                <div class="text-dark fw-medium">
-                                    Warning: Price ratio (${ratio.toFixed(2)}x) deviates significantly from historical mean baseline. Verify input values before proceeding.
-                                </div>
-                                <div class="form-check mt-2 pt-1 border-top border-warning-subtle">
-                                    <input class="form-check-input border-warning" type="checkbox" id="chk_price_override" ${isChecked} onchange="window.handlePriceOverrideChange(this.checked)">
-                                    <label class="form-check-label text-dark fs-8 fw-semibold" for="chk_price_override">
-                                        Underwriter Override: Verify ratio variance is intentional
-                                    </label>
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2.5 rounded-3 border border-warning bg-warning-subtle text-dark shadow-xs" style="font-size: 0.84rem; line-height: 1.45;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                                    <div>
+                                        <span class="badge bg-warning text-dark px-2 py-0.5 me-1.5" style="font-size: 0.7rem; letter-spacing: 0.03em;">DATA ENTRY ANOMALY WARNING</span>
+                                        <span class="fw-medium">Warning: Price ratio (${ratio.toFixed(2)}x) deviates significantly from historical mean baseline. Verify input values before proceeding.</span>
+                                    </div>
                                 </div>
                             </div>
                         `;
                     }
                 } else {
                     if (priceAlertEl) priceAlertEl.innerHTML = '';
-                    if (overrideInput && overrideInput.value === 'true' && (!costPriceInput.value || !sellPriceInput.value)) overrideInput.value = '';
                 }
             }
         } else {

@@ -1325,7 +1325,7 @@ class PriceValidationAndMarginAnomalyTests(TestCase):
         self.assertIn("CRITICAL / HARD WARNING", res["warnings"][0]["type"])
         self.assertIn("Negative margin detected", res["warnings"][0]["message"])
 
-        # 2. Form check without confirmation: must fail validation
+        # 2. Form check: attaches non-blocking price_margin_analysis indicator without requiring checkbox confirmation
         form = TransactionClusterForm(data={
             "reference_code": "PO-TEST-NEG-001",
             "client": self.client_entity.pk,
@@ -1334,24 +1334,12 @@ class PriceValidationAndMarginAnomalyTests(TestCase):
             "unit_price": "25000.00",
             "selling_price": "22000.00",
         })
-        self.assertFalse(form.is_valid())
-        self.assertIn("selling_price", form.errors)
-        self.assertIn("Negative margin detected", form.errors["selling_price"][0])
-
-        # 3. Form check with underwriter override / confirmation: passes
-        form_confirmed = TransactionClusterForm(data={
-            "reference_code": "PO-TEST-NEG-001",
-            "client": self.client_entity.pk,
-            "sugar_mill": self.mill.pk,
-            "volume_mt": "100.000",
-            "unit_price": "25000.00",
-            "selling_price": "22000.00",
-            "confirmed_outlier": "true",
-        })
-        self.assertTrue(form_confirmed.is_valid(), form_confirmed.errors)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertTrue(form.price_margin_analysis["has_negative_margin"])
+        self.assertEqual(form.price_margin_analysis["delta"], 3000.0)
 
     def test_inverted_ratio_warning(self):
-        """Extreme spread or inverted ratio triggers DATA ENTRY ANOMALY WARNING."""
+        """Extreme spread or inverted ratio triggers DATA ENTRY ANOMALY WARNING indicator."""
         from operations.forms import TransactionClusterForm
         from operations.services.stats_services import check_price_margin_anomalies
 
@@ -1372,9 +1360,8 @@ class PriceValidationAndMarginAnomalyTests(TestCase):
             "unit_price": "10000.00",
             "selling_price": "35000.00",
         })
-        self.assertFalse(form.is_valid())
-        self.assertIn("selling_price", form.errors)
-        self.assertIn("Price ratio deviates significantly", form.errors["selling_price"][0])
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertTrue(form.price_margin_analysis["has_irregular_ratio"])
 
 
 class DeliveryBatchCustomerImmutabilityAndOriginTests(TestCase):

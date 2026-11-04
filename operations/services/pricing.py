@@ -631,15 +631,27 @@ def get_po_logistics_summary(cluster) -> dict:
 
 
 def get_executive_financial_summary(cluster) -> dict:
-    """Computes an executive financial summary covering Sourcing, Logistics, and Total PO:
-    - Total Approved Budget
-    - Reconciled to Date
-    - Current Suggested Payout (Logistics capped at Net 50% Max post-DP)
-    - Remaining Balance Pool
+    """Computes a comprehensive Total PO Expense Audit covering:
+    - Money Spent for Sourcing (Sugar Mill procurement)
+    - Money Spent for Delivery / Land Trucking (referenced from delivery batches)
+    - Money Spent for Barge / Marine Freight (referenced from delivery batches)
+    - Per-Delivery-Batch Expense & Disbursement Reference Breakdown
+    - Total PO Expenses Incurred vs. Money Spent vs. Remaining Unpaid Balance
     """
     fin = cluster_financials(cluster)
     two = Decimal("0.01")
+    po = getattr(cluster, "purchase_order", None)
+    deliveries = list(po.deliveries.select_related("supplier", "trucking_partner", "barge_partner", "carrier").all()) if (po and hasattr(po, "deliveries")) else []
+
+    unit_price = (po.unit_price if po and po.unit_price else Decimal("0.00")).quantize(two)
     sourcing_budget = Decimal(str(fin["purchase_total"])).quantize(two)
+
+    # Batch-referenced delivery (trucking) and barge expenses
+    batch_trucking_incurred = sum((d.trucking_cost for d in deliveries), Decimal("0.00")).quantize(two)
+    batch_barge_incurred = sum((d.barge_cost for d in deliveries), Decimal("0.00")).quantize(two)
+    batch_sourcing_incurred = sum(((d.delivered_mt * unit_price).quantize(two) for d in deliveries), Decimal("0.00")).quantize(two)
+    total_delivered_mt = sum((d.delivered_mt for d in deliveries), Decimal("0.000"))
+
     trucking_budget = Decimal(str(fin["tracking_fees"])).quantize(two)
     barge_budget = Decimal(str(fin["barge_fees"])).quantize(two)
     logistics_budget = (trucking_budget + barge_budget).quantize(two)
@@ -648,7 +660,7 @@ def get_executive_financial_summary(cluster) -> dict:
     reconciliation = getattr(cluster, "reconciliation", None)
     matches = list(reconciliation.matches.all()) if reconciliation else []
 
-    # Sourcing Reconciled
+    # 1. Money Spent for Sourcing
     sourcing_matches = [
         m for m in matches
         if m.expense_type == "sourcing"
@@ -658,25 +670,62 @@ def get_executive_financial_summary(cluster) -> dict:
     sourcing_reconciled = sum((m.amount for m in sourcing_matches), Decimal("0.00")).quantize(two)
     sourcing_remaining_pool = max(Decimal("0.00"), sourcing_budget - sourcing_reconciled)
 
-    # Logistics Reconciled
+    # 2. Money Spent for Delivery (Trucking) & Barge (Marine)
     logistics_matches = [m for m in matches if m not in sourcing_matches]
     logistics_reconciled = sum((m.amount for m in logistics_matches), Decimal("0.00")).quantize(two)
     logistics_remaining_pool = max(Decimal("0.00"), logistics_budget - logistics_reconciled)
 
+    trucking_matches = [
+        m for m in logistics_matches
+        if m.expense_type == "trucking" or "TRK" in (m.payment_reference or "")
+    ]
+    barge_matches = [
+        m for m in logistics_matches
+        if m not in trucking_matches and (m.expense_type == "barge" or "BRG" in (m.payment_reference or ""))
+    ]
+    other_log_matches = [
+        m for m in logistics_matches
+        if m not in trucking_matches and m not in barge_matches
+    ]
+
+    trucking_reconciled = sum((m.amount for m in trucking_matches), Decimal("0.00")).quantize(two)
+    barge_reconciled = sum((m.amount for m in barge_matches), Decimal("0.00")).quantize(two)
+    other_log_reconciled = sum((m.amount for m in other_log_matches), Decimal("0.00")).quantize(two)
+
+    # Allocate any generic logistics match across trucking/barge proportionally
+    if other_log_reconciled > Decimal("0.00"):
+        if logistics_budget > Decimal("0.00"):
+            trk_share = (other_log_reconciled * (trucking_budget / logistics_budget)).quantize(two)
+            brg_share = (other_log_reconciled - trk_share).quantize(two)
+            trucking_reconciled = (trucking_reconciled + trk_share).quantize(two)
+            barge_reconciled = (barge_reconciled + brg_share).quantize(two)
+        else:
+            trucking_reconciled = (trucking_reconciled + other_log_reconciled).quantize(two)
+
+    trucking_dp_paid = sum(
+        (m.amount for m in trucking_matches if (m.payment_reference or "").startswith("DEP-") or m.expense_type == "logistics_deposit"),
+        Decimal("0.00"),
+    ).quantize(two)
+    barge_dp_paid = sum(
+        (m.amount for m in barge_matches if (m.payment_reference or "").startswith("DEP-") or m.expense_type == "logistics_deposit"),
+        Decimal("0.00"),
+    ).quantize(two)
+
+    trucking_remaining_pool = max(Decimal("0.00"), trucking_budget - trucking_reconciled)
+    barge_remaining_pool = max(Decimal("0.00"), barge_budget - barge_reconciled)
+
     # DP status & Post-delivery balance
     dp_target = (logistics_budget * Decimal("0.50")).quantize(two)
     dp_paid = sum(
-        (m.amount for m in logistics_matches if m.payment_reference.startswith("DEP-") or m.expense_type == "logistics_deposit"),
+        (m.amount for m in logistics_matches if (m.payment_reference or "").startswith("DEP-") or m.expense_type == "logistics_deposit"),
         Decimal("0.00"),
     ).quantize(two)
     dp_reconciled = dp_paid >= (dp_target - two) and dp_target > Decimal("0.00")
 
-    # Current Suggested Payout for Logistics:
     if not dp_reconciled and dp_target > Decimal("0.00"):
         logistics_suggested = min(max(Decimal("0.00"), dp_target - dp_paid), logistics_remaining_pool)
         dp_note = "50% Down Payment"
     else:
-        # Post-DP: capped at remaining 50% balance pool (Net 50% Max)
         net_50_max = (logistics_budget * Decimal("0.50")).quantize(two)
         logistics_suggested = min(logistics_remaining_pool, net_50_max)
         dp_note = "Net 50% Max"
@@ -686,11 +735,112 @@ def get_executive_financial_summary(cluster) -> dict:
     total_suggested = (sourcing_suggested + logistics_suggested).quantize(two)
     total_remaining_pool = max(Decimal("0.00"), total_budget - total_reconciled)
 
+    # 3. Per-Delivery-Batch Expense Audit Breakdown
+    batch_expenses = []
+    rem_trk_dp = trucking_dp_paid
+    rem_brg_dp = barge_dp_paid
+    rem_src_paid = sourcing_reconciled
+
+    for idx, d in enumerate(deliveries, start=1):
+        short_id = str(d.delivery_id)[:8].upper()
+        b_src_cost = (d.delivered_mt * unit_price).quantize(two)
+        b_trk_cost = d.trucking_cost.quantize(two)
+        b_brg_cost = d.barge_cost.quantize(two)
+        b_freight_cost = d.total_freight_cost.quantize(two)
+        b_total_cost = (b_src_cost + b_freight_cost).quantize(two)
+
+        # Direct batch matches
+        direct_trk = sum(
+            (m.amount for m in trucking_matches if short_id in (m.payment_reference or "")),
+            Decimal("0.00"),
+        ).quantize(two)
+        direct_brg = sum(
+            (m.amount for m in barge_matches if short_id in (m.payment_reference or "")),
+            Decimal("0.00"),
+        ).quantize(two)
+        direct_other = sum(
+            (m.amount for m in other_log_matches if short_id in (m.payment_reference or "")),
+            Decimal("0.00"),
+        ).quantize(two)
+
+        # Allocate DP share (up to 50% of batch trucking/barge)
+        trk_dp_alloc = min(rem_trk_dp, (b_trk_cost * Decimal("0.50")).quantize(two))
+        rem_trk_dp = max(Decimal("0.00"), rem_trk_dp - trk_dp_alloc)
+
+        brg_dp_alloc = min(rem_brg_dp, (b_brg_cost * Decimal("0.50")).quantize(two))
+        rem_brg_dp = max(Decimal("0.00"), rem_brg_dp - brg_dp_alloc)
+
+        src_alloc = min(rem_src_paid, b_src_cost)
+        rem_src_paid = max(Decimal("0.00"), rem_src_paid - src_alloc)
+
+        b_trk_spent = min(b_trk_cost, (trk_dp_alloc + direct_trk).quantize(two)) if b_trk_cost > Decimal("0.00") else direct_trk
+        b_brg_spent = min(b_brg_cost, (brg_dp_alloc + direct_brg).quantize(two)) if b_brg_cost > Decimal("0.00") else direct_brg
+        b_log_spent = (b_trk_spent + b_brg_spent + direct_other).quantize(two)
+        b_total_spent = (src_alloc + b_log_spent).quantize(two)
+        b_unpaid = max(Decimal("0.00"), b_total_cost - b_total_spent)
+
+        if b_total_cost > Decimal("0.00") and b_total_spent >= (b_total_cost - two):
+            b_status = "Reconciled"
+            b_badge = "success"
+        elif b_total_spent > Decimal("0.00"):
+            b_status = "Partially Paid"
+            b_badge = "warning"
+        else:
+            b_status = "Unpaid / Pending"
+            b_badge = "secondary"
+
+        trk_partner_name = (
+            d.trucking_partner.name if d.trucking_partner
+            else (d.carrier.name if d.carrier else "Land Carrier")
+        )
+        brg_partner_name = (
+            d.barge_partner.name if d.barge_partner
+            else (d.barge_vessel or "Marine Barge")
+        )
+
+        batch_expenses.append({
+            "index": idx,
+            "short_id": short_id,
+            "dr_number": d.dr_number or f"DR-{short_id}",
+            "delivery_date": d.delivery_date,
+            "supplier_name": d.supplier.name if d.supplier else (cluster.sugar_mill.name if cluster.sugar_mill else "Sugar Mill"),
+            "receiving_location": d.receiving_location or "Destination",
+            "delivered_mt": d.delivered_mt,
+            "trucking_partner_name": trk_partner_name,
+            "barge_partner_name": brg_partner_name,
+            "sourcing_cost": b_src_cost,
+            "sourcing_spent": src_alloc,
+            "trucking_cost": b_trk_cost,
+            "trucking_spent": b_trk_spent,
+            "barge_cost": b_brg_cost,
+            "barge_spent": b_brg_spent,
+            "total_freight_cost": b_freight_cost,
+            "logistics_spent": b_log_spent,
+            "total_batch_cost": b_total_cost,
+            "total_batch_spent": b_total_spent,
+            "remaining_unpaid": b_unpaid,
+            "status": b_status,
+            "badge": b_badge,
+        })
+
     return {
         "sourcing_budget": sourcing_budget,
+        "sourcing_delivered_cost": batch_sourcing_incurred,
         "sourcing_reconciled": sourcing_reconciled,
         "sourcing_suggested": sourcing_suggested,
         "sourcing_remaining_pool": sourcing_remaining_pool,
+
+        "trucking_budget": trucking_budget,
+        "batch_trucking_incurred": batch_trucking_incurred,
+        "trucking_reconciled": trucking_reconciled,
+        "trucking_dp_paid": trucking_dp_paid,
+        "trucking_remaining_pool": trucking_remaining_pool,
+
+        "barge_budget": barge_budget,
+        "batch_barge_incurred": batch_barge_incurred,
+        "barge_reconciled": barge_reconciled,
+        "barge_dp_paid": barge_dp_paid,
+        "barge_remaining_pool": barge_remaining_pool,
 
         "logistics_budget": logistics_budget,
         "logistics_reconciled": logistics_reconciled,
@@ -705,6 +855,10 @@ def get_executive_financial_summary(cluster) -> dict:
         "total_reconciled": total_reconciled,
         "total_suggested": total_suggested,
         "total_remaining_pool": total_remaining_pool,
+
+        "batch_count": len(deliveries),
+        "total_delivered_mt": total_delivered_mt,
+        "batch_expenses": batch_expenses,
     }
 
 

@@ -1168,12 +1168,21 @@ class DynamicSuggestedLogisticsPaymentAndOpExAuditTests(TestCase):
 			amount=Decimal("225000.00"),
 		)
 
-		# Executive Summary Check
+		# Executive Summary Check (Sourcing, Delivery/Trucking, Barge & Delivery Batch Audit)
 		summary = get_executive_financial_summary(self.cluster)
 		self.assertEqual(summary["sourcing_budget"], Decimal("12500000.00"))
+		self.assertEqual(summary["trucking_budget"], Decimal("450000.00"))
+		self.assertEqual(summary["barge_budget"], Decimal("1388000.00"))
 		self.assertEqual(summary["logistics_budget"], Decimal("1838000.00"))
 		self.assertEqual(summary["total_budget"], Decimal("14338000.00"))
+		self.assertEqual(summary["trucking_reconciled"], Decimal("225000.00"))
+		self.assertEqual(summary["barge_reconciled"], Decimal("0.00"))
 		self.assertEqual(summary["logistics_reconciled"], Decimal("225000.00"))
+		self.assertEqual(summary["batch_count"], 1)
+		self.assertEqual(len(summary["batch_expenses"]), 1)
+		self.assertEqual(summary["batch_expenses"][0]["trucking_cost"], Decimal("450000.00"))
+		self.assertEqual(summary["batch_expenses"][0]["trucking_spent"], Decimal("225000.00"))
+		self.assertEqual(summary["batch_expenses"][0]["barge_cost"], Decimal("1388000.00"))
 
 		# OpEx Audit Log Schema Check
 		audit_log = get_opex_audit_log(self.cluster)

@@ -55,8 +55,8 @@ class TransactionClusterForm(forms.ModelForm):
         help_text="Payment conditions (e.g. 'Net 30 days')",
         widget=forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Net 30 days"}),
     )
-    confirmed_outlier = forms.CharField(required=False, widget=forms.HiddenInput())
-    price_warning_override = forms.CharField(required=False, widget=forms.HiddenInput())
+    confirmed_outlier = forms.CharField(required=False, initial="true", widget=forms.HiddenInput())
+    price_warning_override = forms.CharField(required=False, initial="true", widget=forms.HiddenInput())
     brix_level = forms.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -151,24 +151,8 @@ class TransactionClusterForm(forms.ModelForm):
             elif unit_price is not None:
                 from operations.services.stats_services import check_price_margin_anomalies
                 margin_analysis = check_price_margin_anomalies(unit_price, selling_price)
-                confirmed = (
-                    self.data.get("confirmed_outlier") in ("true", "True", True, "1", 1)
-                    or self.data.get("price_warning_override") in ("true", "True", True, "1", 1)
-                    or cleaned_data.get("confirmed_outlier") in ("true", "True", True, "1", 1)
-                    or cleaned_data.get("price_warning_override") in ("true", "True", True, "1", 1)
-                )
-
-                if margin_analysis["has_negative_margin"] and not confirmed:
-                    delta = margin_analysis["delta"]
-                    self.add_error(
-                        "selling_price",
-                        f"Warning: Buying Price (₱{unit_price:,.2f}) is set higher than Selling Price (₱{selling_price:,.2f}). Negative margin detected (-₱{delta:,.2f}). Prompt user confirmation or underwriter override required.",
-                    )
-                elif margin_analysis["has_irregular_ratio"] and not confirmed:
-                    self.add_error(
-                        "selling_price",
-                        "Warning: Price ratio deviates significantly from historical mean baseline. Verify input values before proceeding.",
-                    )
+                self.price_margin_analysis = margin_analysis
+                cleaned_data["price_margin_analysis"] = margin_analysis
 
         brix_level = cleaned_data.get("brix_level")
         if brix_level is not None and (brix_level < 0 or brix_level > 100):
