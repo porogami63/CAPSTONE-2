@@ -4,6 +4,7 @@ import re
 from decimal import Decimal
 
 from django.db.models import Sum
+from django.utils import timezone
 from finance.models import CapitalLoan, Invoice
 
 
@@ -194,11 +195,195 @@ def cluster_financials(cluster) -> dict:
 LOGISTICS_DOWN_PAYMENT_PCT = Decimal("50")
 
 
-def loan_requirement_data(cluster) -> dict:
-    """Minimum capital a loan must cover for a transaction.
+def get_logistics_reconciliation_ledger(cluster) -> dict:
+    """Computes a dynamic running ledger tracking the 2-milestone logistics workflow:
 
-    Required principal = 50% down payment on Trucking + 50% down payment on Freight (barging)
-    + 100% of Sourcing cost. Trucking and Freight are kept as separate line items.
+    1. Down Payment (50%): Released/reconciled upfront upon order placement or logistics booking.
+    2. Final Balance (50% Post-Delivery): Released/reconciled only after physical receipt and confirmation of delivered goods.
+    3. Dynamic Batch Reconciliation: Tracks per-batch confirmed deliveries, balance released per batch, and remaining undisbursed funds.
+    """
+    fin = cluster_financials(cluster)
+    two = Decimal("0.01")
+    pct_dp = LOGISTICS_DOWN_PAYMENT_PCT / Decimal("100")
+
+    sourcing = Decimal(str(fin["purchase_total"])).quantize(two)
+    trucking = Decimal(str(fin["tracking_fees"])).quantize(two)
+    freight = Decimal(str(fin["barge_fees"])).quantize(two)
+    logistics_total = (trucking + freight).quantize(two)
+
+    # Milestone 1: 50% Upfront Down Payment Budget
+    dp_budget = (logistics_total * pct_dp).quantize(two)
+    # Milestone 2: 50% Post-Delivery Balance Pool
+    balance_pool_budget = (logistics_total - dp_budget).quantize(two)
+    suggested_loan = (sourcing + logistics_total).quantize(two)
+
+    reconciliation = getattr(cluster, "reconciliation", None)
+    matches = list(reconciliation.matches.all()) if reconciliation else []
+
+    # Matches allocated to Milestone 1 (50% Upfront Down Payment)
+    dp_matches = [
+        m for m in matches
+        if m.expense_type == "logistics_deposit"
+        or m.payment_reference.startswith("DEP-")
+        or m.payment_reference.startswith("CV-LOG-DP")
+    ]
+    dp_paid = sum((m.amount for m in dp_matches), Decimal("0.00")).quantize(two)
+    dp_remaining = max(Decimal("0.00"), dp_budget - dp_paid)
+    dp_pct = round(float(dp_paid / dp_budget * 100), 1) if dp_budget > 0 else 100.0
+    if dp_paid >= (dp_budget - two) and dp_budget > 0:
+        dp_status = "Paid"
+        dp_badge = "success"
+    elif dp_paid > Decimal("0.00"):
+        dp_status = "Partially Paid"
+        dp_badge = "warning"
+    else:
+        dp_status = "Pending Upfront Payment"
+        dp_badge = "secondary"
+
+    # Dynamic Batch Deliveries Breakdown
+    po = getattr(cluster, "purchase_order", None)
+    deliveries = list(po.deliveries.all().order_by("delivery_date", "created_at")) if (po and hasattr(po, "deliveries")) else []
+
+    batch_rows = []
+    total_batch_freight = Decimal("0.00")
+    total_batch_balances_reconciled = Decimal("0.00")
+    today = timezone.localdate()
+
+    for d in deliveries:
+        short_id = str(d.delivery_id)[:8].upper()
+        b_truck = d.trucking_cost
+        b_barge = d.barge_cost
+        b_total = (b_truck + b_barge).quantize(two)
+        total_batch_freight += b_total
+
+        b_dp_covered = (b_total * pct_dp).quantize(two)
+        b_bal_due = (b_total - b_dp_covered).quantize(two)
+
+        # Check physical receipt confirmation
+        is_confirmed = bool(d.received_at or (d.delivery_date and d.delivery_date <= today))
+        if d.received_at:
+            confirmation_date_display = d.received_at.strftime("%b %d, %Y %H:%M")
+        elif d.delivery_date:
+            confirmation_date_display = d.delivery_date.strftime("%b %d, %Y")
+        else:
+            confirmation_date_display = "—"
+
+        # Find matches for this batch's final balance
+        b_matches = [
+            m for m in matches
+            if short_id in m.payment_reference and m not in dp_matches
+        ]
+        b_reconciled = sum((m.amount for m in b_matches), Decimal("0.00")).quantize(two)
+        total_batch_balances_reconciled += b_reconciled
+        b_remaining = max(Decimal("0.00"), b_bal_due - b_reconciled)
+
+        if b_reconciled >= (b_bal_due - two) and b_bal_due > 0:
+            b_status = "Reconciled (100% Paid)"
+            b_badge = "success"
+        elif is_confirmed:
+            b_status = "Delivered — Ready for Balance Match"
+            b_badge = "primary"
+        else:
+            b_status = "In Transit — Pending Receipt Confirmation"
+            b_badge = "secondary"
+
+        batch_rows.append({
+            "delivery_id": str(d.delivery_id),
+            "short_id": short_id,
+            "dr_number": d.dr_number or "—",
+            "delivered_mt": float(d.delivered_mt),
+            "location": d.receiving_location or "Destination",
+            "delivery_date": d.delivery_date.strftime("%b %d, %Y") if d.delivery_date else "—",
+            "received_at": d.received_at.strftime("%b %d, %Y %H:%M") if d.received_at else None,
+            "is_confirmed": is_confirmed,
+            "confirmation_date_display": confirmation_date_display,
+            "trucking_cost": float(b_truck),
+            "barge_cost": float(b_barge),
+            "batch_logistics_cost": float(b_total),
+            "batch_downpayment_covered": float(b_dp_covered),
+            "batch_balance_due": float(b_bal_due),
+            "reconciled_amount": float(b_reconciled),
+            "remaining_due": float(b_remaining),
+            "status": b_status,
+            "badge": b_badge,
+            "suggested_match_ref": f"BAL-DEL-{short_id}",
+            "suggested_match_label": f"Batch #{short_id} 50% Balance",
+        })
+
+    # Milestone 2: 50% Post-Delivery Balance Pool Tracking
+    general_bal_matches = [
+        m for m in matches
+        if (m.expense_type in ["logistics_balance", "trucking", "barge"] or m.payment_reference.startswith("BAL-"))
+        and m not in dp_matches
+    ]
+    pool_reconciled = max(
+        total_batch_balances_reconciled,
+        sum((m.amount for m in general_bal_matches), Decimal("0.00")).quantize(two),
+    )
+    pool_remaining = max(Decimal("0.00"), balance_pool_budget - pool_reconciled)
+    pool_pct = round(float(pool_reconciled / balance_pool_budget * 100), 1) if balance_pool_budget > 0 else 100.0
+
+    if pool_reconciled >= (balance_pool_budget - two) and balance_pool_budget > 0:
+        pool_status = "Fully Reconciled"
+        pool_badge = "success"
+    elif pool_reconciled > Decimal("0.00"):
+        pool_status = "Partially Reconciled"
+        pool_badge = "warning"
+    else:
+        pool_status = "Pending Delivery Reconciliations"
+        pool_badge = "secondary"
+
+    total_logistics_reconciled = dp_paid + pool_reconciled
+    total_undisbursed = max(Decimal("0.00"), logistics_total - total_logistics_reconciled)
+
+    return {
+        "cluster_ref": cluster.reference_code,
+        "sourcing_price": float(sourcing),
+        "logistics_price": float(logistics_total),
+        "trucking_price": float(trucking),
+        "barge_price": float(freight),
+        "suggested_loan_amount": float(suggested_loan),
+        "loan_formula": f"₱{sourcing:,.2f} (Sourcing, 100%) + ₱{logistics_total:,.2f} (Logistics, 100%) = ₱{suggested_loan:,.2f}",
+
+        # Milestone 1: 50% Upfront Down Payment
+        "down_payment_budget": float(dp_budget),
+        "down_payment_paid": float(dp_paid),
+        "down_payment_remaining": float(dp_remaining),
+        "down_payment_pct_paid": dp_pct,
+        "down_payment_status": dp_status,
+        "down_payment_badge": dp_badge,
+
+        # Milestone 2: 50% Post-Delivery Balance Pool
+        "final_balance_pool": float(balance_pool_budget),
+        "balance_pool_reconciled": float(pool_reconciled),
+        "balance_pool_remaining": float(pool_remaining),
+        "balance_pool_pct_reconciled": pool_pct,
+        "balance_pool_status": pool_status,
+        "balance_pool_badge": pool_badge,
+
+        # Overall Undisbursed Logistics Funds
+        "total_logistics_budget": float(logistics_total),
+        "total_logistics_reconciled": float(total_logistics_reconciled),
+        "total_undisbursed_funds": float(total_undisbursed),
+
+        # Batches
+        "batches": batch_rows,
+        "has_batches": len(batch_rows) > 0,
+        "batches_count": len(batch_rows),
+    }
+
+
+def loan_requirement_data(cluster) -> dict:
+    """Calculate suggested loan amount and logistics payment milestones.
+
+    Suggested Loan Amount Rule:
+    Suggested Loan Amount = (100% * Sourcing Price) + (100% * Logistics Price).
+    No discounts, partial ratios, or LTV reductions are applied to the suggested loan amount.
+
+    Logistics Payment & Reconciliation Rules:
+    Split the total Logistics Payment into two equal 50% milestones:
+    1. Down Payment (50%): Released/reconciled upfront upon order placement or logistics booking.
+    2. Final Balance (50% Post-Delivery): Released/reconciled only after physical receipt and confirmation of delivered goods.
     """
     fin = cluster_financials(cluster)
     two = Decimal("0.01")
@@ -207,9 +392,18 @@ def loan_requirement_data(cluster) -> dict:
     sourcing = Decimal(str(fin["purchase_total"])).quantize(two)
     trucking = Decimal(str(fin["tracking_fees"])).quantize(two)
     freight = Decimal(str(fin["barge_fees"])).quantize(two)
+    logistics_total = (trucking + freight).quantize(two)
+
+    # 100% Sourcing + 100% Logistics (Suggested Loan Amount)
+    required = (sourcing + logistics_total).quantize(two)
+
+    # Milestone 1: 50% Upfront Down Payment
     trucking_dp = (trucking * pct).quantize(two)
     freight_dp = (freight * pct).quantize(two)
-    required = sourcing + trucking_dp + freight_dp
+    logistics_dp = (logistics_total * pct).quantize(two)
+
+    # Milestone 2: 50% Post-Delivery Balance Pool
+    logistics_balance = (logistics_total - logistics_dp).quantize(two)
 
     already_loaned = Decimal("0")
     loans_count = 0
@@ -238,17 +432,25 @@ def loan_requirement_data(cluster) -> dict:
     elif fin.get("revenue"):
         projected_sales = Decimal(str(fin["revenue"])).quantize(two)
 
+    ledger = get_logistics_reconciliation_ledger(cluster)
+
     return {
         "cluster_id": str(cluster.pk),
         "ref": cluster.reference_code,
         "volume_mt": fin["volume_mt"],
         "down_payment_pct": float(LOGISTICS_DOWN_PAYMENT_PCT),
         "sourcing": sourcing,
+        "sourcing_price": sourcing,
         "trucking": trucking,
         "freight": freight,
+        "logistics_total": logistics_total,
+        "logistics_price": logistics_total,
         "trucking_down_payment": trucking_dp,
         "freight_down_payment": freight_dp,
+        "logistics_down_payment": logistics_dp,
+        "logistics_balance": logistics_balance,
         "required": required,
+        "suggested_loan_amount": required,
         "projected_sales": projected_sales,
         "already_loaned": already_loaned,
         "remaining_required": remaining_required,
@@ -258,9 +460,10 @@ def loan_requirement_data(cluster) -> dict:
         "loans_count": loans_count,
         "has_data": required > 0,
         "formula": (
-            f"₱{sourcing:,.2f} (Sourcing, 100%) + ₱{trucking_dp:,.2f} (Trucking {LOGISTICS_DOWN_PAYMENT_PCT:g}% of ₱{trucking:,.2f}) "
-            f"+ ₱{freight_dp:,.2f} (Freight {LOGISTICS_DOWN_PAYMENT_PCT:g}% of ₱{freight:,.2f}) = ₱{required:,.2f}"
+            f"₱{sourcing:,.2f} (Sourcing, 100%) + ₱{logistics_total:,.2f} "
+            f"(Logistics, 100%: ₱{trucking:,.2f} Trucking + ₱{freight:,.2f} Barging) = ₱{required:,.2f}"
         ),
+        "ledger": ledger,
     }
 
 

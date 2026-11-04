@@ -227,20 +227,20 @@
             <div class="row g-3 mb-4">
                 <div class="col-4">
                     <div class="metric-stat-box h-100">
-                        <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Sourcing (100%)</div>
+                        <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Sourcing Price (100%)</div>
                         <div class="fs-5 fw-bold text-dark font-monospace">₱{{ loan_req.sourcing|floatformat:2|intcomma }}</div>
                     </div>
                 </div>
                 <div class="col-4">
                     <div class="metric-stat-box h-100">
-                        <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Logistics (50%)</div>
-                        <div class="fs-5 fw-bold text-dark font-monospace">₱{{ loan_req.logistics_down_payment|floatformat:2|intcomma }}</div>
+                        <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Logistics Price (100%)</div>
+                        <div class="fs-5 fw-bold text-dark font-monospace">₱{{ loan_req.logistics_total|floatformat:2|intcomma }}</div>
                     </div>
                 </div>
                 <div class="col-4">
-                    <div class="metric-stat-box h-100" style="border-color: rgba(220, 53, 69, 0.25); background: rgba(220, 53, 69, 0.03);">
-                        <div class="text-xs text-danger text-uppercase fw-semibold mb-1.5">Min Required</div>
-                        <div class="fs-5 fw-bold text-danger font-monospace">₱{{ loan_req.required|floatformat:2|intcomma }}</div>
+                    <div class="metric-stat-box h-100" style="border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.05);">
+                        <div class="text-xs text-success text-uppercase fw-semibold mb-1.5">Suggested Loan (100%)</div>
+                        <div class="fs-5 fw-bold text-success font-monospace">₱{{ loan_req.required|floatformat:2|intcomma }}</div>
                     </div>
                 </div>
             </div>

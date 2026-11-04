@@ -34,14 +34,17 @@ def reconciliation_detail(request, pk):
 
     form = PaymentExpenseMatchForm()
 
-    from operations.services.pricing import cluster_financials
+    from operations.services.pricing import cluster_financials, get_logistics_reconciliation_ledger, loan_requirement_data
 
     fin = cluster_financials(cluster)
+    ledger = get_logistics_reconciliation_ledger(cluster)
+    loan_req = loan_requirement_data(cluster)
+
     loans_qs = cluster.loans.all()
     if loans_qs.exists():
         total_target = loans_qs.aggregate(total=Sum("principal"))["total"] or Decimal("0")
     else:
-        total_target = Decimal(str(fin["purchase_total"]))
+        total_target = Decimal(str(loan_req.get("required") or fin["purchase_total"]))
 
     sourcing_total = Decimal(str(fin["purchase_total"]))
     trucking_total = Decimal(str(fin["tracking_fees"]))
@@ -53,18 +56,21 @@ def reconciliation_detail(request, pk):
     matched_trucking = matches_qs.filter(expense_type__in=["trucking", "tracking"]).aggregate(total=Sum("amount"))["total"] or Decimal("0")
     matched_barge = matches_qs.filter(expense_type=PaymentExpenseMatch.ExpenseType.BARGE).aggregate(total=Sum("amount"))["total"] or Decimal("0")
     matched_deposit = matches_qs.filter(expense_type=PaymentExpenseMatch.ExpenseType.LOGISTICS_DEPOSIT).aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    matched_freight = matched_trucking + matched_barge
+    matched_balance = matches_qs.filter(expense_type="logistics_balance").aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    matched_freight = matched_trucking + matched_barge + matched_deposit + matched_balance
 
     total_matched = Decimal(str(matches_qs.aggregate(total=Sum("amount"))["total"] or "0"))
     remaining_balance = max(total_target - total_matched, Decimal("0"))
     total_outlay = sourcing_total + logistics_total
 
-    deposit_total = (logistics_total * Decimal("0.5")).quantize(Decimal("0.01"))
+    deposit_total = Decimal(str(ledger["down_payment_budget"]))
+    balance_pool_total = Decimal(str(ledger["final_balance_pool"]))
     rem_sourcing = max(Decimal("0"), sourcing_total - matched_sourcing)
+    rem_deposit = Decimal(str(ledger["down_payment_remaining"]))
+    rem_balance = Decimal(str(ledger["balance_pool_remaining"]))
     rem_trucking = max(Decimal("0"), trucking_total - matched_trucking)
     rem_barge = max(Decimal("0"), barge_total - matched_barge)
-    rem_deposit = max(Decimal("0"), deposit_total - matched_deposit)
-    rem_freight = max(Decimal("0"), logistics_total - matched_freight)
+    rem_freight = Decimal(str(ledger["total_undisbursed_funds"]))
 
     reconciliation_suggestions = {
         "sourcing": {
@@ -77,6 +83,28 @@ def reconciliation_detail(request, pk):
             "suggested": float(rem_sourcing if rem_sourcing > 0 else sourcing_total),
             "suggested_50": round(float(sourcing_total) * 0.5, 2),
             "hint": "100% Purchase Cost from Sugar Mill / Supplier",
+        },
+        "logistics_deposit": {
+            "key": "logistics_deposit",
+            "name": "50% Delivery Advance",
+            "incurred": float(deposit_total),
+            "matched": float(ledger["down_payment_paid"]),
+            "remaining": float(rem_deposit),
+            "pct_matched": ledger["down_payment_pct_paid"],
+            "suggested": float(rem_deposit if rem_deposit > 0 else deposit_total),
+            "suggested_50": round(float(deposit_total) * 0.5, 2),
+            "hint": "50% Advance Downpayment for Delivery & Freight",
+        },
+        "logistics_balance": {
+            "key": "logistics_balance",
+            "name": "50% Delivery Balance",
+            "incurred": float(balance_pool_total),
+            "matched": float(ledger["balance_pool_reconciled"]),
+            "remaining": float(rem_balance),
+            "pct_matched": ledger["balance_pool_pct_reconciled"],
+            "suggested": float(rem_balance if rem_balance > 0 else balance_pool_total),
+            "suggested_50": round(float(balance_pool_total) * 0.5, 2),
+            "hint": "50% Post-Delivery Balance released upon physical delivery confirmation",
         },
         "trucking": {
             "key": "trucking",
@@ -99,17 +127,6 @@ def reconciliation_detail(request, pk):
             "suggested": float(rem_barge if rem_barge > 0 else barge_total),
             "suggested_50": round(float(barge_total) * 0.5, 2),
             "hint": "Boat or Barge Sea Shipping Cost",
-        },
-        "logistics_deposit": {
-            "key": "logistics_deposit",
-            "name": "50% Delivery Advance",
-            "incurred": float(deposit_total),
-            "matched": float(matched_deposit),
-            "remaining": float(rem_deposit),
-            "pct_matched": round(float(matched_deposit) / float(deposit_total) * 100, 1) if deposit_total > 0 else 100.0,
-            "suggested": float(rem_deposit if rem_deposit > 0 else deposit_total),
-            "suggested_50": round(float(deposit_total) * 0.5, 2),
-            "hint": "50% Advance Downpayment for Delivery & Freight",
         },
         "other": {
             "key": "other",
@@ -150,6 +167,10 @@ def reconciliation_detail(request, pk):
             "barge_total": barge_total,
             "logistics_total": logistics_total,
             "deposit_total": deposit_total,
+            "balance_pool_total": balance_pool_total,
+            "rem_balance": rem_balance,
+            "ledger": ledger,
+            "loan_req": loan_req,
             "matched_sourcing": matched_sourcing,
             "matched_trucking": matched_trucking,
             "matched_barge": matched_barge,

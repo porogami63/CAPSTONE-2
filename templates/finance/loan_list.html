@@ -1086,10 +1086,11 @@ function quickFillMatch(expenseType, amount, notes) {
                                 </div>
                                 <div class="row g-2 fs-7 text-dark mb-2">
                                     <div class="col-md-3">Supplier Cost (100%): <strong id="suggSourcing">₱0.00</strong></div>
-                                    <div class="col-md-3">Truck Delivery (50%): <strong id="suggTrucking">₱0.00</strong></div>
-                                    <div class="col-md-3">Barge Delivery (50%): <strong id="suggFreight">₱0.00</strong></div>
-                                    <div class="col-md-3 text-md-end">Total Needed: <strong class="text-danger fs-6" id="suggRequired">₱0.00</strong></div>
+                                    <div class="col-md-3">Truck Delivery (100%): <strong id="suggTrucking">₱0.00</strong></div>
+                                    <div class="col-md-3">Barge Delivery (100%): <strong id="suggFreight">₱0.00</strong></div>
+                                    <div class="col-md-3 text-md-end">Suggested Loan: <strong class="text-success fs-6" id="suggRequired">₱0.00</strong></div>
                                 </div>
+                                <div class="text-xs text-primary-emphasis mb-2"><i class="bi bi-info-circle me-1"></i> Suggested Loan Amount = 100% Sourcing + 100% Logistics (Logistics milestone: 50% upfront down payment, 50% post-delivery balance pool).</div>
                                 <div id="suggPartialRow" class="row g-2 fs-7 text-dark mb-2 pt-1 border-top border-primary-subtle" style="display: none;">
                                     <div class="col-md-6">Already Loaned: <strong class="text-success" id="suggAlreadyLoaned">₱0.00</strong> (<span id="suggPctFunded">0</span>%)</div>
                                     <div class="col-md-6 text-md-end">Remaining Needed: <strong class="text-primary fs-6" id="suggRemainingRequired">₱0.00</strong> (<span id="suggPctRemaining">0</span>%)</div>
@@ -1196,15 +1197,14 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 currentSuggestion = data;
                 document.getElementById('suggSourcing').textContent = formatMoney(data.sourcing);
-                document.getElementById('suggTrucking').textContent = formatMoney(data.trucking_down_payment);
-                document.getElementById('suggFreight').textContent = formatMoney(data.freight_down_payment);
+                document.getElementById('suggTrucking').textContent = formatMoney(data.trucking);
+                document.getElementById('suggFreight').textContent = formatMoney(data.freight);
                 document.getElementById('suggRequired').textContent = formatMoney(data.required);
                 document.getElementById('suggFormula').textContent = data.formula;
 
                 var partialRow = document.getElementById('suggPartialRow');
                 var principalWrap = document.getElementById('standaloneLoanPrincipalWrap');
-                var defaultLoanAmt = (data.projected_sales > 0) ? data.projected_sales : ((data.remaining_required > 0) ? data.remaining_required : data.required);
-                var targetAmt = (data.remaining_required > 0) ? data.remaining_required : data.required;
+                var defaultLoanAmt = (data.remaining_required > 0) ? data.remaining_required : data.required;
 
                 if (data.already_loaned > 0) {
                     if (partialRow) {
@@ -1214,25 +1214,25 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('suggRemainingRequired').textContent = formatMoney(data.remaining_required);
                         document.getElementById('suggPctRemaining').textContent = data.remaining_pct;
                     }
-                    var tip = 'Projected Sales / Contract Value: ' + formatMoney(data.projected_sales) + ' (Min Required: ' + formatMoney(data.required) + ')';
+                    var tip = 'Suggested Loan (100% Sourcing + 100% Logistics): ' + formatMoney(data.required) + ' (Remaining: ' + formatMoney(defaultLoanAmt) + ')';
                     if (principalWrap) {
                         principalWrap.setAttribute('title', tip);
                         principalWrap.setAttribute('data-bs-original-title', tip);
                     }
                     if (principalInput) {
                         principalInput.setAttribute('title', tip);
-                        principalInput.setAttribute('placeholder', 'Default: ' + formatMoney(defaultLoanAmt));
+                        principalInput.setAttribute('placeholder', 'Remaining: ' + formatMoney(defaultLoanAmt));
                     }
                 } else {
                     if (partialRow) partialRow.style.display = 'none';
-                    var tip = 'Projected Sales Amount: ' + formatMoney(data.projected_sales);
+                    var tip = 'Suggested Loan (100% Sourcing + 100% Logistics): ' + formatMoney(data.required);
                     if (principalWrap) {
                         principalWrap.setAttribute('title', tip);
                         principalWrap.setAttribute('data-bs-original-title', tip);
                     }
                     if (principalInput) {
                         principalInput.setAttribute('title', tip);
-                        principalInput.setAttribute('placeholder', 'Projected Sales: ' + formatMoney(defaultLoanAmt));
+                        principalInput.setAttribute('placeholder', 'Suggested Loan: ' + formatMoney(defaultLoanAmt));
                     }
                 }
 
@@ -1257,9 +1257,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (applyBtn) {
         applyBtn.addEventListener('click', function() {
             if (currentSuggestion) {
-                var amtToApply = (currentSuggestion.projected_sales > 0) ? currentSuggestion.projected_sales : ((currentSuggestion.remaining_required > 0) ? currentSuggestion.remaining_required : currentSuggestion.required);
+                var amtToApply = (currentSuggestion.remaining_required > 0) ? currentSuggestion.remaining_required : currentSuggestion.required;
                 if (amtToApply) {
-                    principalInput.value = amtToApply.toFixed(2);
+                    principalInput.value = Number(amtToApply).toFixed(2);
                 }
                 var today = new Date();
                 var todayStr = today.toISOString().split('T')[0];

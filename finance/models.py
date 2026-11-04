@@ -271,6 +271,7 @@ class PaymentExpenseMatch(models.Model):
         TRUCKING = "trucking", "Truck Delivery"
         BARGE = "barge", "Boat / Barge Delivery"
         LOGISTICS_DEPOSIT = "logistics_deposit", "50% Delivery Advance"
+        LOGISTICS_BALANCE = "logistics_balance", "50% Delivery Balance"
         OTHER = "other", "Other Expenses"
 
     reconciliation = models.ForeignKey(

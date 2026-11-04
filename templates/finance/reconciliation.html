@@ -47,24 +47,24 @@
                 </div>
             </div>
             <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light border-warning h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="background-color: rgba(255,193,7,0.05); cursor: pointer;" onclick="selectReconCategory('trucking')" data-bs-toggle="tooltip" title="Click to select Truck Delivery in payment matching">
-                    <small class="text-dark d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-truck me-1 text-warning"></i>Truck Delivery</small>
-                    <span class="fs-6 font-weight-bold text-dark my-1">₱{{ trucking_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_trucking|floatformat:2|intcomma }}</strong></small>
-                </div>
-            </div>
-            <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('barge')" data-bs-toggle="tooltip" title="Click to select Boat / Barge Delivery in payment matching">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-water me-1 text-info"></i>Boat / Barge Delivery</small>
-                    <span class="fs-6 font-weight-bold text-dark my-1">₱{{ barge_total|floatformat:2|intcomma }}</span>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_barge|floatformat:2|intcomma }}</strong></small>
-                </div>
-            </div>
-            <div class="col" style="min-width: 150px;">
-                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('logistics_deposit')" data-bs-toggle="tooltip" title="Click to select 50% Delivery Advance in payment matching">
-                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;">50% Delivery Advance</small>
+                <div class="p-2 border rounded text-center bg-light border-warning h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="background-color: rgba(255,193,7,0.05); cursor: pointer;" onclick="selectReconCategory('logistics_deposit')" data-bs-toggle="tooltip" title="Click to select 50% Delivery Advance in payment matching">
+                    <small class="text-dark d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-clock-history me-1 text-warning"></i>50% Delivery Advance</small>
                     <span class="fs-6 font-weight-bold text-danger my-1">₱{{ deposit_total|floatformat:2|intcomma }}</span>
                     <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_deposit|floatformat:2|intcomma }}</strong></small>
+                </div>
+            </div>
+            <div class="col" style="min-width: 150px;">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('logistics_balance')" data-bs-toggle="tooltip" title="Click to select 50% Post-Delivery Balance in payment matching">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-shield-check me-1 text-success"></i>50% Delivery Balance</small>
+                    <span class="fs-6 font-weight-bold text-success my-1">₱{{ balance_pool_total|floatformat:2|intcomma }}</span>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Rem: <strong class="text-primary">₱{{ rem_balance|floatformat:2|intcomma }}</strong></small>
+                </div>
+            </div>
+            <div class="col" style="min-width: 150px;">
+                <div class="p-2 border rounded text-center bg-light h-100 d-flex flex-column justify-content-between recon-kpi-clickable" style="cursor: pointer;" onclick="selectReconCategory('trucking')" data-bs-toggle="tooltip" title="Click to view total logistics cost">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; font-weight: 700;"><i class="bi bi-truck me-1 text-primary"></i>Total Logistics Price</small>
+                    <span class="fs-6 font-weight-bold text-dark my-1">₱{{ logistics_total|floatformat:2|intcomma }}</span>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">Undisbursed: <strong class="text-primary">₱{{ rem_freight|floatformat:2|intcomma }}</strong></small>
                 </div>
             </div>
             <div class="col" style="min-width: 150px;">
@@ -136,6 +136,10 @@
                             <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="logistics_deposit">
                                 <i class="bi bi-percent me-1"></i> 50% Advance
                                 <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_deposit|floatformat:0|intcomma }} rem</span>
+                            </button>
+                            <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="logistics_balance">
+                                <i class="bi bi-shield-check me-1"></i> 50% Balance
+                                <span class="d-block text-xs fw-normal opacity-75">₱{{ rem_balance|floatformat:0|intcomma }} rem</span>
                             </button>
                             <button type="button" class="nav-link py-1.5 px-2 text-xs fw-bold rounded-2 text-dark" data-recon-cat="other">
                                 <i class="bi bi-three-dots me-1"></i> Other
@@ -230,6 +234,132 @@
 
     <!-- Audit Ledger of Recorded Matches -->
     <div class="col-md-7">
+        <!-- Dedicated Logistics Milestone Breakdown & Dynamic Batch Reconciliation Ledger Card -->
+        <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: var(--htc-surface); border-left: 4px solid var(--htc-primary) !important;">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-bold text-dark">
+                        <i class="bi bi-diagram-3-fill text-primary me-2"></i>Logistics Milestone &amp; Batch Reconciliation Ledger
+                    </h6>
+                    <small class="text-muted text-xs">2-Milestone Rule: 50% Down Payment upfront + 50% Post-Delivery Balance released upon physical receipt.</small>
+                </div>
+                <span class="badge bg-light text-dark border">Total Logistics: ₱{{ ledger.total_logistics_budget|floatformat:2|intcomma }}</span>
+            </div>
+            <div class="card-body p-3">
+                <!-- Milestone 1 vs Milestone 2 Overview Deck -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <div class="p-2.5 rounded-3 border bg-light h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-xs fw-bold text-uppercase text-muted"><i class="bi bi-clock-history text-warning me-1"></i>Milestone 1: 50% Down Payment</span>
+                                <span class="badge bg-{{ ledger.down_payment_badge }} text-white text-xs">{{ ledger.down_payment_status }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-baseline">
+                                <strong class="fs-6 text-dark">₱{{ ledger.down_payment_paid|floatformat:2|intcomma }}</strong>
+                                <small class="text-muted text-xs">Budget: ₱{{ ledger.down_payment_budget|floatformat:2|intcomma }}</small>
+                            </div>
+                            <div class="progress mt-1.5" style="height: 6px;">
+                                <div class="progress-bar bg-{{ ledger.down_payment_badge }}" style="width: {{ ledger.down_payment_pct_paid }}%;"></div>
+                            </div>
+                            <div class="d-flex justify-content-between text-xs text-muted mt-1">
+                                <span>Paid: {{ ledger.down_payment_pct_paid }}%</span>
+                                <span>Rem: <strong class="text-primary">₱{{ ledger.down_payment_remaining|floatformat:2|intcomma }}</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-2.5 rounded-3 border bg-light h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-xs fw-bold text-uppercase text-muted"><i class="bi bi-shield-check text-success me-1"></i>Milestone 2: 50% Post-Delivery Balance</span>
+                                <span class="badge bg-{{ ledger.balance_pool_badge }} text-white text-xs">{{ ledger.balance_pool_status }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-baseline">
+                                <strong class="fs-6 text-dark">₱{{ ledger.balance_pool_reconciled|floatformat:2|intcomma }}</strong>
+                                <small class="text-muted text-xs">Pool Budget: ₱{{ ledger.final_balance_pool|floatformat:2|intcomma }}</small>
+                            </div>
+                            <div class="progress mt-1.5" style="height: 6px;">
+                                <div class="progress-bar bg-{{ ledger.balance_pool_badge }}" style="width: {{ ledger.balance_pool_pct_reconciled }}%;"></div>
+                            </div>
+                            <div class="d-flex justify-content-between text-xs text-muted mt-1">
+                                <span>Reconciled: {{ ledger.balance_pool_pct_reconciled }}%</span>
+                                <span>Remaining Pool: <strong class="text-primary">₱{{ ledger.balance_pool_remaining|floatformat:2|intcomma }}</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Running Undisbursed Logistics Funds Banner -->
+                <div class="p-2 px-3 rounded-2 bg-primary-subtle border border-primary-subtle d-flex justify-content-between align-items-center text-xs mb-3">
+                    <span><i class="bi bi-wallet2 text-primary me-1.5"></i><strong>Remaining Undisbursed Logistics Funds:</strong></span>
+                    <span class="fw-bold fs-7 text-primary">₱{{ ledger.total_undisbursed_funds|floatformat:2|intcomma }} <small class="text-muted fw-normal">of ₱{{ ledger.total_logistics_budget|floatformat:2|intcomma }}</small></span>
+                </div>
+
+                <!-- Dynamic Delivery Batches Table -->
+                <h6 class="fw-bold text-dark fs-7 mb-2 d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-truck me-1.5 text-warning"></i>Shipment Batches Received &amp; Balance Reconciliation</span>
+                    <span class="badge bg-secondary text-xs">{{ ledger.batches_count }} Batches</span>
+                </h6>
+                <div class="table-responsive border rounded-2">
+                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.8rem;">
+                        <thead class="table-light">
+                            <tr class="text-muted text-uppercase" style="font-size: 0.68rem;">
+                                <th>Batch Ref</th>
+                                <th>Delivered MT</th>
+                                <th>Confirmation Date</th>
+                                <th class="text-end">100% Freight</th>
+                                <th class="text-end">50% DP Covered</th>
+                                <th class="text-end">50% Post-Delivery Balance</th>
+                                <th class="text-end">Reconciled Balance</th>
+                                <th>Status</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in ledger.batches %}
+                            <tr>
+                                <td>
+                                    <strong class="font-monospace text-primary">#{{ b.short_id }}</strong>
+                                    <div class="text-muted" style="font-size: 0.72rem;">{{ b.location }}</div>
+                                </td>
+                                <td><strong>{{ b.delivered_mt|floatformat:3|intcomma }} MT</strong></td>
+                                <td>
+                                    {% if b.is_confirmed %}
+                                    <span class="text-success fw-medium"><i class="bi bi-check-circle-fill me-1"></i>{{ b.confirmation_date_display }}</span>
+                                    {% else %}
+                                    <span class="text-muted fst-italic"><i class="bi bi-hourglass-split me-1"></i>In Transit</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end font-monospace">₱{{ b.batch_logistics_cost|floatformat:2|intcomma }}</td>
+                                <td class="text-end font-monospace text-muted">₱{{ b.batch_downpayment_covered|floatformat:2|intcomma }}</td>
+                                <td class="text-end font-monospace fw-bold text-dark">₱{{ b.batch_balance_due|floatformat:2|intcomma }}</td>
+                                <td class="text-end font-monospace fw-bold text-success">₱{{ b.reconciled_amount|floatformat:2|intcomma }}</td>
+                                <td><span class="badge bg-{{ b.badge }} text-white text-xs">{{ b.status }}</span></td>
+                                <td class="text-center">
+                                    {% if b.remaining_due > 0 and b.is_confirmed %}
+                                    <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-8 fw-semibold" onclick="selectBatchRecon('{{ b.short_id }}', '{{ b.suggested_match_ref }}', {{ b.remaining_due }}, '{{ b.location|escapejs }}', '{{ b.delivered_mt }}')">
+                                        <i class="bi bi-magic me-1"></i> Match 50%
+                                    </button>
+                                    {% elif b.remaining_due <= 0 and b.batch_balance_due > 0 %}
+                                    <span class="badge bg-success-subtle text-success border border-success text-xs"><i class="bi bi-check2"></i> Reconciled</span>
+                                    {% else %}
+                                    <span class="text-muted text-xs">Pending Delivery</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-3">
+                                    <i class="bi bi-info-circle me-1"></i> No shipment delivery batches recorded for this order yet.
+                                    As shipments are received, their 50% post-delivery balances will automatically appear here for reconciliation.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <div class="card border-0 shadow-sm" style="border-radius: 12px; background: var(--htc-surface);">
             <div class="card-header bg-white py-3 flex-between">
                 <h6 class="mb-0 font-weight-bold text-dark"><i class="bi bi-list-check text-primary me-2"></i>Recorded Payment Matches History</h6>
@@ -378,6 +508,28 @@ document.addEventListener('DOMContentLoaded', function() {
     function fmt(v) {
         return '₱' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+
+    window.selectBatchRecon = function(shortId, matchRef, amount, location, mt) {
+        selectReconCategory('logistics_balance');
+        const refInput = document.getElementById('id_payment_reference');
+        const amountInput = document.getElementById('id_amount');
+        const notesInput = document.getElementById('id_notes');
+
+        if (refInput) refInput.value = matchRef;
+        if (amountInput) {
+            amountInput.value = Number(amount || 0).toFixed(2);
+            amountInput.classList.add('border-primary');
+            setTimeout(() => amountInput.classList.remove('border-primary'), 600);
+        }
+        if (notesInput) {
+            notesInput.value = '50% Post-Delivery Balance for Batch #' + shortId + ' (' + location + ', ' + mt + ' MT)';
+        }
+
+        const formEl = document.getElementById('paymentMatchForm');
+        if (formEl) {
+            formEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    };
 
     function getSelectedCategory() {
         return dropdown ? dropdown.value : 'sourcing';

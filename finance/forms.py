@@ -320,14 +320,11 @@ class StandaloneLoanForm(LoanRulesMixin, forms.ModelForm):
                 target_cluster = TransactionCluster.objects.filter(pk=c_id).first()
 
         if target_cluster and not self.initial.get("principal"):
-            po = getattr(target_cluster, "purchase_order", None)
-            if po and po.total_selling_value and po.total_selling_value > 0:
-                self.initial["principal"] = po.total_selling_value
-            else:
-                from operations.services.pricing import cluster_financials
-                fin = cluster_financials(target_cluster)
-                if fin.get("revenue") and fin["revenue"] > 0:
-                    self.initial["principal"] = fin["revenue"]
+            from operations.services.pricing import loan_requirement_data
+            req = loan_requirement_data(target_cluster)
+            sugg_principal = req.get("remaining_required") or req.get("required")
+            if sugg_principal and sugg_principal > 0:
+                self.initial["principal"] = sugg_principal
 
         self.fields["cluster"].queryset = (
             TransactionCluster.objects.filter(id__in=valid_loan_cluster_ids)
@@ -393,14 +390,11 @@ class CapitalLoanForm(LoanRulesMixin, forms.ModelForm):
         self.cluster = cluster
         super().__init__(*args, **kwargs)
         if self.cluster and not self.initial.get("principal"):
-            po = getattr(self.cluster, "purchase_order", None)
-            if po and po.total_selling_value and po.total_selling_value > 0:
-                self.initial["principal"] = po.total_selling_value
-            else:
-                from operations.services.pricing import cluster_financials
-                fin = cluster_financials(self.cluster)
-                if fin.get("revenue") and fin["revenue"] > 0:
-                    self.initial["principal"] = fin["revenue"]
+            from operations.services.pricing import loan_requirement_data
+            req = loan_requirement_data(self.cluster)
+            sugg_principal = req.get("remaining_required") or req.get("required")
+            if sugg_principal and sugg_principal > 0:
+                self.initial["principal"] = sugg_principal
 
         self.fields["cheque_number"].required = False
         self.fields["cheque_date"].required = False

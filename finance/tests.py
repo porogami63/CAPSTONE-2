@@ -383,17 +383,23 @@ class LoanValidationTests(TestCase):
 		from operations.services.pricing import loan_requirement_data
 		req = loan_requirement_data(self.cluster)
 		self.assertEqual(req["sourcing"], 1000000.0)
+		self.assertEqual(req["trucking"], 100000.0)
+		self.assertEqual(req["freight"], 200000.0)
+		self.assertEqual(req["logistics_total"], 300000.0)
 		self.assertEqual(req["trucking_down_payment"], 50000.0)
 		self.assertEqual(req["freight_down_payment"], 100000.0)
-		# Required = 1,000,000 + 50,000 + 100,000 = 1,150,000
-		self.assertEqual(req["required"], 1150000.0)
+		self.assertEqual(req["logistics_down_payment"], 150000.0)
+		self.assertEqual(req["logistics_balance"], 150000.0)
+		# 100% Sourcing + 100% Logistics = 1,000,000 + 300,000 = 1,300,000
+		self.assertEqual(req["required"], 1300000.0)
+		self.assertEqual(req["suggested_loan_amount"], 1300000.0)
 
 	def test_loan_creation_blocks_when_already_fully_funded(self):
-		# First create a fully funding loan
+		# First create a fully funding loan (100% sourcing + 100% logistics)
 		CapitalLoan.objects.create(
 			cluster=self.cluster,
 			bank_name="BDO",
-			principal=Decimal("1150000.00"),
+			principal=Decimal("1300000.00"),
 			interest_rate_annual=Decimal("10.00"),
 			start_date=date.today(),
 			due_date=date.today() + timedelta(days=60),
@@ -818,7 +824,7 @@ class LoanValidationCap100PercentTests(TestCase):
 			tracking_fees=100000.0, # Trucking DP = 50,000
 			barge_fees=100000.0, # Freight DP = 50,000
 		)
-		# Capital requirement = 1,000,000 + 50,000 + 50,000 = 1,100,000.00
+		# Capital requirement = 1,000,000 + 100,000 + 100,000 = 1,200,000.00 (100% sourcing + 100% logistics)
 
 	def test_100_percent_cap_blocks_creation_with_exact_message(self):
 		from finance.services import check_loan_capital_cap
@@ -831,7 +837,7 @@ class LoanValidationCap100PercentTests(TestCase):
 		CapitalLoan.objects.create(
 			cluster=self.cluster,
 			bank_name="BDO Unibank",
-			principal=Decimal("1100000.00"),
+			principal=Decimal("1200000.00"),
 			interest_rate_annual=Decimal("10.00"),
 			start_date=date.today(),
 			due_date=date.today() + timedelta(days=90),
@@ -861,11 +867,11 @@ class LoanValidationCap100PercentTests(TestCase):
 		self.assertContains(res, "Capital requirement for this order has already been 100% funded. Additional loans cannot be created.")
 
 	def test_100_percent_cap_blocks_approval_when_already_funded(self):
-		# Create an approved active loan funding 100%
+		# Create an approved active loan funding 100% (100% sourcing + 100% logistics)
 		CapitalLoan.objects.create(
 			cluster=self.cluster,
 			bank_name="BDO Unibank",
-			principal=Decimal("1100000.00"),
+			principal=Decimal("1200000.00"),
 			interest_rate_annual=Decimal("10.00"),
 			start_date=date.today(),
 			due_date=date.today() + timedelta(days=90),
@@ -898,3 +904,134 @@ class LoanValidationCap100PercentTests(TestCase):
 
 
 
+
+
+class LogisticsTwoMilestoneAndBatchReconciliationTests(TestCase):
+	def setUp(self):
+		self.admin = User.objects.create_superuser(
+			username="admin_recon_batch",
+			password="password123",
+			email="admin_recon_batch@htc.corp",
+			role=User.Role.ADMINISTRATOR,
+		)
+		self.client.login(username="admin_recon_batch", password="password123")
+		self.client_entity = Client.objects.create(name="Universal Robina Corp.")
+		self.mill = SugarMill.objects.create(name="URC Sugar Mill")
+		self.partner = LogisticsPartner.objects.create(name="Trans-Visayas Logistics")
+		self.cluster = TransactionCluster.objects.create(
+			reference_code="PO-RECON-BATCH-2026",
+			client=self.client_entity,
+			sugar_mill=self.mill,
+		)
+		self.po = PurchaseOrder.objects.create(
+			cluster=self.cluster,
+			volume_mt=1000.0,
+			unit_price=12500.0,  # Sourcing Price: 1,000 MT * ₱12,500 = ₱12,500,000.00
+			selling_price=17500.0,
+		)
+		# 2 partial batches delivered (variable sizes: 400 MT and 600 MT)
+		from operations.models import DeliveryLedger
+		self.d1 = DeliveryLedger.objects.create(
+			purchase_order=self.po,
+			supplier=self.mill,
+			delivered_mt=Decimal("400.000"),
+			receiving_location="URC Batangas Plant",
+			trucking_partner=self.partner,
+			trucking_rate_per_mt=Decimal("450.00"),
+			barge_partner=self.partner,
+			barge_rate_per_mt=Decimal("1388.00"),
+		)
+		self.d2 = DeliveryLedger.objects.create(
+			purchase_order=self.po,
+			supplier=self.mill,
+			delivered_mt=Decimal("600.000"),
+			receiving_location="URC Pasig Plant",
+			trucking_partner=self.partner,
+			trucking_rate_per_mt=Decimal("450.00"),
+			barge_partner=self.partner,
+			barge_rate_per_mt=Decimal("1388.00"),
+		)
+
+	def test_suggested_loan_amount_100_percent_coverage(self):
+		from operations.services.pricing import loan_requirement_data
+		req = loan_requirement_data(self.cluster)
+
+		# Sourcing = 1,000 MT * 12,500 = 12,500,000.00
+		self.assertEqual(req["sourcing"], 12500000.0)
+		# Trucking = 1,000 MT * 450 = 450,000.00
+		self.assertEqual(req["trucking"], 450000.0)
+		# Barge = 1,000 MT * 1388 = 1,388,000.00
+		self.assertEqual(req["freight"], 1388000.0)
+		# Total Logistics = 450k + 1.388M = 1,838,000.00
+		self.assertEqual(req["logistics_total"], 1838000.0)
+		# Suggested Loan = 100% Sourcing + 100% Logistics = 12,500,000 + 1,838,000 = 14,338,000.00
+		self.assertEqual(req["required"], 14338000.0)
+		self.assertEqual(req["suggested_loan_amount"], 14338000.0)
+
+		# Logistics Milestones:
+		# Milestone 1 (50% Down Payment) = 1,838,000 * 50% = 919,000.00
+		self.assertEqual(req["logistics_down_payment"], 919000.0)
+		# Milestone 2 (50% Post-Delivery Balance Pool) = 919,000.00
+		self.assertEqual(req["logistics_balance"], 919000.0)
+
+	def test_dynamic_batch_reconciliation_ledger_breakdown(self):
+		from operations.services.pricing import get_logistics_reconciliation_ledger
+		from finance.models import FinancialReconciliation, PaymentExpenseMatch
+
+		recon, _ = FinancialReconciliation.objects.get_or_create(cluster=self.cluster)
+
+		# 1. Initially before payments
+		ledger = get_logistics_reconciliation_ledger(self.cluster)
+		self.assertEqual(ledger["total_logistics_budget"], 1838000.0)
+		self.assertEqual(ledger["down_payment_budget"], 919000.0)
+		self.assertEqual(ledger["down_payment_paid"], 0.0)
+		self.assertEqual(ledger["down_payment_remaining"], 919000.0)
+		self.assertEqual(ledger["final_balance_pool"], 919000.0)
+		self.assertEqual(ledger["total_undisbursed_funds"], 1838000.0)
+		self.assertEqual(len(ledger["batches"]), 2)
+
+		# Batch 1 (400 MT): 400 * (450 + 1388) = 735,200.00
+		# 50% DP covered = 367,600.00; 50% post-delivery balance due = 367,600.00
+		b1 = ledger["batches"][0] if ledger["batches"][0]["short_id"] == str(self.d1.delivery_id)[:8].upper() else ledger["batches"][1]
+		self.assertEqual(b1["batch_logistics_cost"], 735200.0)
+		self.assertEqual(b1["batch_downpayment_covered"], 367600.0)
+		self.assertEqual(b1["batch_balance_due"], 367600.0)
+
+		# 2. Release 50% Upfront Down Payment
+		PaymentExpenseMatch.objects.create(
+			reconciliation=recon,
+			payment_reference=f"DEP-LOG-{self.cluster.reference_code}",
+			expense_type=PaymentExpenseMatch.ExpenseType.LOGISTICS_DEPOSIT,
+			amount=Decimal("919000.00"),
+		)
+		ledger_after_dp = get_logistics_reconciliation_ledger(self.cluster)
+		self.assertEqual(ledger_after_dp["down_payment_paid"], 919000.0)
+		self.assertEqual(ledger_after_dp["down_payment_remaining"], 0.0)
+		self.assertEqual(ledger_after_dp["down_payment_status"], "Paid")
+		self.assertEqual(ledger_after_dp["total_undisbursed_funds"], 919000.0)
+
+		# 3. Release 50% Post-Delivery Balance for Batch 1 (367,600.00)
+		short_id_1 = str(self.d1.delivery_id)[:8].upper()
+		PaymentExpenseMatch.objects.create(
+			reconciliation=recon,
+			payment_reference=f"BAL-DEL-{short_id_1}",
+			expense_type=PaymentExpenseMatch.ExpenseType.LOGISTICS_BALANCE,
+			amount=Decimal("367600.00"),
+		)
+		ledger_after_b1 = get_logistics_reconciliation_ledger(self.cluster)
+		b1_updated = [b for b in ledger_after_b1["batches"] if b["short_id"] == short_id_1][0]
+		self.assertEqual(b1_updated["reconciled_amount"], 367600.0)
+		self.assertEqual(b1_updated["remaining_due"], 0.0)
+		self.assertIn("Reconciled", b1_updated["status"])
+		# Remaining pool = 919,000 - 367,600 = 551,400.00
+		self.assertEqual(ledger_after_b1["balance_pool_remaining"], 551400.0)
+		self.assertEqual(ledger_after_b1["total_undisbursed_funds"], 551400.0)
+
+	def test_reconciliation_view_renders_milestone_and_batch_ledger(self):
+		res = self.client.get(reverse("finance:reconciliation", args=[self.cluster.pk]))
+		self.assertEqual(res.status_code, 200)
+		self.assertContains(res, "Logistics Milestone &amp; Batch Reconciliation Ledger")
+		self.assertContains(res, "Milestone 1: 50% Down Payment")
+		self.assertContains(res, "Milestone 2: 50% Post-Delivery Balance")
+		self.assertContains(res, "Shipment Batches Received &amp; Balance Reconciliation")
+		self.assertContains(res, "Match 50%")
