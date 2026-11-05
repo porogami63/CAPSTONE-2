@@ -408,6 +408,10 @@ class DocumentStorageAndDistinctionTests(TestCase):
         self.assertContains(res, "Sugar Mill Sourcing Distribution")
         self.assertContains(res, "Emperador Distillers Inc.")
         self.assertContains(res, "BUSCO Sugar Milling Co.")
+        self.assertContains(res, "Operations Steady")
+        self.assertContains(res, "data-bs-toggle=\"tooltip\"")
+        self.assertNotContains(res, "Operational Health Takeaways")
+        self.assertNotContains(res, "plain language")
         self.assertIn("client_chart_json", res.context)
         self.assertIn("mill_chart_json", res.context)
 

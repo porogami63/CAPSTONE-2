@@ -110,9 +110,21 @@
 <div class="analytics-hero-card">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
-            <h5 class="fw-bold mb-1 text-dark">Company Operations &amp; Performance Overview</h5>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h5 class="fw-bold mb-0 text-dark">Company Operations &amp; Performance Overview</h5>
+                <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2.5 fs-8 d-inline-flex align-items-center gap-1.5"
+                      data-bs-toggle="tooltip" 
+                      data-bs-html="true" 
+                      data-bs-placement="bottom" 
+                      title="&lt;div class='text-start py-1'&gt;&lt;strong class='text-white'&gt;Operational Status&lt;/strong&gt;&lt;br&gt;&bull; Fulfillment: {{ fulfillment_rate }}% ({{ total_delivered|floatformat:0|intcomma }} of {{ total_contracted|floatformat:0|intcomma }} MT)&lt;br&gt;&bull; Avg Route Shrinkage: {{ avg_variance }}% (Safe &amp;lt; 1.0%)&lt;br&gt;&bull; Sourcing Network: {{ mill_data|length }} active sugar mills&lt;/div&gt;"
+                      style="cursor: help;">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Operations Steady</span>
+                    <i class="bi bi-info-circle ms-0.5 opacity-75"></i>
+                </span>
+            </div>
             <div class="fs-8 text-muted">
-                Executive operational insights on customer volume demand, sugar mill sourcing distribution, and transit delivery health.
+                Operational insights on customer volume demand, sugar mill sourcing distribution, and transit delivery health.
             </div>
         </div>
         <div class="d-flex align-items-center gap-2">
@@ -273,51 +285,6 @@
     </div>
 </div>
 
-<!-- Section 3: Plain-Language Operational Health Summary -->
-<div class="analytics-panel mb-4">
-    <div class="analytics-panel-header">
-        <div>
-            <h6>Operational Health Takeaways</h6>
-            <span class="fs-8 text-muted">Key business findings explained in plain language</span>
-        </div>
-        <span class="badge bg-success-subtle text-success border border-success-subtle">
-            <i class="bi bi-check-circle-fill me-1"></i>Healthy Operations
-        </span>
-    </div>
-    <div class="row g-3 fs-8">
-        <div class="col-12 col-md-4">
-            <div class="p-3 bg-body-tertiary border rounded h-100">
-                <div class="fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
-                    <i class="bi bi-box-seam text-primary fs-6"></i> Fulfillment Execution
-                </div>
-                <p class="text-muted mb-0">
-                    <strong>{{ fulfillment_rate }}%</strong> of contracted molasses volume ({{ total_delivered|floatformat:0|intcomma }} MT) has been confirmed delivered at customer plants with high on-time completion.
-                </p>
-            </div>
-        </div>
-        <div class="col-12 col-md-4">
-            <div class="p-3 bg-body-tertiary border rounded h-100">
-                <div class="fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
-                    <i class="bi bi-shield-check text-success fs-6"></i> Weight Loss Protection
-                </div>
-                <p class="text-muted mb-0">
-                    Average in-transit evaporation and shrinkage across barging and trucking routes is steady at <strong>{{ avg_variance }}%</strong>, well below the industry 1.00% physical tolerance limit.
-                </p>
-            </div>
-        </div>
-        <div class="col-12 col-md-4">
-            <div class="p-3 bg-body-tertiary border rounded h-100">
-                <div class="fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
-                    <i class="bi bi-diagram-3 text-info fs-6"></i> Sourcing Diversity
-                </div>
-                <p class="text-muted mb-0">
-                    Procurement is distributed across <strong>{{ mill_data|length }} sugar mills</strong>, providing redundant supplier capacity and mitigating regional milling downtime.
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
@@ -326,6 +293,9 @@
 <script id="millChartData" type="application/json">{{ mill_chart_json|safe }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    [...tooltipTriggerList].forEach(el => new bootstrap.Tooltip(el));
     // 1. Customer Volume Horizontal Bar Chart
     const clientDataEl = document.getElementById('clientChartData');
     if (clientDataEl) {
