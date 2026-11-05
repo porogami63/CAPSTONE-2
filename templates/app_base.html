@@ -193,16 +193,16 @@
                     </button>
                     <div class="d-flex align-items-center gap-2">
                         <img src="{% static 'img/htc-logo.png' %}" alt="HTC Logo" class="topbar-logo" style="height: 32px; width: auto; object-fit: contain; flex-shrink: 0;">
-                        <div>
-                            <h1>{% block topbar_title %}HTC Core{% endblock %}</h1>
-                            <div class="topbar-subtitle">{% block topbar_subtitle %}Integrated procurement & financial tracking{% endblock %}</div>
+                        <div class="overflow-hidden">
+                            <h1 class="text-truncate fs-5 fw-bold mb-0">{% block topbar_title %}HTC Core{% endblock %}</h1>
+                            <div class="topbar-subtitle d-none d-md-block text-truncate">{% block topbar_subtitle %}Integrated procurement & financial tracking{% endblock %}</div>
                         </div>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.85rem;" data-intro="System Header Toolbar: Access real-time alerts, team chat, tour guide, theme toggle, and active user role badge." data-step="2">
+                <div class="d-flex align-items-center gap-1 gap-sm-2 flex-nowrap" data-intro="System Header Toolbar: Access real-time alerts, team chat, tour guide, theme toggle, and active user role badge." data-step="2">
                     <!-- HTC Copilot Drawer Button -->
                     <button type="button" class="btn btn-sm btn-outline-primary fw-bold d-flex align-items-center gap-1 py-1 px-2" id="btnCopilotDrawer" title="Open HTC Copilot Assistant">
-                        <i class="bi bi-robot text-primary"></i> <span>HTC Copilot</span>
+                        <i class="bi bi-robot text-primary"></i> <span class="d-none d-sm-inline">HTC Copilot</span>
                     </button>
 
                     <!-- Notification Bell Dropdown -->
@@ -211,7 +211,7 @@
                             <i class="bi bi-bell-fill"></i>
                             <span id="unreadNotifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;">0</span>
                         </button>
-                        <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg" aria-labelledby="notifDropdownBtn" style="width: 380px; background: var(--htc-surface); color: var(--htc-text); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden;">
+                        <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg" aria-labelledby="notifDropdownBtn" style="width: 320px; max-width: 90vw; background: var(--htc-surface); color: var(--htc-text); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden;">
                             <div class="p-3 d-flex justify-content-between align-items-center" style="background: var(--htc-sidebar-hover); border-bottom: 1px solid var(--htc-border);">
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="fw-bold fs-7" style="color: var(--htc-text);"><i class="bi bi-bell me-1 text-primary"></i> Notifications</span>
@@ -237,16 +237,16 @@
                         <i class="bi bi-chat-dots-fill"></i>
                         <span id="unreadChatBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;">0</span>
                     </a>
-                    <button type="button" class="btn-theme-toggle" id="helpGuideBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Start Interactive Guided Tour" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
+                    <button type="button" class="btn-theme-toggle d-none d-lg-inline-flex" id="helpGuideBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Start Interactive Guided Tour" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
                         <i class="bi bi-question-circle"></i>
                     </button>
                     <button type="button" class="btn-theme-toggle" id="themeToggleBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle Light / Dark Mode" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
                         <i class="bi bi-moon-stars-fill"></i>
                     </button>
-                    <button type="button" class="btn-theme-toggle fw-bold" id="legibilityToggleBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle High Legibility Mode (Elderly Usability)" style="background: none; border: 1px solid var(--htc-border); color: var(--htc-text-muted); font-size: 0.85rem; cursor: pointer; padding: 0.15rem 0.45rem; border-radius: 6px;">
+                    <button type="button" class="btn-theme-toggle fw-bold d-none d-md-inline-flex" id="legibilityToggleBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle High Legibility Mode (Elderly Usability)" style="background: none; border: 1px solid var(--htc-border); color: var(--htc-text-muted); font-size: 0.85rem; cursor: pointer; padding: 0.15rem 0.45rem; border-radius: 6px;">
                         A+
                     </button>
-                    <span class="role-badge role-badge-{{ user_role_code }}">{{ user_role }}</span>
+                    <span class="role-badge role-badge-{{ user_role_code }} text-truncate d-none d-sm-inline-block">{{ user_role }}</span>
                 </div>
 
             </header>

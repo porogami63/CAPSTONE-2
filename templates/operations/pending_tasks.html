@@ -22,28 +22,28 @@
 
 <!-- KPI Summary Bar -->
 <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
+    <div class="col-12 col-sm-6 col-md-3">
         <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
             <div class="text-xs text-muted fw-bold text-uppercase">Total Pending Tasks</div>
             <div class="fs-3 fw-bold mt-1 text-primary">{{ total_pending_action }}</div>
             <div class="text-xs text-muted mt-1">Items needing attention</div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-12 col-sm-6 col-md-3">
         <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
             <div class="text-xs text-muted fw-bold text-uppercase">Deliveries &amp; Quality</div>
             <div class="fs-3 fw-bold mt-1 text-warning">{{ disputed_logistics.count|add:offspec_chai.count|add:unlinked_mros.count|add:in_transit_deliveries.count }}</div>
             <div class="text-xs text-muted mt-1">Weight shortages, arrivals &amp; quality</div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-12 col-sm-6 col-md-3">
         <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
             <div class="text-xs text-muted fw-bold text-uppercase">Customer Invoices to Issue</div>
             <div class="fs-3 fw-bold mt-1 text-info">{{ unbilled_clusters.count }}</div>
             <div class="text-xs text-muted mt-1">Approved orders waiting for invoice</div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-12 col-sm-6 col-md-3">
         <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
             <div class="text-xs text-muted fw-bold text-uppercase">Customer Payments Due</div>
             <div class="fs-3 fw-bold mt-1 text-success">{{ unpaid_invoices.count }}</div>

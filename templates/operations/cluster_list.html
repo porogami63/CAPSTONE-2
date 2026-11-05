@@ -69,12 +69,12 @@
     }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <button type="button" class="btn-htc-outline btn-sm" id="toggleKpiBtn" onclick="toggleKpis()">
         <i class="bi bi-bar-chart me-1"></i> Hide KPI Summary
     </button>
 
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center flex-wrap gap-2">
         <form method="post" action="{% url 'operations:bulk_archive_completed' %}" style="display:inline;" onsubmit="return confirm('Archive all closed and paid transactions?');">
             {% csrf_token %}
             <button type="submit" class="btn-htc-outline btn-sm" title="Clear completed orders to Archive"><i class="bi bi-archive"></i> Archive Completed</button>

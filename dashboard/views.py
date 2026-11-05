@@ -17,6 +17,191 @@ from operations.models import LogisticsLedger, PurchaseOrder, TransactionCluster
 from .services.analytics import build_supplier_rankings
 from .services.documents import build_document_registry
 from .services.insights import build_dashboard_insights
+from operations.services.pricing import cluster_financials
+
+
+def _build_financial_cadence(clusters_all, now):
+    month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    target_year = now.year
+    target_month = now.month
+
+    # 1. Weekly buckets (for current target month)
+    weekly_buckets = [
+        {"period": "Week 1 (Days 1–7)", "short_label": "W1", "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0},
+        {"period": "Week 2 (Days 8–14)", "short_label": "W2", "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0},
+        {"period": "Week 3 (Days 15–21)", "short_label": "W3", "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0},
+        {"period": "Week 4+ (Days 22+)", "short_label": "W4", "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0},
+    ]
+
+    # 2. Monthly buckets (12 months for target year)
+    monthly_buckets = {
+        i: {"period": month_labels[i], "short_label": month_labels[i], "revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0}
+        for i in range(12)
+    }
+
+    # 3. Yearly buckets (Multi-year 2024, 2025, 2026)
+    yearly_buckets = defaultdict(lambda: {"revenue": 0.0, "expenses": 0.0, "profit": 0.0, "volume_mt": 0.0, "deals": 0})
+
+    for cluster in clusters_all:
+        fin = cluster_financials(cluster)
+        c_date = cluster.created_at.date() if hasattr(cluster.created_at, "date") else cluster.created_at
+
+        r = float(fin.get("revenue", 0.0))
+        e = float(fin.get("purchase_total", 0.0) + fin.get("logistics_cost", 0.0))
+        p = float(fin.get("profit", fin.get("net_profit", 0.0)))
+        v = float(fin.get("volume_mt", 0.0))
+
+        if c_date:
+            # Yearly
+            y = c_date.year
+            yb = yearly_buckets[y]
+            yb["revenue"] += r
+            yb["expenses"] += e
+            yb["profit"] += p
+            yb["volume_mt"] += v
+            yb["deals"] += 1
+
+            # Monthly (current year)
+            if c_date.year == target_year:
+                m_idx = c_date.month - 1
+                mb = monthly_buckets[m_idx]
+                mb["revenue"] += r
+                mb["expenses"] += e
+                mb["profit"] += p
+                mb["volume_mt"] += v
+                mb["deals"] += 1
+
+            # Weekly (current month)
+            if c_date.year == target_year and c_date.month == target_month:
+                w_idx = min((c_date.day - 1) // 7, 3)
+                wb = weekly_buckets[w_idx]
+                wb["revenue"] += r
+                wb["expenses"] += e
+                wb["profit"] += p
+                wb["volume_mt"] += v
+                wb["deals"] += 1
+
+    weekly_table = []
+    for wb in weekly_buckets:
+        rev = wb["revenue"]
+        exp = wb["expenses"]
+        prof = wb["profit"]
+        margin = round((prof / rev * 100), 2) if rev > 0 else 0.0
+        weekly_table.append({
+            "period": wb["period"],
+            "short_label": wb["short_label"],
+            "revenue": rev,
+            "revenue_m": round(rev / 1_000_000, 2),
+            "expenses": exp,
+            "expenses_m": round(exp / 1_000_000, 2),
+            "profit": prof,
+            "profit_m": round(prof / 1_000_000, 2),
+            "margin": margin,
+            "volume_mt": round(wb["volume_mt"], 3),
+            "deals": wb["deals"],
+        })
+
+    monthly_table = []
+    for i in range(12):
+        mb = monthly_buckets[i]
+        rev = mb["revenue"]
+        exp = mb["expenses"]
+        prof = mb["profit"]
+        margin = round((prof / rev * 100), 2) if rev > 0 else 0.0
+        monthly_table.append({
+            "period": mb["period"],
+            "short_label": mb["short_label"],
+            "revenue": rev,
+            "revenue_m": round(rev / 1_000_000, 2),
+            "expenses": exp,
+            "expenses_m": round(exp / 1_000_000, 2),
+            "profit": prof,
+            "profit_m": round(prof / 1_000_000, 2),
+            "margin": margin,
+            "volume_mt": round(mb["volume_mt"], 3),
+            "deals": mb["deals"],
+        })
+
+    yearly_years = sorted(yearly_buckets.keys()) if yearly_buckets else [now.year]
+    yearly_table = []
+    for y in yearly_years:
+        yb = yearly_buckets[y]
+        rev = yb["revenue"]
+        exp = yb["expenses"]
+        prof = yb["profit"]
+        margin = round((prof / rev * 100), 2) if rev > 0 else 0.0
+        yearly_table.append({
+            "period": str(y),
+            "short_label": str(y),
+            "revenue": rev,
+            "revenue_m": round(rev / 1_000_000, 2),
+            "expenses": exp,
+            "expenses_m": round(exp / 1_000_000, 2),
+            "profit": prof,
+            "profit_m": round(prof / 1_000_000, 2),
+            "margin": margin,
+            "volume_mt": round(yb["volume_mt"], 3),
+            "deals": yb["deals"],
+        })
+
+    copilot_monthly_footnote = (
+        f"Audited ORM Aggregation: YTD {target_year} revenue reached ₱{sum(r['revenue'] for r in monthly_table):,.2f} "
+        f"against ₱{sum(r['expenses'] for r in monthly_table):,.2f} procurement & logistics costs, "
+        f"yielding ₱{sum(r['profit'] for r in monthly_table):,.2f} net profit."
+    )
+
+    return {
+        "weekly": {
+            "title": f"Weekly Breakdown ({month_labels[target_month - 1]} {target_year})",
+            "labels": [r["short_label"] for r in weekly_table],
+            "revenue": [r["revenue_m"] for r in weekly_table],
+            "expenses": [r["expenses_m"] for r in weekly_table],
+            "profit": [r["profit_m"] for r in weekly_table],
+            "table": weekly_table,
+            "copilot_text": f"Weekly financial breakdown for {month_labels[target_month - 1]} {target_year}.",
+        },
+        "monthly": {
+            "title": f"Monthly Trend ({target_year})",
+            "labels": [r["short_label"] for r in monthly_table],
+            "revenue": [r["revenue_m"] for r in monthly_table],
+            "expenses": [r["expenses_m"] for r in monthly_table],
+            "profit": [r["profit_m"] for r in monthly_table],
+            "table": monthly_table,
+            "copilot_text": copilot_monthly_footnote,
+        },
+        "yearly": {
+            "title": "Year-Over-Year Multi-Year Comparison (2024–2026)",
+            "labels": [r["short_label"] for r in yearly_table],
+            "revenue": [r["revenue_m"] for r in yearly_table],
+            "expenses": [r["expenses_m"] for r in yearly_table],
+            "profit": [r["profit_m"] for r in yearly_table],
+            "table": yearly_table,
+            "copilot_text": "Multi-year trajectory tracking growth and volume across 2024, 2025, and 2026.",
+        },
+    }
+
+
+def _build_volume_chart_data(now):
+    month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    cur_year = now.year
+    from operations.models import DeliveryLedger
+
+    mo_contracted = [0.0] * 12
+    mo_delivered = [0.0] * 12
+
+    for po in PurchaseOrder.objects.filter(cluster__created_at__year=cur_year):
+        m = po.cluster.created_at.month - 1
+        mo_contracted[m] += float(po.volume_mt)
+
+    for d in DeliveryLedger.objects.filter(delivery_date__year=cur_year, received_at__isnull=False):
+        m = d.delivery_date.month - 1
+        mo_delivered[m] += float(d.delivered_mt)
+
+    return {
+        "labels": month_labels,
+        "contracted": [round(v, 1) for v in mo_contracted],
+        "delivered": [round(v, 1) for v in mo_delivered],
+    }
 
 
 def _format_millions(value):
@@ -152,6 +337,25 @@ def home(request):
         user_role in [User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.INVOICING, "operations_management", "finance", "invoicing"]
         or request.user.is_superuser
     )
+    is_ops_manager = (
+        user_role in [User.Role.OPERATIONS_MANAGEMENT, User.Role.ADMINISTRATOR, "operations_management", "administrator"]
+        or request.user.is_superuser
+    )
+
+    now = timezone.now()
+    financial_intervals = None
+    financial_intervals_json = "{}"
+    if is_ops_manager:
+        clusters_all = list(
+            TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics")
+            .prefetch_related("invoices", "purchase_order__deliveries")
+            .all()
+        )
+        financial_intervals = _build_financial_cadence(clusters_all, now)
+        financial_intervals_json = json.dumps(financial_intervals)
+
+    volume_chart_data = _build_volume_chart_data(now)
+    volume_chart_data_json = json.dumps(volume_chart_data)
 
     return render(
         request,
@@ -162,6 +366,16 @@ def home(request):
             "is_executive": is_executive,
             "is_operations": is_operations,
             "is_finance": is_finance,
+            "is_ops_manager": is_ops_manager,
+
+            # Decision insights bundle (non-monetary)
+            "insights": insights,
+
+            # Operational charts & subtle financials
+            "volume_chart_data": volume_chart_data,
+            "volume_chart_data_json": volume_chart_data_json,
+            "financial_intervals": financial_intervals,
+            "financial_intervals_json": financial_intervals_json,
 
             # Decision insights bundle (non-monetary)
             "insights": insights,

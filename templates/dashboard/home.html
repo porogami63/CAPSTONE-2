@@ -239,67 +239,34 @@
     {% endfor %}
 </div>
 
-<!-- 3. Operational Performance & Fulfillment -->
+<!-- 3. Operational Volume Trend & Active Order Fulfillment (Informative Graphs) -->
 <div class="row g-4 mb-4">
-    <!-- Volume Fulfillment Progress -->
+    <!-- Volume Trend Graph -->
     <div class="col-12 col-lg-7">
         <div class="card-panel">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold mb-0">Active Order Fulfillment</h6>
-                <span class="fs-8 text-muted">
-                    Overall: {{ insights.fulfillment.delivered_mt|floatformat:0|intcomma }} / {{ insights.fulfillment.contracted_mt|floatformat:0|intcomma }} MT ({{ insights.fulfillment.overall_pct }}%)
-                </span>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <h6 class="fw-bold mb-0">Monthly Volume Fulfillment (MT)</h6>
+                    <span class="fs-8 text-muted">Contracted volume vs confirmed delivered volume across 2026</span>
+                </div>
+                <div class="d-flex align-items-center gap-3 fs-8 fw-semibold">
+                    <span class="d-inline-flex align-items-center gap-1.5">
+                        <span class="d-inline-block rounded-1" style="width: 10px; height: 10px; background-color: rgba(12, 56, 92, 0.4);"></span>
+                        <span class="text-muted">Contracted MT</span>
+                    </span>
+                    <span class="d-inline-flex align-items-center gap-1.5">
+                        <span class="d-inline-block rounded-1" style="width: 10px; height: 10px; background-color: #0c385c;"></span>
+                        <span class="text-dark">Delivered MT</span>
+                    </span>
+                </div>
             </div>
-
-            <!-- Fulfillment Progress Bar -->
-            <div class="progress mb-3" style="height: 10px; border-radius: 9999px;">
-                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ insights.fulfillment.overall_pct }}%;" aria-valuenow="{{ insights.fulfillment.overall_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
-            </div>
-
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0 fs-8">
-                    <thead>
-                        <tr class="text-uppercase text-muted border-bottom">
-                            <th>Order Ref</th>
-                            <th>Customer</th>
-                            <th class="text-end">Progress</th>
-                            <th class="text-end">Delivered / Contracted</th>
-                            <th class="text-center">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in insights.fulfillment.top %}
-                        <tr>
-                            <td>
-                                <a href="{% url 'operations:cluster_detail' row.pk %}" class="fw-bold text-decoration-none text-primary">
-                                    {{ row.ref }}
-                                </a>
-                            </td>
-                            <td>{{ row.customer }}</td>
-                            <td class="text-end fw-semibold">{{ row.pct }}%</td>
-                            <td class="text-end text-muted">{{ row.delivered_mt|floatformat:1|intcomma }} / {{ row.contracted_mt|floatformat:1|intcomma }} MT</td>
-                            <td class="text-center">
-                                {% if row.at_risk %}
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0.5 px-2">At Risk</span>
-                                {% elif row.pct >= 100 %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-2">Completed</span>
-                                {% else %}
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-2">In Progress</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-3">No active orders in progress.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div style="min-height: 240px; height: 240px;">
+                <canvas id="operationalVolumeChart"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- Provider Reliability / Queues -->
+    <!-- Provider Reliability / Sugar Mill Balances -->
     <div class="col-12 col-lg-5">
         <div class="card-panel">
             {% if insights.providers %}
@@ -362,7 +329,149 @@
     </div>
 </div>
 
-<!-- 4. Recent Orders Feed -->
+<!-- 4. Active Order Fulfillment Table -->
+<div class="card-panel mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h6 class="fw-bold mb-0">Active Order Fulfillment Status</h6>
+            <span class="fs-8 text-muted">
+                Overall: {{ insights.fulfillment.delivered_mt|floatformat:0|intcomma }} of {{ insights.fulfillment.contracted_mt|floatformat:0|intcomma }} MT ({{ insights.fulfillment.overall_pct }}%)
+            </span>
+        </div>
+        <div class="progress" style="width: 140px; height: 8px; border-radius: 9999px;">
+            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ insights.fulfillment.overall_pct }}%;" aria-valuenow="{{ insights.fulfillment.overall_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 fs-8">
+            <thead>
+                <tr class="text-uppercase text-muted border-bottom">
+                    <th>Order Reference</th>
+                    <th>Customer</th>
+                    <th class="text-end">Progress</th>
+                    <th class="text-end">Delivered / Contracted</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in insights.fulfillment.top %}
+                <tr>
+                    <td>
+                        <a href="{% url 'operations:cluster_detail' row.pk %}" class="fw-bold text-decoration-none text-primary">
+                            {{ row.ref }}
+                        </a>
+                    </td>
+                    <td>{{ row.customer }}</td>
+                    <td class="text-end fw-semibold">{{ row.pct }}%</td>
+                    <td class="text-end text-muted">{{ row.delivered_mt|floatformat:1|intcomma }} / {{ row.contracted_mt|floatformat:1|intcomma }} MT</td>
+                    <td class="text-center">
+                        {% if row.at_risk %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0.5 px-2">At Risk</span>
+                        {% elif row.pct >= 100 %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-2">Completed</span>
+                        {% else %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-2">In Progress</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'operations:cluster_detail' row.pk %}" class="btn btn-sm btn-outline-secondary py-0.5 px-2 fs-8">
+                            Details &rarr;
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-3">No active orders in progress.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_ops_manager and financial_intervals %}
+<!-- 5. Subtle Operations Manager Financials Breakdown -->
+<div class="card-panel mb-4" id="opsFinancialsSection">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2">
+            <h6 class="fw-bold mb-0">Operational Financials &amp; Margin Overview</h6>
+            <span class="badge bg-secondary-subtle text-secondary border fs-8 py-0.5 px-2">Operations Manager Access</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <!-- Cadence Selector (Weekly / Monthly / Yearly) -->
+            <div class="btn-group btn-group-sm" role="group" aria-label="Cadence Selector">
+                <button type="button" class="btn btn-outline-primary active" id="btnInterval_monthly" onclick="updateFinancialCadence('monthly')">Monthly</button>
+                <button type="button" class="btn btn-outline-primary" id="btnInterval_yearly" onclick="updateFinancialCadence('yearly')">Yearly (2024–2026)</button>
+                <button type="button" class="btn btn-outline-primary" id="btnInterval_weekly" onclick="updateFinancialCadence('weekly')">Weekly</button>
+            </div>
+
+            <!-- Display Mode Selector (Chart / Table / Split) -->
+            <div class="btn-group btn-group-sm d-none d-md-inline-flex" role="group" aria-label="View Mode">
+                <button type="button" class="btn btn-outline-secondary active" id="btnView_chart" onclick="setFinancialMode('chart')">Chart</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnView_table" onclick="setFinancialMode('table')">Table</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnView_split" onclick="setFinancialMode('split')">Split</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-2">
+        <span class="fs-8 text-muted" id="cadenceSubtitle">{{ financial_intervals.monthly.title }} (Values in Millions PHP)</span>
+    </div>
+
+    <!-- Chart View Container -->
+    <div id="financialChartBox" style="min-height: 250px; height: 260px;">
+        <canvas id="financialChartCanvas"></canvas>
+    </div>
+
+    <!-- Table View Container -->
+    <div id="financialTableBox" class="d-none mt-3">
+        <div class="table-responsive" style="max-height: 260px; overflow-y: auto;">
+            <table class="table table-sm table-hover align-middle mb-0 fs-8">
+                <thead class="sticky-top bg-body">
+                    <tr class="text-uppercase text-muted border-bottom">
+                        <th>Period</th>
+                        <th class="text-end">Revenue</th>
+                        <th class="text-end">Procurement &amp; Logistics</th>
+                        <th class="text-end">Net Profit</th>
+                        <th class="text-end">Margin %</th>
+                        <th class="text-end">Volume</th>
+                        <th class="text-center">Deals</th>
+                    </tr>
+                </thead>
+                <tbody id="financialTableBody">
+                    {% for row in financial_intervals.monthly.table %}
+                    <tr>
+                        <td class="fw-semibold">{{ row.period }}</td>
+                        <td class="text-end">₱{{ row.revenue|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-muted">₱{{ row.expenses|floatformat:2|intcomma }}</td>
+                        <td class="text-end fw-bold {% if row.profit > 0 %}text-success{% elif row.profit < 0 %}text-danger{% else %}text-muted{% endif %}">
+                            ₱{{ row.profit|floatformat:2|intcomma }}
+                        </td>
+                        <td class="text-end">
+                            <span class="badge {% if row.margin >= 15 %}bg-success-subtle text-success{% elif row.margin > 0 %}bg-primary-subtle text-primary{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                {{ row.margin|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td class="text-end text-muted">{{ row.volume_mt|floatformat:0|intcomma }} MT</td>
+                        <td class="text-center">{{ row.deals }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Explanatory Footnote -->
+    <div class="mt-3 pt-2 border-top d-flex align-items-center justify-content-between flex-wrap gap-2 text-muted fs-8">
+        <span id="cadenceFootnote">{{ financial_intervals.monthly.copilot_text }}</span>
+        <span class="badge bg-body-tertiary border text-muted">Audited ORM Aggregations</span>
+    </div>
+</div>
+{% endif %}
+
+<!-- 6. Recent Orders Feed -->
 <div class="card-panel mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -439,6 +548,12 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script id="volume-chart-data" type="application/json">{{ volume_chart_data_json|safe }}</script>
+{% if is_ops_manager %}
+<script id="financial-intervals-data" type="application/json">{{ financial_intervals_json|safe }}</script>
+{% endif %}
+
 <script>
     // Live Real-Time Clock & Calendar Ticker
     function updateDashboardClock() {
@@ -454,5 +569,231 @@
     }
     updateDashboardClock();
     setInterval(updateDashboardClock, 1000);
+
+    // 1. Operational Volume Fulfillment Chart (Informative Bar & Line Graph)
+    const volumeDataEl = document.getElementById('volume-chart-data');
+    if (volumeDataEl) {
+        const vData = JSON.parse(volumeDataEl.textContent || '{}');
+        const vCtx = document.getElementById('operationalVolumeChart');
+        if (vCtx && vData.labels) {
+            new Chart(vCtx, {
+                type: 'bar',
+                data: {
+                    labels: vData.labels,
+                    datasets: [
+                        {
+                            label: 'Contracted MT',
+                            data: vData.contracted,
+                            backgroundColor: 'rgba(12, 56, 92, 0.25)',
+                            borderColor: '#0c385c',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.65,
+                            categoryPercentage: 0.7,
+                            order: 2
+                        },
+                        {
+                            label: 'Delivered MT',
+                            data: vData.delivered,
+                            backgroundColor: '#0c385c',
+                            borderColor: '#0c385c',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.45,
+                            categoryPercentage: 0.7,
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${Number(context.raw).toLocaleString()} MT`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10, weight: 600 } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: {
+                                font: { size: 10 },
+                                callback: function(value) { return value.toLocaleString() + ' MT'; }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+{% if is_ops_manager %}
+    // 2. Subtle Financials Breakdown Logic (Operations Manager Only)
+    const finIntervalsEl = document.getElementById('financial-intervals-data');
+    if (finIntervalsEl) {
+        const finIntervals = JSON.parse(finIntervalsEl.textContent || '{}');
+        let finChartInstance = null;
+        let activeCadence = 'monthly';
+        let currentFinMode = 'chart';
+
+        function renderFinChart(cadenceKey) {
+            const data = finIntervals[cadenceKey];
+            if (!data) return;
+
+            const fCtx = document.getElementById('financialChartCanvas');
+            if (!fCtx) return;
+
+            if (finChartInstance) finChartInstance.destroy();
+
+            finChartInstance = new Chart(fCtx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Revenue (₱M)',
+                            data: data.revenue,
+                            borderColor: '#0c385c',
+                            backgroundColor: 'rgba(12, 56, 92, 0.08)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2.5,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#0c385c'
+                        },
+                        {
+                            label: 'Expenses (₱M)',
+                            data: data.expenses,
+                            borderColor: '#d9381e',
+                            backgroundColor: 'transparent',
+                            borderDash: [4, 4],
+                            tension: 0.35,
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            pointBackgroundColor: '#d9381e'
+                        },
+                        {
+                            label: 'Net Profit (₱M)',
+                            data: data.profit,
+                            borderColor: '#10b981',
+                            backgroundColor: 'transparent',
+                            tension: 0.35,
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#10b981'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { boxWidth: 10, font: { size: 11, weight: 600 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(c) {
+                                    return `${c.dataset.label}: ₱${Number(c.raw).toFixed(2)}M`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 10, weight: 600 } } },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: {
+                                font: { size: 10 },
+                                callback: function(val) { return '₱' + val + 'M'; }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        window.updateFinancialCadence = function(cadenceKey) {
+            activeCadence = cadenceKey;
+            const data = finIntervals[cadenceKey];
+            if (!data) return;
+
+            ['weekly', 'monthly', 'yearly'].forEach(k => {
+                const btn = document.getElementById(`btnInterval_${k}`);
+                if (btn) btn.classList.toggle('active', k === cadenceKey);
+            });
+
+            const sub = document.getElementById('cadenceSubtitle');
+            if (sub) sub.textContent = `${data.title} (Values in Millions PHP)`;
+
+            const fn = document.getElementById('cadenceFootnote');
+            if (fn) fn.textContent = data.copilot_text;
+
+            const tbody = document.getElementById('financialTableBody');
+            if (tbody && data.table) {
+                tbody.innerHTML = data.table.map(row => {
+                    const profClass = row.profit > 0 ? 'text-success' : (row.profit < 0 ? 'text-danger' : 'text-muted');
+                    const badgeClass = row.margin >= 15 ? 'bg-success-subtle text-success' : (row.margin > 0 ? 'bg-primary-subtle text-primary' : 'bg-secondary-subtle text-secondary');
+                    return `
+                    <tr>
+                        <td class="fw-semibold">${row.period}</td>
+                        <td class="text-end">₱${Number(row.revenue).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="text-end text-muted">₱${Number(row.expenses).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="text-end fw-bold ${profClass}">₱${Number(row.profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="text-end"><span class="badge ${badgeClass}">${Number(row.margin).toFixed(1)}%</span></td>
+                        <td class="text-end text-muted">${Number(row.volume_mt).toLocaleString('en-US', {minimumFractionDigits: 0})} MT</td>
+                        <td class="text-center">${row.deals}</td>
+                    </tr>
+                    `;
+                }).join('');
+            }
+
+            renderFinChart(cadenceKey);
+        };
+
+        window.setFinancialMode = function(mode) {
+            currentFinMode = mode;
+            const chartBox = document.getElementById('financialChartBox');
+            const tableBox = document.getElementById('financialTableBox');
+
+            ['chart', 'table', 'split'].forEach(m => {
+                const btn = document.getElementById(`btnView_${m}`);
+                if (btn) {
+                    btn.classList.toggle('active', m === mode);
+                    btn.classList.toggle('btn-secondary', m === mode);
+                    btn.classList.toggle('btn-outline-secondary', m !== mode);
+                }
+            });
+
+            if (mode === 'chart') {
+                if (chartBox) chartBox.classList.remove('d-none');
+                if (tableBox) tableBox.classList.add('d-none');
+            } else if (mode === 'table') {
+                if (chartBox) chartBox.classList.add('d-none');
+                if (tableBox) tableBox.classList.remove('d-none');
+            } else if (mode === 'split') {
+                if (chartBox) chartBox.classList.remove('d-none');
+                if (tableBox) tableBox.classList.remove('d-none');
+            }
+            if (finChartInstance) finChartInstance.resize();
+        };
+
+        // Initialize monthly cadence chart
+        renderFinChart('monthly');
+    }
+{% endif %}
 </script>
 {% endblock %}

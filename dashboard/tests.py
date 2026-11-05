@@ -78,22 +78,33 @@ class DashboardRoleInterfaceTests(TestCase):
             status=Invoice.Status.ISSUED,
         )
 
-        # Test across roles: Operations Management, Operations, Finance, Invoicing
-        for user_name in ["ops_user", "ops_role_user", "fin_user", "inv_user"]:
+        # Test non-operations-manager roles: strictly zero monetary symbols or financial section
+        for user_name in ["ops_role_user", "fin_user", "inv_user"]:
             self.client.login(username=user_name, password="password123")
             res = self.client.get("/")
             self.assertEqual(res.status_code, 200)
             self.assertIn("insights", res.context)
-            insights = res.context["insights"]
-            self.assertIn("indicators", insights)
-            self.assertIn("todo_items", insights)
-            self.assertIn("fulfillment", insights)
+            self.assertFalse(res.context["is_ops_manager"])
+            self.assertIsNone(res.context["financial_intervals"])
 
-            # Strict Panel Review constraint: No ₱ currency on the main dashboard
             content = res.content.decode("utf-8")
+            self.assertNotIn("opsFinancialsSection", content)
             self.assertNotIn("₱", content, f"Monetary symbol '₱' leaked on dashboard for {user_name}!")
-            self.assertNotIn("Total Revenue", content)
-            self.assertNotIn("Net Profit", content)
+
+        # Test Operations Manager role: has access to subtle financial breakdown
+        self.client.login(username="ops_user", password="password123")
+        res = self.client.get("/")
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.context["is_ops_manager"])
+        self.assertIsNotNone(res.context["financial_intervals"])
+        intervals = res.context["financial_intervals"]
+        self.assertIn("weekly", intervals)
+        self.assertIn("monthly", intervals)
+        self.assertIn("yearly", intervals)
+
+        content = res.content.decode("utf-8")
+        self.assertIn("opsFinancialsSection", content)
+        self.assertIn("Operational Financials &amp; Margin Overview", content)
 
     def test_finance_dashboard_home(self):
         self.client.login(username="fin_user", password="password123")
