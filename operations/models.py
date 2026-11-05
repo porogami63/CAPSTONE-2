@@ -636,6 +636,25 @@ class DeliveryLedger(models.Model):
         super().clean()
         from django.core.exceptions import ValidationError
 
+        if self.trucking_rate_per_mt is None:
+            self.trucking_rate_per_mt = Decimal("0.00")
+        if self.flat_trucking_fee is None:
+            self.flat_trucking_fee = Decimal("0.00")
+        if self.barge_rate_per_mt is None:
+            self.barge_rate_per_mt = Decimal("0.00")
+        if self.flat_barge_fee is None:
+            self.flat_barge_fee = Decimal("0.00")
+        if self.vessel_or_barge_name is None:
+            self.vessel_or_barge_name = ""
+        if self.vessel_or_truck is None:
+            self.vessel_or_truck = ""
+        if self.dr_number is None:
+            self.dr_number = ""
+        if self.waybill_number is None:
+            self.waybill_number = ""
+        if self.notes is None:
+            self.notes = ""
+
         if self.dispatched_mt is not None and self.dispatched_mt <= Decimal("0"):
             raise ValidationError({"dispatched_mt": "Dispatched quantity must be greater than 0 MT."})
 
@@ -923,6 +942,24 @@ class DeliveryLedger(models.Model):
         reconciliation.save(update_fields=["matched_payment_amount", "updated_at"])
 
     def save(self, *args, **kwargs):
+        if self.trucking_rate_per_mt is None:
+            self.trucking_rate_per_mt = Decimal("0.00")
+        if self.flat_trucking_fee is None:
+            self.flat_trucking_fee = Decimal("0.00")
+        if self.barge_rate_per_mt is None:
+            self.barge_rate_per_mt = Decimal("0.00")
+        if self.flat_barge_fee is None:
+            self.flat_barge_fee = Decimal("0.00")
+        if self.vessel_or_barge_name is None:
+            self.vessel_or_barge_name = ""
+        if self.vessel_or_truck is None:
+            self.vessel_or_truck = ""
+        if self.dr_number is None:
+            self.dr_number = ""
+        if self.waybill_number is None:
+            self.waybill_number = ""
+        if self.notes is None:
+            self.notes = ""
         self.full_clean()
         super().save(*args, **kwargs)
         self.purchase_order.update_status()
@@ -1017,6 +1054,14 @@ class LogisticsLedger(models.Model):
     history = HistoricalRecords()
 
     def save(self, *args, **kwargs):
+        if self.tracking_fees is None:
+            self.tracking_fees = Decimal("0.00")
+        if self.barge_fees is None:
+            self.barge_fees = Decimal("0.00")
+        if self.vessel_id is None:
+            self.vessel_id = ""
+        if self.resolution_notes is None:
+            self.resolution_notes = ""
         is_new = self.pk is None
         self._compute_variance()
         super().save(*args, **kwargs)

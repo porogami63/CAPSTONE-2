@@ -241,6 +241,10 @@ class LogisticsUpdateForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        if cleaned_data.get("tracking_fees") is None:
+            cleaned_data["tracking_fees"] = Decimal("0.00")
+        if cleaned_data.get("barge_fees") is None:
+            cleaned_data["barge_fees"] = Decimal("0.00")
         loaded_vol = cleaned_data.get("loaded_volume_mt")
         received_vol = cleaned_data.get("received_volume_mt")
         loaded_at = cleaned_data.get("loaded_at")
@@ -540,6 +544,10 @@ class DeliveryLedgerForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        for rate_field in ["trucking_rate_per_mt", "flat_trucking_fee", "barge_rate_per_mt", "flat_barge_fee"]:
+            if cleaned_data.get(rate_field) is None:
+                cleaned_data[rate_field] = Decimal("0.00")
+
         po = cleaned_data.get("purchase_order")
         delivered_mt = cleaned_data.get("delivered_mt")
         rec_loc = cleaned_data.get("receiving_location")
@@ -707,10 +715,12 @@ class DeliveryLedgerForm(forms.ModelForm):
                         cleaned_data[t_field] = init_cfg[t_field]
 
         # 7. String fields sanitization
-        for field_name in ["vessel_or_truck", "vessel_or_barge_name", "dr_number", "waybill_number"]:
+        for field_name in ["vessel_or_truck", "vessel_or_barge_name", "dr_number", "waybill_number", "notes"]:
             val = cleaned_data.get(field_name)
             if val and isinstance(val, str):
                 cleaned_data[field_name] = val.strip()
+            elif val is None:
+                cleaned_data[field_name] = ""
 
         return cleaned_data
 

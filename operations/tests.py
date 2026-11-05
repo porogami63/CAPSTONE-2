@@ -1559,3 +1559,32 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
         self.assertEqual(self.cluster.logistics.loaded_volume_mt, Decimal("1000.000"))
         self.assertEqual(self.cluster.logistics.received_volume_mt, Decimal("980.000"))
         self.assertTrue(self.cluster.logistics.variance_exceeds_tolerance)
+
+    def test_delivery_log_form_with_unspecified_barge_or_trucking_rates_defaults_to_zero(self):
+        from operations.forms import DeliveryLedgerForm
+        form_data = {
+            "purchase_order": self.po.pk,
+            "supplier": self.mill.pk,
+            "delivered_mt": "2000.000",
+            "dispatched_mt": "2000.000",
+            "receiving_location": "Absolute Distillers Inc. Main Site",
+            "delivery_date": "2026-11-19",
+            "trucking_partner": self.trucker_a.pk,
+            "trucking_rate_per_mt": "1250.00",
+            "flat_trucking_fee": "500.00",
+            # barge_rate_per_mt and flat_barge_fee omitted (empty string / None)
+            "barge_rate_per_mt": "",
+            "flat_barge_fee": "",
+            "vessel_or_truck": "",
+            "dr_number": "",
+            "waybill_number": "",
+            "notes": "",
+        }
+        form = DeliveryLedgerForm(data=form_data, initial_po=self.po)
+        self.assertTrue(form.is_valid(), form.errors)
+        delivery = form.save()
+        self.assertEqual(delivery.barge_rate_per_mt, Decimal("0.00"))
+        self.assertEqual(delivery.flat_barge_fee, Decimal("0.00"))
+        self.assertEqual(delivery.trucking_rate_per_mt, Decimal("1250.00"))
+        self.assertEqual(delivery.flat_trucking_fee, Decimal("500.00"))
+        self.assertEqual(delivery.delivered_mt, Decimal("2000.000"))
