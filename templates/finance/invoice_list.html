@@ -10,41 +10,49 @@
     .metric-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+        gap: 0.85rem;
+        margin-bottom: 1.25rem;
     }
     .metric-box {
         background: var(--htc-surface);
         border: 1px solid var(--htc-border);
-        border-radius: var(--htc-radius);
-        padding: 1.15rem 1.25rem;
-        box-shadow: var(--htc-shadow);
+        border-radius: var(--htc-radius-sm, 8px);
+        padding: 0.85rem 1.1rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
     }
     .metric-box .label {
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         color: var(--htc-text-muted);
         text-transform: uppercase;
         font-weight: 600;
         letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
     }
     .metric-box .value {
-        font-size: 1.65rem;
-        font-weight: 700;
-        color: var(--htc-primary);
-        margin: 0.2rem 0;
-        line-height: 1.2;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--htc-text);
+        margin: 0.15rem 0 0.35rem 0;
+        line-height: 1.3;
+        font-variant-numeric: tabular-nums;
+        transition: filter 0.2s ease;
     }
     .metric-box .subtext {
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         color: var(--htc-text-muted);
         font-weight: 500;
     }
-    .metric-box .subtext.danger {
-        color: var(--htc-accent, #dc2626);
-        font-weight: 600;
+    /* Subtle Sensitive Financials Masking */
+    body.financial-masked .sensitive-financial-val {
+        filter: blur(5px);
+        user-select: none;
+        cursor: pointer;
+    }
+    body.financial-masked .sensitive-financial-val:hover {
+        filter: blur(0px);
     }
 
     /* Tab navigation pills */
@@ -213,7 +221,7 @@
     }
 </style>
 
-<!-- Top Toolbar: Header & Create Invoice Trigger -->
+<!-- Top Toolbar: Header & Actions -->
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <div>
         <h5 class="fw-bold mb-0 text-dark">Customer Invoicing &amp; Billing Records</h5>
@@ -221,34 +229,41 @@
             <i class="bi bi-info-circle me-1"></i> Track accounts receivable, customer payment status, and link sales invoices to purchase orders.
         </div>
     </div>
-    {% if user|has_perm:"add_invoice" %}
-    <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-1.5 px-3 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#createInvoiceModal" data-step="3" data-intro="Create new customer sales invoices and link them to existing transactions.">
-        <i class="bi bi-plus-lg"></i> Create Customer Invoice
-    </button>
-    {% endif %}
+    <div class="d-flex align-items-center gap-2">
+        <!-- Sensitive Data Masking Toggle -->
+        <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 px-2.5 py-1.5 fs-8" id="togglePrivacyBtn" onclick="toggleFinancialPrivacy()" title="Mask / Unmask sensitive financial numbers">
+            <i class="bi bi-eye-slash" id="privacyEyeIcon"></i>
+            <span id="privacyBtnText">Mask Financials</span>
+        </button>
+        {% if user|has_perm:"add_invoice" %}
+        <button type="button" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold fs-8" data-bs-toggle="modal" data-bs-target="#createInvoiceModal" data-step="3" data-intro="Create new customer sales invoices and link them to existing transactions.">
+            <i class="bi bi-plus-lg"></i> Create Customer Invoice
+        </button>
+        {% endif %}
+    </div>
 </div>
 
-<!-- KPI Metrics Grid (Accounts Receivable Summary) -->
+<!-- KPI Metrics Grid (Subtle, Sensitive Decimal Financial Presentation) -->
 <div class="metric-grid" data-step="1" data-intro="Invoicing KPI deck displaying Total Invoiced revenue, Paid Collections, and Pending Accounts Receivable.">
     <div class="metric-box">
         <div class="label">Total Invoiced</div>
-        <div class="value">₱{{ total_invoiced_m|floatformat:2 }}M</div>
+        <div class="value sensitive-financial-val">₱{{ total_invoiced|floatformat:2|intcomma }}</div>
         <div class="subtext">Active customer billings</div>
     </div>
     <div class="metric-box">
         <div class="label">Collected Revenue</div>
-        <div class="value text-success">₱{{ paid_amount_m|floatformat:2 }}M</div>
-        <div class="subtext text-success"><i class="bi bi-check-circle me-0.5"></i>{{ paid_pct|floatformat:1 }}% settled</div>
+        <div class="value sensitive-financial-val">₱{{ paid_amount|floatformat:2|intcomma }}</div>
+        <div class="subtext text-muted"><span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5 fs-8"><i class="bi bi-check-circle me-0.5"></i>{{ paid_pct|floatformat:1 }}% settled</span></div>
     </div>
     <div class="metric-box">
         <div class="label">Pending Receivables</div>
-        <div class="value text-primary">₱{{ pending_amount_m|floatformat:2 }}M</div>
-        <div class="subtext text-primary">{{ pending_pct|floatformat:1 }}% awaiting payment</div>
+        <div class="value sensitive-financial-val">₱{{ pending_amount|floatformat:2|intcomma }}</div>
+        <div class="subtext text-muted"><span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-1.5 fs-8">{{ pending_pct|floatformat:1 }}% awaiting payment</span></div>
     </div>
     <div class="metric-box">
         <div class="label">Overdue Invoices</div>
-        <div class="value text-danger">₱{{ overdue_amount_m|floatformat:2 }}M</div>
-        <div class="subtext danger"><i class="bi bi-exclamation-triangle-fill me-0.5"></i>Action required (&gt;14 days)</div>
+        <div class="value sensitive-financial-val">₱{{ overdue_amount|floatformat:2|intcomma }}</div>
+        <div class="subtext text-muted">{% if overdue_amount > 0 %}<span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0.5 px-1.5 fs-8"><i class="bi bi-clock-history me-0.5"></i>Action required (&gt;14 days)</span>{% else %}<span class="badge bg-light text-muted border py-0.5 px-1.5 fs-8">No overdue items</span>{% endif %}</div>
     </div>
 </div>
 
@@ -357,7 +372,7 @@
                             <td>
                                 <span class="fw-semibold text-dark">{{ inv.cluster.client.name }}</span>
                             </td>
-                            <td class="text-end fw-bold text-dark">
+                            <td class="text-end fw-bold text-dark sensitive-financial-val">
                                 ₱{{ inv.amount|floatformat:2|intcomma }}
                             </td>
                             <td class="text-muted">
@@ -436,7 +451,7 @@
                         </div>
                         <div class="text-end">
                             <span class="text-muted d-block">Billed Amount</span>
-                            <span class="fw-bold text-dark fs-7">₱{{ inv.amount|floatformat:2|intcomma }}</span>
+                            <span class="fw-bold text-dark fs-7 sensitive-financial-val">₱{{ inv.amount|floatformat:2|intcomma }}</span>
                         </div>
                     </div>
 
@@ -509,7 +524,7 @@
                                     {{ sup.cluster.reference_code }}
                                 </a>
                             </td>
-                            <td class="text-end fw-bold text-dark">
+                            <td class="text-end fw-bold text-dark sensitive-financial-val">
                                 ₱{{ sup.amount|floatformat:2|intcomma }}
                             </td>
                             <td class="text-center">
@@ -724,6 +739,35 @@ document.addEventListener('DOMContentLoaded', function() {
             evaluateAmountFeedback();
         }
     });
+
+    // Subtle Executive Privacy Toggle for Sensitive Financial Figures
+    window.toggleFinancialPrivacy = function() {
+        const isMasked = document.body.classList.toggle('financial-masked');
+        const eyeIcon = document.getElementById('privacyEyeIcon');
+        const btnText = document.getElementById('privacyBtnText');
+        if (eyeIcon && btnText) {
+            if (isMasked) {
+                eyeIcon.className = 'bi bi-eye';
+                btnText.textContent = 'Reveal Figures';
+                localStorage.setItem('htc_financial_privacy', 'masked');
+            } else {
+                eyeIcon.className = 'bi bi-eye-slash';
+                btnText.textContent = 'Mask Financials';
+                localStorage.removeItem('htc_financial_privacy');
+            }
+        }
+    };
+
+    // Restore saved privacy state
+    if (localStorage.getItem('htc_financial_privacy') === 'masked') {
+        document.body.classList.add('financial-masked');
+        const eyeIcon = document.getElementById('privacyEyeIcon');
+        const btnText = document.getElementById('privacyBtnText');
+        if (eyeIcon && btnText) {
+            eyeIcon.className = 'bi bi-eye';
+            btnText.textContent = 'Reveal Figures';
+        }
+    }
 });
 </script>
 {% endblock %}
