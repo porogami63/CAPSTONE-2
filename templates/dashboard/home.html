@@ -448,27 +448,75 @@
 
 <!-- 3. Operational Volume Trend & Active Order Fulfillment (Informative Graphs) -->
 <div class="row g-4 mb-4">
-    <!-- Volume Trend Graph -->
+    <!-- Volume Trend Graph & Table with Monthly, Weekly, Yearly Cadence Filters -->
     <div class="col-12 col-lg-7">
         <div class="card-panel">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <div>
-                    <h6 class="fw-bold mb-0">Monthly Volume Fulfillment (MT)</h6>
-                    <span class="fs-8 text-muted">Contracted volume vs confirmed delivered volume across 2026</span>
+                    <h6 class="fw-bold mb-0" id="volumeChartTitle">Monthly Volume Fulfillment (MT)</h6>
+                    <span class="fs-8 text-muted" id="volumeChartSubtitle">Contracted volume vs confirmed delivered volume across 2026</span>
                 </div>
-                <div class="d-flex align-items-center gap-3 fs-8 fw-semibold">
-                    <span class="d-inline-flex align-items-center gap-1.5">
-                        <span class="d-inline-block rounded-1" style="width: 10px; height: 10px; background-color: rgba(12, 56, 92, 0.4);"></span>
-                        <span class="text-muted">Contracted MT</span>
-                    </span>
-                    <span class="d-inline-flex align-items-center gap-1.5">
-                        <span class="d-inline-block rounded-1" style="width: 10px; height: 10px; background-color: #0c385c;"></span>
-                        <span class="text-dark">Delivered MT</span>
-                    </span>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <!-- Cadence Filter Buttons (Weekly / Monthly / Yearly) -->
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Volume Cadence Filter">
+                        <button type="button" class="btn btn-outline-primary active px-2.5 py-1 fs-8" id="btnVol_monthly" onclick="updateVolumeCadence('monthly')">Monthly</button>
+                        <button type="button" class="btn btn-outline-primary px-2.5 py-1 fs-8" id="btnVol_weekly" onclick="updateVolumeCadence('weekly')">Weekly</button>
+                        <button type="button" class="btn btn-outline-primary px-2.5 py-1 fs-8" id="btnVol_yearly" onclick="updateVolumeCadence('yearly')">Yearly</button>
+                    </div>
+
+                    <!-- Mode Selector: Chart vs Table -->
+                    <div class="btn-group btn-group-sm d-none d-sm-inline-flex" role="group" aria-label="Volume View Mode">
+                        <button type="button" class="btn btn-outline-secondary active px-2 py-1 fs-8" id="btnVolView_chart" onclick="setVolumeMode('chart')" title="Chart View" aria-label="Chart View"><i class="bi bi-bar-chart-fill"></i></button>
+                        <button type="button" class="btn btn-outline-secondary px-2 py-1 fs-8" id="btnVolView_table" onclick="setVolumeMode('table')" title="Table View" aria-label="Table View"><i class="bi bi-table"></i></button>
+                    </div>
+
+                    <!-- Legend Items -->
+                    <div class="d-flex align-items-center gap-2 fs-8 fw-semibold ms-1">
+                        <span class="d-inline-flex align-items-center gap-1">
+                            <span class="d-inline-block rounded-1" style="width: 10px; height: 10px; background-color: rgba(12, 56, 92, 0.4);"></span>
+                            <span class="text-muted">Contracted</span>
+                        </span>
+                        <span class="d-inline-flex align-items-center gap-1">
+                            <span class="d-inline-block rounded-1" style="width: 10px; height: 10px; background-color: #0c385c;"></span>
+                            <span class="text-dark">Delivered</span>
+                        </span>
+                    </div>
                 </div>
             </div>
-            <div style="min-height: 240px; height: 240px;">
-                <canvas id="operationalVolumeChart"></canvas>
+
+            <!-- Chart Container -->
+            <div id="volumeChartBox" style="min-height: 240px; height: 240px;">
+                <canvas id="operationalVolumeChart" aria-label="Volume Fulfillment Graph" role="img"></canvas>
+            </div>
+
+            <!-- Table Container (Initially hidden, revealed when Table mode is clicked) -->
+            <div id="volumeTableBox" class="d-none" style="min-height: 240px; max-height: 240px; overflow-y: auto;">
+                <table class="table table-sm table-hover align-middle mb-0 fs-8">
+                    <thead class="sticky-top bg-body">
+                        <tr class="text-uppercase text-muted border-bottom">
+                            <th>Period</th>
+                            <th class="text-end">Contracted (MT)</th>
+                            <th class="text-end">Delivered (MT)</th>
+                            <th class="text-end">Fulfillment %</th>
+                            <th class="text-end">Pending (MT)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="volumeTableBody">
+                        {% for row in volume_chart_data.monthly.table %}
+                        <tr>
+                            <td class="fw-semibold">{{ row.period }}</td>
+                            <td class="text-end">{{ row.contracted|floatformat:1|intcomma }} MT</td>
+                            <td class="text-end fw-semibold text-primary">{{ row.delivered|floatformat:1|intcomma }} MT</td>
+                            <td class="text-end">
+                                <span class="badge {% if row.rate >= 100 %}bg-success-subtle text-success{% elif row.rate > 0 %}bg-primary-subtle text-primary{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                    {{ row.rate|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td class="text-end text-muted">{{ row.pending|floatformat:1|intcomma }} MT</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -889,20 +937,46 @@
     updateDashboardClock();
     setInterval(updateDashboardClock, 1000);
 
-    // 1. Operational Volume Fulfillment Chart (Informative Bar & Line Graph)
+    // 1. Operational Volume Fulfillment Chart & Table (Weekly / Monthly / Yearly)
     const volumeDataEl = document.getElementById('volume-chart-data');
     if (volumeDataEl) {
-        const vData = JSON.parse(volumeDataEl.textContent || '{}');
-        const vCtx = document.getElementById('operationalVolumeChart');
-        if (vCtx && vData.labels) {
-            new Chart(vCtx, {
+        const vDataRaw = JSON.parse(volumeDataEl.textContent || '{}');
+        let volumeChartInstance = null;
+        let activeVolumeCadence = 'monthly';
+        let currentVolumeMode = 'chart';
+
+        function getVolumeDataset(cadenceKey) {
+            if (vDataRaw[cadenceKey]) {
+                return vDataRaw[cadenceKey];
+            }
+            return {
+                title: 'Monthly Volume Fulfillment (MT)',
+                subtitle: 'Contracted volume vs confirmed delivered volume across 2026',
+                labels: vDataRaw.labels || [],
+                contracted: vDataRaw.contracted || [],
+                delivered: vDataRaw.delivered || [],
+                table: []
+            };
+        }
+
+        function renderVolumeChart(cadenceKey) {
+            const curData = getVolumeDataset(cadenceKey);
+            const vCtx = document.getElementById('operationalVolumeChart');
+            if (!vCtx || !curData.labels) return;
+
+            if (volumeChartInstance) {
+                volumeChartInstance.destroy();
+                volumeChartInstance = null;
+            }
+
+            volumeChartInstance = new Chart(vCtx, {
                 type: 'bar',
                 data: {
-                    labels: vData.labels,
+                    labels: curData.labels,
                     datasets: [
                         {
                             label: 'Contracted MT',
-                            data: vData.contracted,
+                            data: curData.contracted,
                             backgroundColor: 'rgba(12, 56, 92, 0.25)',
                             borderColor: '#0c385c',
                             borderWidth: 1,
@@ -913,7 +987,7 @@
                         },
                         {
                             label: 'Delivered MT',
-                            data: vData.delivered,
+                            data: curData.delivered,
                             backgroundColor: '#0c385c',
                             borderColor: '#0c385c',
                             borderWidth: 1,
@@ -954,6 +1028,72 @@
                 }
             });
         }
+
+        window.updateVolumeCadence = function(cadenceKey) {
+            activeVolumeCadence = cadenceKey;
+            const curData = getVolumeDataset(cadenceKey);
+
+            ['weekly', 'monthly', 'yearly'].forEach(k => {
+                const btn = document.getElementById(`btnVol_${k}`);
+                if (btn) btn.classList.toggle('active', k === cadenceKey);
+            });
+
+            const titleEl = document.getElementById('volumeChartTitle');
+            const subEl = document.getElementById('volumeChartSubtitle');
+            if (titleEl && curData.title) titleEl.textContent = curData.title;
+            if (subEl && curData.subtitle) subEl.textContent = curData.subtitle;
+
+            // Update Table Body
+            const tbody = document.getElementById('volumeTableBody');
+            if (tbody && curData.table && curData.table.length > 0) {
+                tbody.innerHTML = curData.table.map(row => {
+                    const badgeClass = row.rate >= 100 ? 'bg-success-subtle text-success' : (row.rate > 0 ? 'bg-primary-subtle text-primary' : 'bg-secondary-subtle text-secondary');
+                    return `
+                    <tr>
+                        <td class="fw-semibold">${row.period}</td>
+                        <td class="text-end">${Number(row.contracted).toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} MT</td>
+                        <td class="text-end fw-semibold text-primary">${Number(row.delivered).toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} MT</td>
+                        <td class="text-end"><span class="badge ${badgeClass}">${Number(row.rate).toFixed(1)}%</span></td>
+                        <td class="text-end text-muted">${Number(row.pending).toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} MT</td>
+                    </tr>
+                    `;
+                }).join('');
+            }
+
+            renderVolumeChart(cadenceKey);
+        };
+
+        window.setVolumeMode = function(mode) {
+            currentVolumeMode = mode;
+            const chartBox = document.getElementById('volumeChartBox');
+            const tableBox = document.getElementById('volumeTableBox');
+
+            const btnChart = document.getElementById('btnVolView_chart');
+            const btnTable = document.getElementById('btnVolView_table');
+
+            if (btnChart) {
+                btnChart.classList.toggle('active', mode === 'chart');
+                btnChart.classList.toggle('btn-secondary', mode === 'chart');
+                btnChart.classList.toggle('btn-outline-secondary', mode !== 'chart');
+            }
+            if (btnTable) {
+                btnTable.classList.toggle('active', mode === 'table');
+                btnTable.classList.toggle('btn-secondary', mode === 'table');
+                btnTable.classList.toggle('btn-outline-secondary', mode !== 'table');
+            }
+
+            if (mode === 'chart') {
+                if (chartBox) chartBox.classList.remove('d-none');
+                if (tableBox) tableBox.classList.add('d-none');
+                if (volumeChartInstance) volumeChartInstance.resize();
+            } else {
+                if (chartBox) chartBox.classList.add('d-none');
+                if (tableBox) tableBox.classList.remove('d-none');
+            }
+        };
+
+        // Initialize monthly volume fulfillment chart
+        renderVolumeChart('monthly');
     }
 
 {% if is_ops_manager %}

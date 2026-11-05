@@ -110,6 +110,18 @@ class DashboardRoleInterfaceTests(TestCase):
         self.assertIn("btnOpenFloatingFinancials", content)
         self.assertIn("Financials &amp; Analytics Report", content)
 
+        # Verify volume chart data contains weekly, monthly, and yearly cadences
+        vol_data = res.context["volume_chart_data"]
+        self.assertIn("weekly", vol_data)
+        self.assertIn("monthly", vol_data)
+        self.assertIn("yearly", vol_data)
+        self.assertIn("table", vol_data["monthly"])
+        self.assertIn("table", vol_data["weekly"])
+        self.assertIn("table", vol_data["yearly"])
+        self.assertIn("btnVol_monthly", content)
+        self.assertIn("btnVol_weekly", content)
+        self.assertIn("btnVol_yearly", content)
+
     def test_finance_dashboard_home(self):
         self.client.login(username="fin_user", password="password123")
         res = self.client.get("/")

@@ -190,8 +190,10 @@ def _build_financial_cadence(clusters_all, now):
 def _build_volume_chart_data(now):
     month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     cur_year = now.year
+    cur_month = now.month
     from operations.models import DeliveryLedger
 
+    # 1. Monthly (Jan - Dec of cur_year)
     mo_contracted = [0.0] * 12
     mo_delivered = [0.0] * 12
 
@@ -203,10 +205,105 @@ def _build_volume_chart_data(now):
         m = d.delivery_date.month - 1
         mo_delivered[m] += float(d.delivered_mt)
 
+    monthly_table = []
+    for i in range(12):
+        c_mt = round(mo_contracted[i], 1)
+        d_mt = round(mo_delivered[i], 1)
+        rate = round((d_mt / c_mt * 100), 1) if c_mt > 0 else (100.0 if d_mt > 0 else 0.0)
+        monthly_table.append({
+            "period": f"{month_labels[i]} {cur_year}",
+            "short_label": month_labels[i],
+            "contracted": c_mt,
+            "delivered": d_mt,
+            "rate": rate,
+            "pending": round(max(0.0, c_mt - d_mt), 1),
+        })
+
+    # 2. Weekly (Weeks of cur_month)
+    wk_labels = ["Week 1 (Days 1–7)", "Week 2 (Days 8–14)", "Week 3 (Days 15–21)", "Week 4 (Days 22+)"]
+    wk_short = ["W1", "W2", "W3", "W4"]
+    wk_contracted = [0.0] * 4
+    wk_delivered = [0.0] * 4
+
+    for po in PurchaseOrder.objects.filter(cluster__created_at__year=cur_year, cluster__created_at__month=cur_month):
+        w = min((po.cluster.created_at.day - 1) // 7, 3)
+        wk_contracted[w] += float(po.volume_mt)
+
+    for d in DeliveryLedger.objects.filter(delivery_date__year=cur_year, delivery_date__month=cur_month, received_at__isnull=False):
+        w = min((d.delivery_date.day - 1) // 7, 3)
+        wk_delivered[w] += float(d.delivered_mt)
+
+    weekly_table = []
+    for i in range(4):
+        c_mt = round(wk_contracted[i], 1)
+        d_mt = round(wk_delivered[i], 1)
+        rate = round((d_mt / c_mt * 100), 1) if c_mt > 0 else (100.0 if d_mt > 0 else 0.0)
+        weekly_table.append({
+            "period": wk_labels[i],
+            "short_label": wk_short[i],
+            "contracted": c_mt,
+            "delivered": d_mt,
+            "rate": rate,
+            "pending": round(max(0.0, c_mt - d_mt), 1),
+        })
+
+    # 3. Yearly (2024–2026)
+    yr_labels = ["2024", "2025", "2026"]
+    yr_contracted = [0.0] * len(yr_labels)
+    yr_delivered = [0.0] * len(yr_labels)
+
+    for idx, yr_str in enumerate(yr_labels):
+        y = int(yr_str)
+        for po in PurchaseOrder.objects.filter(cluster__created_at__year=y):
+            yr_contracted[idx] += float(po.volume_mt)
+        for d in DeliveryLedger.objects.filter(delivery_date__year=y, received_at__isnull=False):
+            yr_delivered[idx] += float(d.delivered_mt)
+
+    yearly_table = []
+    for i in range(len(yr_labels)):
+        c_mt = round(yr_contracted[i], 1)
+        d_mt = round(yr_delivered[i], 1)
+        rate = round((d_mt / c_mt * 100), 1) if c_mt > 0 else (100.0 if d_mt > 0 else 0.0)
+        yearly_table.append({
+            "period": yr_labels[i],
+            "short_label": yr_labels[i],
+            "contracted": c_mt,
+            "delivered": d_mt,
+            "rate": rate,
+            "pending": round(max(0.0, c_mt - d_mt), 1),
+        })
+
+    cur_month_name = month_labels[cur_month - 1]
+
     return {
+        "monthly": {
+            "title": f"Monthly Volume Fulfillment ({cur_year})",
+            "subtitle": f"Contracted volume vs confirmed delivered volume across {cur_year}",
+            "labels": month_labels,
+            "contracted": [r["contracted"] for r in monthly_table],
+            "delivered": [r["delivered"] for r in monthly_table],
+            "table": monthly_table,
+        },
+        "weekly": {
+            "title": f"Weekly Volume Fulfillment ({cur_month_name} {cur_year})",
+            "subtitle": f"Contracted volume vs confirmed delivered volume for {cur_month_name} {cur_year}",
+            "labels": wk_short,
+            "contracted": [r["contracted"] for r in weekly_table],
+            "delivered": [r["delivered"] for r in weekly_table],
+            "table": weekly_table,
+        },
+        "yearly": {
+            "title": "Yearly Volume Fulfillment (2024–2026)",
+            "subtitle": "Multi-year contracted volume vs confirmed delivered volume trajectory",
+            "labels": yr_labels,
+            "contracted": [r["contracted"] for r in yearly_table],
+            "delivered": [r["delivered"] for r in yearly_table],
+            "table": yearly_table,
+        },
+        # Backwards compatibility for existing references
         "labels": month_labels,
-        "contracted": [round(v, 1) for v in mo_contracted],
-        "delivered": [round(v, 1) for v in mo_delivered],
+        "contracted": [r["contracted"] for r in monthly_table],
+        "delivered": [r["delivered"] for r in monthly_table],
     }
 
 
