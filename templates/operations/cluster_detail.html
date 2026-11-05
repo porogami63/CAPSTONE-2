@@ -174,7 +174,7 @@
 
 {% if cluster.logistics.variance_exceeds_tolerance %}
 {% if cluster.logistics.dispute_status == "DISPUTED" %}
-<div class="alert-banner" style="border: 2px solid #d97706; background: rgba(217, 119, 6, 0.08); box-shadow: 0 0 10px rgba(217, 119, 6, 0.15); display: flex; justify-content: space-between; align-items: center; flex-wrap: gap; gap: 0.75rem;">
+<div class="alert-banner" style="border: 2px solid #d97706; background: rgba(217, 119, 6, 0.08); box-shadow: 0 0 10px rgba(217, 119, 6, 0.15); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
     <div>
         <strong>Weight Difference Disputed (Floating Variance):</strong> <span class="badge bg-warning text-dark" style="margin-left: 0.4rem; margin-right: 0.4rem;">{{ cluster.logistics.variance_percent|floatformat:2 }}%</span> Active dispute logged. Invoice amounts remain unchanged until resolution.
     </div>

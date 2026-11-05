@@ -949,12 +949,19 @@ a:hover { text-decoration: underline; }
 .btn-logout:hover { background: var(--htc-sidebar-hover); color: var(--htc-text); }
 
 /* App shell */
-.app-shell { display: flex; min-height: 100vh; position: relative; overflow-x: hidden; }
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+    position: relative;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: clip;
+}
 .app-sidebar {
     width: 220px; background: var(--htc-sidebar-bg); color: var(--htc-sidebar-text);
     flex-shrink: 0; display: flex; flex-direction: column;
     position: fixed; top: 0; left: 0; bottom: 0; z-index: 200;
-    transition: transform 0.25s ease;
+    transition: transform 0.25s ease, width 0.25s ease;
     border-right: 1px solid var(--htc-border);
 }
 .app-sidebar .brand-block { padding: var(--htc-space-lg) var(--htc-space-xl) var(--htc-space-md); border-bottom: 1px solid var(--htc-border); }
@@ -985,14 +992,26 @@ a:hover { text-decoration: underline; }
 .app-sidebar .user-name { color: var(--htc-text); font-weight: 600; font-size: 0.8125rem; }
 .app-sidebar .user-role { font-size: 0.68rem; color: var(--htc-text-muted); }
 
-.app-main-wrap { flex: 1; margin-left: 220px; min-height: 100vh; display: flex; flex-direction: column; }
+.app-main-wrap {
+    flex: 1 1 0%;
+    margin-left: 220px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    overflow-x: clip;
+}
 .sidebar-backdrop { display: none; }
 .app-topbar {
     background: var(--htc-surface); border-bottom: 1px solid var(--htc-border);
     padding: 0.65rem 1.25rem; display: flex; justify-content: space-between; align-items: center;
     position: sticky; top: 0; z-index: 50;
+    width: 100%; max-width: 100%; min-width: 0;
+    flex-wrap: wrap; gap: 0.5rem;
 }
-.topbar-left { display: flex; align-items: center; gap: 0.65rem; min-width: 0; }
+.topbar-left { display: flex; align-items: center; gap: 0.65rem; min-width: 0; flex: 1 1 auto; overflow: hidden; }
 .topbar-subtitle { font-size: 0.72rem; color: var(--htc-text-muted); margin-top: 0.05rem; }
 .app-topbar h1 { font-size: 1rem; font-weight: 600; margin: 0; color: var(--htc-text); }
 .app-topbar .role-badge {
@@ -1006,7 +1025,15 @@ a:hover { text-decoration: underline; }
     flex-shrink: 0; cursor: pointer;
 }
 .sidebar-toggle:hover { background: var(--htc-sidebar-hover); }
-.app-main { padding: var(--htc-space-lg) 1.25rem 1.5rem; flex: 1; }
+.app-main {
+    padding: var(--htc-space-lg) 1.25rem 1.5rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 1800px;
+    width: 100%;
+    margin: 0 auto;
+    overflow-x: clip;
+}
 
 .page-header h2 { font-size: 1.2rem; font-weight: 700; color: var(--htc-text); margin: 0; }
 .page-header p { color: var(--htc-text-muted); font-size: 0.8125rem; margin: 0.15rem 0 0; }
@@ -1246,18 +1273,32 @@ a:hover { text-decoration: underline; }
     .dashboard-charts-grid { grid-template-columns: 1fr; }
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
     .grid-2, .grid-detail { grid-template-columns: 1fr; }
-    .app-sidebar {
-        transform: translateX(-100%);
-        box-shadow: 20px 0 40px rgba(15, 45, 92, 0.18);
+    .app-sidebar,
+    html.sidebar-collapsed .app-sidebar,
+    body.sidebar-collapsed .app-sidebar {
+        transform: translateX(-100%) !important;
+        width: 260px !important;
+        min-width: 260px !important;
+        box-shadow: 20px 0 40px rgba(15, 45, 92, 0.25) !important;
     }
-    body.sidebar-open .app-sidebar { transform: translateX(0); }
+    body.sidebar-open .app-sidebar,
+    html.sidebar-collapsed.sidebar-open .app-sidebar,
+    body.sidebar-collapsed.sidebar-open .app-sidebar {
+        transform: translateX(0) !important;
+    }
     .sidebar-backdrop {
         display: block; position: fixed; inset: 0; z-index: 150; background: rgba(15, 23, 42, 0.48);
         opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
     }
     body.sidebar-open .sidebar-backdrop { opacity: 1; pointer-events: auto; }
-    .sidebar-toggle { display: inline-flex; }
-    .app-main-wrap { margin-left: 0; }
+    .sidebar-toggle { display: inline-flex !important; }
+    .app-main-wrap,
+    html.sidebar-collapsed .app-main-wrap,
+    body.sidebar-collapsed .app-main-wrap {
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+    }
 }
 @media (max-width: 768px) {
     .login-split { grid-template-columns: 1fr; }
@@ -3006,14 +3047,16 @@ html[data-legibility="high"] .badge {
     transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-html.sidebar-collapsed .app-sidebar,
-body.sidebar-collapsed .app-sidebar {
-    width: 68px !important;
-    min-width: 68px !important;
-}
-html.sidebar-collapsed .app-main-wrap,
-body.sidebar-collapsed .app-main-wrap {
-    margin-left: 68px !important;
+@media (min-width: 993px) {
+    html.sidebar-collapsed .app-sidebar,
+    body.sidebar-collapsed .app-sidebar {
+        width: 68px !important;
+        min-width: 68px !important;
+    }
+    html.sidebar-collapsed .app-main-wrap,
+    body.sidebar-collapsed .app-main-wrap {
+        margin-left: 68px !important;
+    }
 }
 html.sidebar-collapsed .brand-text-group,
 body.sidebar-collapsed .brand-text-group,
@@ -3996,5 +4039,206 @@ html:not([data-theme="light"]) {
 .workspace-header {
     padding: 1.25rem 0;
     margin-bottom: 1.5rem;
+}
+
+/* ==========================================================================
+   UNIVERSAL RESPONSIVE & BROWSER ZOOM-PROOFING ENGINE (ALL PAGES & TABS)
+   ========================================================================== */
+
+/* 1. Global Viewport & Container Containment (Prevents Body Bleed on Zoom) */
+html, body {
+    max-width: 100vw;
+    overflow-x: clip;
+}
+
+.app-shell {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: clip;
+}
+
+.app-main-wrap {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow-x: clip !important;
+}
+
+.app-main {
+    min-width: 0 !important;
+    max-width: 1800px !important;
+    width: 100% !important;
+    margin: 0 auto;
+    overflow-x: clip !important;
+}
+
+/* 2. Universal Table Responsiveness & Scroll Containment */
+.table-responsive,
+.list-pane > div[style*="overflow-x"],
+[style*="overflow-x:auto"],
+[style*="overflow-x: auto"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    display: block;
+}
+
+.table-htc,
+.table {
+    width: 100% !important;
+    max-width: 100%;
+    margin-bottom: 0;
+}
+
+.table-htc th,
+.table-htc td,
+.table th,
+.table td {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.table-htc td.allow-wrap,
+.table td.allow-wrap,
+.cell-wrap {
+    white-space: normal !important;
+    min-width: 150px;
+}
+
+/* 3. Universal Filter Bars, Toolbars & Forms */
+.filters-bar,
+.filter-bar,
+.search-bar,
+.page-header,
+.partner-column-header {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+.search-input-wrap,
+.search-input-wrap input,
+.filter-select,
+.form-select,
+.form-control,
+.form-control-htc,
+.form-select-htc {
+    max-width: 100% !important;
+}
+
+/* 4. Adaptive Breakpoint Overrides for High Zoom States (125% - 250%) */
+
+/* Breakpoint A: Constrained Desktop / 125%-150% Zoom (<= 1200px) */
+@media (max-width: 1200px) {
+    .split-layout {
+        grid-template-columns: 1fr !important;
+    }
+    .detail-pane {
+        position: static !important;
+        max-height: none !important;
+        margin-top: 1.25rem !important;
+        width: 100% !important;
+    }
+    .invoicing-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .grid-detail {
+        grid-template-columns: 1fr !important;
+    }
+    .loan-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .charts-split-grid,
+    .analytics-split,
+    .partners-split,
+    .doc-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .metric-grid,
+    .analytics-kpi-row,
+    .kpi-grid,
+    .status-cards-row,
+    .loan-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+/* Breakpoint B: Tablet Landscape / 150%-175% Zoom (<= 992px) */
+@media (max-width: 992px) {
+    .dashboard-charts-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .analytics-split {
+        grid-template-columns: 1fr !important;
+    }
+    .param-card {
+        grid-template-columns: 1fr !important;
+    }
+    .app-main {
+        padding: 1rem 0.85rem 1.5rem !important;
+    }
+    .card-top-row {
+        grid-template-columns: 1fr !important;
+        gap: 0.85rem !important;
+    }
+}
+
+/* Breakpoint C: Tablet Portrait / 175%-200% Zoom (<= 768px) */
+@media (max-width: 768px) {
+    .app-topbar {
+        padding: 0.5rem 0.75rem !important;
+    }
+    .app-topbar .topbar-subtitle {
+        display: none !important;
+    }
+    .page-header.flex-start,
+    .page-header.flex-between {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem !important;
+    }
+    .filters-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.5rem !important;
+    }
+    .filters-bar > div,
+    .search-input-wrap {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+    .partner-card {
+        flex-wrap: wrap !important;
+    }
+    .partner-stats {
+        text-align: left !important;
+        margin-left: 0 !important;
+        width: 100% !important;
+        margin-top: 0.4rem !important;
+    }
+}
+
+/* Breakpoint D: Mobile / 225%-250% Zoom (<= 576px) */
+@media (max-width: 576px) {
+    .metric-grid,
+    .analytics-kpi-row,
+    .kpi-grid,
+    .status-cards-row,
+    .loan-kpis {
+        grid-template-columns: 1fr !important;
+    }
+    .metric-box,
+    .kpi-card,
+    .status-card,
+    .pane-card {
+        padding: 0.85rem 1rem !important;
+    }
+    .flowchart-container {
+        padding-bottom: 0.85rem;
+    }
+    .modal-dialog {
+        margin: 0.25rem auto !important;
+        max-width: 98vw !important;
+    }
 }
 
