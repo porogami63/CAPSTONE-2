@@ -58,3 +58,4 @@ def check_loan_capital_cap(cluster, new_principal=None, exclude_loan_id=None) ->
         )
 
     return True, ""
+

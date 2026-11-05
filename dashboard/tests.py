@@ -88,10 +88,11 @@ class DashboardRoleInterfaceTests(TestCase):
             self.assertIsNone(res.context["financial_intervals"])
 
             content = res.content.decode("utf-8")
-            self.assertNotIn("opsFinancialsSection", content)
+            self.assertNotIn("floatingFinancialsPanel", content)
+            self.assertNotIn("btnOpenFloatingFinancials", content)
             self.assertNotIn("₱", content, f"Monetary symbol '₱' leaked on dashboard for {user_name}!")
 
-        # Test Operations Manager role: has access to subtle financial breakdown
+        # Test Operations Manager role: has access to floating financials breakdown
         self.client.login(username="ops_user", password="password123")
         res = self.client.get("/")
         self.assertEqual(res.status_code, 200)
@@ -101,10 +102,13 @@ class DashboardRoleInterfaceTests(TestCase):
         self.assertIn("weekly", intervals)
         self.assertIn("monthly", intervals)
         self.assertIn("yearly", intervals)
+        self.assertIn("margins", intervals["monthly"])
+        self.assertIn("volumes", intervals["monthly"])
 
         content = res.content.decode("utf-8")
-        self.assertIn("opsFinancialsSection", content)
-        self.assertIn("Operational Financials &amp; Margin Overview", content)
+        self.assertIn("floatingFinancialsPanel", content)
+        self.assertIn("btnOpenFloatingFinancials", content)
+        self.assertIn("Financials &amp; Analytics Report", content)
 
     def test_finance_dashboard_home(self):
         self.client.login(username="fin_user", password="password123")
