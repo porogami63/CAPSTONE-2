@@ -199,18 +199,54 @@
                                     </button>
                                 </li>
                                 <li>
-                                    <form method="post" action="{% url 'operations:mro_delete' item.id %}" onsubmit="return confirm('Delete this MRO entry ({{ item.mro_number|escapejs }} - {{ item.planter.name|escapejs }})?');">
-                                        {% csrf_token %}
-                                        <button class="dropdown-item text-danger btn-sm" type="submit">
-                                            <i class="bi bi-trash me-2"></i>Delete Line
-                                        </button>
-                                    </form>
+                                    <button class="dropdown-item text-danger btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#deleteMroModal{{ item.id }}">
+                                        Delete Line
+                                    </button>
                                 </li>
                             </ul>
                         </div>
                     </td>
                     {% endif %}
                 </tr>
+
+                <!-- Delete Modal for Item -->
+                <div class="modal fade" id="deleteMroModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow">
+                            <div class="modal-header bg-danger text-white py-2.5 px-3">
+                                <h6 class="modal-title fw-bold mb-0 text-white">Delete MRO Permit #{{ item.mro_number }}</h6>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body p-3.5">
+                                <p class="fs-7 text-dark mb-2">Are you sure you want to permanently delete this Molasses Release Order entry?</p>
+                                <div class="p-2.5 rounded bg-light border mb-3 fs-7">
+                                    <div><strong>Permit #:</strong> <span class="font-monospace text-primary">#{{ item.mro_number }}</span></div>
+                                    <div><strong>Supplier (Mill):</strong> {{ item.display_sugar_mill }}</div>
+                                    <div><strong>Planter:</strong> {{ item.planter.name }}</div>
+                                    <div><strong>Release Volume:</strong> <span class="fw-bold font-monospace">{{ item.tons|floatformat:3|intcomma }} MT</span></div>
+                                    {% if item.cluster %}
+                                    <div class="text-danger mt-1"><strong>Linked Deal:</strong> {{ item.cluster.reference_code }} ({{ item.cluster.client.name }})</div>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <a href="{% url 'operations:mro_delete' item.id %}?next={% url 'operations:mro_summary' %}" class="fs-8 text-decoration-none text-muted">
+                                        Full Review &amp; Impact Details &rarr;
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="modal-footer py-2 px-3 bg-light">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <form method="post" action="{% url 'operations:mro_delete' item.id %}" class="m-0 p-0 d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{% url 'operations:mro_summary' %}">
+                                    <button type="submit" class="btn btn-sm btn-danger fw-bold">
+                                        Confirm Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Edit Modal for Item -->
                 <div class="modal fade" id="editMroModal{{ item.id }}" tabindex="-1" aria-hidden="true">

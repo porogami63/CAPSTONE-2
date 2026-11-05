@@ -830,6 +830,32 @@ class MolassesReleaseOrderForm(forms.ModelForm):
         if brix_level is not None and (brix_level < 0 or brix_level > 100):
             self.add_error("brix_level", "Brix Level (%) must be a valid percentage between 0 and 100.")
 
+        # Validate proposed MRO tons against actual PO contracted MT when linked to a cluster
+        cluster = cleaned_data.get("cluster") or getattr(self.instance, "cluster", None)
+        tons = cleaned_data.get("tons")
+        if cluster and tons is not None:
+            from decimal import Decimal
+            po = getattr(cluster, "purchase_order", None)
+            if po:
+                po_actual_mt = Decimal(str(po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or 0)))
+                if po_actual_mt > Decimal("0"):
+                    if tons <= Decimal("0"):
+                        self.add_error("tons", "MRO release volume must be greater than 0 MT.")
+                    else:
+                        from django.db.models import Sum
+                        exclude_pk = self.instance.pk if self.instance and self.instance.pk else None
+                        existing_tons = cluster.mro_releases.exclude(pk=exclude_pk).aggregate(total=Sum("tons"))["total"] or Decimal("0")
+                        existing_tons = Decimal(str(existing_tons))
+                        if (existing_tons + tons) > po_actual_mt:
+                            excess = (existing_tons + tons) - po_actual_mt
+                            rem = max(po_actual_mt - existing_tons, Decimal("0"))
+                            ref = po.po_reference_number or cluster.reference_code
+                            self.add_error(
+                                "tons",
+                                f"Proposed MRO volume ({tons:,.3f} MT) exceeds the actual contracted volume for PO {ref} ({po_actual_mt:,.3f} MT). "
+                                f"Already linked: {existing_tons:,.3f} MT | Available capacity: {rem:,.3f} MT | Excess: {excess:,.3f} MT."
+                            )
+
         return cleaned_data
 
 

@@ -420,6 +420,13 @@
                     {% if linked_mros %}
                     <span class="badge bg-secondary-subtle text-secondary border fs-8 ms-1">{{ linked_mros|length }} Permit{% if linked_mros|length > 1 %}s{% endif %}</span>
                     <span class="text-muted fs-8 d-none d-sm-inline">({{ total_mro_tons|floatformat:3|intcomma }} MT)</span>
+                    {% if mro_is_fully_matched %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-8">100% Volume Matched</span>
+                    {% elif mro_is_over_allocated %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8">Over-allocated</span>
+                    {% elif total_mro_tons > 0 %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">{{ mro_match_percent }}% Matched</span>
+                    {% endif %}
                     {% endif %}
                     <i class="bi bi-chevron-up text-muted fs-8 ms-1" id="mroCollapseChevron"></i>
                 </div>
@@ -487,12 +494,41 @@
                                                 <span>{% if mro.is_shared_document %}Shared Scan{% else %}Scan{% endif %}</span>
                                             </button>
                                             {% endif %}
-                                            <form method="post" action="{% url 'operations:unlink_mro' cluster.pk mro.pk %}" class="d-inline m-0 p-0" onsubmit="return confirm('Unlink MRO #{{ mro.mro_number }} from this purchase order?');">
-                                                {% csrf_token %}
-                                                <button type="submit" class="btn btn-xs btn-outline-danger py-1 px-1.5 text-xs d-inline-flex align-items-center" title="Unlink MRO #{{ mro.mro_number }}">
-                                                    <i class="bi bi-trash3"></i>
-                                                </button>
-                                            </form>
+                                            <button type="button" class="btn btn-xs btn-outline-danger py-1 px-1.5 text-xs d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#unlinkMroModal{{ mro.pk }}" title="Unlink MRO #{{ mro.mro_number }}">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+
+                                        <!-- Modal: Unlink MRO Confirmation -->
+                                        <div class="modal fade" id="unlinkMroModal{{ mro.pk }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-dialog-centered">
+                                                <div class="modal-content border-0 shadow">
+                                                    <div class="modal-header bg-light py-2.5 px-3 border-bottom">
+                                                        <h6 class="modal-title fw-bold mb-0 text-dark">Unlink MRO Permit #{{ mro.mro_number }}</h6>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body p-3.5 text-start">
+                                                        <p class="fs-7 text-dark mb-2">Unlink this loading permit from purchase order <strong>{{ cluster.reference_code }}</strong>?</p>
+                                                        <div class="p-2.5 rounded bg-light border mb-2 fs-7">
+                                                            <div><strong>Permit #:</strong> <span class="font-monospace text-primary">#{{ mro.mro_number }}</span></div>
+                                                            <div><strong>Supplier:</strong> {{ mro.display_sugar_mill }} | {{ mro.planter.name }}</div>
+                                                            <div><strong>Permit Volume:</strong> <span class="fw-bold font-monospace">{{ mro.tons|floatformat:3|intcomma }} MT</span></div>
+                                                        </div>
+                                                        <div class="text-muted fs-8">
+                                                            Note: Unlinking removes the permit from this order and returns it to the unassigned ledger pool. The permit record itself will not be deleted.
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer py-2 px-3 bg-light">
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <form method="post" action="{% url 'operations:unlink_mro' cluster.pk mro.pk %}" class="m-0 p-0 d-inline">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="btn btn-sm btn-warning fw-bold">
+                                                                Unlink Permit
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -500,9 +536,42 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="p-2 rounded bg-body-tertiary border d-flex justify-content-between align-items-center fs-7">
-                        <span class="text-muted">Total Linked MRO Volume:</span>
-                        <span class="fw-bold text-primary fs-6">{{ total_mro_tons|floatformat:3|intcomma }} MT</span>
+                    <div class="p-2.5 rounded bg-body-tertiary border d-flex justify-content-between align-items-center flex-wrap gap-2 fs-7">
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <div>
+                                <span class="text-muted">PO Contracted:</span>
+                                <span class="fw-bold text-dark font-monospace">{{ po_actual_mt|floatformat:3|intcomma }} MT</span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <span class="text-muted">Linked Volume:</span>
+                                <span class="fw-bold font-monospace {% if mro_is_fully_matched %}text-success{% elif mro_is_over_allocated %}text-danger{% else %}text-primary{% endif %}">
+                                    {{ total_mro_tons|floatformat:3|intcomma }} MT
+                                </span>
+                            </div>
+                            <div class="vr d-none d-sm-block"></div>
+                            <div>
+                                <span class="text-muted">Available Capacity:</span>
+                                <span class="fw-bold font-monospace {% if mro_remaining_capacity == 0 %}text-success{% else %}text-muted{% endif %}">
+                                    {{ mro_remaining_capacity|floatformat:3|intcomma }} MT
+                                </span>
+                            </div>
+                        </div>
+                        <div>
+                            {% if mro_is_fully_matched %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                Exact Match (100% Contracted Volume)
+                            </span>
+                            {% elif mro_is_over_allocated %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                Over-allocated
+                            </span>
+                            {% elif total_mro_tons > 0 %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                Partial Coverage ({{ mro_match_percent }}%)
+                            </span>
+                            {% endif %}
+                        </div>
                     </div>
                     {% else %}
                     <div class="p-3 text-center text-muted fs-7">

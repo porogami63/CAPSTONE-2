@@ -337,6 +337,124 @@ class MROLinkingAndCopilotTests(TestCase):
         self.mro.refresh_from_db()
         self.assertIsNone(self.mro.cluster)
 
+    def test_link_mro_volume_validation_against_po(self):
+        from operations.models import PurchaseOrder, MolassesReleaseOrder
+        # Set up a PO with 200 MT
+        PurchaseOrder.objects.create(
+            cluster=self.cluster,
+            volume_mt=Decimal("200.000"),
+            unit_price=Decimal("40000.00"),
+            terms="Net 30",
+        )
+        self.client.login(username="ops_copilot", password="password123")
+
+        # MRO with 250 MT exceeds 200 MT
+        oversized_mro = MolassesReleaseOrder.objects.create(
+            mro_number="MRO-OVERSIZED",
+            planter=self.planter,
+            sugar_mill=self.mill,
+            tons=Decimal("250.000"),
+            trader="HEINDRICH",
+            crop_year="2024 - 25",
+        )
+        link_url = reverse("operations:link_mro", kwargs={"pk": self.cluster.pk})
+        res = self.client.post(link_url, {"mro_id": oversized_mro.pk}, follow=True)
+        self.assertEqual(res.status_code, 200)
+        oversized_mro.refresh_from_db()
+        self.assertIsNone(oversized_mro.cluster, "Oversized MRO must not be linked")
+        messages = [m.message for m in get_messages(res.wsgi_request)]
+        self.assertTrue(any("exceeds the actual contracted volume" in m for m in messages))
+
+        # Self.mro has 150.50 MT <= 200 MT: linking succeeds
+        res_valid = self.client.post(link_url, {"mro_id": self.mro.pk}, follow=True)
+        self.assertEqual(res_valid.status_code, 200)
+        self.mro.refresh_from_db()
+        self.assertEqual(self.mro.cluster, self.cluster)
+
+        # Trying to link oversized_mro now (150.50 + 250 > 200) also fails
+        res_excess = self.client.post(link_url, {"mro_id": oversized_mro.pk}, follow=True)
+        self.assertEqual(res_excess.status_code, 200)
+        oversized_mro.refresh_from_db()
+        self.assertIsNone(oversized_mro.cluster)
+
+    def test_manual_mro_creation_volume_validation(self):
+        from operations.models import PurchaseOrder, MolassesReleaseOrder
+        PurchaseOrder.objects.create(
+            cluster=self.cluster,
+            volume_mt=Decimal("100.000"),
+            unit_price=Decimal("40000.00"),
+            terms="Net 30",
+        )
+        self.client.login(username="ops_copilot", password="password123")
+
+        url = reverse("operations:create_and_link_mro_manual", kwargs={"pk": self.cluster.pk})
+        # Try creating MRO with 150 MT on 100 MT PO
+        res = self.client.post(url, {
+            "mro_number": "MRO-EXCESS-01",
+            "sugar_mill_name": "BUSCO Sugar Mill",
+            "sugar_mill": self.mill.pk,
+            "planter": self.planter.pk,
+            "tons": "150.000",
+            "crop_year": "2024 - 25",
+            "trader": "HEINDRICH",
+        }, follow=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(MolassesReleaseOrder.objects.filter(mro_number="MRO-EXCESS-01").exists())
+
+        # Now create exact 100 MT
+        res_exact = self.client.post(url, {
+            "mro_number": "MRO-EXACT-01",
+            "sugar_mill_name": "BUSCO Sugar Mill",
+            "sugar_mill": self.mill.pk,
+            "planter": self.planter.pk,
+            "tons": "100.000",
+            "crop_year": "2024 - 25",
+            "trader": "HEINDRICH",
+        }, follow=True)
+        self.assertEqual(res_exact.status_code, 200)
+        self.assertTrue(MolassesReleaseOrder.objects.filter(mro_number="MRO-EXACT-01").exists())
+
+    def test_mro_delete_view_get_and_post(self):
+        from operations.models import DeliveryLedger
+        self.client.login(username="ops_copilot", password="password123")
+
+        # 1. GET returns confirmation page
+        del_url = reverse("operations:mro_delete", kwargs={"pk": self.mro.pk})
+        get_res = self.client.get(del_url)
+        self.assertEqual(get_res.status_code, 200)
+        self.assertTemplateUsed(get_res, "operations/mro_confirm_delete.html")
+        self.assertContains(get_res, "MRO-9999")
+        self.assertContains(get_res, "Permanently Delete MRO Permit")
+
+        # 2. Associate a delivery ledger record to the MRO
+        from operations.models import PurchaseOrder
+        po = PurchaseOrder.objects.create(
+            cluster=self.cluster,
+            volume_mt=Decimal("100.000"),
+            unit_price=Decimal("40000.00"),
+            terms="Net 30",
+        )
+        delivery = DeliveryLedger.objects.create(
+            purchase_order=po,
+            supplier=self.mill,
+            mro_permit=self.mro,
+            dispatched_mt=Decimal("50.000"),
+            delivered_mt=Decimal("50.000"),
+            trucking_rate_per_mt=Decimal("500.00"),
+            barge_rate_per_mt=Decimal("250.00"),
+            receiving_location="Plant Alpha",
+            delivery_date=timezone.now().date(),
+        )
+        self.assertEqual(delivery.mro_permit, self.mro)
+
+        # 3. POST deletes the MRO and safely unlinks the delivery
+        post_res = self.client.post(del_url, follow=True)
+        self.assertEqual(post_res.status_code, 200)
+        from operations.models import MolassesReleaseOrder
+        self.assertFalse(MolassesReleaseOrder.objects.filter(pk=self.mro.pk).exists())
+        delivery.refresh_from_db()
+        self.assertIsNone(delivery.mro_permit, "Referencing delivery batch should have mro_permit unlinked to None")
+
     def test_copilot_api_endpoint(self):
         self.client.login(username="ops_copilot", password="password123")
         url = reverse("operations:copilot_query_api")
@@ -898,6 +1016,9 @@ class IncrementalDeliveryLedgerTests(TestCase):
 
         planter = Planter.objects.create(name="ABSFI Planters Assoc.")
         self.client.force_login(self.admin)
+        self.po.total_contracted_mt = Decimal("30000.000")
+        self.po.volume_mt = Decimal("30000.000")
+        self.po.save(update_fields=["total_contracted_mt", "volume_mt"])
 
         dummy_file = SimpleUploadedFile("MRO_Permit_88123.pdf", b"%PDF-1.4 dummy content", content_type="application/pdf")
         upload_url = reverse("operations:mro_upload_ocr", kwargs={"pk": self.cluster.pk})
@@ -946,6 +1067,9 @@ class IncrementalDeliveryLedgerTests(TestCase):
         from masters.models import Planter
 
         self.client.force_login(self.admin)
+        self.po.total_contracted_mt = Decimal("30000.000")
+        self.po.volume_mt = Decimal("30000.000")
+        self.po.save(update_fields=["total_contracted_mt", "volume_mt"])
         manual_url = reverse("operations:create_and_link_mro_manual", kwargs={"pk": self.cluster.pk})
 
         dummy_scan = SimpleUploadedFile(
@@ -1000,6 +1124,9 @@ class IncrementalDeliveryLedgerTests(TestCase):
         from operations.models import MolassesReleaseOrder
 
         self.client.force_login(self.admin)
+        self.po.total_contracted_mt = Decimal("30000.000")
+        self.po.volume_mt = Decimal("30000.000")
+        self.po.save(update_fields=["total_contracted_mt", "volume_mt"])
 
         # Build a valid 19-page PDF dummy in memory using pypdf
         writer = pypdf.PdfWriter()

@@ -1,0 +1,139 @@
+{% extends "app_base.html" %}
+{% load humanize %}
+
+{% block title %}Delete MRO #{{ mro.mro_number }} · HTC Core{% endblock %}
+{% block topbar_title %}Delete Molasses Release Order{% endblock %}
+{% block topbar_subtitle %}Review permit details and confirm deletion{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0" style="max-width: 760px; margin: 0 auto;">
+    <!-- Breadcrumb Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0 fs-8">
+                <li class="breadcrumb-item"><a href="{% url 'operations:cluster_list' %}" class="text-decoration-none">Orders &amp; Deals</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'operations:mro_summary' %}" class="text-decoration-none">Loading Permits (MRO)</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Delete MRO #{{ mro.mro_number }}</li>
+            </ol>
+        </nav>
+        <a href="{{ next_url|default:'operations:mro_summary' }}" class="btn-htc-outline btn-sm">
+            &larr; Cancel / Return
+        </a>
+    </div>
+
+    <!-- Confirmation Card -->
+    <div class="card border-0 shadow-sm" style="background: var(--htc-surface); border: 1px solid var(--htc-border) !important; border-radius: 12px; overflow: hidden;">
+        <div class="card-header bg-danger text-white py-3 px-4 d-flex align-items-center justify-content-between">
+            <div>
+                <h5 class="mb-0 fw-bold text-white">Confirm MRO Deletion</h5>
+                <div class="fs-8 text-white-50">Permanent removal of loading permit record</div>
+            </div>
+            <span class="badge bg-white text-danger font-monospace fs-8 px-2.5 py-1">#{{ mro.mro_number }}</span>
+        </div>
+
+        <div class="card-body p-4">
+            <!-- Warning Banner -->
+            {% if mro.cluster %}
+            <div class="alert alert-warning border border-warning-subtle p-3 rounded-3 mb-4" style="background-color: #fffbeb;">
+                <div class="fs-7">
+                    <strong class="text-dark">Permit is currently linked to an active deal:</strong>
+                    <div class="text-muted mt-1">
+                        This MRO is attached to Purchase Order <strong>{{ mro.cluster.reference_code }}</strong> ({{ mro.cluster.client.name }}).
+                        Deleting it will remove <strong>{{ mro.tons|floatformat:3|intcomma }} MT</strong> from the order's attached MRO permits.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if associated_deliveries %}
+            <div class="alert alert-danger border border-danger-subtle p-3 rounded-3 mb-4" style="background-color: #fef2f2;">
+                <div class="fs-7">
+                    <strong class="text-danger">Delivery Batches Reference this Permit:</strong>
+                    <div class="text-muted mt-1">
+                        There {{ associated_deliveries|length|pluralize:"is,are" }} <strong>{{ associated_deliveries|length }} delivery batch{{ associated_deliveries|length|pluralize:"es" }}</strong> referencing this MRO permit. Deleting the permit will unlink the permit reference from those deliveries without altering the physical delivery records.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <h6 class="fw-bold text-dark fs-7 mb-2.5">Permit Specification Summary</h6>
+            
+            <div class="table-responsive rounded-3 border mb-4">
+                <table class="table table-sm align-middle fs-7 mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted fw-semibold ps-3 py-2" style="width: 35%;">MRO Reference #</td>
+                            <td class="fw-bold text-primary font-monospace pe-3 py-2">#{{ mro.mro_number }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold ps-3 py-2">Issuing Sugar Mill</td>
+                            <td class="fw-bold text-dark pe-3 py-2">{{ mro.display_sugar_mill }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold ps-3 py-2">Planter / Association</td>
+                            <td class="fw-medium text-dark pe-3 py-2">{{ mro.planter.name }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold ps-3 py-2">Authorized Release Volume</td>
+                            <td class="fw-bold text-success pe-3 py-2 fs-6 font-monospace">{{ mro.tons|floatformat:3|intcomma }} MT</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold ps-3 py-2">Crop Year</td>
+                            <td class="text-dark pe-3 py-2">{{ mro.crop_year }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold ps-3 py-2">Release Date</td>
+                            <td class="text-dark pe-3 py-2">{{ mro.release_date|date:"M d, Y"|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold ps-3 py-2">Trader Entity</td>
+                            <td class="text-dark pe-3 py-2">{{ mro.trader }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold ps-3 py-2">Linked Order Contract</td>
+                            <td class="pe-3 py-2">
+                                {% if mro.cluster %}
+                                <a href="{% url 'operations:cluster_detail' mro.cluster.pk %}" class="fw-bold text-primary text-decoration-none">
+                                    {{ mro.cluster.reference_code }} ({{ mro.cluster.client.name }})
+                                </a>
+                                {% else %}
+                                <span class="badge bg-light text-muted border">Unassigned Inventory Pool</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-semibold ps-3 py-2">Attached Scanned Soft Copy</td>
+                            <td class="pe-3 py-2">
+                                {% if mro.has_scanned_document %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    {{ mro.is_shared_document|yesno:"Consolidated Shared Scan,Direct Permit Scan" }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted fs-8">No document attached</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Confirmation Action Form -->
+            <form method="post" action="{% url 'operations:mro_delete' mro.pk %}">
+                {% csrf_token %}
+                {% if next_url %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
+                
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
+                    <a href="{{ next_url|default:'operations:mro_summary' }}" class="btn btn-outline-secondary px-4 py-2 fs-7 fw-semibold">
+                        Cancel &amp; Keep Permit
+                    </a>
+                    <button type="submit" class="btn btn-danger px-4 py-2 fs-7 fw-bold shadow-xs">
+                        Permanently Delete MRO Permit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
