@@ -975,9 +975,15 @@
                 </div>
                 {% endif %}
 
-                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1rem 1.15rem;" open>
-                    <summary style="cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--htc-text); display: flex; align-items: center; gap: 0.4rem;">
-                        <i class="bi bi-plus-circle-fill text-primary"></i> Issue New Invoice
+                <details style="background: var(--htc-bg); border: 1px solid var(--htc-border); border-radius: 10px; padding: 1rem 1.15rem;" {% if not cluster.invoices.all %}open{% endif %}>
+                    <summary style="cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--htc-text); display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;">
+                        <span class="d-inline-flex align-items-center gap-1.5 text-primary">
+                            <i class="bi bi-plus-circle-fill"></i>
+                            <span>{% if cluster.invoices.all %}Issue Another Invoice{% else %}Issue Customer Invoice{% endif %}</span>
+                        </span>
+                        {% if invoice_suggestion_data.remaining_balance > 0.01 %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">₱{{ invoice_suggestion_data.remaining_balance|floatformat:2|intcomma }} Remaining</span>
+                        {% endif %}
                     </summary>
                     <div style="font-size: 0.78rem; color: var(--htc-text-muted);" class="d-flex align-items-center gap-2 mt-1 mb-3">
                         <i class="bi bi-info-circle text-primary me-1"></i> Supporting documents (Waybill &amp; DR scans) uploaded in Logistics will be attached to customer invoices.
