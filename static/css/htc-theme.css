@@ -836,7 +836,24 @@ a:hover { text-decoration: underline; }
 .text-danger { color: var(--htc-accent); }
 .small { font-size: 0.85rem; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.grid-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.grid-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+.grid-detail > div {
+    min-width: 0;
+    width: 100%;
+}
+.grid-detail input.form-control-htc,
+.grid-detail select.form-select-htc,
+.grid-detail textarea.form-control-htc {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+}
 
 /* Login */
 .login-split { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }

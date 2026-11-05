@@ -715,9 +715,9 @@ class DeliveryExpenseMatchingLinkTests(TestCase):
 		self.assertNotContains(res, "Funded Loan Principal")
 		self.assertContains(res, "Finance is currently pending for this PO.")
 		self.assertContains(res, "Open Bank Loans &amp; Matching Panel")
-		self.assertContains(res, 'id="auditLogCollapse"')
-		self.assertContains(res, 'data-bs-target="#auditLogCollapse"')
-		self.assertContains(res, "Comprehensive Audit Log (Simple History)")
+		self.assertContains(res, 'id="ledgerVerifyModal"')
+		self.assertContains(res, 'id="tab-audit-pane"')
+		self.assertContains(res, "Activity Audit Trail")
 
 
 class DeferredLogisticsAndBatchAccountingTests(TestCase):

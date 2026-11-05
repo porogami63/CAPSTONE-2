@@ -6,115 +6,100 @@
 {% block content %}
 
 {% with wf=cluster.get_workflow_steps_info %}
-<div class="d-flex justify-content-end align-items-center gap-2 mb-3" data-step="2" data-intro="Action panel for editing contract parameters, uploading scanned MRO release orders, or opening payment matching reconciliation.">
-    {% if cluster.status == 'draft' or cluster.status == 'returned' %}
-    <form method="post" action="{% url 'operations:submit_cluster' cluster.pk %}" style="display:inline;">{% csrf_token %}
-        <button type="submit" class="btn btn-sm btn-info text-white fw-bold shadow-xs"
-                data-bs-toggle="tooltip" data-bs-html="true"
-                title="&lt;div class='text-start p-1'&gt;{% if wf.step1.complete %}&lt;strong class='text-success'&gt;✓ Ready to Submit&lt;/strong&gt;&lt;br&gt;&lt;span class='text-xs'&gt;All PO commercial specs configured.&lt;/span&gt;{% else %}&lt;strong class='text-warning'&gt;⚠️ Prerequisites missing before submission:&lt;/strong&gt;&lt;br&gt;&lt;span class='text-xs text-warning-emphasis'&gt;{% for m in wf.step1.missing %}• {{ m }}&lt;br&gt;{% endfor %}&lt;/span&gt;{% endif %}&lt;/div&gt;">
-            <i class="bi bi-send-check me-1"></i> Submit for Approval
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3" data-step="2" data-intro="Action panel for editing contract parameters, uploading scanned MRO release orders, or opening payment matching reconciliation.">
+    <!-- Left: PO Reference and Unified Audit & Blockchain Ledger Pill -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="badge bg-body border text-dark fs-7 px-3 py-1.5 shadow-2xs font-monospace" style="border-color: var(--htc-border) !important;">
+            {{ cluster.reference_code }}
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold px-3 py-1.5 shadow-2xs d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#ledgerVerifyModal" onclick="triggerLedgerVerification()" title="Open Immutable Blockchain Lifecycle &amp; Audit Trail">
+            <i class="bi bi-shield-check text-primary fs-6"></i>
+            <span>Audit Trail &amp; Blockchain</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-0.5 px-1.5">
+                {{ ledger_block.sealed_count }}/{{ ledger_block.total_stages }} Sealed
+            </span>
         </button>
-    </form>
-    {% endif %}
+    </div>
 
-    {% if user|has_perm:"approve_transaction" %}
-    {% if cluster.status == 'pending_approval' %}
-    <form method="post" action="{% url 'operations:approve_cluster' cluster.pk %}" style="display:inline;">{% csrf_token %}
-        <button type="submit" class="btn btn-sm btn-success fw-bold shadow-xs" data-bs-toggle="tooltip" title="Executive Approval unlocks Logistics dispatch and Receiving operations"><i class="bi bi-check-circle me-1"></i> Approve PO</button>
-    </form>
-    <button type="button" class="btn btn-sm btn-danger fw-bold shadow-xs" data-bs-toggle="modal" data-bs-target="#rejectClusterModal">
-        <i class="bi bi-x-circle me-1"></i> Return / Reject PO
-    </button>
-    {% elif cluster.status == 'approved' %}
-    <button type="button" class="btn btn-sm btn-outline-danger fw-bold shadow-xs" data-bs-toggle="modal" data-bs-target="#rejectClusterModal">
-        <i class="bi bi-arrow-return-left me-1"></i> Return Order for Changes
-    </button>
-    {% endif %}
-    {% endif %}
+    <!-- Right: Workflow Actions & More Actions Dropdown -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        {% if cluster.status == 'draft' or cluster.status == 'returned' %}
+        <form method="post" action="{% url 'operations:submit_cluster' cluster.pk %}" style="display:inline;">{% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-info text-white fw-bold shadow-xs"
+                    data-bs-toggle="tooltip" data-bs-html="true"
+                    title="&lt;div class='text-start p-1'&gt;{% if wf.step1.complete %}&lt;strong class='text-success'&gt;✓ Ready to Submit&lt;/strong&gt;&lt;br&gt;&lt;span class='text-xs'&gt;All PO commercial specs configured.&lt;/span&gt;{% else %}&lt;strong class='text-warning'&gt;⚠️ Prerequisites missing before submission:&lt;/strong&gt;&lt;br&gt;&lt;span class='text-xs text-warning-emphasis'&gt;{% for m in wf.step1.missing %}• {{ m }}&lt;br&gt;{% endfor %}&lt;/span&gt;{% endif %}&lt;/div&gt;">
+                <i class="bi bi-send-check me-1"></i> Submit for Approval
+            </button>
+        </form>
+        {% endif %}
 
-    <!-- More Actions Dropdown -->
-    <div class="dropdown">
-        <button class="btn-htc-outline btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.82rem;">
-            <i class="bi bi-three-dots-vertical me-1"></i> More Actions
+        {% if user|has_perm:"approve_transaction" %}
+        {% if cluster.status == 'pending_approval' %}
+        <form method="post" action="{% url 'operations:approve_cluster' cluster.pk %}" style="display:inline;">{% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-success fw-bold shadow-xs" data-bs-toggle="tooltip" title="Executive Approval unlocks Logistics dispatch and Receiving operations"><i class="bi bi-check-circle me-1"></i> Approve PO</button>
+        </form>
+        <button type="button" class="btn btn-sm btn-danger fw-bold shadow-xs" data-bs-toggle="modal" data-bs-target="#rejectClusterModal">
+            <i class="bi bi-x-circle me-1"></i> Return / Reject PO
         </button>
-        <ul class="dropdown-menu dropdown-menu-end" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; min-width: 240px; padding: 0.5rem;">
-            {% if user|has_perm:"edit_transaction" %}
-            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'operations:cluster_edit' cluster.pk %}" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-pencil text-muted"></i> Edit Order Details</a></li>
-            {% endif %}
-            {% if user|has_perm:"reconcile_payments" %}
-            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'finance:reconciliation' cluster.pk %}" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-link-45deg text-muted"></i> Payment Matching</a></li>
-            {% endif %}
-            <li><hr class="dropdown-divider" style="border-color: var(--htc-border); margin: 0.35rem 0;"></li>
-            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="#" data-bs-toggle="modal" data-bs-target="#debriefModal" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-calculator text-muted"></i> Final Deal Summary</a></li>
-            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'operations:download_contract_pdf' cluster.pk %}" target="_blank" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-file-earmark-text text-muted"></i> Order Agreement PDF</a></li>
-            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'operations:download_po_pdf' cluster.pk %}" target="_blank" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-file-earmark-check text-muted"></i> Purchase Order PDF</a></li>
-            {% if cluster.mro_file %}
-            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{{ cluster.mro_file.url }}" target="_blank" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-file-earmark-check-fill text-success"></i> View Loading Permit (MRO)</a></li>
-            {% elif user|has_perm:"upload_mro" %}
-            <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="#" data-bs-toggle="modal" data-bs-target="#uploadMroModal" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-upload text-muted"></i> Upload Loading Permit (MRO)</a></li>
-            {% endif %}
-            {% if user|has_perm:"archive_transaction" %}
-            <li><hr class="dropdown-divider" style="border-color: var(--htc-border); margin: 0.35rem 0;"></li>
-            {% if cluster.is_archived %}
-            <li>
-                <form method="post" action="{% url 'operations:unarchive_cluster' cluster.pk %}" class="m-0">{% csrf_token %}
-                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-arrow-counterclockwise text-muted"></i> Restore from Archive</button>
-                </form>
-            </li>
-            {% else %}
-            <li>
-                {% if cluster.is_archivable %}
-                <form method="post" action="{% url 'operations:archive_cluster' cluster.pk %}" class="m-0" onsubmit="return confirm('Move this transaction to Archive Vault?');">{% csrf_token %}
-                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-archive text-muted"></i> Archive</button>
-                </form>
-                {% else %}
-                <form method="post" action="{% url 'operations:archive_cluster' cluster.pk %}" class="m-0">{% csrf_token %}
-                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2 text-warning" style="font-size: 0.84rem;"
-                            data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="left"
-                            title="&lt;div class='text-start p-1'&gt;&lt;strong class='text-warning'&gt;⚠️ Archival Blocked:&lt;/strong&gt;&lt;ul class='mb-0 ps-3 fs-8 text-warning-emphasis'&gt;{% for b in cluster.get_archival_blockers %}• {{ b }}&lt;br&gt;{% endfor %}&lt;/ul&gt;&lt;/div&gt;">
-                        <i class="bi bi-exclamation-triangle text-warning"></i> Archive Blocked (Check Rules)
-                    </button>
-                </form>
+        {% elif cluster.status == 'approved' %}
+        <button type="button" class="btn btn-sm btn-outline-danger fw-bold shadow-xs" data-bs-toggle="modal" data-bs-target="#rejectClusterModal">
+            <i class="bi bi-arrow-return-left me-1"></i> Return Order for Changes
+        </button>
+        {% endif %}
+        {% endif %}
+
+        <!-- More Actions Dropdown -->
+        <div class="dropdown">
+            <button class="btn-htc-outline btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.82rem;">
+                <i class="bi bi-three-dots-vertical me-1"></i> More Actions
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; min-width: 240px; padding: 0.5rem;">
+                {% if user|has_perm:"edit_transaction" %}
+                <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'operations:cluster_edit' cluster.pk %}" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-pencil text-muted"></i> Edit Order Details</a></li>
                 {% endif %}
-            </li>
-            {% endif %}
-            {% endif %}
-        </ul>
+                {% if user|has_perm:"reconcile_payments" %}
+                <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'finance:reconciliation' cluster.pk %}" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-link-45deg text-muted"></i> Payment Matching</a></li>
+                {% endif %}
+                <li><hr class="dropdown-divider" style="border-color: var(--htc-border); margin: 0.35rem 0;"></li>
+                <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="#" data-bs-toggle="modal" data-bs-target="#debriefModal" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-calculator text-muted"></i> Final Deal Summary</a></li>
+                <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'operations:download_contract_pdf' cluster.pk %}" target="_blank" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-file-earmark-text text-muted"></i> Order Agreement PDF</a></li>
+                <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{% url 'operations:download_po_pdf' cluster.pk %}" target="_blank" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-file-earmark-check text-muted"></i> Purchase Order PDF</a></li>
+                {% if cluster.mro_file %}
+                <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="{{ cluster.mro_file.url }}" target="_blank" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-file-earmark-check-fill text-success"></i> View Loading Permit (MRO)</a></li>
+                {% elif user|has_perm:"upload_mro" %}
+                <li><a class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" href="#" data-bs-toggle="modal" data-bs-target="#uploadMroModal" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-upload text-muted"></i> Upload Loading Permit (MRO)</a></li>
+                {% endif %}
+                {% if user|has_perm:"archive_transaction" %}
+                <li><hr class="dropdown-divider" style="border-color: var(--htc-border); margin: 0.35rem 0;"></li>
+                {% if cluster.is_archived %}
+                <li>
+                    <form method="post" action="{% url 'operations:unarchive_cluster' cluster.pk %}" class="m-0">{% csrf_token %}
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-arrow-counterclockwise text-muted"></i> Restore from Archive</button>
+                    </form>
+                </li>
+                {% else %}
+                <li>
+                    {% if cluster.is_archivable %}
+                    <form method="post" action="{% url 'operations:archive_cluster' cluster.pk %}" class="m-0" onsubmit="return confirm('Move this transaction to Archive Vault?');">{% csrf_token %}
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2" style="font-size: 0.84rem; color: var(--htc-text);"><i class="bi bi-archive text-muted"></i> Archive</button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="{% url 'operations:archive_cluster' cluster.pk %}" class="m-0">{% csrf_token %}
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 rounded px-3 py-2 text-warning" style="font-size: 0.84rem;"
+                                data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="left"
+                                title="&lt;div class='text-start p-1'&gt;&lt;strong class='text-warning'&gt;⚠️ Archival Blocked:&lt;/strong&gt;&lt;ul class='mb-0 ps-3 fs-8 text-warning-emphasis'&gt;{% for b in cluster.get_archival_blockers %}• {{ b }}&lt;br&gt;{% endfor %}&lt;/ul&gt;&lt;/div&gt;">
+                            <i class="bi bi-exclamation-triangle text-warning"></i> Archive Blocked (Check Rules)
+                        </button>
+                    </form>
+                    {% endif %}
+                </li>
+                {% endif %}
+                {% endif %}
+            </ul>
+        </div>
     </div>
 </div>
 {% endwith %}
-
-<!-- Cryptographic Ledger Proof & Blockchain Verification Banner -->
-<div class="card p-3 mb-3 border shadow-sm" style="background: var(--htc-surface); border-color: var(--htc-border) !important; border-radius: 12px;">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2.5">
-            <div class="rounded-circle p-2 d-flex align-items-center justify-content-center flex-shrink-0" style="background: rgba(37, 99, 235, 0.1); color: var(--htc-primary-light); width: 40px; height: 40px;">
-                <i class="bi bi-shield-lock-fill fs-5"></i>
-            </div>
-            <div>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <strong class="fs-7" style="color: var(--htc-text);">Purchase Order Blockchain Record</strong>
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-0.5 px-2">
-                        {{ ledger_block.sealed_count }} of {{ ledger_block.total_stages }} Stages Sealed
-                    </span>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-8 py-0.5 px-2">
-                        <i class="bi bi-patch-check-fill me-1"></i> Intact · Zero Tampering
-                    </span>
-                </div>
-                <div class="text-xs text-muted mt-0.5">
-                    Latest Stage: <strong class="text-dark">{{ ledger_block.current_stage }}</strong>
-                    <span class="mx-1.5 opacity-50">·</span>
-                    SHA-256 Digest: <code class="font-monospace text-primary fw-bold" title="{{ ledger_block.block_hash }}">{{ ledger_block.block_hash_short }}</code>
-                </div>
-            </div>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-outline-primary btn-sm fw-semibold px-3 py-1.5" data-bs-toggle="modal" data-bs-target="#ledgerVerifyModal" onclick="triggerLedgerVerification()">
-                <i class="bi bi-diagram-3 me-1"></i> View Blockchain Lifecycle
-            </button>
-        </div>
-    </div>
-</div>
 
 <!-- Company Process Horizontal Flowchart Tracker -->
 {% include "operations/includes/process_flowchart.html" %}
@@ -301,77 +286,91 @@
 </div>
 {% endif %}
 
-<div class="grid-detail">
-    <div>
-        <div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-            <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 0.9rem 1.25rem; font-weight: 700; font-size: 0.95rem; color: var(--htc-primary-light); display: flex; align-items: center; justify-content: space-between;">
-                <span class="d-flex align-items-center gap-2"><i class="bi bi-file-earmark-text-fill"></i> Order Details, Costs &amp; Pricing</span>
-                <div class="d-flex align-items-center gap-2">
-                    {% if has_active_loan %}
-                    <a href="{% url 'finance:po_workspace' cluster.pk %}" class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 text-decoration-none" style="font-size: 0.72rem;" title="Open Dedicated PO Finance Workspace">
-                        <i class="bi bi-shield-check me-1"></i> Financing: Cleared &rarr;
-                    </a>
-                    {% else %}
-                    <a href="{% url 'finance:po_workspace' cluster.pk %}" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 text-decoration-none" style="font-size: 0.72rem;" title="Open Dedicated PO Finance Workspace">
-                        <i class="bi bi-hourglass-split me-1"></i> Financing: Pending Clearance &rarr;
-                    </a>
-                    {% endif %}
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.72rem;">{{ cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</span>
+<!-- Full-Width Executive Order Details, Costs & Pricing Summary -->
+<div class="panel mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+    <div class="panel-header" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); padding: 0.9rem 1.25rem; font-weight: 700; font-size: 0.95rem; color: var(--htc-primary-light); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+        <span class="d-flex align-items-center gap-2"><i class="bi bi-file-earmark-text-fill"></i> Order Details, Costs &amp; Pricing</span>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if has_active_loan %}
+            <a href="{% url 'finance:po_workspace' cluster.pk %}" class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 text-decoration-none" style="font-size: 0.72rem;" title="Open Dedicated PO Finance Workspace">
+                <i class="bi bi-shield-check me-1"></i> Financing: Cleared &rarr;
+            </a>
+            {% else %}
+            <a href="{% url 'finance:po_workspace' cluster.pk %}" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 text-decoration-none" style="font-size: 0.72rem;" title="Open Dedicated PO Finance Workspace">
+                <i class="bi bi-hourglass-split me-1"></i> Financing: Pending Clearance &rarr;
+            </a>
+            {% endif %}
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.75rem;">{{ cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</span>
+        </div>
+    </div>
+    <div class="panel-body p-3">
+        {% if not has_active_loan %}
+        <div class="alert alert-warning py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-xs flex-wrap gap-2" style="border-radius: 8px;">
+            <div>
+                <i class="bi bi-info-circle-fill text-warning me-2"></i>
+                <strong>Finance Notice:</strong> Bank loan is not yet cleared for this order. Deliveries and operations can continue as normal.
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-warning text-dark">Soft Notice</span>
+                <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-xs btn-outline-dark fw-semibold text-nowrap">
+                    Open Finance Workspace &rarr;
+                </a>
+            </div>
+        </div>
+        {% endif %}
+        <div class="row g-3">
+            <div class="col-md-6 border-end" style="border-color: var(--htc-border) !important;">
+                <div class="text-xs text-muted fw-bold text-uppercase mb-2"><i class="bi bi-building me-1"></i> Purchase from Supplier (Cost)</div>
+                <div class="d-flex justify-content-between text-xs py-1.5 border-bottom" style="border-color: var(--htc-border) !important;">
+                    <span class="text-muted">Supplier (Sugar Mill):</span>
+                    <strong class="text-end">{{ cluster.sugar_mill.name }}</strong>
+                </div>
+                <div class="d-flex justify-content-between text-xs py-1.5 border-bottom" style="border-color: var(--htc-border) !important;">
+                    <span class="text-muted">Buying Price per Ton:</span>
+                    <strong class="text-end">₱{{ cluster.purchase_order.unit_price|floatformat:2|intcomma }} / MT</strong>
+                </div>
+                <div class="d-flex justify-content-between text-xs py-1.5">
+                    <span class="text-muted">Total Buying Cost:</span>
+                    <strong class="text-end text-danger">₱{{ cluster.purchase_order.total_value|floatformat:2|intcomma }}</strong>
                 </div>
             </div>
-            <div class="panel-body p-3">
-                {% if not has_active_loan %}
-                <div class="alert alert-warning py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-xs flex-wrap gap-2" style="border-radius: 8px;">
-                    <div>
-                        <i class="bi bi-info-circle-fill text-warning me-2"></i>
-                        <strong>Finance Notice:</strong> Bank loan is not yet cleared for this order. Deliveries and operations can continue as normal.
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-warning text-dark">Soft Notice</span>
-                        <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-xs btn-outline-dark fw-semibold text-nowrap">
-                            Open Finance Workspace &rarr;
-                        </a>
-                    </div>
+            <div class="col-md-6">
+                <div class="text-xs text-muted fw-bold text-uppercase mb-2"><i class="bi bi-person-badge me-1"></i> Sale to Customer (Income)</div>
+                <div class="d-flex justify-content-between text-xs py-1.5 border-bottom" style="border-color: var(--htc-border) !important;">
+                    <span class="text-muted">Customer (Buyer):</span>
+                    <strong class="text-end">{{ cluster.client.name }}</strong>
                 </div>
-                {% endif %}
-                <div class="row g-3">
-                    <div class="col-md-6 border-end" style="border-color: var(--htc-border) !important;">
-                        <div class="text-xs text-muted fw-bold text-uppercase mb-2"><i class="bi bi-building me-1"></i> Purchase from Supplier (Cost)</div>
-                        <div class="d-flex justify-content-between text-xs py-1 border-bottom" style="border-color: var(--htc-border) !important;">
-                            <span class="text-muted">Supplier (Sugar Mill):</span>
-                            <strong class="text-end">{{ cluster.sugar_mill.name }}</strong>
-                        </div>
-                        <div class="d-flex justify-content-between text-xs py-1 border-bottom" style="border-color: var(--htc-border) !important;">
-                            <span class="text-muted">Buying Price per Ton:</span>
-                            <strong class="text-end">₱{{ cluster.purchase_order.unit_price|floatformat:2|intcomma }} / MT</strong>
-                        </div>
-                        <div class="d-flex justify-content-between text-xs py-1">
-                            <span class="text-muted">Total Buying Cost:</span>
-                            <strong class="text-end text-danger">₱{{ cluster.purchase_order.total_value|floatformat:2|intcomma }}</strong>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="text-xs text-muted fw-bold text-uppercase mb-2"><i class="bi bi-person-badge me-1"></i> Sale to Customer (Income)</div>
-                        <div class="d-flex justify-content-between text-xs py-1 border-bottom" style="border-color: var(--htc-border) !important;">
-                            <span class="text-muted">Customer (Buyer):</span>
-                            <strong class="text-end">{{ cluster.client.name }}</strong>
-                        </div>
-                        <div class="d-flex justify-content-between text-xs py-1 border-bottom" style="border-color: var(--htc-border) !important;">
-                            <span class="text-muted">Selling Price per Ton:</span>
-                            <strong class="text-end">₱{{ cluster.purchase_order.selling_price|floatformat:2|intcomma }} / MT</strong>
-                        </div>
-                        <div class="d-flex justify-content-between text-xs py-1">
-                            <span class="text-muted">Total Selling Income:</span>
-                            <strong class="text-end text-success">₱{{ cluster.purchase_order.total_selling_value|floatformat:2|intcomma }}</strong>
-                        </div>
-                    </div>
+                <div class="d-flex justify-content-between text-xs py-1.5 border-bottom" style="border-color: var(--htc-border) !important;">
+                    <span class="text-muted">Selling Price per Ton:</span>
+                    <strong class="text-end">₱{{ cluster.purchase_order.selling_price|floatformat:2|intcomma }} / MT</strong>
                 </div>
-                <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center text-xs" style="border-color: var(--htc-border) !important;">
-                    <div><span class="text-muted">Sugar Quality:</span> <strong>{% if cluster.purchase_order.brix_level %}{{ cluster.purchase_order.brix_level }}% Brix{% else %}—{% endif %}</strong></div>
-                    <div><span class="text-muted">Quality Grade:</span> <strong>{{ cluster.purchase_order.chai_specs|default:"—" }}</strong></div>
+                <div class="d-flex justify-content-between text-xs py-1.5">
+                    <span class="text-muted">Total Selling Income:</span>
+                    <strong class="text-end text-success">₱{{ cluster.purchase_order.total_selling_value|floatformat:2|intcomma }}</strong>
                 </div>
             </div>
         </div>
+        <div class="mt-3 pt-2.5 border-top d-flex justify-content-between align-items-center flex-wrap gap-2 text-xs" style="border-color: var(--htc-border) !important;">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div><span class="text-muted">Sugar Quality:</span> <strong>{% if cluster.purchase_order.brix_level %}{{ cluster.purchase_order.brix_level }}% Brix{% else %}—{% endif %}</strong></div>
+                <div><span class="text-muted">Quality Grade:</span> <strong>{{ cluster.purchase_order.chai_specs|default:"—" }}</strong></div>
+            </div>
+            {% if debrief.profit %}
+            <div class="d-flex align-items-center gap-1.5">
+                <span class="text-muted">Projected Commercial Spread:</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace fw-bold">
+                    ₱{{ debrief.profit|floatformat:2|intcomma }} ({{ debrief.margin|floatformat:1 }}% Margin)
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Main 2-Column Responsive Workspace Grid (Logistics vs Invoicing & Finance) -->
+<div class="grid-detail">
+    <!-- Column 1: Logistics & Deliveries -->
+    <div>
 
         <!-- Logistics Summary Section (Directly below Cost - Income Summary) -->
         <div class="panel mb-3">
@@ -960,15 +959,15 @@
                 </div>
                 {% endif %}
                 {% if invoice_suggestion_data.total_delivered_mt > 0 and invoice_suggestion_data.selling_price > 0 and not invoice_suggestion_data.has_existing_invoice and invoice_suggestion_data.has_deliveries_to_bill %}
-                <div class="alert alert-info py-2 px-3 text-xs mb-3 d-flex align-items-center justify-content-between shadow-sm" style="background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.25);">
-                    <div>
-                        <i class="bi bi-box-seam-fill text-primary me-1.5"></i>
+                <div class="alert alert-info py-2.5 px-3 text-xs mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm" style="background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.25);">
+                    <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                        <i class="bi bi-box-seam-fill text-primary"></i>
                         <strong>Auto-Suggested from Recorded Deliveries:</strong>
-                        {{ invoice_suggestion_data.total_delivered_mt|floatformat:3|intcomma }} MT delivered &times; ₱{{ invoice_suggestion_data.selling_price|floatformat:2|intcomma }}/MT =
+                        <span>{{ invoice_suggestion_data.total_delivered_mt|floatformat:3|intcomma }} MT delivered &times; ₱{{ invoice_suggestion_data.selling_price|floatformat:2|intcomma }}/MT =</span>
                         <span class="fw-bold text-primary">₱{{ invoice_suggestion_data.delivered_total|floatformat:2|intcomma }}</span>
                     </div>
-                    <div class="d-flex gap-1">
-                        <button type="button" class="btn btn-sm btn-primary py-0.5 px-2 fs-8 fw-semibold" onclick="const inp = document.querySelector('#addInvoiceForm input[name=\'amount\']'); if(inp){ inp.value='{{ invoice_suggestion_data.suggested_delivered|floatformat:2 }}'; inp.dispatchEvent(new Event('input')); }">
+                    <div>
+                        <button type="button" class="btn btn-sm btn-primary py-1 px-2.5 fs-8 fw-semibold text-nowrap" onclick="const inp = document.querySelector('#addInvoiceForm input[name=\'amount\']'); if(inp){ inp.value='{{ invoice_suggestion_data.suggested_delivered|floatformat:2 }}'; inp.dispatchEvent(new Event('input')); }">
                             Apply Delivered (₱{{ invoice_suggestion_data.suggested_delivered|floatformat:2|intcomma }})
                         </button>
                     </div>
@@ -1002,22 +1001,22 @@
 
                     <form method="post" action="{% url 'operations:add_invoice' cluster.pk %}" class="form-stack mt-3" id="addInvoiceForm">{% csrf_token %}
                         <div class="row g-2.5">
-                            <div class="col-md-6">
+                            <div class="col-12 col-sm-6">
                                 <label style="font-size: 0.78rem; font-weight: 600; color: var(--htc-text-muted);" class="mb-1">Invoice Number</label>
                                 {{ invoice_form.invoice_number }}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-12 col-sm-6">
                                 <label style="font-size: 0.78rem; font-weight: 600; color: var(--htc-text-muted);" class="mb-1">Amount (₱)</label>
                                 <div id="detailAmountWrap" data-bs-toggle="tooltip" data-bs-placement="top" title="{% if invoice_suggestion_data %}{% if invoice_suggestion_data.already_invoiced > 0 %}Remaining PO Balance: ₱{{ invoice_suggestion_data.remaining_balance|floatformat:2|intcomma }} ({{ invoice_suggestion_data.remaining_pct }}% of PO Target ₱{{ invoice_suggestion_data.contract_total|floatformat:2|intcomma }}){% else %}Suggested Contract Balance: ₱{{ invoice_suggestion_data.suggested_full|floatformat:2|intcomma }}{% endif %}{% else %}Enter invoice amount in PHP{% endif %}">
                                     {{ invoice_form.amount }}
                                 </div>
                                 <div id="detailAmountFeedback" class="form-text text-xs mt-1 text-primary fw-medium" style="display: none;"></div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-12 col-sm-6">
                                 <label style="font-size: 0.78rem; font-weight: 600; color: var(--htc-text-muted);" class="mb-1">Issue Date</label>
                                 {{ invoice_form.issued_at }}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-12 col-sm-6">
                                 <label style="font-size: 0.78rem; font-weight: 600; color: var(--htc-text-muted);" class="mb-1">Status</label>
                                 {{ invoice_form.status }}
                             </div>
@@ -1098,98 +1097,6 @@
                 });
                 </script>
                 {% endif %}
-            </div>
-        </div>
-
-
-
-        <!-- Collapsible Comprehensive Audit Log (Simple History) -->
-        <div class="panel mb-3" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-            <div class="panel-header d-flex justify-content-between align-items-center py-2.5 px-3" 
-                 role="button" 
-                 data-bs-toggle="collapse" 
-                 data-bs-target="#auditLogCollapse" 
-                 aria-expanded="false" 
-                 aria-controls="auditLogCollapse"
-                 style="cursor: pointer; user-select: none; background: var(--htc-surface); border-bottom: 1px solid var(--htc-border);">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-clock-history text-primary fs-7"></i>
-                    <span class="fw-bold text-dark" style="font-size: 0.88rem;">Comprehensive Audit Log</span>
-                    <span class="badge bg-secondary-subtle text-secondary border fs-8 ms-1">{{ audit_events|length }} Events</span>
-                </div>
-                <div class="d-flex align-items-center gap-2 text-muted text-xs">
-                    <span class="d-none d-sm-inline">Click to expand</span>
-                    <i class="bi bi-chevron-down fs-8" id="auditLogChevron"></i>
-                </div>
-            </div>
-            <div class="collapse" id="auditLogCollapse">
-                <div class="panel-body p-0">
-                    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
-                        <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.78rem;">
-                            <thead class="table-light sticky-top" style="font-size: 0.72rem; letter-spacing: 0.3px; border-bottom: 1px solid var(--htc-border);">
-                                <tr>
-                                    <th class="ps-3 py-2 text-muted" style="width: 32%;">User &amp; Time</th>
-                                    <th class="py-2 text-muted" style="width: 20%;">Target</th>
-                                    <th class="py-2 text-muted" style="width: 18%;">Action</th>
-                                    <th class="pe-3 py-2 text-muted" style="width: 30%;">Description</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for event in audit_events %}
-                                <tr style="border-bottom: 1px solid var(--htc-border);">
-                                    <td class="ps-3 py-2 text-nowrap">
-                                        <div class="fw-semibold text-dark" style="font-size: 0.78rem;">
-                                            {{ event.user|default:"System" }}
-                                        </div>
-                                        <div class="font-monospace text-muted" style="font-size: 0.7rem;">
-                                            {{ event.date|date:"M d, Y H:i" }} PST
-                                        </div>
-                                    </td>
-                                    <td class="py-2">
-                                        <span class="badge bg-light text-secondary border text-truncate d-inline-block" style="max-width: 95px; font-size: 0.68rem;" title="{{ event.model }}">
-                                            {{ event.model }}
-                                        </span>
-                                    </td>
-                                    <td class="py-2">
-                                        {% if event.type == '+' %}
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
-                                            <i class="bi bi-plus-circle me-1"></i>Created
-                                        </span>
-                                        {% elif event.type == '~' %}
-                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
-                                            <i class="bi bi-pencil me-1"></i>Updated
-                                        </span>
-                                        {% elif event.type == '-' %}
-                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
-                                            <i class="bi bi-trash me-1"></i>Deleted
-                                        </span>
-                                        {% else %}
-                                        <span class="badge bg-secondary-subtle text-secondary border px-1.5 py-0.5" style="font-size: 0.68rem;">
-                                            {{ event.type }}
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="pe-3 py-2">
-                                        <div class="text-secondary" style="font-size: 0.74rem; line-height: 1.35; word-break: break-word;">
-                                            {{ event.desc }}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="4" class="text-muted text-center py-3.5 fs-7">
-                                        <i class="bi bi-info-circle me-1 text-muted"></i> No audit logs available for this transaction.
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="px-3 py-1.5 bg-light border-top d-flex justify-content-between align-items-center text-muted" style="border-color: var(--htc-border) !important; font-size: 0.7rem;">
-                        <span>Philippine Standard Time (PST / UTC+8)</span>
-                        <span>{{ audit_events|length }} total event{{ audit_events|length|pluralize }}</span>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -1448,14 +1355,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const auditCollapse = document.getElementById('auditLogCollapse');
-    const chevron = document.getElementById('auditLogChevron');
-    if (auditCollapse && chevron) {
-        auditCollapse.addEventListener('show.bs.collapse', function () {
-            chevron.classList.replace('bi-chevron-down', 'bi-chevron-up');
-        });
-        auditCollapse.addEventListener('hide.bs.collapse', function () {
-            chevron.classList.replace('bi-chevron-up', 'bi-chevron-down');
+    const ledgerModal = document.getElementById('ledgerVerifyModal');
+    if (ledgerModal) {
+        ledgerModal.addEventListener('show.bs.modal', function () {
+            triggerLedgerVerification();
         });
     }
 
@@ -1472,74 +1375,181 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<!-- PURCHASE ORDER BLOCKCHAIN LIFECYCLE MODAL -->
+<!-- UNIFIED AUDIT TRAIL & BLOCKCHAIN LEDGER MODAL -->
 <div class="modal fade" id="ledgerVerifyModal" tabindex="-1" aria-labelledby="ledgerVerifyModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down" style="max-width: 680px;">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable modal-fullscreen-sm-down" style="max-width: 840px;">
         <div class="modal-content" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 12px; box-shadow: 0 14px 28px rgba(0,0,0,0.25);">
-            <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1.25rem 1.5rem;">
-                <div>
-                    <h5 class="modal-title fw-bold" id="ledgerVerifyModalLabel" style="color: var(--htc-text);">
-                        <i class="bi bi-shield-check text-primary me-2"></i>Purchase Order Blockchain Lifecycle
-                    </h5>
-                    <div class="text-xs text-muted">Cryptographic Record Integrity · {{ cluster.reference_code }}</div>
+            <div class="modal-header" style="border-bottom: 1px solid var(--htc-border); padding: 1.15rem 1.5rem;">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="rounded-circle p-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="bi bi-shield-check fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="ledgerVerifyModalLabel" style="color: var(--htc-text);">
+                            Audit Trail &amp; Blockchain Ledger
+                        </h5>
+                        <div class="text-xs text-muted">Cryptographic Record Integrity &amp; Activity History · {{ cluster.reference_code }}</div>
+                    </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4">
-                <!-- Loading State -->
-                <div id="ledgerVerifyingState" class="text-center py-4">
-                    <div class="spinner-border text-primary mb-3" role="status"></div>
-                    <div class="fw-semibold">Verifying Purchase Order Lifecycle...</div>
-                    <div class="text-xs text-muted mt-1">Recalculating SHA-256 block chain for this order...</div>
-                </div>
+            <div class="modal-body p-3.5">
+                <!-- Navigation Tabs: Blockchain Lifecycle vs Activity Audit Trail -->
+                <ul class="nav nav-pills nav-fill p-1 rounded-3 bg-body border mb-3" id="auditBlockchainTabs" role="tablist" style="border-color: var(--htc-border) !important;">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active py-2 fs-7 fw-semibold d-flex align-items-center justify-content-center gap-2" id="tab-blockchain-btn" data-bs-toggle="pill" data-bs-target="#tab-blockchain-pane" type="button" role="tab" aria-controls="tab-blockchain-pane" aria-selected="true">
+                            <i class="bi bi-diagram-3-fill text-primary"></i>
+                            <span>Blockchain Lifecycle</span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-0.5 px-2">{{ ledger_block.sealed_count }}/5</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link py-2 fs-7 fw-semibold d-flex align-items-center justify-content-center gap-2" id="tab-audit-btn" data-bs-toggle="pill" data-bs-target="#tab-audit-pane" type="button" role="tab" aria-controls="tab-audit-pane" aria-selected="false">
+                            <i class="bi bi-clock-history text-secondary"></i>
+                            <span>Activity Audit Trail</span>
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fs-8 py-0.5 px-2">{{ audit_events|length }} Events</span>
+                        </button>
+                    </li>
+                </ul>
 
-                <!-- Verified State -->
-                <div id="ledgerVerifiedState" class="d-none">
-                    <!-- Top Status Banner -->
-                    <div class="alert alert-success d-flex align-items-start gap-2.5 p-3 rounded-3 mb-3 border border-success-subtle" style="background: rgba(16, 185, 129, 0.08);">
-                        <i class="bi bi-check-circle-fill text-success fs-4 flex-shrink-0"></i>
-                        <div>
-                            <strong class="text-success d-block fs-7" id="poVerifiedTitle">Order Lifecycle Verified</strong>
-                            <div class="text-xs text-muted" id="poVerifiedMessage">Zero unauthorized alterations detected. Every operational stage is cryptographically linked to an immutable chain.</div>
+                <div class="tab-content" id="auditBlockchainTabContent">
+                    <!-- TAB 1: BLOCKCHAIN LIFECYCLE -->
+                    <div class="tab-pane fade show active" id="tab-blockchain-pane" role="tabpanel" aria-labelledby="tab-blockchain-btn">
+                        <!-- Loading State -->
+                        <div id="ledgerVerifyingState" class="text-center py-4">
+                            <div class="spinner-border text-primary mb-3" role="status"></div>
+                            <div class="fw-semibold">Verifying Purchase Order Lifecycle...</div>
+                            <div class="text-xs text-muted mt-1">Recalculating SHA-256 block chain for this order...</div>
+                        </div>
+
+                        <!-- Verified State -->
+                        <div id="ledgerVerifiedState" class="d-none">
+                            <!-- Top Status Banner -->
+                            <div class="alert alert-success d-flex align-items-start gap-2.5 p-3 rounded-3 mb-3 border border-success-subtle" style="background: rgba(16, 185, 129, 0.08);">
+                                <i class="bi bi-check-circle-fill text-success fs-4 flex-shrink-0"></i>
+                                <div>
+                                    <strong class="text-success d-block fs-7" id="poVerifiedTitle">Order Lifecycle Verified</strong>
+                                    <div class="text-xs text-muted" id="poVerifiedMessage">Zero unauthorized alterations detected. Every operational stage is cryptographically linked to an immutable chain.</div>
+                                </div>
+                            </div>
+
+                            <!-- Top Summary Metrics Strip -->
+                            <div class="row g-2 mb-3">
+                                <div class="col-6 col-sm-4">
+                                    <div class="p-2.5 rounded border bg-body text-center" style="border-color: var(--htc-border) !important;">
+                                        <div class="text-xs text-muted fw-semibold">SEALED STAGES</div>
+                                        <div class="fw-bold fs-7 text-primary mt-0.5" id="poSealedStages">-- of 5</div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-sm-4">
+                                    <div class="p-2.5 rounded border bg-body text-center" style="border-color: var(--htc-border) !important;">
+                                        <div class="text-xs text-muted fw-semibold">LATEST STATUS</div>
+                                        <div class="fw-bold fs-7 text-success mt-0.5 text-truncate" id="poCurrentStage">--</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-sm-4">
+                                    <div class="p-2.5 rounded border bg-body text-center" style="border-color: var(--htc-border) !important;">
+                                        <div class="text-xs text-muted fw-semibold">VERIFICATION TIME</div>
+                                        <div class="fw-bold fs-7 text-dark mt-0.5" id="poLatency">-- ms</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Visual Blockchain Lifecycle Stepper -->
+                            <div class="mb-2">
+                                <div class="text-xs text-muted fw-bold text-uppercase mb-2">Sequential Block History</div>
+                                <div class="d-flex flex-column gap-2" id="poLifecycleChainContainer">
+                                    <!-- Populated dynamically via JS -->
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Top Summary Metrics Strip -->
-                    <div class="row g-2 mb-3">
-                        <div class="col-6 col-sm-4">
-                            <div class="p-2.5 rounded border bg-body text-center" style="border-color: var(--htc-border) !important;">
-                                <div class="text-xs text-muted fw-semibold">SEALED STAGES</div>
-                                <div class="fw-bold fs-7 text-primary mt-0.5" id="poSealedStages">-- of 5</div>
+                    <!-- TAB 2: ACTIVITY AUDIT TRAIL -->
+                    <div class="tab-pane fade" id="tab-audit-pane" role="tabpanel" aria-labelledby="tab-audit-btn">
+                        <div class="p-2.5 rounded-3 border bg-body mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-color: var(--htc-border) !important;">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-journal-text text-primary"></i>
+                                <span class="text-xs fw-bold">Chronological Activity Log</span>
+                                <span class="badge bg-secondary-subtle text-secondary border fs-8">{{ audit_events|length }} Total Events</span>
                             </div>
+                            <span class="text-xs text-muted">Philippine Standard Time (PST / UTC+8)</span>
                         </div>
-                        <div class="col-6 col-sm-4">
-                            <div class="p-2.5 rounded border bg-body text-center" style="border-color: var(--htc-border) !important;">
-                                <div class="text-xs text-muted fw-semibold">LATEST STATUS</div>
-                                <div class="fw-bold fs-7 text-success mt-0.5 text-truncate" id="poCurrentStage">--</div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-4">
-                            <div class="p-2.5 rounded border bg-body text-center" style="border-color: var(--htc-border) !important;">
-                                <div class="text-xs text-muted fw-semibold">VERIFICATION TIME</div>
-                                <div class="fw-bold fs-7 text-dark mt-0.5" id="poLatency">-- ms</div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Visual Blockchain Lifecycle Stepper -->
-                    <div class="mb-2">
-                        <div class="text-xs text-muted fw-bold text-uppercase mb-2">Sequential Block History</div>
-                        <div class="d-flex flex-column gap-2" id="poLifecycleChainContainer">
-                            <!-- Populated dynamically via JS -->
+                        <div class="table-responsive rounded border" style="max-height: 480px; overflow-y: auto; border-color: var(--htc-border) !important;">
+                            <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.78rem;">
+                                <thead class="table-light sticky-top" style="font-size: 0.72rem; letter-spacing: 0.3px; border-bottom: 1px solid var(--htc-border);">
+                                    <tr>
+                                        <th class="ps-3 py-2 text-muted" style="width: 28%;">User &amp; Time</th>
+                                        <th class="py-2 text-muted" style="width: 20%;">Target</th>
+                                        <th class="py-2 text-muted" style="width: 18%;">Action</th>
+                                        <th class="pe-3 py-2 text-muted" style="width: 34%;">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in audit_events %}
+                                    <tr style="border-bottom: 1px solid var(--htc-border);">
+                                        <td class="ps-3 py-2 text-nowrap">
+                                            <div class="fw-semibold text-dark" style="font-size: 0.78rem;">
+                                                {{ event.user|default:"System" }}
+                                            </div>
+                                            <div class="font-monospace text-muted" style="font-size: 0.7rem;">
+                                                {{ event.date|date:"M d, Y H:i:s" }} PST
+                                            </div>
+                                        </td>
+                                        <td class="py-2">
+                                            <span class="badge bg-light text-secondary border text-truncate d-inline-block" style="max-width: 130px; font-size: 0.7rem;" title="{{ event.model }}">
+                                                {{ event.model }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2">
+                                            {% if event.type == '+' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                                <i class="bi bi-plus-circle me-1"></i>Created
+                                            </span>
+                                            {% elif event.type == '~' %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                                <i class="bi bi-pencil me-1"></i>Updated
+                                            </span>
+                                            {% elif event.type == '-' %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                                <i class="bi bi-trash me-1"></i>Deleted
+                                            </span>
+                                            {% else %}
+                                            <span class="badge bg-secondary-subtle text-secondary border px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                                {{ event.type }}
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="pe-3 py-2">
+                                            <div class="text-secondary" style="font-size: 0.74rem; line-height: 1.35; word-break: break-word;">
+                                                {{ event.desc }}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-muted text-center py-4 fs-7">
+                                            <i class="bi bi-info-circle me-1 text-muted"></i> No audit logs recorded for this transaction yet.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="border-top: 1px solid var(--htc-border); padding: 1rem 1.5rem;">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-sm btn-primary fw-semibold" onclick="triggerLedgerVerification()">
-                    <i class="bi bi-arrow-repeat me-1"></i> Re-Verify Order
-                </button>
+            <div class="modal-footer d-flex justify-content-between align-items-center" style="border-top: 1px solid var(--htc-border); padding: 0.85rem 1.5rem;">
+                <div class="text-xs text-muted">
+                    <i class="bi bi-shield-check text-success me-1"></i> Cryptographic SHA-256 integrity chained &amp; audit timestamped
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-sm btn-primary fw-semibold" onclick="triggerLedgerVerification()">
+                        <i class="bi bi-arrow-repeat me-1"></i> Re-Verify Blockchain
+                    </button>
+                </div>
             </div>
         </div>
     </div>
