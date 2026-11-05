@@ -348,9 +348,9 @@
                     <th>Customer (Buyer)</th>
                     <th class="text-nowrap">Source Mill</th>
                     <th>Receiving Destination</th>
-                    <th class="text-end whitespace-nowrap">Delivered MT</th>
-                    <th style="min-width: 160px;">Land Trucking</th>
-                    <th style="min-width: 160px;">Marine Barging</th>
+                    <th class="text-end whitespace-nowrap" style="min-width: 145px;">Volume (Dispatched / Delivered)</th>
+                    <th style="min-width: 160px;">Land Trucking (Fixed/Locked)</th>
+                    <th style="min-width: 160px;">Marine Barging (Fixed/Locked)</th>
                     <th class="text-end whitespace-nowrap">Freight Cost</th>
                     <th class="text-nowrap">Waybill / DR</th>
                     <th class="text-center whitespace-nowrap">Action</th>
@@ -358,7 +358,7 @@
             </thead>
             <tbody>
                 {% for d in deliveries %}
-                <tr>
+                <tr id="batch-row-{{ d.delivery_id|stringformat:'s'|slice:':8'|upper }}">
                     <td class="text-nowrap">
                         <div class="fw-semibold text-dark">{{ d.delivery_date|date:"M d, Y" }}</div>
                         {% if d.dispatched_at %}
@@ -382,6 +382,7 @@
                         {% else %}
                         <span class="fw-bold text-primary">{{ d.purchase_order.po_reference_number|default:"—" }}</span>
                         {% endif %}
+                        <div class="fs-8 text-muted font-monospace">#{{ d.delivery_id|stringformat:"s"|slice:":8"|upper }}</div>
                     </td>
                     <td>
                         {% if d.purchase_order.customer %}
@@ -401,17 +402,48 @@
                     <td>
                         <span class="fw-medium text-dark"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ d.receiving_location }}</span>
                     </td>
-                    <td class="text-end fw-bold text-success text-nowrap font-monospace">
-                        {{ d.delivered_mt|floatformat:3|intcomma }} MT
+                    <td class="text-end text-nowrap font-monospace">
+                        <div class="fs-8 text-muted" title="Volume Dispatched from Origin Sugar Mill">
+                            Disp: <span class="fw-semibold text-dark">{{ d.effective_dispatched_mt|floatformat:3|intcomma }} MT</span>
+                        </div>
+                        <div class="fw-bold text-success" title="Volume Delivered / Confirmed at Customer Site">
+                            Deliv: {{ d.delivered_mt|floatformat:3|intcomma }} MT
+                        </div>
+                        {% if d.has_volume_discrepancy %}
+                            {% if d.variance_exceeds_tolerance %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 mt-0.5" title="Discrepancy exceeds 1.0% tolerance — Dispute Active">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ d.volume_discrepancy_mt|floatformat:3 }} MT ({{ d.variance_percent|floatformat:2 }}%)
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-8 mt-0.5" title="Within 1.0% shrinkage tolerance">
+                                {{ d.volume_discrepancy_mt|floatformat:3 }} MT ({{ d.variance_percent|floatformat:2 }}%)
+                            </span>
+                            {% endif %}
+                        {% elif d.received_at %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle fs-8 mt-0.5">
+                                <i class="bi bi-check2 me-0.5"></i>0.00% Var
+                            </span>
+                        {% endif %}
                     </td>
-                    <!-- Land Trucking: 3 Distinct Readable Lines -->
+                    <!-- Land Trucking: Locked Carrier & Fixed/Rate Pricing -->
                     <td>
-                        {% if d.trucking_partner or d.trucking_rate_per_mt > 0 or d.carrier or d.vessel_or_truck %}
-                        <div class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 170px;" title="{% if d.trucking_partner %}{{ d.trucking_partner.name }}{% elif d.carrier %}{{ d.carrier.name }}{% else %}Hauler Carrier{% endif %}">
-                            {% if d.trucking_partner %}{{ d.trucking_partner.name }}{% elif d.carrier %}{{ d.carrier.name }}{% else %}Hauler Carrier{% endif %}
+                        {% if d.trucking_partner or d.trucking_rate_per_mt > 0 or d.flat_trucking_fee > 0 or d.carrier or d.vessel_or_truck %}
+                        <div class="d-flex align-items-center gap-1">
+                            <span class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 145px;" title="{% if d.trucking_partner %}{{ d.trucking_partner.name }}{% elif d.carrier %}{{ d.carrier.name }}{% else %}Hauler Carrier{% endif %}">
+                                {% if d.trucking_partner %}{{ d.trucking_partner.name }}{% elif d.carrier %}{{ d.carrier.name }}{% else %}Hauler Carrier{% endif %}
+                            </span>
+                            <i class="bi bi-lock-fill text-secondary fs-8" title="Locked once initialized"></i>
                         </div>
                         <div class="fs-8 text-muted">
-                            {% if d.trucking_rate_per_mt > 0 %}₱{{ d.trucking_rate_per_mt|floatformat:2 }}/MT{% else %}Rate: —{% endif %}
+                            {% if d.flat_trucking_fee > 0 and d.trucking_rate_per_mt > 0 %}
+                                Fixed ₱{{ d.flat_trucking_fee|floatformat:2|intcomma }} + ₱{{ d.trucking_rate_per_mt|floatformat:2 }}/MT
+                            {% elif d.flat_trucking_fee > 0 %}
+                                Fixed: <span class="fw-semibold text-dark">₱{{ d.flat_trucking_fee|floatformat:2|intcomma }}</span>
+                            {% elif d.trucking_rate_per_mt > 0 %}
+                                ₱{{ d.trucking_rate_per_mt|floatformat:2 }}/MT (₱{{ d.trucking_cost|floatformat:2|intcomma }})
+                            {% else %}
+                                Price: —
+                            {% endif %}
                         </div>
                         <div class="fs-8 text-secondary font-monospace">
                             {{ d.vessel_or_truck|default:"No Plate ID" }}
@@ -420,14 +452,25 @@
                         <span class="text-muted fs-8">—</span>
                         {% endif %}
                     </td>
-                    <!-- Marine Barging: 3 Distinct Readable Lines -->
+                    <!-- Marine Barging: Locked Carrier & Fixed/Rate Pricing -->
                     <td>
-                        {% if d.barge_partner or d.barge_rate_per_mt > 0 or d.vessel_or_barge_name %}
-                        <div class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 170px;" title="{% if d.barge_partner %}{{ d.barge_partner.name }}{% else %}Barge Operator{% endif %}">
-                            {% if d.barge_partner %}{{ d.barge_partner.name }}{% else %}Barge Operator{% endif %}
+                        {% if d.barge_partner or d.barge_rate_per_mt > 0 or d.flat_barge_fee > 0 or d.vessel_or_barge_name %}
+                        <div class="d-flex align-items-center gap-1">
+                            <span class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 145px;" title="{% if d.barge_partner %}{{ d.barge_partner.name }}{% else %}Barge Operator{% endif %}">
+                                {% if d.barge_partner %}{{ d.barge_partner.name }}{% else %}Barge Operator{% endif %}
+                            </span>
+                            <i class="bi bi-lock-fill text-secondary fs-8" title="Locked once initialized"></i>
                         </div>
                         <div class="fs-8 text-muted">
-                            {% if d.barge_rate_per_mt > 0 %}₱{{ d.barge_rate_per_mt|floatformat:2 }}/MT{% else %}Rate: —{% endif %}
+                            {% if d.flat_barge_fee > 0 and d.barge_rate_per_mt > 0 %}
+                                Fixed ₱{{ d.flat_barge_fee|floatformat:2|intcomma }} + ₱{{ d.barge_rate_per_mt|floatformat:2 }}/MT
+                            {% elif d.flat_barge_fee > 0 %}
+                                Fixed: <span class="fw-semibold text-dark">₱{{ d.flat_barge_fee|floatformat:2|intcomma }}</span>
+                            {% elif d.barge_rate_per_mt > 0 %}
+                                ₱{{ d.barge_rate_per_mt|floatformat:2 }}/MT (₱{{ d.barge_cost|floatformat:2|intcomma }})
+                            {% else %}
+                                Price: —
+                            {% endif %}
                         </div>
                         <div class="fs-8 text-secondary font-monospace">
                             {{ d.vessel_or_barge_name|default:"No Vessel ID" }}
@@ -439,6 +482,7 @@
                     <td class="text-end text-nowrap font-monospace">
                         {% if d.total_freight_cost > 0 %}
                         <span class="fw-bold text-primary">₱{{ d.total_freight_cost|floatformat:2|intcomma }}</span>
+                        <div class="fs-8 text-muted"><i class="bi bi-lock-fill me-0.5"></i>Fixed</div>
                         {% else %}
                         <span class="text-muted fs-8">—</span>
                         {% endif %}
@@ -460,12 +504,12 @@
                         <div class="d-inline-flex align-items-center gap-1.5">
                             {% if user|has_perm:"edit_logistics" %}
                                 {% if not d.received_at %}
-                                <button type="button" class="btn btn-success btn-sm py-0.5 px-2.5 fs-8 fw-semibold" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Log arrival date">
-                                    <i class="bi bi-calendar-check me-1"></i>Log Arrival
+                                <button type="button" class="btn btn-success btn-sm py-0.5 px-2.5 fs-8 fw-semibold" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Confirm arrival &amp; delivered volume">
+                                    <i class="bi bi-calendar-check me-1"></i>Confirm Delivery
                                 </button>
                                 {% else %}
-                                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 fs-8" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '{{ d.received_at|date:"Y-m-d\\TH:i"|default:"" }}')" title="Update recorded arrival date">
-                                    <i class="bi bi-pencil-square me-1"></i>Edit Arrival
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 fs-8" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '{{ d.received_at|date:"Y-m-d\\TH:i"|default:"" }}')" title="Update arrival date or confirmed volume">
+                                    <i class="bi bi-pencil-square me-1"></i>Verify Volume
                                 </button>
                                 {% endif %}
                             {% endif %}
@@ -532,9 +576,9 @@
                 <input type="hidden" name="next" value="{% url 'operations:deliveries_list' %}?po={% if focused_po.po_reference_number %}{{ focused_po.po_reference_number }}{% else %}{{ focused_po.cluster.reference_code }}{% endif %}">
 
                 <div class="modal-body p-4">
-                    <!-- Row 1: Source Mill & Delivered Quantity -->
+                    <!-- Row 1: Source Mill, Volume Dispatched & Volume Delivered -->
                     <div class="row g-3 mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="form-field-symmetric">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <label class="mb-0">Source Sugar Mill <span class="text-danger">*</span></label>
@@ -545,17 +589,38 @@
                                     {% endif %}
                                 </div>
                                 {{ form.supplier }}
-                                <div class="field-help">Origin sugar mill sourcing this shipment (defaults to contract origin).</div>
+                                <div class="field-help">Origin sugar mill sourcing this batch.</div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="form-field-symmetric">
-                                <label>Delivered Quantity (MT) <span class="text-danger">*</span></label>
+                                <label>Volume Dispatched (MT) <span class="text-danger">*</span></label>
+                                <div class="input-addon-group">
+                                    {{ form.dispatched_mt }}
+                                    <span class="addon addon-suffix">MT</span>
+                                </div>
+                                <div class="field-help">Volume loaded &amp; dispatched from mill.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-field-symmetric">
+                                <label>Volume Delivered (MT) <span class="text-danger">*</span></label>
                                 <div class="input-addon-group">
                                     {{ form.delivered_mt }}
                                     <span class="addon addon-suffix">MT</span>
                                 </div>
-                                <div class="field-help">Max deliverable: {{ focused_po.remaining_mt|floatformat:3 }} MT</div>
+                                <div class="field-help">Confirmed delivered MT (Max: {{ focused_po.remaining_mt|floatformat:3 }} MT).</div>
+                            </div>
+                        </div>
+                        <!-- Live Volume Variance Indicator -->
+                        <div class="col-12 d-none" id="modalVarianceBanner">
+                            <div class="p-2.5 rounded-3 border d-flex justify-content-between align-items-center fs-8" id="modalVarianceBox">
+                                <div>
+                                    <i class="bi bi-speedometer2 me-1.5" id="modalVarianceIcon"></i>
+                                    <span class="fw-bold" id="modalVarianceTitle">Volume Variance Check:</span>
+                                    <span id="modalVarianceDetail">Dispatched 0.000 MT vs Delivered 0.000 MT</span>
+                                </div>
+                                <span class="badge fs-8" id="modalVarianceBadge">0.00%</span>
                             </div>
                         </div>
                     </div>
@@ -608,52 +673,86 @@
                         </div>
                     </div>
 
-                    <!-- Freight & Carrier Details (Auto-Calculated by Rate ₱/MT) -->
+                    <!-- Freight & Carrier Details (Fixed Price & Locked Carrier Once Initialized) -->
                     <div class="mt-4 pt-3 border-top">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div>
-                                <h6 class="fw-bold text-dark fs-7 mb-0">Freight &amp; Carrier Rates <span class="fw-normal text-muted fs-8">(Optional)</span></h6>
-                                <p class="text-muted fs-8 mb-0">Logistics totals are automatically calculated from Delivered MT × ₱/MT rate.</p>
+                                <h6 class="fw-bold text-dark fs-7 mb-0">
+                                    Trucker / Barger &amp; Fixed Pricing
+                                    {% if form.logistics_locked %}
+                                    <span class="badge bg-secondary text-white fs-8 ms-1.5 py-0.5 px-2"><i class="bi bi-lock-fill me-1"></i>Locked — Initialized on PO</span>
+                                    {% else %}
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-8 ms-1.5 py-0.5 px-2"><i class="bi bi-shield-lock me-1"></i>Locks After First Batch</span>
+                                    {% endif %}
+                                </h6>
+                                <p class="text-muted fs-8 mb-0">
+                                    {% if form.logistics_locked %}
+                                    Trucker, Barger, and Fixed Prices were initialized on the first delivery for this PO and cannot be changed.
+                                    {% else %}
+                                    Set the Trucker / Barger and Fixed Price (or Rate/MT) below. Once initialized, carrier and price are locked for this PO.
+                                    {% endif %}
+                                </p>
                             </div>
                             <span class="badge bg-light text-primary border fs-8 px-2 py-1 fw-semibold">
-                                <i class="bi bi-calculator me-1"></i>Auto-Calculated
+                                <i class="bi bi-lock-fill me-1"></i>Fixed Price Protected
                             </span>
                         </div>
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-field-symmetric">
-                                    <label>Trucking Partner (Land)</label>
+                                    <label>Trucker (Land Transport) {% if form.logistics_locked and form.initialized_logistics.trucking_partner_id %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
                                     {{ form.trucking_partner }}
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-field-symmetric">
-                                    <label>Trucking Rate (₱/MT)</label>
+                                    <label>Fixed Trucking Price (₱) {% if form.logistics_locked and form.initialized_logistics.flat_trucking_fee > 0 %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
+                                        {{ form.flat_trucking_fee }}
+                                    </div>
+                                    <div class="field-help">Fixed flat price for land trucking.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-field-symmetric">
+                                    <label>Trucking Rate (₱/MT) {% if form.logistics_locked and form.initialized_logistics.trucking_rate_per_mt > 0 %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
                                     <div class="input-addon-group">
                                         <span class="addon addon-prefix">₱</span>
                                         {{ form.trucking_rate_per_mt }}
                                     </div>
-                                    <div class="text-xs text-muted mt-1.5 fw-semibold d-flex justify-content-between align-items-center" id="modalTrkCalcRow">
-                                        <span><i class="bi bi-truck me-1"></i>Est. Land Freight:</span>
+                                    <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="modalTrkCalcRow">
+                                        <span><i class="bi bi-truck me-1"></i>Land Total:</span>
                                         <span class="text-primary font-monospace fw-bold" id="modalTrkCalcText">₱0.00</span>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+
+                            <div class="col-md-4">
                                 <div class="form-field-symmetric">
-                                    <label>Barging Partner (Marine)</label>
+                                    <label>Barger (Marine Transport) {% if form.logistics_locked and form.initialized_logistics.barge_partner_id %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
                                     {{ form.barge_partner }}
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-field-symmetric">
-                                    <label>Barging Rate (₱/MT)</label>
+                                    <label>Fixed Barging Price (₱) {% if form.logistics_locked and form.initialized_logistics.flat_barge_fee > 0 %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
+                                        {{ form.flat_barge_fee }}
+                                    </div>
+                                    <div class="field-help">Fixed flat price for marine barging.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-field-symmetric">
+                                    <label>Barging Rate (₱/MT) {% if form.logistics_locked and form.initialized_logistics.barge_rate_per_mt > 0 %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
                                     <div class="input-addon-group">
                                         <span class="addon addon-prefix">₱</span>
                                         {{ form.barge_rate_per_mt }}
                                     </div>
-                                    <div class="text-xs text-muted mt-1.5 fw-semibold d-flex justify-content-between align-items-center" id="modalBrgCalcRow">
-                                        <span><i class="bi bi-water me-1"></i>Est. Marine Freight:</span>
+                                    <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="modalBrgCalcRow">
+                                        <span><i class="bi bi-water me-1"></i>Marine Total:</span>
                                         <span class="text-primary font-monospace fw-bold" id="modalBrgCalcText">₱0.00</span>
                                     </div>
                                 </div>
@@ -667,45 +766,13 @@
                                             <i class="bi bi-calculator-fill fs-6"></i>
                                         </div>
                                         <div>
-                                            <div class="fs-8 fw-bold text-dark">Total Batch Logistics Cost</div>
-                                            <div class="text-xs text-muted" id="modalFreightFormulaText">Delivered MT × entered ₱/MT rates</div>
+                                            <div class="fs-8 fw-bold text-dark">Total Initialized Batch Logistics Cost</div>
+                                            <div class="text-xs text-muted" id="modalFreightFormulaText">Fixed price + (Dispatched MT × ₱/MT rate)</div>
                                         </div>
                                     </div>
                                     <div class="text-end">
                                         <div class="fs-6 fw-bold text-primary font-monospace" id="modalTotalFreightText">₱0.00</div>
-                                        <div class="text-xs text-muted">Zero manual calculation needed</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Optional Collapsed Fixed Flat Surcharge (for rare non-MT charter fees) -->
-                            <div class="col-12 mt-1">
-                                <a class="text-decoration-none text-muted fs-8 d-inline-flex align-items-center gap-1" data-bs-toggle="collapse" href="#modalFlatSurchargeCollapse" role="button" aria-expanded="false" aria-controls="modalFlatSurchargeCollapse">
-                                    <i class="bi bi-chevron-down"></i>
-                                    <span>Optional: Add fixed lump-sum trip surcharge (if carrier charges flat charter fee)</span>
-                                </a>
-                                <div class="collapse mt-2" id="modalFlatSurchargeCollapse">
-                                    <div class="card card-body bg-light border p-3">
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <div class="form-field-symmetric">
-                                                    <label class="form-label fs-8 text-muted mb-1">Flat Trucking Fee (₱) <span class="fw-normal text-muted">(Optional flat add-on)</span></label>
-                                                    <div class="input-addon-group">
-                                                        <span class="addon addon-prefix">₱</span>
-                                                        {{ form.flat_trucking_fee }}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="form-field-symmetric">
-                                                    <label class="form-label fs-8 text-muted mb-1">Flat Barging Fee (₱) <span class="fw-normal text-muted">(Optional flat add-on)</span></label>
-                                                    <div class="input-addon-group">
-                                                        <span class="addon addon-prefix">₱</span>
-                                                        {{ form.flat_barge_fee }}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <div class="text-xs text-muted"><i class="bi bi-lock-fill me-0.5"></i>Locked upon initialization</div>
                                     </div>
                                 </div>
                             </div>
@@ -749,6 +816,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const remMT = parseFloat("{{ focused_po.remaining_mt }}") || 0;
+    const dispInput = document.querySelector('#logBatchModal input[name="dispatched_mt"]');
     const mtInput = document.querySelector('#logBatchModal input[name="delivered_mt"]');
     const trkRateInput = document.querySelector('#logBatchModal input[name="trucking_rate_per_mt"]');
     const brgRateInput = document.querySelector('#logBatchModal input[name="barge_rate_per_mt"]');
@@ -764,6 +832,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const poCustomerId = "{{ focused_po.cluster.client_id|default:focused_po.customer_id }}";
     const poCustomerName = "{% if focused_po.cluster.client %}{{ focused_po.cluster.client.name|escapejs }}{% elif focused_po.customer %}{{ focused_po.customer.name|escapejs }}{% endif %}";
     const poMillId = "{{ focused_po.cluster.sugar_mill_id|default:'' }}";
+    let userEditedDelivered = false;
 
     function syncModalToPoCustomer() {
         if (custSelect && poCustomerId) {
@@ -794,15 +863,16 @@ document.addEventListener('DOMContentLoaded', function() {
         modalElForSync.addEventListener('shown.bs.modal', syncModalToPoCustomer);
     }
 
-    function updateFreightCalculations() {
-        const mt = parseFloat(mtInput?.value) || 0;
+    function updateModalVarianceAndFreight() {
+        const dispMt = parseFloat(dispInput?.value) || parseFloat(mtInput?.value) || 0;
+        const delivMt = parseFloat(mtInput?.value) || 0;
         const trkRate = parseFloat(trkRateInput?.value) || 0;
         const brgRate = parseFloat(brgRateInput?.value) || 0;
         const flatTrk = parseFloat(flatTrkInput?.value) || 0;
         const flatBrg = parseFloat(flatBrgInput?.value) || 0;
 
-        const totalTrk = (mt * trkRate) + flatTrk;
-        const totalBrg = (mt * brgRate) + flatBrg;
+        const totalTrk = (dispMt * trkRate) + flatTrk;
+        const totalBrg = (dispMt * brgRate) + flatBrg;
         const grandTotal = totalTrk + totalBrg;
 
         const trkText = document.getElementById('modalTrkCalcText');
@@ -810,37 +880,67 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalFreightText = document.getElementById('modalTotalFreightText');
         const formulaText = document.getElementById('modalFreightFormulaText');
 
-        if (trkText) {
-            trkText.textContent = `₱${totalTrk.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        }
-        if (brgText) {
-            brgText.textContent = `₱${totalBrg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        }
-        if (totalFreightText) {
-            totalFreightText.textContent = `₱${grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        }
+        if (trkText) trkText.textContent = `₱${totalTrk.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (brgText) brgText.textContent = `₱${totalBrg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (totalFreightText) totalFreightText.textContent = `₱${grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         if (formulaText) {
-            if (grandTotal > 0 && mt > 0) {
+            if (grandTotal > 0) {
                 let parts = [];
+                if (flatTrk > 0) parts.push(`Fixed Land ₱${flatTrk.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
                 if (trkRate > 0) parts.push(`Land ₱${trkRate.toFixed(2)}/MT`);
-                if (brgRate > 0) parts.push(`Marine ₱${brgRate.toFixed(2)}/MT`);
-                formulaText.textContent = `${mt.toLocaleString('en-US', {minimumFractionDigits: 3})} MT: ${parts.join(' + ') || 'Entered rates'}`;
+                if (flatBrg > 0) parts.push(`Fixed Barge ₱${flatBrg.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
+                if (brgRate > 0) parts.push(`Barge ₱${brgRate.toFixed(2)}/MT`);
+                formulaText.textContent = parts.join(' + ');
             } else {
-                formulaText.textContent = `Delivered MT × entered ₱/MT rates`;
+                formulaText.textContent = `Fixed price + (Dispatched MT × ₱/MT rate)`;
             }
+        }
+
+        // Update live variance banner
+        const varBanner = document.getElementById('modalVarianceBanner');
+        const varBox = document.getElementById('modalVarianceBox');
+        const varDetail = document.getElementById('modalVarianceDetail');
+        const varBadge = document.getElementById('modalVarianceBadge');
+        if (varBanner && dispMt > 0 && delivMt > 0) {
+            varBanner.classList.remove('d-none');
+            const diff = delivMt - dispMt;
+            const absDiff = Math.abs(diff);
+            const pct = (absDiff / dispMt) * 100;
+            const sign = diff > 0 ? '+' : '';
+            varDetail.textContent = `Dispatched ${dispMt.toFixed(3)} MT vs Delivered ${delivMt.toFixed(3)} MT (${sign}${diff.toFixed(3)} MT)`;
+            if (pct > 1.0) {
+                varBox.className = 'p-2.5 rounded-3 border border-danger bg-danger-subtle text-danger d-flex justify-content-between align-items-center fs-8';
+                varBadge.className = 'badge bg-danger text-white fs-8';
+                varBadge.textContent = `${pct.toFixed(2)}% Discrepancy (> 1% Tol.)`;
+            } else if (absDiff > 0.0005) {
+                varBox.className = 'p-2.5 rounded-3 border border-warning bg-warning-subtle text-dark d-flex justify-content-between align-items-center fs-8';
+                varBadge.className = 'badge bg-warning text-dark fs-8';
+                varBadge.textContent = `${pct.toFixed(2)}% Variance (Within 1% Tol.)`;
+            } else {
+                varBox.className = 'p-2.5 rounded-3 border border-success-subtle bg-success-subtle text-success d-flex justify-content-between align-items-center fs-8';
+                varBadge.className = 'badge bg-success text-white fs-8';
+                varBadge.textContent = `0.00% Match`;
+            }
+        } else if (varBanner) {
+            varBanner.classList.add('d-none');
         }
     }
 
-    if (custSelect && locInput) {
-        custSelect.addEventListener('change', function() {
-            if (this.value && this.options[this.selectedIndex]) {
-                locInput.value = this.options[this.selectedIndex].text.replace(/\s*\(.*\)/, '').trim() + ' Main Facility';
+    if (dispInput) {
+        dispInput.addEventListener('input', function() {
+            if (mtInput && (!userEditedDelivered || !mtInput.value)) {
+                mtInput.value = this.value;
             }
+            updateModalVarianceAndFreight();
         });
     }
 
     if (mtInput) {
         mtInput.addEventListener('input', function() {
+            userEditedDelivered = true;
+            if (dispInput && !dispInput.value) {
+                dispInput.value = this.value;
+            }
             const val = parseFloat(this.value) || 0;
             if (remMT > 0 && val > remMT) {
                 if (warnBox) warnBox.classList.remove('d-none');
@@ -851,17 +951,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.style.borderColor = '';
                 if (btnSubmit) btnSubmit.disabled = false;
             }
-            updateFreightCalculations();
+            updateModalVarianceAndFreight();
         });
     }
 
     [trkRateInput, brgRateInput, flatTrkInput, flatBrgInput].forEach(inp => {
         if (inp) {
-            inp.addEventListener('input', updateFreightCalculations);
+            inp.addEventListener('input', updateModalVarianceAndFreight);
         }
     });
 
-    updateFreightCalculations();
+    updateModalVarianceAndFreight();
 
     {% if request.GET.open_log == '1' and focused_po.remaining_mt > 0 %}
     const modalEl = document.getElementById('logBatchModal');
@@ -875,17 +975,17 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endif %}
 
 {% if user|has_perm:"edit_logistics" %}
-<!-- Modal: Log Destination Arrival Date -->
+<!-- Modal: Confirm Delivery Arrival & Volume Verification -->
 <div class="modal fade" id="recordArrivalModal" tabindex="-1" aria-labelledby="recordArrivalModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
             <div class="modal-header bg-dark text-white py-3 px-4">
                 <div>
                     <h6 class="modal-title fw-bold mb-0 text-white" id="recordArrivalModalLabel">
-                        <i class="bi bi-calendar-check me-1.5 text-success"></i> Log Destination Arrival Date
+                        <i class="bi bi-calendar-check me-1.5 text-success"></i> Confirm Delivery Arrival &amp; Volume
                     </h6>
                     <div class="fs-8 text-white-50 mt-0.5">
-                        Record timestamp when shipment batch arrived at destination
+                        Verify dispatched vs. delivered volume and catch any shrinkage discrepancies
                     </div>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -902,16 +1002,49 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span class="fw-bold text-dark fs-7" id="arrivalPoRef">—</span>
                             </div>
                             <div class="col-6 text-end">
-                                <span class="text-muted text-uppercase fw-bold d-block">Delivered MT</span>
-                                <span class="fw-bold text-success fs-7" id="arrivalDeliveredMt">—</span>
-                            </div>
-                            <div class="col-12 mt-2 pt-2 border-top">
                                 <span class="text-muted text-uppercase fw-bold d-block">Destination Site</span>
                                 <span class="fw-medium text-dark" id="arrivalLocation">—</span>
                             </div>
-                            <div class="col-12 mt-1" id="arrivalDispatchRow">
+                            <div class="col-12 mt-1 pt-1 border-top" id="arrivalDispatchRow">
                                 <span class="text-muted text-uppercase fw-bold d-block">Dispatched Departure</span>
                                 <span class="fw-medium text-primary font-monospace" id="arrivalDispatchedText">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Volume Confirmation & Variance Calculator -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <div class="form-field-symmetric">
+                                <label class="mb-1 fw-bold fs-8 text-dark" for="arrivalDispatchedMtInput">
+                                    Volume Dispatched (MT) <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-addon-group">
+                                    <input type="number" step="0.001" min="0.001" class="form-control-htc font-monospace" name="dispatched_mt" id="arrivalDispatchedMtInput" required>
+                                    <span class="addon addon-suffix">MT</span>
+                                </div>
+                                <div class="field-help">Origin mill loaded volume.</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-field-symmetric">
+                                <label class="mb-1 fw-bold fs-8 text-dark" for="arrivalDeliveredMtInput">
+                                    Volume Delivered (MT) <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-addon-group">
+                                    <input type="number" step="0.001" min="0.001" class="form-control-htc font-monospace fw-bold text-success" name="delivered_mt" id="arrivalDeliveredMtInput" required>
+                                    <span class="addon addon-suffix">MT</span>
+                                </div>
+                                <div class="field-help">Actual received at destination.</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="p-2.5 rounded-3 border d-flex justify-content-between align-items-center fs-8" id="arrivalVarianceCalcBox">
+                                <div>
+                                    <i class="bi bi-calculator me-1"></i>
+                                    <span class="fw-semibold" id="arrivalVarianceSummaryText">Variance Calculator: 0.000 MT difference</span>
+                                </div>
+                                <span class="badge bg-success text-white fs-8" id="arrivalVarianceBadge">0.00% OK</span>
                             </div>
                         </div>
                     </div>
@@ -933,7 +1066,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="modal-footer bg-light py-3 px-4 d-flex justify-content-end gap-2">
                     <button type="button" class="btn btn-outline-secondary px-3 py-2 fs-7 fw-semibold" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-success px-4 py-2 fs-7 fw-bold shadow-xs" id="btnArrivalSubmit">
-                        <i class="bi bi-check2-circle me-1"></i> Save Arrival Date
+                        <i class="bi bi-check2-circle me-1"></i> Confirm Volume &amp; Arrival
                     </button>
                 </div>
             </form>
@@ -944,7 +1077,40 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 let currentDispatchIso = '';
 
-function openRecordArrivalModal(deliveryId, poRef, deliveredMt, location, dispatchedIso, receivedIso) {
+function updateArrivalVariancePreview() {
+    const dispInput = document.getElementById('arrivalDispatchedMtInput');
+    const delivInput = document.getElementById('arrivalDeliveredMtInput');
+    const box = document.getElementById('arrivalVarianceCalcBox');
+    const text = document.getElementById('arrivalVarianceSummaryText');
+    const badge = document.getElementById('arrivalVarianceBadge');
+    if (!dispInput || !delivInput || !box) return;
+
+    const disp = parseFloat(dispInput.value) || 0;
+    const deliv = parseFloat(delivInput.value) || 0;
+    if (disp <= 0) return;
+
+    const diff = deliv - disp;
+    const absDiff = Math.abs(diff);
+    const pct = (absDiff / disp) * 100;
+    const sign = diff > 0 ? '+' : '';
+
+    text.textContent = `Dispatched ${disp.toFixed(3)} MT → Delivered ${deliv.toFixed(3)} MT (${sign}${diff.toFixed(3)} MT)`;
+    if (pct > 1.0) {
+        box.className = 'p-2.5 rounded-3 border border-danger bg-danger-subtle text-danger d-flex justify-content-between align-items-center fs-8';
+        badge.className = 'badge bg-danger text-white fs-8';
+        badge.textContent = `${pct.toFixed(2)}% Exceeds 1% Tolerance (Dispute)`;
+    } else if (absDiff > 0.0005) {
+        box.className = 'p-2.5 rounded-3 border border-warning bg-warning-subtle text-dark d-flex justify-content-between align-items-center fs-8';
+        badge.className = 'badge bg-warning text-dark fs-8';
+        badge.textContent = `${pct.toFixed(2)}% Variance (Within 1% Tol.)`;
+    } else {
+        box.className = 'p-2.5 rounded-3 border border-success-subtle bg-success-subtle text-success d-flex justify-content-between align-items-center fs-8';
+        badge.className = 'badge bg-success text-white fs-8';
+        badge.textContent = `0.00% Exact Match`;
+    }
+}
+
+function openRecordArrivalModal(deliveryId, poRef, dispatchedMt, deliveredMt, location, dispatchedIso, receivedIso) {
     const modalEl = document.getElementById('recordArrivalModal');
     if (!modalEl) return;
 
@@ -952,8 +1118,12 @@ function openRecordArrivalModal(deliveryId, poRef, deliveredMt, location, dispat
     form.action = `/operations/deliveries/${deliveryId}/arrival/`;
 
     document.getElementById('arrivalPoRef').textContent = poRef || '—';
-    document.getElementById('arrivalDeliveredMt').textContent = `${deliveredMt} MT`;
     document.getElementById('arrivalLocation').textContent = location || '—';
+
+    const dispInput = document.getElementById('arrivalDispatchedMtInput');
+    const delivInput = document.getElementById('arrivalDeliveredMtInput');
+    if (dispInput) dispInput.value = parseFloat(dispatchedMt || deliveredMt || 0).toFixed(3);
+    if (delivInput) delivInput.value = parseFloat(deliveredMt || dispatchedMt || 0).toFixed(3);
 
     currentDispatchIso = dispatchedIso || '';
     const dispatchRow = document.getElementById('arrivalDispatchRow');
@@ -978,6 +1148,8 @@ function openRecordArrivalModal(deliveryId, poRef, deliveredMt, location, dispat
         input.value = localIso;
     }
 
+    updateArrivalVariancePreview();
+
     if (typeof bootstrap !== 'undefined') {
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
@@ -985,6 +1157,11 @@ function openRecordArrivalModal(deliveryId, poRef, deliveredMt, location, dispat
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const dispInput = document.getElementById('arrivalDispatchedMtInput');
+    const delivInput = document.getElementById('arrivalDeliveredMtInput');
+    if (dispInput) dispInput.addEventListener('input', updateArrivalVariancePreview);
+    if (delivInput) delivInput.addEventListener('input', updateArrivalVariancePreview);
+
     const btnSetNow = document.getElementById('btnArrivalSetNow');
     if (btnSetNow) {
         btnSetNow.addEventListener('click', function() {

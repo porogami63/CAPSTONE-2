@@ -240,7 +240,7 @@
                     </div>
                     <div class="row g-3 mb-3">
                         <!-- Field 2: Sourcing Mill (Dynamic per delivery) -->
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="form-field-symmetric">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <label for="{{ form.supplier.id_for_label }}" class="mb-0">
@@ -258,8 +258,25 @@
                             </div>
                         </div>
 
-                        <!-- Field 3: Delivered MT Quantity -->
-                        <div class="col-md-6">
+                        <!-- Field 3A: Volume Dispatched (MT) -->
+                        <div class="col-md-4">
+                            <div class="form-field-symmetric">
+                                <label for="{{ form.dispatched_mt.id_for_label }}">
+                                    {{ form.dispatched_mt.label }} <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-addon-group">
+                                    {{ form.dispatched_mt }}
+                                    <span class="addon addon-suffix">MT</span>
+                                </div>
+                                <div class="field-help">Volume loaded &amp; dispatched from mill.</div>
+                                {% if form.dispatched_mt.errors %}
+                                <div class="text-danger fs-8 fw-bold mt-1">{{ form.dispatched_mt.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Field 3B: Volume Delivered / Confirmed (MT) -->
+                        <div class="col-md-4">
                             <div class="form-field-symmetric">
                                 <label for="{{ form.delivered_mt.id_for_label }}">
                                     {{ form.delivered_mt.label }} <span class="text-danger">*</span>
@@ -268,10 +285,22 @@
                                     {{ form.delivered_mt }}
                                     <span class="addon addon-suffix">MT</span>
                                 </div>
-                                <div class="field-help" id="maxHelpText">Max deliverable: remaining contract balance.</div>
+                                <div class="field-help" id="maxHelpText">Confirmed delivered MT (max: remaining balance).</div>
                                 {% if form.delivered_mt.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1">{{ form.delivered_mt.errors|striptags }}</div>
                                 {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Live Volume Variance Indicator -->
+                        <div class="col-12 d-none" id="pageVarianceBanner">
+                            <div class="p-2.5 rounded-3 border d-flex justify-content-between align-items-center fs-8" id="pageVarianceBox">
+                                <div>
+                                    <i class="bi bi-speedometer2 me-1.5"></i>
+                                    <span class="fw-bold">Volume Variance Calculator:</span>
+                                    <span id="pageVarianceDetail">Dispatched 0.000 MT vs Delivered 0.000 MT</span>
+                                </div>
+                                <span class="badge fs-8" id="pageVarianceBadge">0.00%</span>
                             </div>
                         </div>
                     </div>
@@ -350,55 +379,107 @@
                         </div>
                     </div>
 
-                    <!-- Freight & Carrier Details (Auto-Calculated) -->
+                    <!-- Freight & Carrier Details (Fixed Price & Locked Carrier Once Initialized) -->
                     <div class="mt-4 pt-3 border-top">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div>
-                                <h6 class="fw-bold text-dark fs-7 mb-0">Freight &amp; Carrier Rates <span class="fw-normal text-muted fs-8">(Optional)</span></h6>
-                                <p class="text-muted fs-8 mb-0">Logistics totals are automatically calculated from Delivered MT × ₱/MT rate.</p>
+                                <h6 class="fw-bold text-dark fs-7 mb-0">
+                                    Trucker / Barger &amp; Fixed Pricing
+                                    <span class="badge bg-secondary text-white fs-8 ms-1.5 py-0.5 px-2 {% if not form.logistics_locked %}d-none{% endif %}" id="pageLogisticsLockedBadge">
+                                        <i class="bi bi-lock-fill me-1"></i>Locked — Initialized on PO
+                                    </span>
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-8 ms-1.5 py-0.5 px-2 {% if form.logistics_locked %}d-none{% endif %}" id="pageLogisticsUnlockedBadge">
+                                        <i class="bi bi-shield-lock me-1"></i>Locks After First Batch
+                                    </span>
+                                </h6>
+                                <p class="text-muted fs-8 mb-0" id="pageLogisticsLockDesc">
+                                    {% if form.logistics_locked %}
+                                    Trucker, Barger, and Fixed Prices were initialized on the first delivery for this PO and cannot be changed.
+                                    {% else %}
+                                    Set the Trucker / Barger and Fixed Price (or Rate/MT) below. Once initialized, carrier and price are locked for this PO.
+                                    {% endif %}
+                                </p>
                             </div>
                             <span class="badge bg-light text-primary border fs-8 px-2 py-1 fw-semibold">
-                                <i class="bi bi-calculator me-1"></i>Auto-Calculated
+                                <i class="bi bi-lock-fill me-1"></i>Fixed Price Protected
                             </span>
                         </div>
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.trucking_partner.id_for_label }}">{{ form.trucking_partner.label }}</label>
                                     {{ form.trucking_partner }}
+                                    {% if form.trucking_partner.errors %}
+                                    <div class="text-danger fs-8 fw-bold mt-1">{{ form.trucking_partner.errors|striptags }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.flat_trucking_fee.id_for_label }}">{{ form.flat_trucking_fee.label }}</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
+                                        {{ form.flat_trucking_fee }}
+                                    </div>
+                                    <div class="field-help">Fixed flat price for land trucking.</div>
+                                    {% if form.flat_trucking_fee.errors %}
+                                    <div class="text-danger fs-8 fw-bold mt-1">{{ form.flat_trucking_fee.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.trucking_rate_per_mt.id_for_label }}">{{ form.trucking_rate_per_mt.label }}</label>
                                     <div class="input-addon-group">
                                         <span class="addon addon-prefix">₱</span>
                                         {{ form.trucking_rate_per_mt }}
                                     </div>
-                                    <div class="text-xs text-muted mt-1.5 fw-semibold d-flex justify-content-between align-items-center" id="pageTrkCalcRow">
-                                        <span><i class="bi bi-truck me-1"></i>Est. Land Freight:</span>
+                                    <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="pageTrkCalcRow">
+                                        <span><i class="bi bi-truck me-1"></i>Land Total:</span>
                                         <span class="text-primary font-monospace fw-bold" id="pageTrkCalcText">₱0.00</span>
                                     </div>
+                                    {% if form.trucking_rate_per_mt.errors %}
+                                    <div class="text-danger fs-8 fw-bold mt-1">{{ form.trucking_rate_per_mt.errors|striptags }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
 
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.barge_partner.id_for_label }}">{{ form.barge_partner.label }}</label>
                                     {{ form.barge_partner }}
+                                    {% if form.barge_partner.errors %}
+                                    <div class="text-danger fs-8 fw-bold mt-1">{{ form.barge_partner.errors|striptags }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="form-field-symmetric">
+                                    <label for="{{ form.flat_barge_fee.id_for_label }}">{{ form.flat_barge_fee.label }}</label>
+                                    <div class="input-addon-group">
+                                        <span class="addon addon-prefix">₱</span>
+                                        {{ form.flat_barge_fee }}
+                                    </div>
+                                    <div class="field-help">Fixed flat price for marine barging.</div>
+                                    {% if form.flat_barge_fee.errors %}
+                                    <div class="text-danger fs-8 fw-bold mt-1">{{ form.flat_barge_fee.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.barge_rate_per_mt.id_for_label }}">{{ form.barge_rate_per_mt.label }}</label>
                                     <div class="input-addon-group">
                                         <span class="addon addon-prefix">₱</span>
                                         {{ form.barge_rate_per_mt }}
                                     </div>
-                                    <div class="text-xs text-muted mt-1.5 fw-semibold d-flex justify-content-between align-items-center" id="pageBrgCalcRow">
-                                        <span><i class="bi bi-water me-1"></i>Est. Marine Freight:</span>
+                                    <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="pageBrgCalcRow">
+                                        <span><i class="bi bi-water me-1"></i>Marine Total:</span>
                                         <span class="text-primary font-monospace fw-bold" id="pageBrgCalcText">₱0.00</span>
                                     </div>
+                                    {% if form.barge_rate_per_mt.errors %}
+                                    <div class="text-danger fs-8 fw-bold mt-1">{{ form.barge_rate_per_mt.errors|striptags }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
 
@@ -410,45 +491,13 @@
                                             <i class="bi bi-calculator-fill fs-6"></i>
                                         </div>
                                         <div>
-                                            <div class="fs-8 fw-bold text-dark">Total Batch Logistics Cost</div>
-                                            <div class="text-xs text-muted" id="pageFreightFormulaText">Delivered MT × entered ₱/MT rates</div>
+                                            <div class="fs-8 fw-bold text-dark">Total Initialized Batch Logistics Cost</div>
+                                            <div class="text-xs text-muted" id="pageFreightFormulaText">Fixed price + (Dispatched MT × ₱/MT rate)</div>
                                         </div>
                                     </div>
                                     <div class="text-end">
                                         <div class="fs-6 fw-bold text-primary font-monospace" id="pageTotalFreightText">₱0.00</div>
-                                        <div class="text-xs text-muted">Zero manual calculation needed</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Optional Collapsed Fixed Flat Surcharge -->
-                            <div class="col-12 mt-1">
-                                <a class="text-decoration-none text-muted fs-8 d-inline-flex align-items-center gap-1" data-bs-toggle="collapse" href="#pageFlatSurchargeCollapse" role="button" aria-expanded="false" aria-controls="pageFlatSurchargeCollapse">
-                                    <i class="bi bi-chevron-down"></i>
-                                    <span>Optional: Add fixed lump-sum trip surcharge (if carrier charges flat charter fee)</span>
-                                </a>
-                                <div class="collapse mt-2" id="pageFlatSurchargeCollapse">
-                                    <div class="card card-body bg-light border p-3">
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <div class="form-field-symmetric">
-                                                    <label for="{{ form.flat_trucking_fee.id_for_label }}" class="form-label fs-8 text-muted mb-1">{{ form.flat_trucking_fee.label }}</label>
-                                                    <div class="input-addon-group">
-                                                        <span class="addon addon-prefix">₱</span>
-                                                        {{ form.flat_trucking_fee }}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="form-field-symmetric">
-                                                    <label for="{{ form.flat_barge_fee.id_for_label }}" class="form-label fs-8 text-muted mb-1">{{ form.flat_barge_fee.label }}</label>
-                                                    <div class="input-addon-group">
-                                                        <span class="addon addon-prefix">₱</span>
-                                                        {{ form.flat_barge_fee }}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <div class="text-xs text-muted"><i class="bi bi-lock-fill me-0.5"></i>Locked upon initialization</div>
                                     </div>
                                 </div>
                             </div>
@@ -568,25 +617,95 @@ function setLoc(loc) {
 
 document.addEventListener('DOMContentLoaded', function() {
     const poSelect = document.getElementById('id_delivery_po');
+    const dispMtInput = document.getElementById('id_dispatched_mt_vol') || document.querySelector('input[name="dispatched_mt"]');
     const mtInput = document.getElementById('id_delivery_mt');
     const submitBtn = document.getElementById('submitBtn');
     const alertBox = document.getElementById('overDeliveryAlert');
     const alertRemSpan = document.getElementById('alertRemainingMT');
+    let userEditedDelivered = false;
 
+    const trkSelect = document.getElementById('id_trucking_partner') || document.querySelector('select[name="trucking_partner"]');
+    const brgSelect = document.getElementById('id_barge_partner') || document.querySelector('select[name="barge_partner"]');
     const trkRateInput = document.querySelector('input[name="trucking_rate_per_mt"]');
     const brgRateInput = document.querySelector('input[name="barge_rate_per_mt"]');
     const flatTrkInput = document.querySelector('input[name="flat_trucking_fee"]');
     const flatBrgInput = document.querySelector('input[name="flat_barge_fee"]');
+    const vesselBargeInput = document.querySelector('input[name="vessel_or_barge_name"]');
+    const truckPlateInput = document.querySelector('input[name="vessel_or_truck"]');
+
+    function applyLogisticsConfigLock(cfg) {
+        const lockedBadge = document.getElementById('pageLogisticsLockedBadge');
+        const unlockedBadge = document.getElementById('pageLogisticsUnlockedBadge');
+        const lockDesc = document.getElementById('pageLogisticsLockDesc');
+
+        const isInit = cfg && cfg.is_initialized;
+        if (lockedBadge) lockedBadge.classList.toggle('d-none', !isInit);
+        if (unlockedBadge) unlockedBadge.classList.toggle('d-none', !!isInit);
+        if (lockDesc) {
+            lockDesc.textContent = isInit
+                ? 'Trucker, Barger, and Fixed Prices were initialized on the first delivery for this PO and cannot be changed.'
+                : 'Set the Trucker / Barger and Fixed Price (or Rate/MT) below. Once initialized, carrier and price are locked for this PO.';
+        }
+
+        if (isInit) {
+            if (trkSelect && cfg.trucking_partner_id) {
+                trkSelect.value = String(cfg.trucking_partner_id);
+                trkSelect.classList.add('bg-slate-100', 'pointer-events-none');
+            }
+            if (brgSelect && cfg.barge_partner_id) {
+                brgSelect.value = String(cfg.barge_partner_id);
+                brgSelect.classList.add('bg-slate-100', 'pointer-events-none');
+            }
+            if (trkRateInput && parseFloat(cfg.trucking_rate_per_mt) > 0) {
+                trkRateInput.value = cfg.trucking_rate_per_mt;
+                trkRateInput.readOnly = true;
+                trkRateInput.classList.add('bg-slate-100');
+            }
+            if (flatTrkInput && parseFloat(cfg.flat_trucking_fee) > 0) {
+                flatTrkInput.value = cfg.flat_trucking_fee;
+                flatTrkInput.readOnly = true;
+                flatTrkInput.classList.add('bg-slate-100');
+            }
+            if (brgRateInput && parseFloat(cfg.barge_rate_per_mt) > 0) {
+                brgRateInput.value = cfg.barge_rate_per_mt;
+                brgRateInput.readOnly = true;
+                brgRateInput.classList.add('bg-slate-100');
+            }
+            if (flatBrgInput && parseFloat(cfg.flat_barge_fee) > 0) {
+                flatBrgInput.value = cfg.flat_barge_fee;
+                flatBrgInput.readOnly = true;
+                flatBrgInput.classList.add('bg-slate-100');
+            }
+            if (vesselBargeInput && cfg.vessel_or_barge_name && !vesselBargeInput.value) {
+                vesselBargeInput.value = cfg.vessel_or_barge_name;
+            }
+            if (truckPlateInput && cfg.vessel_or_truck && !truckPlateInput.value) {
+                truckPlateInput.value = cfg.vessel_or_truck;
+            }
+        } else {
+            [trkSelect, brgSelect].forEach(sel => {
+                if (sel) sel.classList.remove('bg-slate-100', 'pointer-events-none');
+            });
+            [trkRateInput, flatTrkInput, brgRateInput, flatBrgInput].forEach(inp => {
+                if (inp) {
+                    inp.readOnly = false;
+                    inp.classList.remove('bg-slate-100');
+                }
+            });
+        }
+        updateFreightCalculations();
+    }
 
     function updateFreightCalculations() {
-        const mt = parseFloat(mtInput?.value) || 0;
+        const dispMt = parseFloat(dispMtInput?.value) || parseFloat(mtInput?.value) || 0;
+        const delivMt = parseFloat(mtInput?.value) || 0;
         const trkRate = parseFloat(trkRateInput?.value) || 0;
         const brgRate = parseFloat(brgRateInput?.value) || 0;
         const flatTrk = parseFloat(flatTrkInput?.value) || 0;
         const flatBrg = parseFloat(flatBrgInput?.value) || 0;
 
-        const totalTrk = (mt * trkRate) + flatTrk;
-        const totalBrg = (mt * brgRate) + flatBrg;
+        const totalTrk = (dispMt * trkRate) + flatTrk;
+        const totalBrg = (dispMt * brgRate) + flatBrg;
         const grandTotal = totalTrk + totalBrg;
 
         const trkText = document.getElementById('pageTrkCalcText');
@@ -604,15 +723,55 @@ document.addEventListener('DOMContentLoaded', function() {
             totalFreightText.textContent = `₱${grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
         if (formulaText) {
-            if (grandTotal > 0 && mt > 0) {
+            if (grandTotal > 0) {
                 let parts = [];
+                if (flatTrk > 0) parts.push(`Fixed Land ₱${flatTrk.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
                 if (trkRate > 0) parts.push(`Land ₱${trkRate.toFixed(2)}/MT`);
-                if (brgRate > 0) parts.push(`Marine ₱${brgRate.toFixed(2)}/MT`);
-                formulaText.textContent = `${mt.toLocaleString('en-US', {minimumFractionDigits: 3})} MT: ${parts.join(' + ') || 'Entered rates'}`;
+                if (flatBrg > 0) parts.push(`Fixed Barge ₱${flatBrg.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
+                if (brgRate > 0) parts.push(`Barge ₱${brgRate.toFixed(2)}/MT`);
+                formulaText.textContent = parts.join(' + ');
             } else {
-                formulaText.textContent = `Delivered MT × entered ₱/MT rates`;
+                formulaText.textContent = `Fixed price + (Dispatched MT × ₱/MT rate)`;
             }
         }
+
+        // Update live variance banner
+        const varBanner = document.getElementById('pageVarianceBanner');
+        const varBox = document.getElementById('pageVarianceBox');
+        const varDetail = document.getElementById('pageVarianceDetail');
+        const varBadge = document.getElementById('pageVarianceBadge');
+        if (varBanner && dispMt > 0 && delivMt > 0) {
+            varBanner.classList.remove('d-none');
+            const diff = delivMt - dispMt;
+            const absDiff = Math.abs(diff);
+            const pct = (absDiff / dispMt) * 100;
+            const sign = diff > 0 ? '+' : '';
+            varDetail.textContent = `Dispatched ${dispMt.toFixed(3)} MT vs Delivered ${delivMt.toFixed(3)} MT (${sign}${diff.toFixed(3)} MT)`;
+            if (pct > 1.0) {
+                varBox.className = 'p-2.5 rounded-3 border border-danger bg-danger-subtle text-danger d-flex justify-content-between align-items-center fs-8';
+                varBadge.className = 'badge bg-danger text-white fs-8';
+                varBadge.textContent = `${pct.toFixed(2)}% Discrepancy (> 1% Tol.)`;
+            } else if (absDiff > 0.0005) {
+                varBox.className = 'p-2.5 rounded-3 border border-warning bg-warning-subtle text-dark d-flex justify-content-between align-items-center fs-8';
+                varBadge.className = 'badge bg-warning text-dark fs-8';
+                varBadge.textContent = `${pct.toFixed(2)}% Variance (Within 1% Tol.)`;
+            } else {
+                varBox.className = 'p-2.5 rounded-3 border border-success-subtle bg-success-subtle text-success d-flex justify-content-between align-items-center fs-8';
+                varBadge.className = 'badge bg-success text-white fs-8';
+                varBadge.textContent = `0.00% Match`;
+            }
+        } else if (varBanner) {
+            varBanner.classList.add('d-none');
+        }
+    }
+
+    if (dispMtInput) {
+        dispMtInput.addEventListener('input', function() {
+            if (mtInput && (!userEditedDelivered || !mtInput.value)) {
+                mtInput.value = this.value;
+            }
+            checkOverDelivery();
+        });
     }
 
     const dispatchedInput = document.getElementById('id_dispatched_at') || document.querySelector('input[name="dispatched_at"]');
@@ -696,7 +855,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (mtInput) {
-        mtInput.addEventListener('input', checkOverDelivery);
+        mtInput.addEventListener('input', function() {
+            userEditedDelivered = true;
+            if (dispMtInput && !dispMtInput.value) {
+                dispMtInput.value = this.value;
+            }
+            checkOverDelivery();
+        });
     }
     if (receivedInput) {
         receivedInput.addEventListener('input', checkOverDelivery);
@@ -821,6 +986,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 if (mtInput) {
                     mtInput.max = currentRemainingMT;
+                }
+
+                if (data.logistics_config) {
+                    applyLogisticsConfigLock(data.logistics_config);
                 }
 
                 checkOverDelivery();

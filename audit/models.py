@@ -81,7 +81,11 @@ class Notification(models.Model):
     def get_classified_category(self):
         if self.category and self.category != self.Category.SYSTEM:
             return self.category
-        text = f"{(self.title or '').lower()} {(self.message or '').lower()} {(self.link or '').lower()}"
+        link_str = (self.link or "").lower()
+        title_str = (self.title or "").lower()
+        if "/chat/" in link_str or title_str.startswith("message from") or title_str.startswith("discussion on") or title_str.startswith("general team chat"):
+            return self.Category.SYSTEM
+        text = f"{title_str} {(self.message or '').lower()} {link_str}"
         if "variance" in text or self.level == self.Level.DANGER:
             return self.Category.VARIANCE
         if "approval" in text or "pending" in text or "submitted" in text or "return" in text:

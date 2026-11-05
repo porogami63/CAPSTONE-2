@@ -52,7 +52,7 @@ def cluster_financials(cluster) -> dict:
     batch_deliveries = list(po.deliveries.all()) if (po and hasattr(po, "deliveries")) else []
     has_batches = bool(batch_deliveries)
     if has_batches:
-        loaded_vol = po.total_delivered_mt
+        loaded_vol = po.total_dispatched_mt if hasattr(po, "total_dispatched_mt") and po.total_dispatched_mt > Decimal("0") else po.total_delivered_mt
         received_vol = po.total_delivered_mt
         tracking_fees = sum((d.trucking_cost for d in batch_deliveries), Decimal("0.00"))
         barge_fees = sum((d.barge_cost for d in batch_deliveries), Decimal("0.00"))
@@ -482,8 +482,9 @@ def get_invoice_suggestion_data(cluster) -> dict:
     contract_vol = float(po.total_contracted_mt or po.volume_mt) if po else 0.0
     contract_total = round(selling_price * contract_vol, 2)
 
-    already_invoiced = round(sum(float(inv.amount) for inv in invoices), 2)
-    invoices_count = len(invoices)
+    valid_invoices = [inv for inv in invoices if getattr(inv, "status", None) != "returned"]
+    already_invoiced = round(sum(float(inv.amount) for inv in valid_invoices if inv.amount), 2)
+    invoices_count = len(valid_invoices)
     remaining_balance = max(0.0, round(contract_total - already_invoiced, 2))
 
     # Calculate actual recorded shipment deliveries

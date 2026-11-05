@@ -573,7 +573,10 @@
                 // User Bubble
                 const userMsg = document.createElement("div");
                 userMsg.className = "copilot-msg user-msg";
-                userMsg.innerHTML = `<div class="copilot-bubble">${queryText}</div>`;
+                const userBubble = document.createElement("div");
+                userBubble.className = "copilot-bubble";
+                userBubble.textContent = queryText;
+                userMsg.appendChild(userBubble);
                 chatMessages.appendChild(userMsg);
 
                 // Typing indicator

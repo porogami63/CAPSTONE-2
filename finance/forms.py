@@ -89,6 +89,17 @@ class StandaloneInvoiceForm(forms.ModelForm):
                     f"Full 100% contract balance (₱{sugg['already_invoiced']:,.2f}) has already been issued for {cluster.reference_code}. "
                     "Creation of additional invoices is restricted once the full contract balance is 100% invoiced."
                 )
+            elif (
+                (not self.instance or not self.instance.pk)
+                and amount is not None
+                and sugg.get("contract_total", 0) > 0
+                and sugg.get("remaining_contract", 0) > 0
+                and float(amount) > float(sugg["remaining_contract"]) + 0.01
+            ):
+                self.add_error(
+                    "amount",
+                    f"Invoice amount (₱{amount:,.2f}) exceeds remaining unbilled contract balance (₱{sugg['remaining_contract']:,.2f})."
+                )
         return cleaned_data
 
 
@@ -151,6 +162,17 @@ class InvoiceForm(forms.ModelForm):
                 raise forms.ValidationError(
                     f"Full 100% contract balance (₱{sugg['already_invoiced']:,.2f}) has already been issued for this transaction. "
                     "Creation of additional invoices is restricted once the full contract balance is 100% invoiced."
+                )
+            elif (
+                (not self.instance or not self.instance.pk)
+                and amount is not None
+                and sugg.get("contract_total", 0) > 0
+                and sugg.get("remaining_contract", 0) > 0
+                and float(amount) > float(sugg["remaining_contract"]) + 0.01
+            ):
+                self.add_error(
+                    "amount",
+                    f"Invoice amount (₱{amount:,.2f}) exceeds remaining unbilled contract balance (₱{sugg['remaining_contract']:,.2f})."
                 )
         return cleaned_data
 

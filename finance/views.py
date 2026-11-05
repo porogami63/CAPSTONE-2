@@ -3,11 +3,13 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import get_template
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from xhtml2pdf import pisa
 
 from accounts.decorators import role_required
@@ -16,6 +18,64 @@ from operations.models import TransactionCluster
 
 from .forms import PaymentExpenseMatchForm, StandaloneInvoiceForm, StandaloneLoanForm
 from .models import CapitalLoan, CashVoucher, FinancialReconciliation, Invoice, PaymentExpenseMatch
+
+
+def _safe_next_url(request, raw_url):
+    if raw_url and url_has_allowed_host_and_scheme(
+        url=raw_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return raw_url
+    return None
+
+
+def _enrich_cluster_vouchers(cluster, vouchers, existing_match_refs):
+    po = getattr(cluster, "purchase_order", None)
+    po_ref = (po.po_reference_number if po and po.po_reference_number else cluster.reference_code)
+    for v in vouchers:
+        v_num = (v.voucher_number or "").upper()
+        v_purpose = (v.purpose or "")
+        v.is_paid_or_matched = (
+            v.status == CashVoucher.Status.ISSUED
+            or v.voucher_number in existing_match_refs
+        )
+
+        if v.is_paid_or_matched:
+            v.status_label = "Paid & Matched"
+            v.status_badge_class = "bg-success-subtle text-success border-success-subtle"
+        else:
+            v.status_label = "Unpaid — Click to Match"
+            v.status_badge_class = "bg-warning-subtle text-warning-emphasis border-warning-subtle"
+
+        if "-SRC" in v_num or "SOURCING" in v_purpose.upper():
+            v.category_label = "Sugar Mill Cost"
+            v.expense_type_key = "sourcing"
+            v.category_icon = "bi-Factory"
+        elif "-TRK" in v_num or "TRUCK" in v_purpose.upper():
+            v.category_label = "Land Trucking"
+            v.expense_type_key = "trucking"
+        elif "-BRG" in v_num or "BARG" in v_purpose.upper():
+            v.category_label = "Marine Barging"
+            v.expense_type_key = "barge"
+        elif "DEP-" in v_num or "DEPOSIT" in v_purpose.upper() or "ADVANCE" in v_purpose.upper():
+            v.category_label = "50% Delivery Deposit"
+            v.expense_type_key = "logistics_deposit"
+        else:
+            v.category_label = "Order Expense"
+            v.expense_type_key = "other"
+
+        parts = v_num.split("-")
+        if v_num.startswith("CV-DEL-") and len(parts) >= 3:
+            v.batch_short_id = parts[2]
+            v.batch_url = f"/operations/deliveries/?po={po_ref}#batch-row-{v.batch_short_id}"
+        else:
+            v.batch_short_id = None
+            v.batch_url = None
+
+        v.relevant_item_url = f"/finance/reconciliation/{cluster.pk}/?voucher={v.voucher_number}#voucher-row-{v.pk}"
+    return vouchers
+
 
 
 @role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE)
@@ -151,6 +211,15 @@ def reconciliation_detail(request, pk):
         match_status = "UNMATCHED"
         match_badge = "secondary"
 
+    existing_match_refs = set(matches_qs.values_list("payment_reference", flat=True))
+    vouchers = _enrich_cluster_vouchers(
+        cluster,
+        list(cluster.cash_vouchers.all().order_by("-issued_at", "-id")),
+        existing_match_refs,
+    )
+    selected_voucher_ref = request.GET.get("voucher", "").strip()
+    selected_voucher = next((v for v in vouchers if v.voucher_number == selected_voucher_ref), None)
+
     return render(
         request,
         "finance/reconciliation.html",
@@ -158,6 +227,9 @@ def reconciliation_detail(request, pk):
             "cluster": cluster,
             "reconciliation": reconciliation,
             "form": form,
+            "vouchers": vouchers,
+            "selected_voucher_ref": selected_voucher_ref,
+            "selected_voucher": selected_voucher,
             "total_target": total_target,
             "sourcing_total": sourcing_total,
             "trucking_total": trucking_total,
@@ -209,7 +281,7 @@ def add_match(request, pk):
             request,
             "Bank Loan Issuance Required — Please issue a bank loan before matching expenses.",
         )
-        next_url = request.POST.get("next") or request.GET.get("next")
+        next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
         if next_url:
             return redirect(next_url)
         return redirect("finance:po_workspace", pk=cluster.pk)
@@ -218,40 +290,44 @@ def add_match(request, pk):
         form = PaymentExpenseMatchForm(request.POST)
         if form.is_valid():
             try:
-                match = form.save(commit=False)
-                match.reconciliation = reconciliation
-                match._audit_user = request.user
-                match.save()
+                with transaction.atomic():
+                    match = form.save(commit=False)
+                    match.reconciliation = reconciliation
+                    match._audit_user = request.user
+                    match.save()
 
-                reconciliation.matched_payment_amount = (
-                    reconciliation.matches.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-                )
-                reconciliation._audit_user = request.user
-                reconciliation.save()
+                    reconciliation.matched_payment_amount = (
+                        reconciliation.matches.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+                    )
+                    reconciliation._audit_user = request.user
+                    reconciliation.save()
 
-                # Auto-generate corresponding Cash Voucher for payment outlay match if not an existing delivery voucher
-                if match.payment_reference.startswith("CV-DEL-"):
-                    CashVoucher.objects.filter(voucher_number=match.payment_reference).update(status=CashVoucher.Status.ISSUED)
-                else:
-                    active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_CREATION])
-                    linked_loan = active_loans.first() if active_loans.exists() else None
+                    # Auto-generate corresponding Cash Voucher for payment outlay match if not an existing delivery voucher
+                    if match.payment_reference.startswith("CV-DEL-"):
+                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.ISSUED)
+                    elif CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).exists():
+                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.ISSUED)
+                    else:
+                        active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_CREATION])
+                        linked_loan = active_loans.first() if active_loans.exists() else None
 
-                    from operations.services.reference_generators import generate_cv_reference
-                    voucher_num = generate_cv_reference(cluster.reference_code)
-                    purpose_text = f"Auto-Voucher ({match.get_expense_type_display()}): {match.notes or match.payment_reference}"[:190]
+                        from operations.services.reference_generators import generate_cv_reference
+                        voucher_num = generate_cv_reference(cluster.reference_code)
+                        purpose_text = f"Auto-Voucher ({match.get_expense_type_display()}): {match.notes or match.payment_reference}"[:190]
 
-                    if not CashVoucher.objects.filter(voucher_number=voucher_num).exists():
-                        try:
-                            CashVoucher.objects.create(
-                                cluster=cluster,
-                                loan=linked_loan,
-                                voucher_number=voucher_num,
-                                amount=match.amount,
-                                purpose=purpose_text,
-                                issued_at=timezone.localdate(),
-                            )
-                        except Exception:
-                            pass
+                        if not CashVoucher.objects.filter(voucher_number=voucher_num).exists():
+                            try:
+                                CashVoucher.objects.create(
+                                    cluster=cluster,
+                                    loan=linked_loan,
+                                    voucher_number=voucher_num,
+                                    amount=match.amount,
+                                    purpose=purpose_text,
+                                    status=CashVoucher.Status.ISSUED,
+                                    issued_at=timezone.localdate(),
+                                )
+                            except Exception:
+                                pass
 
                 # Check if total matches exceed reconciliation target (Initial Loan Amount)
                 from operations.services.pricing import loan_requirement_data
@@ -272,7 +348,7 @@ def add_match(request, pk):
                 messages.error(request, f"Error saving payment match: {str(err)}")
         else:
             messages.error(request, "Invalid input. Please check your payment reference and amount fields.")
-    next_url = request.POST.get("next") or request.GET.get("next")
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
     if next_url:
         return redirect(next_url)
     return redirect("finance:reconciliation", pk=pk)
@@ -288,32 +364,33 @@ def delete_match(request, cluster_pk, match_pk):
         ref = match.payment_reference
         amt = match.amount
 
-        # If it was a delivery batch voucher, reset its status to pending; otherwise delete
-        if ref.startswith("CV-DEL-"):
-            CashVoucher.objects.filter(voucher_number=ref).update(status=CashVoucher.Status.PENDING)
-        else:
-            CashVoucher.objects.filter(voucher_number=ref).delete()
-            clean_ref = "".join(c for c in ref if c.isalnum() or c in "-_")[:20]
-            if not clean_ref:
-                clean_ref = "REF"
-            voucher_num = f"CV-M{match.pk}-{clean_ref}"[:50]
-            CashVoucher.objects.filter(voucher_number=voucher_num).delete()
+        with transaction.atomic():
+            # If it was a delivery batch voucher, reset its status to pending; otherwise delete scoped to cluster
+            if ref.startswith("CV-DEL-"):
+                CashVoucher.objects.filter(cluster=cluster, voucher_number=ref).update(status=CashVoucher.Status.PENDING)
+            else:
+                CashVoucher.objects.filter(cluster=cluster, voucher_number=ref).delete()
+                clean_ref = "".join(c for c in ref if c.isalnum() or c in "-_")[:20]
+                if not clean_ref:
+                    clean_ref = "REF"
+                voucher_num = f"CV-M{match.pk}-{clean_ref}"[:50]
+                CashVoucher.objects.filter(cluster=cluster, voucher_number=voucher_num).delete()
 
-        match.delete()
+            match.delete()
 
-        # Recalculate reconciliation total
-        reconciliation.matched_payment_amount = (
-            reconciliation.matches.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-        )
-        reconciliation._audit_user = request.user
-        reconciliation.save()
+            # Recalculate reconciliation total
+            reconciliation.matched_payment_amount = (
+                reconciliation.matches.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+            )
+            reconciliation._audit_user = request.user
+            reconciliation.save()
 
         messages.warning(
             request,
             f"Payment match ref '{ref}' (₱{amt:,.2f}) removed. Reconciliation balances updated.",
         )
 
-    next_url = request.POST.get("next") or request.GET.get("next")
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
     if next_url:
         return redirect(next_url)
     return redirect("finance:reconciliation", pk=cluster_pk)
@@ -413,7 +490,12 @@ def po_financial_workspace(request, pk):
     loan_req = loan_requirement_data(cluster)
     loans = list(cluster.loans.select_related("verified_by").order_by("-created_at"))
     matches = list(reconciliation.matches.all().order_by("-matched_at"))
-    vouchers = list(cluster.cash_vouchers.all().order_by("-issued_at"))
+    existing_match_refs = set(m.payment_reference for m in matches)
+    vouchers = _enrich_cluster_vouchers(
+        cluster,
+        list(cluster.cash_vouchers.all().order_by("-issued_at", "-id")),
+        existing_match_refs,
+    )
 
     recon_target = Decimal(str(loan_req.get("required") or financials["purchase_total"])).quantize(Decimal("0.01"))
 
@@ -709,7 +791,7 @@ def loan_list(request):
                         request,
                         f"Capital Loan facility of ₱{loan.principal:,.2f} submitted for creation approval and linked to transaction {loan.cluster.reference_code}.",
                     )
-                next_url = request.POST.get("next")
+                next_url = _safe_next_url(request, request.POST.get("next"))
                 if next_url:
                     return redirect(next_url)
                 return redirect("finance:loan_list")
@@ -1011,7 +1093,7 @@ def settle_loan(request, pk):
             request,
             f"Bank loan facility for {loan.cluster.reference_code} submitted for SETTLEMENT VERIFICATION. Bank Clearance Advice #{receipt_num or 'Recorded'}.",
         )
-    next_url = request.POST.get("next") or request.GET.get("next")
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
     if next_url:
         return redirect(next_url)
     return redirect("finance:loan_list")
@@ -1026,7 +1108,7 @@ def verify_loan_creation(request, pk):
     if request.method == "POST":
         if loan.status != CapitalLoan.Status.PENDING_CREATION:
             messages.error(request, "Only loans pending creation verification can be processed.")
-            next_url = request.POST.get("next") or request.GET.get("next")
+            next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
             return redirect(next_url or "finance:loan_list")
 
         action = request.POST.get("action", "approve").lower()
@@ -1043,7 +1125,7 @@ def verify_loan_creation(request, pk):
             allowed, err_msg = check_loan_capital_cap(loan.cluster, exclude_loan_id=loan.pk)
             if not allowed:
                 messages.error(request, err_msg)
-                next_url = request.POST.get("next") or request.GET.get("next")
+                next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
                 return redirect(next_url or "finance:loan_list")
 
             loan.status = CapitalLoan.Status.ACTIVE
@@ -1064,7 +1146,7 @@ def verify_loan_creation(request, pk):
             )
             messages.warning(request, f"Rejected Capital Loan creation for {loan.cluster.reference_code}.")
 
-    next_url = request.POST.get("next") or request.GET.get("next")
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
     if next_url:
         return redirect(next_url)
     return redirect("finance:loan_list")
@@ -1079,7 +1161,7 @@ def verify_loan_settlement(request, pk):
     if request.method == "POST":
         if loan.status != CapitalLoan.Status.PENDING_SETTLEMENT:
             messages.error(request, "Only loans pending settlement verification can be processed.")
-            next_url = request.POST.get("next") or request.GET.get("next")
+            next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
             return redirect(next_url or "finance:loan_list")
 
         action = request.POST.get("action", "approve").lower()
@@ -1111,7 +1193,7 @@ def verify_loan_settlement(request, pk):
             )
             messages.warning(request, f"Rejected settlement for {loan.cluster.reference_code}. Facility returned to Active status.")
 
-    next_url = request.POST.get("next") or request.GET.get("next")
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
     if next_url:
         return redirect(next_url)
     return redirect("finance:loan_list")
@@ -1308,7 +1390,7 @@ def download_invoice_pdf(request, pk):
     pisa_status = pisa.CreatePDF(html, dest=response)
 
     if pisa_status.err:
-        return HttpResponse("We had some errors <pre>" + html + "</pre>")
+        return HttpResponse("Error generating Invoice PDF document.", status=500)
     return response
 
 
@@ -1330,5 +1412,5 @@ def download_voucher_pdf(request, pk):
     pisa_status = pisa.CreatePDF(html, dest=response)
 
     if pisa_status.err:
-        return HttpResponse("We had some errors <pre>" + html + "</pre>")
+        return HttpResponse("Error generating Cash Voucher PDF document.", status=500)
     return response

@@ -63,8 +63,8 @@ from .models import Notification
 @login_required
 def api_notifications(request):
     category_filter = request.GET.get("category", "").strip().lower()
-    notifications = Notification.objects.filter(recipient=request.user, is_read=False)[:50]
-    unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+    unread_qs = Notification.objects.filter(recipient=request.user, is_read=False).order_by("-created_at")
+    unread_count = unread_qs.count()
 
     data = []
     category_counts = {
@@ -76,14 +76,14 @@ def api_notifications(request):
         "system": 0,
     }
 
-    for n in notifications:
+    for n in unread_qs:
         cat = str(n.get_classified_category()).lower()
         if cat in category_counts:
             category_counts[cat] += 1
         else:
             category_counts["system"] += 1
 
-        if not category_filter or category_filter == "all" or cat == category_filter:
+        if (not category_filter or category_filter == "all" or cat == category_filter) and len(data) < 50:
             data.append({
                 "id": n.id,
                 "title": n.title,

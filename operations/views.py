@@ -2399,11 +2399,20 @@ def delivery_api_view(request):
 
     waybill_number = (data.get("waybill_number") or "").strip()
 
+    dispatched_mt_raw = data.get("dispatched_mt")
+    dispatched_mt = None
+    if dispatched_mt_raw is not None and str(dispatched_mt_raw).strip() != "":
+        try:
+            dispatched_mt = Decimal(str(dispatched_mt_raw).strip())
+        except Exception:
+            dispatched_mt = None
+
     with transaction.atomic():
         carrier = LogisticsPartner.objects.filter(pk=carrier_id).first() if carrier_id else (trucking_partner or barge_partner)
         delivery = DeliveryLedger.objects.create(
             purchase_order=po,
             supplier=supplier,
+            dispatched_mt=dispatched_mt or delivered_mt,
             delivered_mt=delivered_mt,
             receiving_location=receiving_location,
             delivery_date=delivery_date,
@@ -2430,7 +2439,10 @@ def delivery_api_view(request):
         "po_reference_number": po.po_reference_number or po.cluster.reference_code,
         "supplier_name": supplier.name,
         "receiving_location": delivery.receiving_location,
+        "dispatched_mt": f"{delivery.effective_dispatched_mt:.3f}",
         "delivered_mt": f"{delivery.delivered_mt:.3f}",
+        "variance_percent": f"{delivery.variance_percent:.2f}",
+        "variance_exceeds_tolerance": delivery.variance_exceeds_tolerance,
         "total_contracted_mt": f"{(po.total_contracted_mt or po.volume_mt):.3f}",
         "total_delivered_mt": f"{po.total_delivered_mt:.3f}",
         "remaining_mt": f"{po.remaining_mt:.3f}",
@@ -2462,7 +2474,9 @@ def po_status_api(request, po_reference_number):
     customer_origin_indicator = getattr(po_client, "origin_indicator", "") or (f"{customer_name} Zone" if po_client else "")
     contracted = po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or Decimal("0"))
     delivered = po.total_delivered_mt
+    dispatched = po.total_dispatched_mt
     remaining = po.remaining_mt
+    init_cfg = po.get_initialized_logistics()
 
     return JsonResponse({
         "po_reference_number": po.po_reference_number or po.cluster.reference_code,
@@ -2470,12 +2484,26 @@ def po_status_api(request, po_reference_number):
         "customer_name": customer_name,
         "customer_origin_indicator": customer_origin_indicator,
         "total_contracted_mt": f"{contracted:.3f}",
+        "total_dispatched_mt": f"{dispatched:.3f}",
         "total_delivered_mt": f"{delivered:.3f}",
         "remaining_mt": f"{remaining:.3f}",
         "po_status": po.po_status,
         "open_for_delivery": remaining > Decimal("0"),
         "preferred_supplier_id": po.cluster.sugar_mill_id if po.cluster else None,
         "preferred_supplier_name": po.cluster.sugar_mill.name if po.cluster and po.cluster.sugar_mill else "",
+        "logistics_config": {
+            "is_initialized": bool(init_cfg.get("is_initialized")),
+            "trucking_partner_id": init_cfg.get("trucking_partner_id"),
+            "trucking_partner_name": init_cfg.get("trucking_partner_name", ""),
+            "trucking_rate_per_mt": f"{init_cfg.get('trucking_rate_per_mt', Decimal('0.00')):.2f}",
+            "flat_trucking_fee": f"{init_cfg.get('flat_trucking_fee', Decimal('0.00')):.2f}",
+            "barge_partner_id": init_cfg.get("barge_partner_id"),
+            "barge_partner_name": init_cfg.get("barge_partner_name", ""),
+            "barge_rate_per_mt": f"{init_cfg.get('barge_rate_per_mt', Decimal('0.00')):.2f}",
+            "flat_barge_fee": f"{init_cfg.get('flat_barge_fee', Decimal('0.00')):.2f}",
+            "vessel_or_barge_name": init_cfg.get("vessel_or_barge_name", ""),
+            "vessel_or_truck": init_cfg.get("vessel_or_truck", ""),
+        },
     })
 
 
@@ -2641,8 +2669,9 @@ def deliveries_list_view(request):
 @role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
 def update_delivery_arrival_view(request, delivery_id):
     """
-    Log or update the destination arrival timestamp (received_at)
-    after a delivery batch has been input/dispatched.
+    Log or update the destination arrival timestamp (received_at) and confirm
+    Volume Dispatched (dispatched_mt) vs. Volume Delivered (delivered_mt) upon arrival,
+    automatically running the variance calculator to catch any discrepancies.
     """
     delivery = get_object_or_404(
         DeliveryLedger.objects.select_related("purchase_order", "purchase_order__cluster", "supplier"),
@@ -2662,7 +2691,12 @@ def update_delivery_arrival_view(request, delivery_id):
         data = request.POST.dict()
 
     received_at_raw = data.get("received_at", "").strip()
+    dispatched_mt_raw = (data.get("dispatched_mt") or "").strip() if data.get("dispatched_mt") is not None else ""
+    delivered_mt_raw = (data.get("delivered_mt") or "").strip() if data.get("delivered_mt") is not None else ""
     next_url = request.POST.get("next") or request.GET.get("next")
+    from django.utils.http import url_has_allowed_host_and_scheme
+    if next_url and not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        next_url = None
 
     if not received_at_raw:
         msg = "Arrival date & time is required."
@@ -2697,23 +2731,109 @@ def update_delivery_arrival_view(request, delivery_id):
         messages.error(request, msg)
         return redirect(next_url or "operations:deliveries_list")
 
-    delivery.received_at = received_at
-    delivery.save(update_fields=["received_at"])
+    # Volume Confirmation upon delivery
+    update_fields = ["received_at"]
+    if not delivery.dispatched_mt:
+        delivery.dispatched_mt = delivery.delivered_mt
+        update_fields.append("dispatched_mt")
 
-    # Synchronize cluster logistics and financial vouchers
+    if dispatched_mt_raw:
+        try:
+            new_disp = Decimal(dispatched_mt_raw)
+            if new_disp > Decimal("0"):
+                delivery.dispatched_mt = new_disp
+                if "dispatched_mt" not in update_fields:
+                    update_fields.append("dispatched_mt")
+        except Exception:
+            pass
+
+    if delivered_mt_raw:
+        try:
+            new_deliv = Decimal(delivered_mt_raw)
+        except Exception:
+            msg = "Confirmed Volume Delivered (MT) must be a valid number."
+            if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
+                return JsonResponse({"error": "INVALID_QUANTITY", "message": msg}, status=400)
+            messages.error(request, msg)
+            return redirect(next_url or "operations:deliveries_list")
+
+        if new_deliv <= Decimal("0"):
+            msg = "Confirmed Volume Delivered (MT) must be greater than 0 MT."
+            if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
+                return JsonResponse({"error": "INVALID_QUANTITY", "message": msg}, status=400)
+            messages.error(request, msg)
+            return redirect(next_url or "operations:deliveries_list")
+
+        po = delivery.purchase_order
+        raw_contracted = po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or Decimal("0"))
+        contracted = Decimal(str(raw_contracted or 0))
+        total_other = po.deliveries.exclude(pk=delivery.pk).aggregate(t=Sum("delivered_mt"))["t"] or Decimal("0")
+        available_balance = max(contracted - total_other, Decimal("0"))
+
+        if new_deliv > available_balance:
+            ref = po.po_reference_number or (po.cluster.reference_code if po.cluster else "PO")
+            msg = f"Confirmed Volume Delivered ({new_deliv:,.3f} MT) exceeds the remaining PO balance ({available_balance:,.3f} MT) for {ref}."
+            if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
+                return JsonResponse({"error": "OVER_DELIVERY_NOT_PERMITTED", "message": msg}, status=400)
+            messages.error(request, msg)
+            return redirect(next_url or "operations:deliveries_list")
+
+        delivery.delivered_mt = new_deliv
+        if "delivered_mt" not in update_fields:
+            update_fields.append("delivered_mt")
+
+    delivery.received_at = received_at
+    delivery.save(update_fields=update_fields)
+    delivery.purchase_order.update_status()
+
+    # Synchronize cluster logistics (including variance calculator) and financial vouchers
     delivery.sync_cluster_logistics()
     try:
         delivery.sync_delivery_expense_vouchers()
     except Exception:
         pass
 
-    success_msg = f"Successfully logged arrival date ({delivery.received_at.strftime('%b %d, %Y %H:%M')}) for {delivery.delivered_mt:,.3f} MT delivery to {delivery.receiving_location}."
+    cluster = getattr(delivery.purchase_order, "cluster", None)
+    if delivery.has_volume_discrepancy:
+        diff_sign = "+" if delivery.volume_discrepancy_mt > 0 else ""
+        var_summary = (
+            f"Volume Discrepancy Detected: Dispatched {delivery.effective_dispatched_mt:,.3f} MT vs. "
+            f"Delivered {delivery.delivered_mt:,.3f} MT ({diff_sign}{delivery.volume_discrepancy_mt:,.3f} MT / {delivery.variance_percent:.2f}% variance)."
+        )
+        if delivery.variance_exceeds_tolerance:
+            messages.warning(
+                request,
+                f"Variance Alert ({delivery.variance_percent:.2f}% exceeds 1.0% tolerance): {var_summary} Dispute flag activated on PO logistics.",
+            )
+            if cluster:
+                from audit.services import notify_roles
+                notify_roles(
+                    [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.MANAGEMENT],
+                    title=f"Shrinkage Tolerance Alert — {cluster.reference_code}",
+                    message=f"Delivery batch #{str(delivery.delivery_id)[:8].upper()} on {cluster.reference_code} confirmed with {delivery.variance_percent:.2f}% variance ({delivery.effective_dispatched_mt:,.3f} MT dispatched vs {delivery.delivered_mt:,.3f} MT delivered). Dispute flag active.",
+                    level="danger",
+                    link=f"/operations/{cluster.pk}/",
+                    exclude_user=request.user,
+                )
+        else:
+            messages.info(request, f"{var_summary} (Within 1.0% tolerance).")
+
+    success_msg = (
+        f"Successfully confirmed arrival ({delivery.received_at.strftime('%b %d, %Y %H:%M')}) — "
+        f"Dispatched: {delivery.effective_dispatched_mt:,.3f} MT | Delivered: {delivery.delivered_mt:,.3f} MT "
+        f"to {delivery.receiving_location}."
+    )
 
     if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
         return JsonResponse({
             "success": True,
             "delivery_id": str(delivery.delivery_id),
             "received_at": delivery.received_at.isoformat(),
+            "dispatched_mt": f"{delivery.effective_dispatched_mt:.3f}",
+            "delivered_mt": f"{delivery.delivered_mt:.3f}",
+            "volume_discrepancy_mt": f"{delivery.volume_discrepancy_mt:.3f}",
+            "variance_percent": f"{delivery.variance_percent:.2f}",
+            "variance_exceeds_tolerance": delivery.variance_exceeds_tolerance,
             "message": success_msg,
         })
 

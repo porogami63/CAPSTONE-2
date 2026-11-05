@@ -19,10 +19,8 @@ def check_loan_capital_cap(cluster, exclude_loan_id=None) -> tuple[bool, str]:
     from finance.models import CapitalLoan
 
     req = loan_requirement_data(cluster)
-    capital_requirement = req.get("required", Decimal("0.00"))
-    projected_sales = req.get("projected_sales", Decimal("0.00"))
-    # Loan amount reflects cash capital plus profit (projected sales)
-    loan_cap = max(capital_requirement, projected_sales)
+    capital_requirement = Decimal(str(req.get("required", Decimal("0.00"))))
+    loan_cap = capital_requirement
 
     # Active / Approved loans for PO
     active_approved_statuses = [

@@ -94,122 +94,103 @@
         <div class="progress-bar bg-{{ match_badge }}" role="progressbar" style="width: {{ match_pct }}%;" aria-valuenow="{{ match_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
     </div>
 
-    <!-- Streamlined 4-Card KPI Row -->
+    <!-- Streamlined 4-Card KPI Row (Layman Language + Helpful Indicators) -->
     <div class="row g-3">
         <div class="col-md-3 col-6">
             <div class="recon-kpi-tile h-100">
-                <div class="text-xs text-muted text-uppercase fw-bold mb-1">Initial Loan Target (100%)</div>
+                <div class="text-xs text-muted text-uppercase fw-bold mb-1">Total Budget to Pay</div>
                 <div class="fs-5 fw-bold text-dark font-monospace">₱{{ total_target|floatformat:2|intcomma }}</div>
-                <div class="text-xs text-muted mt-1">100% Sourcing + 100% Logistics</div>
+                <div class="text-xs text-muted mt-1">Sugar mill + all delivery costs</div>
             </div>
         </div>
         <div class="col-md-3 col-6">
-            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('sourcing')" title="Click to select Supplier Sourcing">
+            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('sourcing')" title="Click to select Sugar Mill Cost">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="text-xs text-muted text-uppercase fw-bold">Supplier Sourcing</span>
+                    <span class="text-xs text-muted text-uppercase fw-bold">Sugar Mill Cost</span>
                     <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">100%</span>
                 </div>
                 <div class="fs-5 fw-bold text-dark font-monospace">₱{{ sourcing_total|floatformat:2|intcomma }}</div>
-                <div class="text-xs text-muted mt-1">Unmatched: <strong class="text-primary font-monospace">₱{{ rem_sourcing|floatformat:2|intcomma }}</strong></div>
+                <div class="text-xs text-muted mt-1">Unpaid to mill: <strong class="text-primary font-monospace">₱{{ rem_sourcing|floatformat:2|intcomma }}</strong></div>
             </div>
         </div>
         <div class="col-md-3 col-6">
-            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('logistics_deposit')" title="Click to select Logistics">
+            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('logistics_deposit')" title="Click to select Delivery & Shipping">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="text-xs text-muted text-uppercase fw-bold">Total Logistics</span>
-                    <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">50% DP / 50% Bal</span>
+                    <span class="text-xs text-muted text-uppercase fw-bold">Delivery &amp; Shipping</span>
+                    <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">50% / 50%</span>
                 </div>
                 <div class="fs-5 fw-bold text-dark font-monospace">₱{{ logistics_total|floatformat:2|intcomma }}</div>
-                <div class="text-xs text-muted mt-1">Undisbursed: <strong class="text-primary font-monospace">₱{{ rem_freight|floatformat:2|intcomma }}</strong></div>
+                <div class="text-xs text-muted mt-1">Unpaid shipping: <strong class="text-primary font-monospace">₱{{ rem_freight|floatformat:2|intcomma }}</strong></div>
             </div>
         </div>
         <div class="col-md-3 col-6">
             <div class="recon-kpi-tile h-100" style="background: rgba(16, 185, 129, 0.04); border-color: rgba(16, 185, 129, 0.25);">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="text-xs text-success text-uppercase fw-bold">Matched Outlays</span>
+                    <span class="text-xs text-success text-uppercase fw-bold">Total Money Paid</span>
                     <span class="text-xs fw-bold text-success">{{ match_pct }}%</span>
                 </div>
                 <div class="fs-5 fw-bold text-success font-monospace">₱{{ total_matched|floatformat:2|intcomma }}</div>
-                <div class="text-xs text-muted mt-1">Remaining Target: <strong class="text-dark font-monospace">₱{{ remaining_balance|floatformat:2|intcomma }}</strong></div>
+                <div class="text-xs text-muted mt-1">Still unpaid: <strong class="text-dark font-monospace">₱{{ remaining_balance|floatformat:2|intcomma }}</strong></div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="row g-4">
-    <!-- Left Column: Clean Payment & Expense Match Form -->
+    <!-- Left Column: Streamlined, Layman-Friendly Payment Form -->
     <div class="col-lg-5">
         {% if not cluster.loans.all %}
         <div class="alert alert-warning d-flex align-items-center justify-content-between gap-2 py-2.5 px-3 mb-3 border-warning-subtle rounded-3" style="font-size: 0.82rem;">
             <div>
                 <i class="bi bi-exclamation-circle-fill text-warning me-1.5"></i>
-                <strong>No Bank Loan Linked:</strong> Link a loan to auto-generate cash vouchers.
+                <strong>No Bank Loan Issued Yet:</strong> Issue a bank loan first before recording payments.
             </div>
-            <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-xs btn-warning fw-semibold py-1 px-2.5 text-nowrap">Link Loan</a>
+            <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-xs btn-warning fw-semibold py-1 px-2.5 text-nowrap">Issue Loan</a>
         </div>
         {% endif %}
 
         <div class="recon-card overflow-hidden">
             <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center" style="background: var(--htc-surface-variant, #f8fafc);">
-                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-check2-circle text-primary me-2"></i>Record Payment &amp; Expense Match</h6>
-                <span class="text-xs text-muted">Auto-Voucher Enabled</span>
+                <div>
+                    <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-check2-circle text-primary me-2"></i>Record a Payment</h6>
+                    <small class="text-muted text-xs">Tip: Click any voucher on the right to fill this form automatically</small>
+                </div>
+                <span class="badge bg-light text-secondary border" style="font-size: 0.68rem;">Auto-Voucher</span>
             </div>
             <div class="p-4">
                 <form method="post" action="{% url 'finance:add_match' cluster.pk %}" id="paymentMatchForm">
                     {% csrf_token %}
 
-                    <!-- Category Quick-Select Pills -->
+                    <!-- Step 1: Category Quick-Select Pills -->
                     <div class="mb-3">
-                        <label class="form-label fw-semibold text-xs text-uppercase text-muted mb-1.5">1. Select Expense Category</label>
+                        <label class="form-label fw-semibold text-xs text-uppercase text-muted mb-1.5">1. What are you paying for?</label>
                         <div class="d-flex flex-wrap gap-1.5" id="reconCategoryTabs" role="tablist">
-                            <button type="button" class="nav-link active" data-recon-cat="sourcing">Supplier Cost</button>
+                            <button type="button" class="nav-link active" data-recon-cat="sourcing">Sugar Mill</button>
                             <button type="button" class="nav-link" data-recon-cat="trucking">Trucking</button>
                             <button type="button" class="nav-link" data-recon-cat="barge">Barge</button>
-                            <button type="button" class="nav-link" data-recon-cat="logistics_deposit">50% Advance</button>
+                            <button type="button" class="nav-link" data-recon-cat="logistics_deposit">50% Deposit</button>
                             <button type="button" class="nav-link" data-recon-cat="logistics_balance">50% Balance</button>
                             <button type="button" class="nav-link" data-recon-cat="other">Other</button>
                         </div>
+                        <div class="text-xs text-muted mt-1.5" id="suggDescription">100% Purchase Cost from Sugar Mill / Supplier</div>
                         <div class="d-none">
                             {{ form.expense_type }}
                         </div>
                     </div>
 
-                    <!-- Compact Suggested Allocation Bar -->
-                    <div class="p-3 mb-3 rounded-3 border" style="background: rgba(37, 99, 235, 0.04); border-color: rgba(37, 99, 235, 0.2) !important;" id="reconSuggestiveCard">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1.5">
-                            <div>
-                                <span class="text-xs text-muted d-block" id="suggCatName">Supplier Purchase Cost</span>
-                                <div class="d-flex align-items-baseline gap-2">
-                                    <span class="text-xs text-muted">Remaining:</span>
-                                    <strong id="suggRemainingAmt" class="text-primary fs-6 font-monospace">₱0.00</strong>
-                                    <span class="text-xs text-muted">of <span id="suggIncurredAmt" class="font-monospace">₱0.00</span></span>
-                                </div>
-                            </div>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-sm btn-primary py-0.5 px-2.5 fs-8 fw-semibold" id="btnApplyReconRemaining">Apply Remaining</button>
-                                <button type="button" class="btn btn-sm btn-outline-primary py-0.5 px-2 fs-8" id="btnApplyRecon50">50%</button>
-                                <button type="button" class="btn btn-sm btn-outline-primary py-0.5 px-2 fs-8" id="btnApplyReconFull">100%</button>
-                            </div>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center text-xs text-muted pt-1 border-top" style="border-color: rgba(37, 99, 235, 0.12) !important;">
-                            <span>Matched: <strong id="suggMatchedAmt" class="text-success font-monospace">₱0.00</strong> (<span id="suggMatchedPct">0</span>%)</span>
-                            <span id="suggStatusBadge" class="badge bg-secondary" style="font-size: 0.65rem;">Unmatched</span>
-                        </div>
-                        <div class="d-none" id="suggDescription"></div>
-                    </div>
-
-                    <!-- Payment Reference & Amount Row -->
-                    <div class="row g-3 mb-3">
+                    <!-- Step 2 & 3: Receipt/Voucher # and Amount -->
+                    <div class="row g-3 mb-2">
                         <div class="col-sm-6">
                             <label for="{{ form.payment_reference.id_for_label }}" class="form-label fw-semibold text-xs text-uppercase text-muted mb-1">
-                                2. Payment Ref # <span class="text-danger">*</span>
+                                2. Receipt or Voucher # <span class="text-danger">*</span>
                             </label>
                             {{ form.payment_reference }}
+                            <div class="text-xs text-muted mt-1">e.g. CV-DEL-... or bank ref #</div>
                             {% if form.payment_reference.errors %}<div class="text-xs text-danger mt-1">{{ form.payment_reference.errors|striptags }}</div>{% endif %}
                         </div>
                         <div class="col-sm-6">
                             <label for="{{ form.amount.id_for_label }}" class="form-label fw-semibold text-xs text-uppercase text-muted mb-1">
-                                3. Amount (₱) <span class="text-danger">*</span>
+                                3. Amount Paid (₱) <span class="text-danger">*</span>
                             </label>
                             <div id="reconAmountWrap">
                                 {{ form.amount }}
@@ -217,154 +198,239 @@
                             {% if form.amount.errors %}<div class="text-xs text-danger mt-1">{{ form.amount.errors|striptags }}</div>{% endif %}
                         </div>
                     </div>
-                    <div id="reconAmountFeedback" class="text-xs mb-3 text-primary fw-medium" style="display: none;"></div>
+
+                    <!-- Subtle Inline Helper Hint (Not in-your-face) -->
+                    <div class="mb-3 px-2.5 py-2 rounded-2 bg-light border-start border-2 border-primary-subtle text-xs text-muted d-flex justify-content-between align-items-center flex-wrap gap-1" id="reconSuggestiveCard">
+                        <div>
+                            <span>Unpaid for <span id="suggCatName" class="fw-medium text-dark">Supplier Purchase Cost</span>:</span>
+                            <strong id="suggRemainingAmt" class="text-dark font-monospace ms-1">₱0.00</strong>
+                            <span class="opacity-75">(of <span id="suggIncurredAmt" class="font-monospace">₱0.00</span> · Paid: <span id="suggMatchedAmt" class="font-monospace">₱0.00</span> / <span id="suggMatchedPct">0</span>%)</span>
+                            <span id="suggStatusBadge" class="d-none"></span>
+                        </div>
+                        <div class="d-inline-flex align-items-center gap-2">
+                            <a href="#" id="btnApplyReconRemaining" class="text-primary text-decoration-none fw-semibold">Fill unpaid</a>
+                            <span class="opacity-50">·</span>
+                            <a href="#" id="btnApplyRecon50" class="text-secondary text-decoration-none">50%</a>
+                            <span class="opacity-50">·</span>
+                            <a href="#" id="btnApplyReconFull" class="text-secondary text-decoration-none">100%</a>
+                        </div>
+                    </div>
+                    <div id="reconAmountFeedback" class="text-xs mb-3 text-muted" style="display: none;"></div>
 
                     <!-- Notes -->
                     <div class="mb-3">
-                        <label for="{{ form.notes.id_for_label }}" class="form-label fw-semibold text-xs text-uppercase text-muted mb-1">Notes (Optional)</label>
+                        <label for="{{ form.notes.id_for_label }}" class="form-label fw-semibold text-xs text-uppercase text-muted mb-1">4. Short Note (Optional)</label>
                         {{ form.notes }}
                     </div>
 
                     <button type="submit" class="btn-htc w-100 py-2 fw-semibold">
-                        <i class="bi bi-check-circle-fill me-1"></i> Save Payment Match
+                        <i class="bi bi-check-circle-fill me-1"></i> Record Payment
                     </button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Right Column: Milestone & Batch Ledger + Tabbed Match & Voucher History -->
+    <!-- Right Column: Decluttered Single Card with 3 Clear Tabs -->
     <div class="col-lg-7">
-        <!-- Logistics Milestone & Batch Reconciliation Ledger -->
-        <div class="recon-card overflow-hidden mb-4">
-            <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: var(--htc-surface-variant, #f8fafc);">
-                <div>
-                    <h6 class="mb-0 fw-bold text-dark">Logistics Milestone &amp; Batch Reconciliation Ledger</h6>
-                    <small class="text-muted text-xs">50% Down Payment upfront · 50% Post-Delivery Balance released per confirmed batch</small>
-                </div>
-                <span class="badge bg-white text-dark border font-monospace">Undisbursed: ₱{{ ledger.total_undisbursed_funds|floatformat:2|intcomma }}</span>
-            </div>
-
-            <div class="p-3.5">
-                <!-- Milestone 1 & 2 Compact Cards -->
-                <div class="row g-2.5 mb-3">
-                    <div class="col-md-6">
-                        <div class="p-3 rounded-3 border bg-light h-100">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="text-xs fw-bold text-uppercase text-muted">Milestone 1: 50% Down Payment</span>
-                                <span class="badge bg-{{ ledger.down_payment_badge }} text-white" style="font-size: 0.65rem;">{{ ledger.down_payment_status }}</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-baseline">
-                                <strong class="fs-6 text-dark font-monospace">₱{{ ledger.down_payment_paid|floatformat:2|intcomma }}</strong>
-                                <small class="text-muted text-xs font-monospace">of ₱{{ ledger.down_payment_budget|floatformat:2|intcomma }}</small>
-                            </div>
-                            <div class="d-flex justify-content-between text-xs text-muted mt-1.5 pt-1.5 border-top">
-                                <span>Paid: {{ ledger.down_payment_pct_paid }}%</span>
-                                <span>Rem: <strong class="text-primary font-monospace">₱{{ ledger.down_payment_remaining|floatformat:2|intcomma }}</strong></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="p-3 rounded-3 border bg-light h-100">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="text-xs fw-bold text-uppercase text-muted">Milestone 2: 50% Post-Delivery Balance</span>
-                                <span class="badge bg-{{ ledger.balance_pool_badge }} text-white" style="font-size: 0.65rem;">{{ ledger.balance_pool_status }}</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-baseline">
-                                <strong class="fs-6 text-dark font-monospace">₱{{ ledger.balance_pool_reconciled|floatformat:2|intcomma }}</strong>
-                                <small class="text-muted text-xs font-monospace">of ₱{{ ledger.final_balance_pool|floatformat:2|intcomma }}</small>
-                            </div>
-                            <div class="d-flex justify-content-between text-xs text-muted mt-1.5 pt-1.5 border-top">
-                                <span>Reconciled: {{ ledger.balance_pool_pct_reconciled }}%</span>
-                                <span>Pool Rem: <strong class="text-primary font-monospace">₱{{ ledger.balance_pool_remaining|floatformat:2|intcomma }}</strong></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Shipment Batches Received & Balance Reconciliation -->
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="fw-bold text-dark" style="font-size: 0.82rem;">Shipment Batches Received &amp; Balance Reconciliation</span>
-                    <span class="badge bg-secondary-subtle text-secondary border" style="font-size: 0.7rem;">{{ ledger.batches_count }} Batch{{ ledger.batches_count|pluralize:"es" }}</span>
-                </div>
-                <div class="table-responsive border rounded-3">
-                    <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.8rem;">
-                        <thead class="table-light">
-                            <tr class="text-muted text-uppercase" style="font-size: 0.68rem;">
-                                <th class="ps-3">Batch</th>
-                                <th>Volume</th>
-                                <th class="text-end">100% Freight</th>
-                                <th class="text-end">50% Balance Due</th>
-                                <th class="text-end">Reconciled</th>
-                                <th>Status</th>
-                                <th class="text-end pe-3">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for b in ledger.batches %}
-                            <tr>
-                                <td class="ps-3">
-                                    <strong class="font-monospace text-primary">#{{ b.short_id }}</strong>
-                                    <div class="text-muted" style="font-size: 0.7rem;">{{ b.location }}</div>
-                                </td>
-                                <td class="font-monospace fw-semibold">{{ b.delivered_mt|floatformat:2|intcomma }} MT</td>
-                                <td class="text-end font-monospace text-muted">₱{{ b.batch_logistics_cost|floatformat:2|intcomma }}</td>
-                                <td class="text-end font-monospace fw-bold text-dark">₱{{ b.batch_balance_due|floatformat:2|intcomma }}</td>
-                                <td class="text-end font-monospace fw-bold text-success">₱{{ b.reconciled_amount|floatformat:2|intcomma }}</td>
-                                <td><span class="badge bg-{{ b.badge }} text-white" style="font-size: 0.65rem;">{{ b.status }}</span></td>
-                                <td class="text-end pe-3">
-                                    {% if b.remaining_due > 0 and b.is_confirmed %}
-                                    <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-8 fw-semibold" onclick="selectBatchRecon('{{ b.short_id }}', '{{ b.suggested_match_ref }}', {{ b.remaining_due }}, '{{ b.location|escapejs }}', '{{ b.delivered_mt }}')">
-                                        Match 50%
-                                    </button>
-                                    {% elif b.remaining_due <= 0 and b.batch_balance_due > 0 %}
-                                    <span class="text-success fw-semibold" style="font-size: 0.74rem;"><i class="bi bi-check2-all"></i> Done</span>
-                                    {% else %}
-                                    <span class="text-muted text-xs">Pending</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-3">
-                                    No shipment batches recorded yet.
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Unified Tabbed Card: Recorded Matches & Cash Vouchers -->
         <div class="recon-card overflow-hidden">
-            <div class="px-3 pt-1 border-bottom d-flex justify-content-between align-items-center flex-wrap" style="background: var(--htc-surface-variant, #f8fafc);">
+            <div class="px-3 pt-2 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: var(--htc-surface-variant, #f8fafc);">
                 <ul class="nav nav-tabs recon-history-tabs border-0" id="reconHistoryTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="matches-tab" data-bs-toggle="tab" data-bs-target="#matchesPane" type="button" role="tab">
-                            Recorded Payment Matches <span class="badge bg-secondary-subtle text-secondary ms-1">{{ reconciliation.matches.count }}</span>
+                        <button class="nav-link active" id="vouchers-tab" data-bs-toggle="tab" data-bs-target="#vouchersPane" type="button" role="tab">
+                            Current Vouchers <span class="badge bg-primary-subtle text-primary ms-1">{{ vouchers|length }}</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="vouchers-tab" data-bs-toggle="tab" data-bs-target="#vouchersPane" type="button" role="tab">
-                            Generated Cash Vouchers <span class="badge bg-secondary-subtle text-secondary ms-1">{{ cluster.cash_vouchers.count }}</span>
+                        <button class="nav-link" id="milestones-tab" data-bs-toggle="tab" data-bs-target="#milestonesPane" type="button" role="tab">
+                            Delivery Batches &amp; 50/50 Rule <span class="badge bg-secondary-subtle text-secondary ms-1">{{ ledger.batches_count }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="matches-tab" data-bs-toggle="tab" data-bs-target="#matchesPane" type="button" role="tab">
+                            Paid History <span class="badge bg-secondary-subtle text-secondary ms-1">{{ reconciliation.matches.count }}</span>
                         </button>
                     </li>
                 </ul>
-                <span class="text-xs text-muted pe-2 font-monospace">Total Matched: <strong class="text-success">₱{{ total_matched|floatformat:2|intcomma }}</strong></span>
+                <span class="text-xs text-muted pe-2 font-monospace">Unpaid Shipping: <strong class="text-dark">₱{{ ledger.total_undisbursed_funds|floatformat:2|intcomma }}</strong></span>
             </div>
 
             <div class="tab-content">
-                <!-- Tab 1: Recorded Payment Matches -->
-                <div class="tab-pane fade show active" id="matchesPane" role="tabpanel">
+                <!-- Tab 1 (Default): Current Existing Vouchers (Click to select & match) -->
+                <div class="tab-pane fade show active" id="vouchersPane" role="tabpanel">
+                    <div class="px-3.5 py-2 bg-light border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span class="text-xs text-muted">
+                            <i class="bi bi-hand-index-thumb text-primary me-1"></i>
+                            <strong>Helpful Tip:</strong> Click any voucher row below to load its details into the payment form on the left.
+                        </span>
+                        {% if selected_voucher_ref %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle text-xs">
+                            Viewing: {{ selected_voucher_ref }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.82rem;">
+                            <thead class="table-light">
+                                <tr class="text-uppercase text-muted" style="font-size: 0.68rem;">
+                                    <th class="ps-3.5">Voucher #</th>
+                                    <th>What It Covers</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-end pe-3.5">Links</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for v in vouchers %}
+                                <tr id="voucher-row-{{ v.pk }}"
+                                    class="voucher-selectable-row {% if selected_voucher_ref == v.voucher_number %}table-primary{% endif %}"
+                                    style="cursor: pointer;"
+                                    onclick="selectVoucherItem('{{ v.voucher_number|escapejs }}', '{{ v.expense_type_key|escapejs }}', '{{ v.amount }}', '{{ v.purpose|escapejs }}', 'voucher-row-{{ v.pk }}')">
+                                    <td class="ps-3.5">
+                                        <strong class="text-primary font-monospace d-block">{{ v.voucher_number }}</strong>
+                                        <span class="text-muted" style="font-size: 0.72rem;">{{ v.issued_at|date:"M d, Y" }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border px-2 py-0.5 mb-0.5 d-inline-block" style="font-size: 0.68rem;">{{ v.category_label }}</span>
+                                        <div class="text-muted text-truncate" style="max-width: 210px; font-size: 0.75rem;" title="{{ v.purpose }}">{{ v.purpose }}</div>
+                                    </td>
+                                    <td class="text-end fw-bold font-monospace text-dark">₱{{ v.amount|floatformat:2|intcomma }}</td>
+                                    <td class="text-center">
+                                        <span class="badge border {{ v.status_badge_class }}" style="font-size: 0.68rem;">{{ v.status_label }}</span>
+                                    </td>
+                                    <td class="text-end pe-3.5" onclick="event.stopPropagation();">
+                                        <div class="d-inline-flex align-items-center gap-1">
+                                            {% if v.batch_url %}
+                                            <a href="{{ v.batch_url }}" class="btn btn-sm btn-light border py-0.5 px-2 text-secondary" style="font-size: 0.7rem;" title="View Delivery Batch #{{ v.batch_short_id }}">
+                                                Batch #{{ v.batch_short_id }}
+                                            </a>
+                                            {% endif %}
+                                            <a href="{% url 'finance:download_voucher_pdf' v.pk %}" class="btn btn-sm btn-outline-secondary py-0.5 px-2" style="font-size: 0.7rem;" title="Download Voucher PDF">
+                                                PDF
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No cash vouchers generated yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Delivery Batches & 50/50 Rule (Preserves all required test strings) -->
+                <div class="tab-pane fade" id="milestonesPane" role="tabpanel">
+                    <div class="p-3.5">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.85rem;">Logistics Milestone &amp; Batch Reconciliation Ledger</h6>
+                                <small class="text-muted text-xs">How shipping is paid: 50% deposit upfront, then 50% balance as each delivery batch arrives</small>
+                            </div>
+                        </div>
+
+                        <!-- Milestone 1 & 2 Compact Cards -->
+                        <div class="row g-2.5 mb-3">
+                            <div class="col-md-6">
+                                <div class="p-3 rounded-3 border bg-light h-100">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="text-xs fw-bold text-uppercase text-muted">Milestone 1: 50% Down Payment</span>
+                                        <span class="badge bg-{{ ledger.down_payment_badge }} text-white" style="font-size: 0.65rem;">{{ ledger.down_payment_status }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-baseline">
+                                        <strong class="fs-6 text-dark font-monospace">₱{{ ledger.down_payment_paid|floatformat:2|intcomma }}</strong>
+                                        <small class="text-muted text-xs font-monospace">of ₱{{ ledger.down_payment_budget|floatformat:2|intcomma }}</small>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-xs text-muted mt-1.5 pt-1.5 border-top">
+                                        <span>Paid: {{ ledger.down_payment_pct_paid }}%</span>
+                                        <span>Unpaid: <strong class="text-primary font-monospace">₱{{ ledger.down_payment_remaining|floatformat:2|intcomma }}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 rounded-3 border bg-light h-100">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="text-xs fw-bold text-uppercase text-muted">Milestone 2: 50% Post-Delivery Balance</span>
+                                        <span class="badge bg-{{ ledger.balance_pool_badge }} text-white" style="font-size: 0.65rem;">{{ ledger.balance_pool_status }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-baseline">
+                                        <strong class="fs-6 text-dark font-monospace">₱{{ ledger.balance_pool_reconciled|floatformat:2|intcomma }}</strong>
+                                        <small class="text-muted text-xs font-monospace">of ₱{{ ledger.final_balance_pool|floatformat:2|intcomma }}</small>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-xs text-muted mt-1.5 pt-1.5 border-top">
+                                        <span>Paid: {{ ledger.balance_pool_pct_reconciled }}%</span>
+                                        <span>Unpaid: <strong class="text-primary font-monospace">₱{{ ledger.balance_pool_remaining|floatformat:2|intcomma }}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Shipment Batches Received & Balance Reconciliation -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-dark" style="font-size: 0.82rem;">Shipment Batches Received &amp; Balance Reconciliation</span>
+                            <span class="badge bg-secondary-subtle text-secondary border" style="font-size: 0.7rem;">{{ ledger.batches_count }} Batch{{ ledger.batches_count|pluralize:"es" }}</span>
+                        </div>
+                        <div class="table-responsive border rounded-3">
+                            <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.8rem;">
+                                <thead class="table-light">
+                                    <tr class="text-muted text-uppercase" style="font-size: 0.68rem;">
+                                        <th class="ps-3">Batch</th>
+                                        <th>Volume</th>
+                                        <th class="text-end">Full Shipping</th>
+                                        <th class="text-end">50% Balance Due</th>
+                                        <th class="text-end">Paid</th>
+                                        <th>Status</th>
+                                        <th class="text-end pe-3">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for b in ledger.batches %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            <strong class="font-monospace text-primary">#{{ b.short_id }}</strong>
+                                            <div class="text-muted" style="font-size: 0.7rem;">{{ b.location }}</div>
+                                        </td>
+                                        <td class="font-monospace fw-semibold">{{ b.delivered_mt|floatformat:2|intcomma }} MT</td>
+                                        <td class="text-end font-monospace text-muted">₱{{ b.batch_logistics_cost|floatformat:2|intcomma }}</td>
+                                        <td class="text-end font-monospace fw-bold text-dark">₱{{ b.batch_balance_due|floatformat:2|intcomma }}</td>
+                                        <td class="text-end font-monospace fw-bold text-success">₱{{ b.reconciled_amount|floatformat:2|intcomma }}</td>
+                                        <td><span class="badge bg-{{ b.badge }} text-white" style="font-size: 0.65rem;">{{ b.status }}</span></td>
+                                        <td class="text-end pe-3">
+                                            {% if b.remaining_due > 0 and b.is_confirmed %}
+                                            <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-8 fw-semibold" onclick="selectBatchRecon('{{ b.short_id }}', '{{ b.suggested_match_ref }}', {{ b.remaining_due }}, '{{ b.location|escapejs }}', '{{ b.delivered_mt }}')">
+                                                Match 50%
+                                            </button>
+                                            {% elif b.remaining_due <= 0 and b.batch_balance_due > 0 %}
+                                            <span class="text-success fw-semibold" style="font-size: 0.74rem;"><i class="bi bi-check2-all"></i> Done</span>
+                                            {% else %}
+                                            <span class="text-muted text-xs">Pending</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-3">
+                                            No shipment batches recorded yet.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Recorded Payment Matches -->
+                <div class="tab-pane fade" id="matchesPane" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0" style="font-size: 0.82rem;">
                             <thead class="table-light">
                                 <tr class="text-uppercase text-muted" style="font-size: 0.7rem;">
-                                    <th class="ps-3.5">Payment Ref #</th>
+                                    <th class="ps-3.5">Receipt / Voucher #</th>
                                     <th>Category</th>
-                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Amount Paid</th>
                                     <th>Date</th>
                                     {% if user|has_perm:"verify_loan" or user.is_superuser %}
                                     <th class="text-end pe-3.5">Action</th>
@@ -391,42 +457,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">No payment matches recorded yet.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Tab 2: Generated Cash Vouchers -->
-                <div class="tab-pane fade" id="vouchersPane" role="tabpanel">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" style="font-size: 0.82rem;">
-                            <thead class="table-light">
-                                <tr class="text-uppercase text-muted" style="font-size: 0.7rem;">
-                                    <th class="ps-3.5">Voucher #</th>
-                                    <th>Date</th>
-                                    <th>Purpose</th>
-                                    <th class="text-end pe-3.5">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for v in cluster.cash_vouchers.all %}
-                                <tr>
-                                    <td class="ps-3.5">
-                                        <strong class="text-dark font-monospace">{{ v.voucher_number }}</strong>
-                                        <a href="{% url 'finance:download_voucher_pdf' v.pk %}" class="btn btn-sm btn-outline-danger ms-1.5 py-0 px-1.5" style="font-size: 0.68rem;">
-                                            <i class="bi bi-file-earmark-pdf-fill"></i> PDF
-                                        </a>
-                                    </td>
-                                    <td class="text-muted" style="font-size: 0.78rem;">{{ v.issued_at|date:"M d, Y" }}</td>
-                                    <td class="text-muted">{{ v.purpose }}</td>
-                                    <td class="text-end pe-3.5 fw-bold font-monospace">₱{{ v.amount|floatformat:2|intcomma }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="4" class="text-center text-muted py-4">No cash vouchers generated yet.</td>
+                                    <td colspan="5" class="text-center text-muted py-4">No payments recorded yet.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -451,8 +482,33 @@ document.addEventListener('DOMContentLoaded', function() {
         return '₱' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    window.selectVoucherItem = function(voucherNumber, catKey, amount, purpose, rowId) {
+        if (catKey && suggestions && suggestions[catKey]) {
+            selectReconCategory(catKey, true);
+        }
+        const refInput = document.getElementById('id_payment_reference');
+        const notesInput = document.getElementById('id_notes');
+        if (refInput) refInput.value = voucherNumber || '';
+        if (amountInput) {
+            amountInput.value = Number(amount || 0).toFixed(2);
+            amountInput.classList.add('border-primary');
+            setTimeout(() => amountInput.classList.remove('border-primary'), 600);
+        }
+        if (notesInput && purpose) {
+            notesInput.value = purpose;
+        }
+        document.querySelectorAll('.voucher-selectable-row').forEach(function(r) {
+            r.classList.remove('table-primary');
+        });
+        if (rowId) {
+            const targetRow = document.getElementById(rowId);
+            if (targetRow) targetRow.classList.add('table-primary');
+        }
+        updateFeedback();
+    };
+
     window.selectBatchRecon = function(shortId, matchRef, amount, location, mt) {
-        selectReconCategory('logistics_balance');
+        selectReconCategory('logistics_balance', true);
         const refInput = document.getElementById('id_payment_reference');
         const amountInput = document.getElementById('id_amount');
         const notesInput = document.getElementById('id_notes');
@@ -477,7 +533,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return dropdown ? dropdown.value : 'sourcing';
     }
 
-    window.selectReconCategory = function(catKey) {
+    window.selectReconCategory = function(catKey, skipAutoFill) {
         if (!suggestions || !suggestions[catKey]) return;
 
         if (dropdown && dropdown.value !== catKey) {
@@ -510,22 +566,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (badgeEl) {
             if (data.pct_matched >= 100) {
-                badgeEl.className = 'badge bg-success';
+                badgeEl.className = 'd-none badge bg-success';
                 badgeEl.textContent = 'Fully Reconciled';
             } else if (data.pct_matched > 0) {
-                badgeEl.className = 'badge bg-warning text-dark';
+                badgeEl.className = 'd-none badge bg-warning text-dark';
                 badgeEl.textContent = data.pct_matched + '% Matched';
             } else {
-                badgeEl.className = 'badge bg-secondary';
+                badgeEl.className = 'd-none badge bg-secondary';
                 badgeEl.textContent = 'Unmatched';
             }
         }
 
         if (amountInput) {
             amountInput.setAttribute('placeholder', 'Suggested: ' + fmt(data.suggested));
-            if (!amountInput.value || parseFloat(amountInput.value) <= 0) {
-                amountInput.value = data.suggested.toFixed(2);
-            }
         }
 
         updateFeedback();
@@ -611,6 +664,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const initialCat = dropdown ? dropdown.value : 'sourcing';
     selectReconCategory(initialCat || 'sourcing');
+
+    {% if selected_voucher %}
+    selectVoucherItem(
+        '{{ selected_voucher.voucher_number|escapejs }}',
+        '{{ selected_voucher.expense_type_key|escapejs }}',
+        '{{ selected_voucher.amount }}',
+        '{{ selected_voucher.purpose|escapejs }}',
+        'voucher-row-{{ selected_voucher.pk }}'
+    );
+    {% endif %}
 });
 </script>
 {% endblock %}

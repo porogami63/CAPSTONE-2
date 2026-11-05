@@ -1461,3 +1461,91 @@ class DeliveryBatchCustomerImmutabilityAndOriginTests(TestCase):
         self.assertEqual(first_entry["receiving_customer"], self.client_luzon.name)
         self.assertEqual(first_entry["origin_indicator"], "Luzon Hub / Destination Spec")
         self.assertIn(first_entry["status"], ["Pending", "Reconciled", "Partial Release", "Warning Flagged"])
+
+
+class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
+    def setUp(self):
+        from masters.models import LogisticsPartner
+        self.client_co = Client.objects.create(name="Emperador Distillers")
+        self.mill = SugarMill.objects.create(name="Casa Molasses Source", location="Negros")
+        self.trucker_a = LogisticsPartner.objects.create(name="Royal Cargo Inc.")
+        self.trucker_b = LogisticsPartner.objects.create(name="Fast Logistics Group")
+        self.barger_a = LogisticsPartner.objects.create(name="Lorenzo Shipping")
+        self.barger_b = LogisticsPartner.objects.create(name="2GO Sea Solutions")
+
+        self.cluster = TransactionCluster.objects.create(
+            reference_code="PO-20261105-LOCK",
+            client=self.client_co,
+            sugar_mill=self.mill,
+            status=TransactionCluster.Status.ACTIVE,
+        )
+        self.po = PurchaseOrder.objects.create(
+            cluster=self.cluster,
+            customer=self.client_co,
+            po_reference_number="PO-20261105-LOCK",
+            volume_mt=Decimal("2000.000"),
+            unit_price=Decimal("15000.00"),
+            selling_price=Decimal("19000.00"),
+        )
+
+    def test_fixed_price_and_barger_trucker_locked_once_initialized(self):
+        from django.core.exceptions import ValidationError
+        from operations.models import DeliveryLedger
+
+        d1 = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill,
+            dispatched_mt=Decimal("500.000"),
+            delivered_mt=Decimal("500.000"),
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_a,
+            flat_trucking_fee=Decimal("250000.00"),
+            barge_partner=self.barger_a,
+            flat_barge_fee=Decimal("650000.00"),
+        )
+        self.assertEqual(d1.trucking_cost, Decimal("250000.00"))
+        self.assertEqual(d1.barge_cost, Decimal("650000.00"))
+
+        d2 = DeliveryLedger(
+            purchase_order=self.po,
+            supplier=self.mill,
+            dispatched_mt=Decimal("500.000"),
+            delivered_mt=Decimal("500.000"),
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_b,
+            flat_trucking_fee=Decimal("300000.00"),
+            barge_partner=self.barger_b,
+            flat_barge_fee=Decimal("700000.00"),
+        )
+        with self.assertRaises(ValidationError):
+            d2.full_clean()
+
+    def test_volume_confirmation_and_variance_calculator_catches_discrepancies(self):
+        from operations.models import DeliveryLedger, LogisticsLedger
+
+        LogisticsLedger.objects.create(
+            cluster=self.cluster,
+            partner=self.trucker_a,
+            loaded_volume_mt=Decimal("0.000"),
+            received_volume_mt=Decimal("0.000"),
+        )
+        d1 = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill,
+            dispatched_mt=Decimal("1000.000"),
+            delivered_mt=Decimal("980.000"),
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_a,
+            flat_trucking_fee=Decimal("250000.00"),
+            barge_partner=self.barger_a,
+            flat_barge_fee=Decimal("650000.00"),
+        )
+        self.assertEqual(d1.volume_discrepancy_mt, Decimal("-20.000"))
+        self.assertEqual(d1.variance_percent, Decimal("2.00"))
+        self.assertTrue(d1.variance_exceeds_tolerance)
+        self.assertTrue(d1.has_volume_discrepancy)
+
+        self.cluster.logistics.refresh_from_db()
+        self.assertEqual(self.cluster.logistics.loaded_volume_mt, Decimal("1000.000"))
+        self.assertEqual(self.cluster.logistics.received_volume_mt, Decimal("980.000"))
+        self.assertTrue(self.cluster.logistics.variance_exceeds_tolerance)
