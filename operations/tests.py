@@ -1990,3 +1990,27 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
         self.assertEqual(delivery.barge_rate_per_mt, Decimal("0.00"))
         self.assertEqual(delivery.trucking_rate_per_mt, Decimal("1250.00"))
         self.assertEqual(delivery.delivered_mt, Decimal("2000.000"))
+
+    def test_cryptographic_hash_chain_integrity(self):
+        from operations.services.hash_chain import get_ledger_chain, get_cluster_block_info, verify_chain_integrity
+        chain = get_ledger_chain()
+        self.assertTrue(len(chain) >= 1)
+        
+        # Test individual block retrieval
+        block_info = get_cluster_block_info(self.cluster)
+        self.assertTrue(block_info["is_verified"])
+        self.assertEqual(len(block_info["block_hash"]), 64)
+        
+        # Test full chain integrity
+        res = verify_chain_integrity()
+        self.assertTrue(res["is_intact"])
+        self.assertIsNone(res["broken_index"])
+        self.assertTrue(res["total_verified"] >= 1)
+        
+        # Test JSON endpoint
+        user = User.objects.create_user(username="hash_test_user", password="pw", role=User.Role.OPERATIONS)
+        self.client.force_login(user)
+        response = self.client.get(reverse("operations:verify_ledger_integrity"))
+        self.assertEqual(response.status_code, 200)
+        json_data = response.json()
+        self.assertTrue(json_data["is_intact"])

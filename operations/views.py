@@ -31,6 +31,7 @@ from .services.excel_import import (
 from .services.pricing import cluster_financials
 from .services.copilot_services import evaluate_copilot_query
 from .services.stats_services import get_operational_stats, check_input_outliers
+from .services.hash_chain import get_cluster_block_info, verify_chain_integrity
 
 
 def _safe_next_url(request, raw_url):
@@ -829,8 +830,20 @@ def cluster_detail(request, pk):
             "wf": wf,
             "is_concluded": is_concluded,
             "has_active_loan": has_active_loan,
+            "ledger_block": get_cluster_block_info(cluster),
+            "ledger_summary": verify_chain_integrity(),
         },
     )
+
+
+@login_required
+def verify_ledger_integrity_json(request):
+    """
+    Returns real-time cryptographic verification of the SHA-256 Purchase Order
+    hash chain (Option A) for live thesis defense demonstrations.
+    """
+    from operations.services.hash_chain import verify_chain_integrity
+    return JsonResponse(verify_chain_integrity())
 
 
 @role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS)
@@ -2121,7 +2134,7 @@ def download_po_pdf(request, pk):
     from xhtml2pdf import pisa
 
     template_path = "operations/po_pdf.html"
-    context = {"cluster": cluster}
+    context = {"cluster": cluster, "ledger_block": get_cluster_block_info(cluster)}
 
     response = HttpResponse(content_type="application/pdf")
     disposition = "inline" if (request.GET.get("inline") == "1" or request.GET.get("preview") == "1") else "attachment"
