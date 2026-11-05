@@ -529,59 +529,75 @@ def home(request):
     User.Role.OPERATIONS,
 )
 def analytics(request):
-    import math
-    try:
-        order_qty = float(request.GET.get("qty", "500"))
-        if math.isnan(order_qty) or math.isinf(order_qty) or order_qty <= 0:
-            order_qty = 500.0
-    except ValueError:
-        order_qty = 500.0
-    try:
-        selling_price = float(request.GET.get("price", "18500"))
-        if math.isnan(selling_price) or math.isinf(selling_price) or selling_price <= 0:
-            selling_price = 18500.0
-    except ValueError:
-        selling_price = 18500.0
+    """Executive Performance Analytics: Real-time operational intelligence on customer demand, sourcing, and delivery fulfillment."""
+    from operations.models import DeliveryLedger, LogisticsLedger, PurchaseOrder, TransactionCluster
+    from masters.models import Client, SugarMill
 
-    engine = build_supplier_rankings(order_qty, selling_price)
+    # 1. High-Level Performance Aggregates
+    total_contracted = float(PurchaseOrder.objects.aggregate(s=Sum("volume_mt"))["s"] or 0)
+    total_delivered = float(DeliveryLedger.objects.filter(received_at__isnull=False).aggregate(s=Sum("delivered_mt"))["s"] or 0)
+    total_loaded = float(LogisticsLedger.objects.aggregate(s=Sum("loaded_volume_mt"))["s"] or 0)
+    avg_variance = float(LogisticsLedger.objects.filter(variance_percent__isnull=False).aggregate(a=Avg("variance_percent"))["a"] or 0)
+    fulfillment_rate = round((total_delivered / total_contracted * 100), 1) if total_contracted > 0 else 0.0
 
-    # Historical Logistics & Shrinkage Trends
-    mill_shrinkage = []
-    from masters.models import SugarMill, Client
-    for mill in SugarMill.objects.filter(is_active=True):
-        ledgers = LogisticsLedger.objects.filter(cluster__sugar_mill=mill, variance_percent__isnull=False)
-        avg_var = ledgers.aggregate(v=Avg("variance_percent"))["v"] or 0.0
-        disputed_cnt = ledgers.filter(variance_exceeds_tolerance=True).count()
-        mill_shrinkage.append({
-            "name": mill.name,
-            "avg_variance": round(float(avg_var), 2),
-            "disputed_count": disputed_cnt,
-        })
-
-    # Client Revenue Distribution
-    client_revenues = []
-    for client in Client.objects.filter(is_active=True):
-        rev = Invoice.objects.filter(cluster__client=client).aggregate(t=Sum("amount"))["t"] or Decimal("0")
-        if rev > 0:
-            client_revenues.append({
-                "name": client.name,
-                "revenue": float(rev),
-                "revenue_m": round(float(rev) / 1_000_000, 2),
+    # 2. Customer Demand & Volume Share
+    client_data = []
+    for c in Client.objects.filter(is_active=True).order_by("name"):
+        vol = float(PurchaseOrder.objects.filter(cluster__client=c).aggregate(s=Sum("volume_mt"))["s"] or 0)
+        orders_count = TransactionCluster.objects.filter(client=c).count()
+        if vol > 0 or orders_count > 0:
+            pct = round((vol / total_contracted * 100), 1) if total_contracted > 0 else 0.0
+            client_data.append({
+                "id": c.id,
+                "name": c.name,
+                "orders_count": orders_count,
+                "volume_mt": vol,
+                "volume_pct": pct,
             })
+    client_data.sort(key=lambda x: x["volume_mt"], reverse=True)
 
-    return render(
-        request,
-        "dashboard/analytics.html",
-        {
-            "engine": engine,
-            "order_qty": order_qty,
-            "selling_price": selling_price,
-            "mill_shrinkage": mill_shrinkage,
-            "client_revenues": client_revenues,
-            "mill_shrinkage_json": json.dumps(mill_shrinkage),
-            "client_revenues_json": json.dumps(client_revenues),
-        },
-    )
+    # 3. Sugar Mill Sourcing Distribution & Route Health
+    mill_data = []
+    for m in SugarMill.objects.filter(is_active=True).order_by("name"):
+        vol = float(PurchaseOrder.objects.filter(cluster__sugar_mill=m).aggregate(s=Sum("volume_mt"))["s"] or 0)
+        orders_count = TransactionCluster.objects.filter(sugar_mill=m).count()
+        var = float(LogisticsLedger.objects.filter(cluster__sugar_mill=m).aggregate(a=Avg("variance_percent"))["a"] or 0)
+        disputed = LogisticsLedger.objects.filter(cluster__sugar_mill=m, variance_exceeds_tolerance=True).count()
+        if vol > 0 or orders_count > 0:
+            pct = round((vol / total_contracted * 100), 1) if total_contracted > 0 else 0.0
+            mill_data.append({
+                "id": m.id,
+                "name": m.name,
+                "orders_count": orders_count,
+                "volume_mt": vol,
+                "volume_pct": pct,
+                "avg_variance": round(var, 2),
+                "disputed_count": disputed,
+                "is_safe": var <= 1.0,
+            })
+    mill_data.sort(key=lambda x: x["volume_mt"], reverse=True)
+
+    total_partners = len(client_data) + len(mill_data)
+
+    client_chart_labels = [c["name"] for c in client_data]
+    client_chart_volumes = [c["volume_mt"] for c in client_data]
+
+    mill_chart_labels = [m["name"] for m in mill_data]
+    mill_chart_volumes = [m["volume_mt"] for m in mill_data]
+
+    context = {
+        "total_contracted": total_contracted,
+        "total_delivered": total_delivered,
+        "total_loaded": total_loaded,
+        "avg_variance": round(avg_variance, 2),
+        "fulfillment_rate": fulfillment_rate,
+        "total_partners": total_partners,
+        "client_data": client_data,
+        "mill_data": mill_data,
+        "client_chart_json": json.dumps({"labels": client_chart_labels, "data": client_chart_volumes}),
+        "mill_chart_json": json.dumps({"labels": mill_chart_labels, "data": mill_chart_volumes}),
+    }
+    return render(request, "dashboard/analytics.html", context)
 
 
 @role_required(

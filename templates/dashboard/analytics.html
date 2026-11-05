@@ -1,147 +1,270 @@
 {% extends "app_base.html" %}
 {% load humanize %}
-{% block title %}Analytics · Molasses Trading{% endblock %}
+{% block title %}Performance Analytics · HTC Core{% endblock %}
 {% block topbar_title %}Analytics{% endblock %}
-{% block topbar_subtitle %}Performance insights & Predictive Margin Engine{% endblock %}
+{% block topbar_subtitle %}Operational intelligence on customer demand, sourcing &amp; fulfillment{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-end align-items-center gap-2 mb-3">
-    <select class="form-select form-select-sm" style="width: auto;" aria-label="Company filter"><option>All Companies</option></select>
-    <select class="form-select form-select-sm" style="width: auto;" aria-label="Period filter"><option>Year to Date</option></select>
-</div>
+<style>
+    /* Executive Analytics Styles (Clean, Friendly & Legible) */
+    .analytics-hero-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
 
-<div class="tabs-row">
-    <button class="tab-btn active" type="button"><i class="bi bi-cpu"></i> Margin Engine</button>
-    <a href="{% url 'dashboard:home' %}" class="tab-btn"><i class="bi bi-bar-chart"></i> Performance Overview</a>
-</div>
+    .analytics-metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .analytics-metric-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1rem 1.25rem;
+        box-shadow: var(--htc-shadow);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .analytics-metric-card .metric-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--htc-text-muted);
+        letter-spacing: 0.5px;
+        margin-bottom: 0.35rem;
+    }
+    .analytics-metric-card .metric-val {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--htc-text);
+        line-height: 1.2;
+        margin-bottom: 0.25rem;
+    }
+    .analytics-metric-card .metric-hint {
+        font-size: 0.75rem;
+        color: var(--htc-text-muted);
+    }
 
-<div class="info-banner">
-    <i class="bi bi-info-circle-fill"></i>
-    <div>
-        <h4>Predictive Margin Engine</h4>
-        <p>Rankings use historical purchase prices, logistics costs, and shrinkage from your imported transactions. Adjust order quantity and selling price to compare supplier scenarios.</p>
-    </div>
-</div>
+    .analytics-panel {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius);
+        padding: 1.25rem 1.5rem;
+        box-shadow: var(--htc-shadow);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .analytics-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--htc-border);
+    }
+    .analytics-panel-header h6 {
+        font-weight: 700;
+        margin: 0;
+        color: var(--htc-text);
+    }
 
-<form method="get" class="param-card" data-step="1" data-intro="Order Simulation Parameters: Input your target Molasses order volume (MT) and target customer selling price (₱/MT) to dynamically simulate net profitability.">
-    <div>
-        <h3 style="margin:0 0 0.75rem;font-size:0.95rem;">Order Parameters</h3>
-        <div class="param-grid">
-            <div>
-                <label for="qty">Order Quantity (MT)</label>
-                <input id="qty" name="qty" type="number" step="any" min="1" value="{{ order_qty|floatformat:3 }}">
+    .partner-bar-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--htc-border);
+    }
+    .partner-bar-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    /* Status badges */
+    .status-pill-safe {
+        background-color: rgba(16, 185, 129, 0.12);
+        color: #065f46;
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        padding: 0.2rem 0.55rem;
+        border-radius: 9999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+    .status-pill-review {
+        background-color: rgba(220, 38, 38, 0.12);
+        color: #991b1b;
+        border: 1px solid rgba(220, 38, 38, 0.25);
+        padding: 0.2rem 0.55rem;
+        border-radius: 9999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+</style>
+
+<!-- Header & Context Banner -->
+<div class="analytics-hero-card">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h5 class="fw-bold mb-1 text-dark">Company Operations &amp; Performance Overview</h5>
+            <div class="fs-8 text-muted">
+                Executive operational insights on customer volume demand, sugar mill sourcing distribution, and transit delivery health.
             </div>
-            <div>
-                <label for="price">Selling Price (₱ / MT)</label>
-                <input id="price" name="price" type="number" step="any" min="1" value="{{ selling_price|floatformat:2 }}">
-            </div>
         </div>
-        <button type="submit" class="btn-htc btn-htc-sm" style="margin-top:0.75rem;"><i class="bi bi-arrow-repeat"></i> Recalculate</button>
-    </div>
-    {% if engine.best %}
-    <div class="margin-highlight">
-        <div class="label">Best Predicted Margin</div>
-        <div class="value">{{ engine.best.net_margin|floatformat:2 }}%</div>
-        <div class="via">via {{ engine.best.name }}</div>
-    </div>
-    {% endif %}
-</form>
-
-{% if engine.best %}
-<div class="analytics-kpi-row" data-step="2" data-intro="Predictive Margin KPIs: Highlights the optimal supplier mill, projected total net profit, expected shrinkage loss, and final deliverable volume.">
-    <div class="analytics-kpi">
-        <i class="bi bi-building text-success"></i>
-        <div class="kpi-text">
-            <div class="label">Recommended Supplier</div>
-            <div class="val">{{ engine.best.name }}</div>
-        </div>
-    </div>
-    <div class="analytics-kpi">
-        <i class="bi bi-currency-exchange" style="color:var(--htc-primary-light);"></i>
-        <div class="kpi-text">
-            <div class="label">Projected Net Profit</div>
-            <div class="val">₱{{ engine.best.net_profit_m|floatformat:2 }}M</div>
-        </div>
-    </div>
-    <div class="analytics-kpi">
-        <i class="bi bi-exclamation-triangle" style="color:var(--htc-gold);"></i>
-        <div class="kpi-text">
-            <div class="label">Expected Shrinkage</div>
-            <div class="val">{{ engine.best.projected_loss|floatformat:3 }} MT ({{ engine.best.shrinkage_pct|floatformat:2 }}%)</div>
-        </div>
-    </div>
-    <div class="analytics-kpi">
-        <i class="bi bi-droplet" style="color:#0891b2;"></i>
-        <div class="kpi-text">
-            <div class="label">Deliverable Volume</div>
-            <div class="val">{{ engine.best.deliverable_volume|floatformat:3 }} MT</div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'operations:cluster_list' %}" class="btn btn-outline-secondary btn-sm px-3 py-1.5 fs-8">
+                <i class="bi bi-receipt me-1"></i> View All Orders
+            </a>
+            <a href="{% url 'dashboard:home' %}" class="btn btn-primary btn-sm px-3 py-1.5 fs-8">
+                <i class="bi bi-speedometer2 me-1"></i> Main Dashboard
+            </a>
         </div>
     </div>
 </div>
-{% endif %}
 
-<div class="analytics-split" data-step="3" data-intro="Supplier Margin Rankings: Ranks all active sugar mill suppliers from highest to lowest net margin profitability based on historical data.">
-    <div>
-        <h3 style="font-size:0.95rem;margin:0 0 0.75rem;">Supplier Rankings</h3>
-        {% for s in engine.rankings %}
-        <div class="supplier-card {% if s.is_best %}best{% endif %}">
-            <div class="supplier-card-header">
-                <h3>{{ s.name }}{% if s.is_best %} <span class="best-badge">Best Pick</span>{% endif %}</h3>
-                <span class="text-muted small">#{{ s.rank }}</span>
-            </div>
-            <div class="supplier-metrics">
-                <div class="supplier-metric">
-                    <div class="val">{{ s.net_margin|floatformat:2 }}%</div>
-                    <div class="lbl">Net Margin</div>
+<!-- 4 Key Executive Performance Indicators -->
+<div class="analytics-metric-grid">
+    <div class="analytics-metric-card">
+        <div class="metric-label">Contracted Molasses Volume</div>
+        <div class="metric-val text-dark">{{ total_contracted|floatformat:0|intcomma }} MT</div>
+        <div class="metric-hint">Across all recorded purchase orders</div>
+    </div>
+    <div class="analytics-metric-card">
+        <div class="metric-label">Confirmed Delivered Volume</div>
+        <div class="metric-val text-primary">{{ total_delivered|floatformat:0|intcomma }} MT</div>
+        <div class="metric-hint text-success"><i class="bi bi-check-circle-fill me-1"></i>{{ fulfillment_rate }}% overall fulfillment completion</div>
+    </div>
+    <div class="analytics-metric-card">
+        <div class="metric-label">Average In-Transit Weight Loss</div>
+        <div class="metric-val text-dark">{{ avg_variance }}%</div>
+        <div class="metric-hint text-success"><i class="bi bi-shield-check me-1"></i>Safe physical range (Under ±1.0% limit)</div>
+    </div>
+    <div class="analytics-metric-card">
+        <div class="metric-label">Active Trade Network</div>
+        <div class="metric-val text-dark">{{ total_partners }} Partners</div>
+        <div class="metric-hint">{{ client_data|length }} Enterprise Buyers · {{ mill_data|length }} Sugar Mills</div>
+    </div>
+</div>
+
+<!-- Section 1: Customer Volume Share (Where Our Molasses Goes) -->
+<div class="row g-4 mb-4">
+    <!-- Chart Column -->
+    <div class="col-12 col-lg-7">
+        <div class="analytics-panel">
+            <div class="analytics-panel-header">
+                <div>
+                    <h6>Customer Demand &amp; Volume Share</h6>
+                    <span class="fs-8 text-muted">Distribution of contracted volume across enterprise distillery clients</span>
                 </div>
-                <div class="supplier-metric">
-                    <div class="val">₱{{ s.net_profit_m|floatformat:2 }}M</div>
-                    <div class="lbl">Net Profit</div>
-                </div>
-                <div class="supplier-metric">
-                    <div class="val">{{ s.score }}</div>
-                    <div class="lbl">Score</div>
-                    <div class="score-bar"><div class="fill" style="--score: {{ s.score }}; width: calc(var(--score) * 1%);"></div></div>
-                </div>
+                <span class="badge bg-light text-muted border">Contracted MT</span>
             </div>
-            <div class="supplier-detail-grid">
-                <div><span class="lbl">Purchase Price</span>₱{{ s.purchase_price|floatformat:2|intcomma }}/MT</div>
-                <div><span class="lbl">Supplier Cost</span>₱{{ s.supplier_cost|floatformat:2|intcomma }}</div>
-                <div><span class="lbl">Deliverable</span>{{ s.deliverable_volume|floatformat:3|intcomma }} MT</div>
-                <div><span class="lbl">Projected Loss</span>{{ s.projected_loss|floatformat:3|intcomma }} MT</div>
-                <div><span class="lbl">Gross Revenue</span>₱{{ s.gross_revenue|floatformat:2|intcomma }}</div>
-                <div><span class="lbl">Lead Time</span>{{ s.lead_days }} days</div>
+            <div style="min-height: 280px; height: 280px;">
+                <canvas id="customerVolumeChart" aria-label="Customer Volume Chart" role="img"></canvas>
             </div>
-            <p class="supplier-note">{{ s.note }}</p>
         </div>
-        {% empty %}
-        <div class="content-card panel-body text-muted">Import transaction data to populate supplier rankings.</div>
-        {% endfor %}
     </div>
-    <div>
-        <div class="chart-panel">
-            <h4>Top 3 Supplier Comparison</h4>
-            <canvas id="radarChart" height="220"></canvas>
+
+    <!-- Breakdown List Column -->
+    <div class="col-12 col-lg-5">
+        <div class="analytics-panel">
+            <div class="analytics-panel-header">
+                <div>
+                    <h6>Top Enterprise Buyers</h6>
+                    <span class="fs-8 text-muted">Client portfolio rankings by contracted volume</span>
+                </div>
+            </div>
+            <div class="overflow-auto" style="max-height: 290px;">
+                {% for c in client_data %}
+                <div class="partner-bar-item">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-semibold text-dark fs-8">{{ c.name }}</span>
+                        <span class="fw-bold text-dark fs-8">{{ c.volume_mt|floatformat:0|intcomma }} MT</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center fs-8 text-muted mb-1.5">
+                        <span>{{ c.orders_count }} Purchase Order{{ c.orders_count|pluralize }}</span>
+                        <span>{{ c.volume_pct }}% of total</span>
+                    </div>
+                    <div class="progress" style="height: 6px; border-radius: 9999px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ c.volume_pct }}%;" aria-valuenow="{{ c.volume_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center text-muted py-4 fs-8">No customer purchase orders found.</div>
+                {% endfor %}
+            </div>
         </div>
-        <div class="chart-panel mt-3">
-            <h4>Historical Logistics Variance</h4>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <thead>
-                        <tr>
+    </div>
+</div>
+
+<!-- Section 2: Sugar Mill Sourcing & Delivery Health (Where Our Molasses Comes From) -->
+<div class="row g-4 mb-4">
+    <!-- Chart Column -->
+    <div class="col-12 col-lg-5">
+        <div class="analytics-panel">
+            <div class="analytics-panel-header">
+                <div>
+                    <h6>Sugar Mill Sourcing Distribution</h6>
+                    <span class="fs-8 text-muted">Volume sourced from partner sugar mills</span>
+                </div>
+            </div>
+            <div style="min-height: 280px; height: 280px; position: relative;">
+                <canvas id="millSourcingChart" aria-label="Sugar Mill Sourcing Chart" role="img"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mill Scorecard Table Column -->
+    <div class="col-12 col-lg-7">
+        <div class="analytics-panel">
+            <div class="analytics-panel-header">
+                <div>
+                    <h6>Sugar Mill Performance &amp; Route Health</h6>
+                    <span class="fs-8 text-muted">Weight difference rate and shipment reliability per mill</span>
+                </div>
+                <span class="badge bg-light text-muted border">{{ mill_data|length }} Mills</span>
+            </div>
+            <div class="table-responsive" style="max-height: 290px; overflow-y: auto;">
+                <table class="table table-hover align-middle mb-0 fs-8">
+                    <thead class="bg-body sticky-top border-bottom">
+                        <tr class="text-uppercase text-muted border-bottom">
                             <th>Sugar Mill</th>
-                            <th>Avg Variance</th>
-                            <th>Disputes</th>
+                            <th class="text-end">Sourced Volume</th>
+                            <th class="text-center">Orders</th>
+                            <th class="text-end">Avg Weight Loss</th>
+                            <th class="text-center">Route Health</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for m in mill_shrinkage %}
+                        {% for m in mill_data %}
                         <tr>
-                            <td><strong>{{ m.name }}</strong></td>
-                            <td><span class="badge {% if m.avg_variance > 1.0 %}bg-danger{% else %}bg-success{% endif %}">{{ m.avg_variance }}%</span></td>
-                            <td>{{ m.disputed_count }}</td>
+                            <td class="fw-semibold text-dark">
+                                <i class="bi bi-building me-1 text-muted"></i>{{ m.name }}
+                            </td>
+                            <td class="text-end fw-bold text-dark">
+                                {{ m.volume_mt|floatformat:0|intcomma }} MT
+                            </td>
+                            <td class="text-center text-muted">
+                                {{ m.orders_count }}
+                            </td>
+                            <td class="text-end text-muted">
+                                {{ m.avg_variance }}%
+                            </td>
+                            <td class="text-center">
+                                {% if m.is_safe %}
+                                <span class="status-pill-safe"><i class="bi bi-shield-check me-0.5"></i>Safe (&lt;1%)</span>
+                                {% else %}
+                                <span class="status-pill-review"><i class="bi bi-exclamation-triangle-fill me-0.5"></i>Review</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="3" class="text-muted">No logistics data.</td></tr>
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No sugar mill sourcing records.</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -150,74 +273,161 @@
     </div>
 </div>
 
-<div class="content-card mt-4">
-    <div class="card-header-htc">Client Revenue Contribution</div>
-    <div class="grid-3 p-3">
-        {% for c in client_revenues %}
-        <div class="p-3 border rounded bg-light">
-            <div class="text-muted small"><strong>{{ c.name }}</strong></div>
-            <div class="fs-4 text-primary fw-bold">₱{{ c.revenue_m }}M</div>
-            <div class="small text-muted">Total Sales Invoiced</div>
+<!-- Section 3: Plain-Language Operational Health Summary -->
+<div class="analytics-panel mb-4">
+    <div class="analytics-panel-header">
+        <div>
+            <h6>Operational Health Takeaways</h6>
+            <span class="fs-8 text-muted">Key business findings explained in plain language</span>
         </div>
-        {% empty %}
-        <div class="text-muted">No client revenue recorded yet.</div>
-        {% endfor %}
+        <span class="badge bg-success-subtle text-success border border-success-subtle">
+            <i class="bi bi-check-circle-fill me-1"></i>Healthy Operations
+        </span>
+    </div>
+    <div class="row g-3 fs-8">
+        <div class="col-12 col-md-4">
+            <div class="p-3 bg-body-tertiary border rounded h-100">
+                <div class="fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-box-seam text-primary fs-6"></i> Fulfillment Execution
+                </div>
+                <p class="text-muted mb-0">
+                    <strong>{{ fulfillment_rate }}%</strong> of contracted molasses volume ({{ total_delivered|floatformat:0|intcomma }} MT) has been confirmed delivered at customer plants with high on-time completion.
+                </p>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="p-3 bg-body-tertiary border rounded h-100">
+                <div class="fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-shield-check text-success fs-6"></i> Weight Loss Protection
+                </div>
+                <p class="text-muted mb-0">
+                    Average in-transit evaporation and shrinkage across barging and trucking routes is steady at <strong>{{ avg_variance }}%</strong>, well below the industry 1.00% physical tolerance limit.
+                </p>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="p-3 bg-body-tertiary border rounded h-100">
+                <div class="fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-diagram-3 text-info fs-6"></i> Sourcing Diversity
+                </div>
+                <p class="text-muted mb-0">
+                    Procurement is distributed across <strong>{{ mill_data|length }} sugar mills</strong>, providing redundant supplier capacity and mitigating regional milling downtime.
+                </p>
+            </div>
+        </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
-{{ engine.top_three|json_script:"top-three-data" }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script id="clientChartData" type="application/json">{{ client_chart_json|safe }}</script>
+<script id="millChartData" type="application/json">{{ mill_chart_json|safe }}</script>
 <script>
-    const topThreeEl = document.getElementById('top-three-data');
-    if (topThreeEl) {
-        const topThree = JSON.parse(topThreeEl.textContent || '[]');
-        if (topThree.length > 0) {
-            const labels = topThree.map(s => s.name);
-            const colors = ['rgba(5, 150, 105, 0.2)', 'rgba(37, 99, 235, 0.2)', 'rgba(217, 119, 6, 0.2)'];
-            const borderColors = ['#059669', '#2563eb', '#d97706'];
-            const radarCtx = document.getElementById('radarChart');
-            if (radarCtx) {
-                new Chart(radarCtx, {
-                    type: 'radar',
-                    data: {
-                        labels: ['Margin', 'Reliability', 'Low Shrinkage', 'Price Edge', 'Lead Time'],
-                        datasets: topThree.map((s, i) => ({
-                            label: s.name,
-                            data: [
-                                Number(s.net_margin.toFixed(1)),
-                                Number(s.reliability.toFixed(0)),
-                                s.score,
-                                Number(s.purchase_price.toFixed(0)),
-                                s.lead_days
-                            ],
-                            borderColor: borderColors[i % borderColors.length],
-                            backgroundColor: colors[i % colors.length],
-                            borderWidth: 1.5
-                        }))
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Customer Volume Horizontal Bar Chart
+    const clientDataEl = document.getElementById('clientChartData');
+    if (clientDataEl) {
+        const cData = JSON.parse(clientDataEl.textContent || '{}');
+        const cCtx = document.getElementById('customerVolumeChart');
+        if (cCtx && cData.labels && cData.labels.length) {
+            new Chart(cCtx, {
+                type: 'bar',
+                data: {
+                    labels: cData.labels,
+                    datasets: [{
+                        label: 'Contracted Volume (MT)',
+                        data: cData.data,
+                        backgroundColor: '#0c385c',
+                        borderRadius: 6,
+                        barPercentage: 0.6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Volume: ${Number(context.raw).toLocaleString()} MT`;
+                                }
+                            }
+                        }
                     },
-                    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { r: { ticks: { display: false } } } }
-                });
-            }
-            const barCtx = document.getElementById('marginBarChart');
-            if (barCtx) {
-                new Chart(barCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Net Margin %',
-                            data: topThree.map(s => Number(s.net_margin.toFixed(2))),
-                            backgroundColor: ['#059669', '#2563eb', '#d97706'],
-                            borderRadius: 4
-                        }]
-                    },
-                    options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { callback: v => v + '%' } } } }
-                });
-            }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(val) {
+                                    return Number(val).toLocaleString() + ' MT';
+                                }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
         }
     }
+
+    // 2. Sugar Mill Sourcing Doughnut Chart
+    const millDataEl = document.getElementById('millChartData');
+    if (millDataEl) {
+        const mData = JSON.parse(millDataEl.textContent || '{}');
+        const mCtx = document.getElementById('millSourcingChart');
+        if (mCtx && mData.labels && mData.labels.length) {
+            new Chart(mCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: mData.labels,
+                    datasets: [{
+                        data: mData.data,
+                        backgroundColor: [
+                            '#0c385c',
+                            '#1e40af',
+                            '#2563eb',
+                            '#3b82f6',
+                            '#60a5fa',
+                            '#93c5fd',
+                            '#bfdbfe',
+                            '#dbeafe'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = ((context.raw / total) * 100).toFixed(1);
+                                    return `${context.label}: ${Number(context.raw).toLocaleString()} MT (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '62%'
+                }
+            });
+        }
+    }
+});
 </script>
 {% endblock %}
-

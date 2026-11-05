@@ -383,3 +383,31 @@ class DocumentStorageAndDistinctionTests(TestCase):
         self.assertContains(res, "Download PDF")
         self.assertContains(res, "Request Scan")
 
+    def test_executive_performance_analytics_view(self):
+        """Tests that analytics view loads executive performance metrics without simulation inputs."""
+        client = Client.objects.create(name="Emperador Distillers Inc.")
+        mill = SugarMill.objects.create(name="BUSCO Sugar Milling Co.")
+        cluster = TransactionCluster.objects.create(
+            reference_code="PO-ANALYTICS-01",
+            client=client,
+            sugar_mill=mill,
+            status=TransactionCluster.Status.DELIVERED,
+        )
+        PurchaseOrder.objects.create(
+            cluster=cluster,
+            volume_mt=1000,
+            unit_price=12500,
+        )
+        User.objects.create_user(username="analytics_ops_user", password="password123", role=User.Role.OPERATIONS_MANAGEMENT)
+        self.client.login(username="analytics_ops_user", password="password123")
+        url = reverse("dashboard:analytics")
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Company Operations &amp; Performance Overview")
+        self.assertContains(res, "Customer Demand &amp; Volume Share")
+        self.assertContains(res, "Sugar Mill Sourcing Distribution")
+        self.assertContains(res, "Emperador Distillers Inc.")
+        self.assertContains(res, "BUSCO Sugar Milling Co.")
+        self.assertIn("client_chart_json", res.context)
+        self.assertIn("mill_chart_json", res.context)
+
