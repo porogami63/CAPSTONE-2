@@ -351,6 +351,9 @@
         </div>
         <!-- Consolidated Primary CTA Button on Table Header -->
         <div class="d-flex gap-2">
+            <a href="{% url 'finance:loan_list' %}?open_report=1&category=delivery" class="btn btn-warning btn-sm rounded-pill font-bold px-3 py-1 shadow-xs d-inline-flex align-items-center gap-1 text-dark" title="Report a delivery or weighbridge discrepancy to manager for compensating correction">
+                <i class="bi bi-flag-fill"></i> Report Discrepancy
+            </a>
             {% if focused_po and focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
             <button type="button" class="btn-htc btn-sm d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#logBatchModal">
                 <i class="bi bi-plus-lg"></i> Log Delivery Batch
@@ -542,6 +545,9 @@
                                     <i class="bi bi-arrow-repeat text-warning"></i> Compensating Adjustment
                                 </button>
                                 {% endif %}
+                                <a href="{% url 'finance:loan_list' %}?open_report=1&category=delivery&ref={% if d.dr_number %}DR%20%23{{ d.dr_number }}{% elif d.waybill_number %}WB%20%23{{ d.waybill_number }}{% else %}DEL-{{ d.delivery_id|stringformat:'s'|slice:':8'|upper }}{% endif %}&orig={{ d.delivered_mt|floatformat:3 }}%20MT" class="btn btn-outline-secondary btn-sm py-0.5 px-2 fs-8 text-dark shadow-xs d-inline-flex align-items-center gap-1" title="Report discrepancy for manager recompensation">
+                                    <i class="bi bi-flag-fill text-warning"></i> Report
+                                </a>
                                 {% endif %}
                             {% endif %}
                             {% if d.purchase_order.cluster %}

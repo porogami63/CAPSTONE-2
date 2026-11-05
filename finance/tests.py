@@ -1507,4 +1507,82 @@ class FinancialOperationsWorkflowAndBlockchainTests(TestCase):
 		self.assertEqual(audit_entry.user, self.finance_user)
 		self.assertEqual(audit_entry.new_values.get("compensating_voucher"), comp.voucher_number)
 
+	def test_submit_and_review_recompensation_report_workflow(self):
+		"""
+		Tests the unified Recompensation Reporting & Manager Review lifecycle:
+		1. Regular invoicing clerk submits discrepancy report with detailed notes.
+		2. Operations Manager receives alert and overview of what went wrong.
+		3. Operations Manager reviews & authorizes compensating adjustment.
+		4. Non-managers are strictly blocked from reviewing reports (403).
+		"""
+		from finance.models import RecompensationReport, CashVoucher
+		from audit.models import Notification, SystemAuditTrail
+
+		voucher = CashVoucher.objects.create(
+			cluster=self.cluster,
+			loan=self.loan,
+			voucher_number="CV-RECOMP-001",
+			amount=Decimal("350000.00"),
+			purpose="Molasses hauling payment",
+			status=CashVoucher.Status.ISSUED,
+			cheque_number="CHQ-123456",
+		)
+
+		# 1. Invoicing user submits report
+		self.client.login(username="regular_invoicing", password="password123")
+		submit_url = reverse("finance:submit_recompensation_report")
+		res_submit = self.client.post(submit_url, {
+			"category": "finance",
+			"target_reference": voucher.voucher_number,
+			"item_type": "CashVoucher",
+			"item_id": str(voucher.pk),
+			"error_summary": "Discrepancy in encoded cheque disbursement amount",
+			"original_value": "₱350,000.00",
+			"proposed_value": "₱320,000.00",
+			"user_notes": "Weighbridge deduction was not subtracted during manual cheque entry. Needs ₱30k adjustment.",
+		})
+		self.assertEqual(res_submit.status_code, 302)
+
+		report = RecompensationReport.objects.filter(target_reference=voucher.voucher_number).first()
+		self.assertIsNotNone(report)
+		self.assertEqual(report.status, RecompensationReport.Status.PENDING)
+		self.assertEqual(report.reported_by.username, "regular_invoicing")
+
+		# Check notification was sent to manager
+		mgr_notif = Notification.objects.filter(
+			recipient=self.ops_mgr,
+			category=Notification.Category.APPROVAL,
+		).first()
+		self.assertIsNotNone(mgr_notif)
+		self.assertIn("Discrepancy Reported for Recompensation", mgr_notif.title)
+
+		# 2. Non-manager attempts to review/approve (should be rejected 403)
+		review_url = reverse("finance:review_recompensation_report", kwargs={"report_id": report.report_id})
+		res_blocked = self.client.post(review_url, {
+			"action": "approve",
+			"manager_notes": "Unauthorized attempt",
+		})
+		self.assertEqual(res_blocked.status_code, 403)
+
+		# 3. Operations Manager reviews and approves
+		self.client.login(username="master_ops_mgr", password="password123")
+		res_approve = self.client.post(review_url, {
+			"action": "approve",
+			"manager_notes": "Audited against supplier invoice #INV-992. Approved compensating adjustment.",
+		})
+		self.assertEqual(res_approve.status_code, 302)
+
+		report.refresh_from_db()
+		self.assertEqual(report.status, RecompensationReport.Status.APPROVED)
+		self.assertEqual(report.reviewed_by, self.ops_mgr)
+		self.assertTrue(report.compensating_reference.startswith("CV-RECOMP-001"))
+
+		# Check requester received notification
+		req_notif = Notification.objects.filter(
+			recipient=report.reported_by,
+			title__icontains="Recompensation Approved",
+		).first()
+		self.assertIsNotNone(req_notif)
+
+
 

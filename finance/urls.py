@@ -21,6 +21,8 @@ urlpatterns = [
     path("reconciliation/<uuid:cluster_pk>/match/<int:match_pk>/delete/", views.delete_match, name="delete_match"),
     path("blockchain/<str:pk>/verify/", views.verify_finance_integrity_view, name="verify_finance_integrity"),
     path("vouchers/<int:pk>/correct/", views.compensating_correction_voucher, name="compensating_correction_voucher"),
+    path("recompensation/submit/", views.submit_recompensation_report, name="submit_recompensation_report"),
+    path("recompensation/<uuid:report_id>/review/", views.review_recompensation_report, name="review_recompensation_report"),
     path("invoice/<int:pk>/pdf/", views.download_invoice_pdf, name="download_invoice_pdf"),
     path("voucher/<int:pk>/pdf/", views.download_voucher_pdf, name="download_voucher_pdf"),
 ]

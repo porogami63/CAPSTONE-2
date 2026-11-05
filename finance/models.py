@@ -1,5 +1,6 @@
 from decimal import Decimal
 from datetime import date
+import uuid
 
 from django.conf import settings
 from django.db import models
@@ -328,3 +329,95 @@ class PaymentExpenseMatch(models.Model):
 
     def __str__(self):
         return f"{self.payment_reference} -> {self.get_expense_type_display()}"
+
+
+class RecompensationReport(models.Model):
+    class Category(models.TextChoices):
+        FINANCE = "finance", "Financial / Cheque / Cash Voucher"
+        DELIVERY = "delivery", "Delivery Batch / Weighbridge Tonnage"
+        PO = "po", "Purchase Order / Contract Terms"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending Manager Review"
+        APPROVED = "approved", "Approved & Recompensated"
+        REJECTED = "rejected", "Rejected / Dismissed"
+
+    report_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cluster = models.ForeignKey(
+        TransactionCluster,
+        on_delete=models.CASCADE,
+        related_name="recompensation_reports",
+        null=True,
+        blank=True,
+    )
+    category = models.CharField(max_length=30, choices=Category.choices, default=Category.FINANCE)
+    target_reference = models.CharField(
+        max_length=100,
+        help_text="e.g. PO-20260223-001, Batch #DEL-8812, or Cheque #CHQ-99112",
+    )
+    item_type = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Underlying model if directly mapped (e.g. CashVoucher, DeliveryLedger)",
+    )
+    item_id = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="PK of target record if known",
+    )
+    error_summary = models.CharField(
+        max_length=255,
+        help_text="Short summary of what went wrong",
+    )
+    original_value = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Original erroneous figure or state",
+    )
+    proposed_value = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Proposed corrected figure or state",
+    )
+    user_notes = models.TextField(
+        help_text="Detailed notes from reporting staff explaining what went wrong",
+    )
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="submitted_recompensation_reports",
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_recompensation_reports",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    manager_notes = models.TextField(
+        blank=True,
+        default="",
+        help_text="Resolution or decision notes from manager",
+    )
+    compensating_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Reference of compensating voucher or adjustment executed",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Recompensation Report"
+        verbose_name_plural = "Recompensation Reports"
+
+    def __str__(self):
+        return f"[{self.get_category_display()}] {self.target_reference}: {self.error_summary} ({self.get_status_display()})"
