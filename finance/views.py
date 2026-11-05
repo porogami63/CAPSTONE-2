@@ -37,9 +37,9 @@ def _enrich_cluster_vouchers(cluster, vouchers, existing_match_refs):
         v_num = (v.voucher_number or "").upper()
         v_purpose = (v.purpose or "")
         v.is_paid_or_matched = (
-            v.status == CashVoucher.Status.ISSUED
-            or v.voucher_number in existing_match_refs
-        )
+            v.status in (CashVoucher.Status.PAID, CashVoucher.Status.ISSUED)
+            and (v.voucher_number in existing_match_refs or v.status == CashVoucher.Status.PAID)
+        ) or (v.voucher_number in existing_match_refs)
 
         if v.is_paid_or_matched:
             v.status_label = "Paid & Matched"
@@ -304,9 +304,9 @@ def add_match(request, pk):
 
                     # Auto-generate corresponding Cash Voucher for payment outlay match if not an existing delivery voucher
                     if match.payment_reference.startswith("CV-DEL-"):
-                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.ISSUED)
+                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.PAID)
                     elif CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).exists():
-                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.ISSUED)
+                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.PAID)
                     else:
                         active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_CREATION])
                         linked_loan = active_loans.first() if active_loans.exists() else None
@@ -323,7 +323,7 @@ def add_match(request, pk):
                                     voucher_number=voucher_num,
                                     amount=match.amount,
                                     purpose=purpose_text,
-                                    status=CashVoucher.Status.ISSUED,
+                                    status=CashVoucher.Status.PAID,
                                     issued_at=timezone.localdate(),
                                 )
                             except Exception:
