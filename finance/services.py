@@ -4,11 +4,21 @@ from decimal import Decimal
 from django.db.models import Sum
 
 
-def check_loan_capital_cap(cluster, exclude_loan_id=None) -> tuple[bool, str]:
+FUNDED_LOAN_STATUSES = ("active", "overdue", "pending_settlement", "closed")
+
+
+def check_loan_capital_cap(cluster, new_principal=None, exclude_loan_id=None) -> tuple[bool, str]:
     """
     Validates whether new loan creation or loan approval is permitted for the given PO/cluster.
-    Logic: Checks Sum(Active/Approved Loans for PO) against Total Capital Requirement.
-    If Total Funded Capital >= 100% of Capital Requirement, blocks creation or approval.
+
+    Rule: Sum(Active/Approved Loans for PO) + proposed principal must not exceed the
+    Initial Suggested Loan Amount (100% Sourcing + 100% Logistics).
+
+    Args:
+        cluster: TransactionCluster being financed.
+        new_principal: Principal of the loan being created or approved (Decimal). Optional.
+        exclude_loan_id: Loan PK to exclude from already-funded totals (e.g. the loan being edited/approved).
+
     Returns:
         (is_allowed: bool, error_message: str)
     """
@@ -16,27 +26,29 @@ def check_loan_capital_cap(cluster, exclude_loan_id=None) -> tuple[bool, str]:
         return True, ""
 
     from operations.services.pricing import loan_requirement_data
-    from finance.models import CapitalLoan
 
     req = loan_requirement_data(cluster)
-    capital_requirement = Decimal(str(req.get("required", Decimal("0.00"))))
-    loan_cap = capital_requirement
+    loan_cap = Decimal(str(req.get("required") or "0.00")).quantize(Decimal("0.01"))
 
-    # Active / Approved loans for PO
-    active_approved_statuses = [
-        CapitalLoan.Status.ACTIVE,
-        CapitalLoan.Status.OVERDUE,
-        CapitalLoan.Status.PENDING_SETTLEMENT,
-        CapitalLoan.Status.CLOSED,
-    ]
-    loans_qs = cluster.loans.filter(status__in=active_approved_statuses)
+    loans_qs = cluster.loans.filter(status__in=FUNDED_LOAN_STATUSES)
     if exclude_loan_id:
         loans_qs = loans_qs.exclude(pk=exclude_loan_id)
 
     total_funded_capital = loans_qs.aggregate(total=Sum("principal"))["total"] or Decimal("0.00")
+    proposed = Decimal(str(new_principal or "0.00"))
     two = Decimal("0.01")
 
-    if loan_cap > Decimal("0.00") and total_funded_capital >= (loan_cap - two):
+    if loan_cap <= Decimal("0.00"):
+        return True, ""
+
+    if total_funded_capital >= (loan_cap - two):
         return False, "Capital requirement for this order has already been 100% funded. Additional loans cannot be created."
+
+    if proposed > Decimal("0.00") and (total_funded_capital + proposed) > (loan_cap + two):
+        remaining = max(loan_cap - total_funded_capital, Decimal("0.00"))
+        return False, (
+            f"Loan principal (₱{proposed:,.2f}) exceeds the remaining capital requirement for this order "
+            f"(₱{remaining:,.2f} of ₱{loan_cap:,.2f} = 100% Sourcing + 100% Logistics)."
+        )
 
     return True, ""

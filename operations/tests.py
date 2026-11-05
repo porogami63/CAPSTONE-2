@@ -725,6 +725,7 @@ class IncrementalDeliveryLedgerTests(TestCase):
             password="testpass123",
             role=User.Role.OPERATIONS_MANAGEMENT,
         )
+        self.client.login(username="ops_mgr", password="testpass123")
 
     def test_dynamic_remaining_mt_and_status_progression(self):
         from decimal import Decimal
@@ -840,6 +841,15 @@ class IncrementalDeliveryLedgerTests(TestCase):
         self.assertEqual(data["total_contracted_mt"], "10000.000")
         self.assertEqual(data["remaining_mt"], "10000.000")
         self.assertEqual(data["po_status"], "Open")
+
+    def test_delivery_and_po_status_api_require_authentication(self):
+        self.client.logout()
+        res_post = self.client.post("/deliveries", data={}, content_type="application/json")
+        self.assertEqual(res_post.status_code, 302)
+        res_get = self.client.get(f"/deliveries/api/po-status/{self.po.po_reference_number}/")
+        self.assertEqual(res_get.status_code, 302)
+        # Re-login for subsequent tests if any
+        self.client.login(username="ops_mgr", password="testpass123")
 
     def test_multi_batch_logistics_rates_and_invoice_suggestion(self):
         from decimal import Decimal

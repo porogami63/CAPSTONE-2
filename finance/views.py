@@ -37,9 +37,8 @@ def _enrich_cluster_vouchers(cluster, vouchers, existing_match_refs):
         v_num = (v.voucher_number or "").upper()
         v_purpose = (v.purpose or "")
         v.is_paid_or_matched = (
-            v.status in (CashVoucher.Status.PAID, CashVoucher.Status.ISSUED)
-            and (v.voucher_number in existing_match_refs or v.status == CashVoucher.Status.PAID)
-        ) or (v.voucher_number in existing_match_refs)
+            v.voucher_number in existing_match_refs or v.status == CashVoucher.Status.ISSUED
+        )
 
         if v.is_paid_or_matched:
             v.status_label = "Paid & Matched"
@@ -273,7 +272,6 @@ def add_match(request, pk):
             CapitalLoan.Status.ACTIVE,
             CapitalLoan.Status.PENDING_SETTLEMENT,
             CapitalLoan.Status.CLOSED,
-            CapitalLoan.Status.PENDING_CREATION,
         ]
     ).exists()
     if not valid_loan_exists:
@@ -289,6 +287,17 @@ def add_match(request, pk):
     if request.method == "POST":
         form = PaymentExpenseMatchForm(request.POST)
         if form.is_valid():
+            ref_input = form.cleaned_data.get("payment_reference", "").strip()
+            if reconciliation.matches.filter(payment_reference=ref_input).exists():
+                messages.error(
+                    request,
+                    f"Duplicate Payment Reference — Reference '{ref_input}' has already been matched for this transaction.",
+                )
+                next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
+                if next_url:
+                    return redirect(next_url)
+                return redirect("finance:reconciliation", pk=pk)
+
             try:
                 with transaction.atomic():
                     match = form.save(commit=False)
@@ -304,16 +313,16 @@ def add_match(request, pk):
 
                     # Auto-generate corresponding Cash Voucher for payment outlay match if not an existing delivery voucher
                     if match.payment_reference.startswith("CV-DEL-"):
-                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.PAID)
+                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.ISSUED)
                     elif CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).exists():
-                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.PAID)
+                        CashVoucher.objects.filter(cluster=cluster, voucher_number=match.payment_reference).update(status=CashVoucher.Status.ISSUED)
                     else:
-                        active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_CREATION])
+                        active_loans = cluster.loans.filter(status__in=[CapitalLoan.Status.ACTIVE, CapitalLoan.Status.CLOSED, CapitalLoan.Status.PENDING_SETTLEMENT])
                         linked_loan = active_loans.first() if active_loans.exists() else None
 
                         from operations.services.reference_generators import generate_cv_reference
                         voucher_num = generate_cv_reference(cluster.reference_code)
-                        purpose_text = f"Auto-Voucher ({match.get_expense_type_display()}): {match.notes or match.payment_reference}"[:190]
+                        purpose_text = f"Auto-Voucher ({match.get_expense_type_display()}): {match.notes or match.payment_reference} (Ref: {match.payment_reference})"[:190]
 
                         if not CashVoucher.objects.filter(voucher_number=voucher_num).exists():
                             try:
@@ -323,7 +332,7 @@ def add_match(request, pk):
                                     voucher_number=voucher_num,
                                     amount=match.amount,
                                     purpose=purpose_text,
-                                    status=CashVoucher.Status.PAID,
+                                    status=CashVoucher.Status.ISSUED,
                                     issued_at=timezone.localdate(),
                                 )
                             except Exception:
@@ -370,6 +379,7 @@ def delete_match(request, cluster_pk, match_pk):
                 CashVoucher.objects.filter(cluster=cluster, voucher_number=ref).update(status=CashVoucher.Status.PENDING)
             else:
                 CashVoucher.objects.filter(cluster=cluster, voucher_number=ref).delete()
+                CashVoucher.objects.filter(cluster=cluster, purpose__icontains=f"(Ref: {ref})").delete()
                 clean_ref = "".join(c for c in ref if c.isalnum() or c in "-_")[:20]
                 if not clean_ref:
                     clean_ref = "REF"
@@ -786,6 +796,7 @@ def loan_list(request):
                         level="warning",
                         link="/finance/loans/",
                         exclude_user=request.user,
+                        category="loan",
                     )
                     messages.success(
                         request,
@@ -1087,6 +1098,7 @@ def settle_loan(request, pk):
             level="warning",
             link="/finance/loans/",
             exclude_user=request.user,
+            category="loan",
         )
 
         messages.success(
@@ -1122,7 +1134,7 @@ def verify_loan_creation(request, pk):
 
         if action == "approve":
             from finance.services import check_loan_capital_cap
-            allowed, err_msg = check_loan_capital_cap(loan.cluster, exclude_loan_id=loan.pk)
+            allowed, err_msg = check_loan_capital_cap(loan.cluster, new_principal=loan.principal, exclude_loan_id=loan.pk)
             if not allowed:
                 messages.error(request, err_msg)
                 next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
@@ -1390,7 +1402,7 @@ def download_invoice_pdf(request, pk):
     pisa_status = pisa.CreatePDF(html, dest=response)
 
     if pisa_status.err:
-        return HttpResponse("Error generating Invoice PDF document.", status=500)
+        return HttpResponse("Error generating Invoice PDF document.", status=500, content_type="text/plain")
     return response
 
 
@@ -1412,5 +1424,5 @@ def download_voucher_pdf(request, pk):
     pisa_status = pisa.CreatePDF(html, dest=response)
 
     if pisa_status.err:
-        return HttpResponse("Error generating Cash Voucher PDF document.", status=500)
+        return HttpResponse("Error generating Cash Voucher PDF document.", status=500, content_type="text/plain")
     return response

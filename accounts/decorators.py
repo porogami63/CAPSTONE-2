@@ -26,10 +26,9 @@ def role_required(*roles):
                 if any(r in allowed_roles for r in ("operations", "finance", "invoicing")):
                     return view_func(request, *args, **kwargs)
 
-            # Operations role access:
-            if user_role == "operations":
-                if "operations" in allowed_roles or "operations_management" in allowed_roles:
-                    return view_func(request, *args, **kwargs)
+            # Operations role access: standard operations staff only match views that explicitly
+            # allow "operations". They must NOT inherit Operations Manager approval privileges
+            # (loan verification, PO/CHAI approvals, invoice/reconciliation approvals).
 
             if user_role not in allowed_roles:
                 raise PermissionDenied

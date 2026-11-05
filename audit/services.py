@@ -49,20 +49,22 @@ def log_model_change(*, instance, user, action, old_snapshot=None):
     )
 
 
-def notify_user(user, title, message, level="info", link=None):
+def notify_user(user, title, message, level="info", link=None, category=None):
     if not user:
         return None
     from .models import Notification
+    cat = category or Notification.Category.SYSTEM
     return Notification.objects.create(
         recipient=user,
         title=title,
         message=message,
         level=level,
         link=link,
+        category=cat,
     )
 
 
-def notify_roles(roles, title, message, level="info", link=None, exclude_user=None):
+def notify_roles(roles, title, message, level="info", link=None, exclude_user=None, category=None):
     from accounts.models import User
     from .models import Notification
 
@@ -70,6 +72,7 @@ def notify_roles(roles, title, message, level="info", link=None, exclude_user=No
     if exclude_user:
         users = users.exclude(pk=exclude_user.pk)
 
+    cat = category or Notification.Category.SYSTEM
     notifications = [
         Notification(
             recipient=u,
@@ -77,6 +80,7 @@ def notify_roles(roles, title, message, level="info", link=None, exclude_user=No
             message=message,
             level=level,
             link=link,
+            category=cat,
         )
         for u in users
     ]

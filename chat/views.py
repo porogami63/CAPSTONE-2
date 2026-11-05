@@ -182,8 +182,9 @@ def api_unread_count(request):
     return JsonResponse({"status": "success", "unread_count": unread_count})
 
 
-def send_system_notification(cluster, message_text, sender_user=None):
-    """Helper to post automated system notifications into transaction cluster chat threads."""
+def send_system_notification(cluster, message_text, sender_user=None, create_notification=False):
+    """Helper to post automated system notifications into transaction cluster chat threads.
+    By default create_notification=False to prevent duplicate user notifications when callers explicitly notify roles."""
     if not sender_user:
         sender_user = User.objects.filter(is_superuser=True).first() or User.objects.filter(role=User.Role.ADMINISTRATOR).first()
     if not sender_user or not cluster:
@@ -196,15 +197,16 @@ def send_system_notification(cluster, message_text, sender_user=None):
         is_system=True,
     )
 
-    from audit.services import notify_roles
-    notify_roles(
-        [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.MANAGEMENT],
-        title=f"Operational Event — {cluster.reference_code}",
-        message=message_text,
-        level="warning",
-        link=f"/operations/{cluster.pk}/",
-        exclude_user=sender_user,
-    )
+    if create_notification:
+        from audit.services import notify_roles
+        notify_roles(
+            [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.MANAGEMENT],
+            title=f"Operational Event — {cluster.reference_code}",
+            message=message_text,
+            level="warning",
+            link=f"/operations/{cluster.pk}/",
+            exclude_user=sender_user,
+        )
 
     return msg
 

@@ -5,12 +5,13 @@ from decimal import Decimal
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_protect, csrf_exempt
+from django.views.decorators.csrf import csrf_protect
 from django.db import transaction
 from django.db.models import F, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from accounts.decorators import role_required
 from accounts.models import User
@@ -29,6 +30,17 @@ from .services.excel_import import (
 from .services.pricing import cluster_financials
 from .services.copilot_services import evaluate_copilot_query
 from .services.stats_services import get_operational_stats, check_input_outliers
+
+
+def _safe_next_url(request, raw_url):
+    """Return raw_url only if it points to this host (prevents open redirects)."""
+    if raw_url and url_has_allowed_host_and_scheme(
+        url=raw_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return raw_url
+    return None
 
 
 @role_required(
@@ -1054,6 +1066,7 @@ def add_loan(request, pk):
                     level="warning",
                     link="/finance/loans/",
                     exclude_user=request.user,
+                    category="loan",
                 )
                 messages.success(request, f"Capital loan facility from {loan.bank_name} recorded and submitted for VERIFICATION.")
             else:
@@ -1084,7 +1097,7 @@ def update_invoice_status(request, invoice_pk):
                 request,
                 f"Invoice {invoice.invoice_number} status updated to {invoice.get_status_display()}.",
             )
-        next_url = request.POST.get("next")
+        next_url = _safe_next_url(request, request.POST.get("next"))
         if next_url:
             return redirect(next_url)
     return redirect("operations:cluster_detail", pk=invoice.cluster.pk)
@@ -1136,7 +1149,7 @@ def resolve_dispute(request, pk):
             cluster._audit_user = request.user
             cluster.save(update_fields=["status", "updated_at"])
 
-    next_url = request.META.get("HTTP_REFERER")
+    next_url = _safe_next_url(request, request.META.get("HTTP_REFERER"))
     if next_url and "/operations/" in next_url:
         return redirect(next_url)
     return redirect("operations:cluster_detail", pk=pk)
@@ -1809,7 +1822,7 @@ def download_contract_pdf(request, pk):
     pisa_status = pisa.CreatePDF(html, dest=response)
 
     if pisa_status.err:
-        return HttpResponse("Error rendering PDF <pre>" + html + "</pre>")
+        return HttpResponse("Error generating PDF document.", status=500, content_type="text/plain")
     return response
 
 
@@ -1838,7 +1851,7 @@ def download_po_pdf(request, pk):
     pisa_status = pisa.CreatePDF(html, dest=response)
 
     if pisa_status.err:
-        return HttpResponse("Error rendering PDF <pre>" + html + "</pre>")
+        return HttpResponse("Error generating PDF document.", status=500, content_type="text/plain")
     return response
 
 
@@ -2297,11 +2310,16 @@ def pending_tasks_view(request):
     return render(request, "operations/pending_tasks.html", context)
 
 
-@csrf_exempt
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS_MANAGEMENT,
+    User.Role.OPERATIONS,
+)
 def delivery_api_view(request):
     """
     API endpoint: POST /deliveries (or /operations/deliveries/api/)
     Validates available MT balance before saving an incremental delivery record.
+    Requires an authenticated operations user and a valid CSRF token (X-CSRFToken header).
     """
     if request.method != "POST":
         return JsonResponse({"error": "METHOD_NOT_ALLOWED", "message": "Only POST requests are supported."}, status=405)
@@ -2454,6 +2472,13 @@ def delivery_api_view(request):
     }, status=201)
 
 
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.OPERATIONS_MANAGEMENT,
+    User.Role.OPERATIONS,
+    User.Role.FINANCE,
+    User.Role.INVOICING,
+)
 def po_status_api(request, po_reference_number):
     """
     Returns real-time status and balance for a Purchase Order by reference code.
@@ -2520,7 +2545,7 @@ def log_delivery_view(request):
                 request,
                 f"Successfully logged {delivery.delivered_mt:,.3f} MT delivery for PO {delivery.purchase_order.po_reference_number or delivery.purchase_order.cluster.reference_code} sourced from {delivery.supplier.name} to {delivery.receiving_location}."
             )
-            next_url = request.POST.get("next")
+            next_url = _safe_next_url(request, request.POST.get("next"))
             if next_url:
                 return redirect(next_url)
             return redirect("operations:cluster_detail", pk=delivery.purchase_order.cluster.pk)
@@ -2529,7 +2554,7 @@ def log_delivery_view(request):
                 for error in errors:
                     label = form.fields[field].label if field in form.fields and form.fields[field].label else field
                     messages.error(request, f"{label}: {error}")
-            next_url = request.POST.get("next")
+            next_url = _safe_next_url(request, request.POST.get("next"))
             if next_url:
                 return redirect(next_url)
     else:
@@ -2693,10 +2718,7 @@ def update_delivery_arrival_view(request, delivery_id):
     received_at_raw = data.get("received_at", "").strip()
     dispatched_mt_raw = (data.get("dispatched_mt") or "").strip() if data.get("dispatched_mt") is not None else ""
     delivered_mt_raw = (data.get("delivered_mt") or "").strip() if data.get("delivered_mt") is not None else ""
-    next_url = request.POST.get("next") or request.GET.get("next")
-    from django.utils.http import url_has_allowed_host_and_scheme
-    if next_url and not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
-        next_url = None
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
 
     if not received_at_raw:
         msg = "Arrival date & time is required."

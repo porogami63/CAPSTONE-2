@@ -244,6 +244,7 @@ class LoanRulesMixin:
 
                 allowed, err_msg = check_loan_capital_cap(
                     cluster,
+                    new_principal=principal,
                     exclude_loan_id=self.instance.pk if (self.instance and self.instance.pk) else None,
                 )
                 if not allowed:

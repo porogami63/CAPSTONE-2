@@ -387,8 +387,10 @@
                     return div.innerHTML;
                 }
 
-                window.handleNotifClick = function(event, notifId, link) {
+                window.handleNotifClick = function(event, notifEl) {
                     if (event) event.preventDefault();
+                    const notifId = notifEl.getAttribute("data-notif-id");
+                    const link = notifEl.getAttribute("data-link");
                     fetch(`/audit/api/notifications/${notifId}/read/`, {
                         method: "POST",
                         headers: {
@@ -396,14 +398,14 @@
                         }
                     })
                     .then(() => {
-                        if (link && link !== "#" && link !== "None") {
+                        if (link && link !== "#" && link !== "None" && link.startsWith('/') && !link.startsWith('//')) {
                             window.location.href = link;
                         } else {
                             fetchNotifications();
                         }
                     })
                     .catch(() => {
-                        if (link && link !== "#" && link !== "None") {
+                        if (link && link !== "#" && link !== "None" && link.startsWith('/') && !link.startsWith('//')) {
                             window.location.href = link;
                         }
                     });
@@ -457,16 +459,24 @@
                                             if (n.category === "logistics") { catIcon = "bi-truck"; catClass = "bg-warning-subtle text-warning-emphasis"; }
                                             if (n.category === "loan") { catIcon = "bi-bank"; catClass = "bg-success-subtle text-success"; }
 
-                                            const safeLink = (n.link || '#').replace(/'/g, "\\'");
+                                            const safeLink = n.link || '#';
+                                            const safeLevel = escapeHtml(String(n.level || 'info').toUpperCase());
+                                            const safeCategory = escapeHtml(String(n.category || 'system').toUpperCase());
+                                            const safeCreatedAt = escapeHtml(String(n.created_at || ''));
+                                            const safeId = parseInt(n.id, 10);
 
                                             html += `
-                                                <div class="list-group-item list-group-item-action p-2.5 text-start notif-item position-relative" style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); color: var(--htc-text); cursor: pointer;" onclick="handleNotifClick(event, ${n.id}, '${safeLink}')">
+                                                <div class="list-group-item list-group-item-action p-2.5 text-start notif-item position-relative"
+                                                     style="background: var(--htc-surface); border-bottom: 1px solid var(--htc-border); color: var(--htc-text); cursor: pointer;"
+                                                     data-notif-id="${safeId}"
+                                                     data-link="${escapeHtml(safeLink)}"
+                                                     onclick="handleNotifClick(event, this)">
                                                     <div class="d-flex w-100 justify-content-between align-items-center mb-1">
                                                         <div class="d-flex align-items-center gap-1.5">
-                                                            <span class="badge ${catClass} px-1.5 py-0.5 fs-8 fw-bold" style="text-transform: uppercase;"><i class="bi ${catIcon} me-1"></i>${n.category}</span>
-                                                            <span class="badge ${badgeClass} px-1.5 py-0.5 fs-8 fw-bold">${n.level.toUpperCase()}</span>
+                                                            <span class="badge ${catClass} px-1.5 py-0.5 fs-8 fw-bold" style="text-transform: uppercase;"><i class="bi ${catIcon} me-1"></i>${safeCategory}</span>
+                                                            <span class="badge ${badgeClass} px-1.5 py-0.5 fs-8 fw-bold">${safeLevel}</span>
                                                         </div>
-                                                        <small style="font-size: 0.68rem; color: var(--htc-text-muted);">${n.created_at}</small>
+                                                        <small style="font-size: 0.68rem; color: var(--htc-text-muted);">${safeCreatedAt}</small>
                                                     </div>
                                                     <div class="fw-bold mb-1" style="font-size: 0.82rem; color: var(--htc-text);">${escapeHtml(n.title)}</div>
                                                     <div style="font-size: 0.78rem; line-height: 1.35; color: var(--htc-text-muted);">${escapeHtml(n.message)}</div>
