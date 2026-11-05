@@ -18,31 +18,6 @@
 })();
 </script>
 <style>
-    /* Clocks badge */
-    .clocks-badge {
-        background-color: var(--htc-success-bg);
-        color: var(--htc-success);
-        border: 1px solid var(--htc-success);
-        padding: 0.3rem 0.75rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-    .clocks-badge::before {
-        content: "";
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background-color: #10b981;
-        box-shadow: 0 0 8px #10b981;
-    }
-
     /* Info Bar */
     .info-bar {
         background-color: var(--htc-warning-bg);
@@ -270,10 +245,6 @@
         vertical-align: middle;
     }
 </style>
-
-<div class="d-flex justify-content-end align-items-center mb-3">
-    <span class="clocks-badge">Aging Clocks Active</span>
-</div>
 
 <!-- TOP KPI CARDS (DIRECTLY BENEATH TITLE BAR) -->
 <div class="metric-grid mb-4" data-step="1" data-intro="Financial KPI summary showing total Active Loans, real-time Incurred Interest liabilities, 50% Delivery Deposits, and Overdue Loans.">
