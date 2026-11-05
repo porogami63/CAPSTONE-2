@@ -575,9 +575,9 @@
                     <div class="shrinkage-row"><span>Weight Loss</span><span class="shrinkage-val red">-{{ sh.shrinkage_mt|floatformat:1 }} MT (-{{ sh.shrinkage_pct|floatformat:2 }}%)</span></div>
                     <div class="headroom-row"><span>Allowed Limit (±1.0%)</span><span class="headroom-val red">{{ sh.over_limit|floatformat:2 }}% over limit</span></div>
                     
-                    <button type="button" class="btn-htc-outline btn-sm w-100 text-center" style="margin-top: 0.5rem; font-size: 0.73rem; color: var(--htc-accent); border-color: rgba(229,62,62,0.4);" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal" data-url="{% url 'operations:resolve_dispute' sh.pk %}" data-code="{{ sh.sh_code }}" data-customer="{{ sh.customer }}" data-mt="{{ sh.shrinkage_mt|floatformat:1 }}" data-pct="{{ sh.shrinkage_pct|floatformat:2 }}" onclick="setupDisputeModal(this)">
-                        Resolve Weight Difference
-                    </button>
+                    <a href="{% url 'operations:resolve_weight_difference' sh.pk %}" class="btn btn-sm btn-outline-danger w-100 text-center fw-bold" style="margin-top: 0.5rem; display: block; font-size: 0.73rem; text-decoration: none;">
+                        Resolve Weight Difference &rarr;
+                    </a>
                 </div>
                 {% empty %}
                 <div style="padding: 1.5rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px dashed var(--htc-border); border-radius: 8px; font-size: 0.8rem;">

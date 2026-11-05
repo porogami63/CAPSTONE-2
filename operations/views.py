@@ -1014,7 +1014,7 @@ def update_logistics(request, pk):
                     title=f"Shrinkage Tolerance Alert — {cluster.reference_code}",
                     message=f"Receiving volume for {cluster.reference_code} incurred a variance of {logistics.variance_percent:.2f}%. Dispute flag active.",
                     level="danger",
-                    link=f"/operations/{cluster.pk}/",
+                    link=f"/operations/{cluster.pk}/resolve-weight-difference/",
                     exclude_user=request.user,
                     category="variance",
                 )
@@ -3131,7 +3131,7 @@ def update_delivery_arrival_view(request, delivery_id):
                     title=f"Shrinkage Tolerance Alert — {cluster.reference_code}",
                     message=f"Delivery batch #{str(delivery.delivery_id)[:8].upper()} on {cluster.reference_code} confirmed with {delivery.variance_percent:.2f}% variance ({delivery.effective_dispatched_mt:,.3f} MT dispatched vs {delivery.delivered_mt:,.3f} MT delivered). Dispute flag active.",
                     level="danger",
-                    link=f"/operations/{cluster.pk}/",
+                    link=f"/operations/{cluster.pk}/resolve-weight-difference/",
                     exclude_user=request.user,
                     category="variance",
                 )

@@ -104,7 +104,7 @@
                         <td>Delivery Company: {{ d.partner.name|default:"—" }} | Weight Loss: <strong class="text-danger">{{ d.variance_percent|floatformat:2 }}%</strong></td>
                         <td><span class="badge bg-danger">Over 1% Allowed Difference</span></td>
                         <td class="text-end pe-3">
-                            <a href="{% url 'operations:cluster_detail' d.cluster.pk %}" class="btn btn-sm btn-outline-danger font-semibold">Resolve Weight Difference</a>
+                            <a href="{% url 'operations:resolve_weight_difference' d.cluster.pk %}" class="btn btn-sm btn-danger text-white font-semibold shadow-xs">Resolve Weight Difference &rarr;</a>
                         </td>
                     </tr>
                     {% endfor %}

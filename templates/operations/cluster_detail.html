@@ -180,8 +180,8 @@
     </div>
     {% if user|has_perm:"edit_logistics" %}
     <div class="d-flex align-items-center gap-2">
-        <a href="{% url 'operations:resolve_weight_difference' cluster.pk %}" class="btn-htc" style="background: #d97706; border-color: #d97706; padding: 0.35rem 0.85rem; font-size: 0.8rem; text-decoration: none;">
-            Review &amp; Settle Difference
+        <a href="{% url 'operations:resolve_weight_difference' cluster.pk %}" class="btn btn-warning btn-sm px-3 py-1.5 fw-bold text-dark shadow-xs" style="text-decoration: none;">
+            Resolve Weight Difference &rarr;
         </a>
     </div>
     {% endif %}
@@ -193,12 +193,12 @@
     </div>
     {% if user|has_perm:"edit_logistics" %}
     <div class="d-flex align-items-center gap-2">
-        <button type="button" class="btn-htc" style="background: #e53e3e; border-color: #e53e3e; padding: 0.35rem 0.85rem; font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal">
-            Resolve Weight Difference
-        </button>
-        <a href="{% url 'operations:resolve_weight_difference' cluster.pk %}" class="btn-htc-outline" style="padding: 0.35rem 0.85rem; font-size: 0.8rem; text-decoration: none;">
-            Detailed Analysis &rarr;
+        <a href="{% url 'operations:resolve_weight_difference' cluster.pk %}" class="btn btn-danger btn-sm px-3 py-1.5 fw-bold text-white shadow-xs" style="text-decoration: none;">
+            Resolve Weight Difference &rarr;
         </a>
+        <button type="button" class="btn-htc-outline btn-sm py-1 px-2.5 fs-8" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal">
+            Quick Modal
+        </button>
     </div>
     {% endif %}
 </div>

@@ -433,9 +433,16 @@
                         </div>
                         {% if d.has_volume_discrepancy %}
                             {% if d.variance_exceeds_tolerance %}
-                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 mt-0.5" title="Discrepancy exceeds 1.0% tolerance — Dispute Active">
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ d.volume_discrepancy_mt|floatformat:3 }} MT ({{ d.variance_percent|floatformat:2 }}%)
-                            </span>
+                            <div class="mt-0.5 d-flex align-items-center gap-1">
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8" title="Discrepancy exceeds 1.0% tolerance — Dispute Active">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ d.volume_discrepancy_mt|floatformat:3 }} MT ({{ d.variance_percent|floatformat:2 }}%)
+                                </span>
+                                {% if d.purchase_order.cluster %}
+                                <a href="{% url 'operations:resolve_weight_difference' d.purchase_order.cluster.pk %}" class="badge bg-danger text-white text-decoration-none fs-8 fw-bold" title="Resolve Weight Difference">
+                                    Resolve &rarr;
+                                </a>
+                                {% endif %}
+                            </div>
                             {% else %}
                             <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-8 mt-0.5" title="Within 1.0% shrinkage tolerance">
                                 {{ d.volume_discrepancy_mt|floatformat:3 }} MT ({{ d.variance_percent|floatformat:2 }}%)
