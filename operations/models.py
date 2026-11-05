@@ -679,11 +679,11 @@ class DeliveryLedger(models.Model):
                 orig = DeliveryLedger.objects.filter(pk=self.pk).first()
                 if orig:
                     errors = {}
-                    if orig.received_at is not None:
+                    if orig.received_at is not None and not getattr(self, "_is_compensating_correction", False):
                         if self.delivered_mt is not None and self.delivered_mt != orig.delivered_mt:
-                            errors["delivered_mt"] = f"Delivered volume ({orig.delivered_mt:,.3f} MT) has already been verified upon arrival and is sealed against modification."
+                            errors["delivered_mt"] = f"Delivered volume ({orig.delivered_mt:,.3f} MT) has already been verified upon arrival and is sealed against modification. Use Compensating Adjustment to record an authorized correction."
                         if orig.dispatched_mt is not None and self.dispatched_mt != orig.dispatched_mt:
-                            errors["dispatched_mt"] = f"Dispatched volume ({orig.dispatched_mt:,.3f} MT) has already been verified upon arrival and is sealed against modification."
+                            errors["dispatched_mt"] = f"Dispatched volume ({orig.dispatched_mt:,.3f} MT) has already been verified upon arrival and is sealed against modification. Use Compensating Adjustment to record an authorized correction."
                     if orig.trucking_partner_id and self.trucking_partner_id != orig.trucking_partner_id:
                         errors["trucking_partner"] = f"Trucking provider ({orig.trucking_partner.name}) is locked once initialized and cannot be changed."
                     if orig.barge_partner_id and self.barge_partner_id != orig.barge_partner_id:

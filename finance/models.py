@@ -106,6 +106,7 @@ class CashVoucher(models.Model):
         PENDING = "pending", "Pending Disbursement"
         ISSUED = "issued", "Issued / Disbursed"
         CANCELLED = "cancelled", "Cancelled"
+        SUPERSEDED = "superseded", "Superseded / Corrected"
 
     cluster = models.ForeignKey(TransactionCluster, on_delete=models.CASCADE, related_name="cash_vouchers")
     loan = models.ForeignKey(
@@ -128,6 +129,27 @@ class CashVoucher(models.Model):
     cheque_number = models.CharField(max_length=50, blank=True, help_text="Physical paper cheque reference number")
     cheque_date = models.DateField(null=True, blank=True, help_text="Issue date of physical cheque")
     issued_at = models.DateField(default=date.today)
+    superseded_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reverses_voucher",
+        help_text="Compensating correction voucher that superseded this entry",
+    )
+    correction_reason = models.TextField(
+        blank=True,
+        default="",
+        help_text="Mandatory managerial justification for compensating correction entry",
+    )
+    corrected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="voucher_corrections_authorized",
+    )
+    corrected_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     history = HistoricalRecords()
 

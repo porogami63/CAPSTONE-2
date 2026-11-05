@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
 from django.db import transaction
 from django.db.models import F, Q, Sum
@@ -3284,6 +3285,93 @@ def update_delivery_arrival_view(request, delivery_id):
 
     messages.success(request, success_msg)
     return redirect(next_url or "operations:deliveries_list")
+
+
+@login_required
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+@require_POST
+def compensating_correction_delivery(request, pk):
+    """
+    Compensating Correction Pattern for Shipping/Delivery Logs:
+    When an operational human data-entry error occurs on a weighbridge ticket or delivery batch,
+    the change is recorded as an indelible compensating adjustment in SystemAuditTrail with
+    mandatory managerial explanation and sign-off, without breaking log continuity.
+    """
+    from audit.models import SystemAuditTrail
+    from .models import DeliveryLedger
+
+    delivery = get_object_or_404(DeliveryLedger.objects.select_related("purchase_order", "supplier"), pk=pk)
+
+    correction_reason = (request.POST.get("correction_reason") or "").strip()
+    if len(correction_reason) < 10:
+        messages.error(
+            request,
+            "A detailed operational justification (minimum 10 characters) is strictly required for audit log compliance."
+        )
+        next_url = request.POST.get("next") or reverse("operations:deliveries_list")
+        return redirect(next_url)
+
+    raw_disp = request.POST.get("dispatched_mt")
+    raw_deliv = request.POST.get("delivered_mt")
+
+    try:
+        new_disp = Decimal(str(raw_disp)).quantize(Decimal("0.001")) if raw_disp else delivery.dispatched_mt
+        new_deliv = Decimal(str(raw_deliv)).quantize(Decimal("0.001")) if raw_deliv else delivery.delivered_mt
+        if new_disp is not None and new_disp < Decimal("0.000"):
+            raise ValueError("Dispatched volume cannot be negative.")
+        if new_deliv is not None and new_deliv < Decimal("0.000"):
+            raise ValueError("Delivered volume cannot be negative.")
+    except Exception as e:
+        messages.error(request, f"Invalid tonnage provided: {str(e)}")
+        next_url = request.POST.get("next") or reverse("operations:deliveries_list")
+        return redirect(next_url)
+
+    old_disp = delivery.dispatched_mt
+    old_deliv = delivery.delivered_mt
+    short_id = str(delivery.delivery_id)[:8].upper()
+
+    # 1. Update delivery record and append indelible note
+    time_str = timezone.now().strftime("%Y-%m-%d %H:%M")
+    author_str = request.user.get_full_name() or request.user.username
+    audit_note = (
+        f"\n[COMPENSATING ADJUSTMENT on {time_str} PST by {author_str}]: "
+        f"Dispatched {old_disp} MT -> {new_disp} MT, Delivered {old_deliv} MT -> {new_deliv} MT. "
+        f"Justification: {correction_reason}"
+    )
+    delivery.notes = (delivery.notes or "") + audit_note
+    delivery.dispatched_mt = new_disp
+    delivery.delivered_mt = new_deliv
+    delivery._is_compensating_correction = True
+    delivery.save()  # Triggers update_status(), sync_cluster_logistics(), sync_delivery_expense_vouchers()
+
+    # 2. Indelible log to SystemAuditTrail
+    try:
+        SystemAuditTrail.objects.create_entry(
+            user=request.user,
+            action=SystemAuditTrail.Action.UPDATE,
+            table_name="DeliveryLedger (Compensating Adjustment)",
+            record_id=f"DEL-{short_id}",
+            old_values={
+                "dispatched_mt": str(old_disp),
+                "delivered_mt": str(old_deliv),
+            },
+            new_values={
+                "dispatched_mt": str(new_disp),
+                "delivered_mt": str(new_deliv),
+                "reason": correction_reason,
+                "authorized_by": author_str,
+            },
+        )
+    except Exception:
+        pass
+
+    messages.success(
+        request,
+        f"Compensating Adjustment successfully logged for Delivery #{short_id}. "
+        f"Volume updated from {old_deliv} MT to {new_deliv} MT with complete historical audit trail preserved."
+    )
+    next_url = request.POST.get("next") or reverse("operations:deliveries_list")
+    return redirect(next_url)
 
 
 

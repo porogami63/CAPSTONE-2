@@ -20,6 +20,7 @@ urlpatterns = [
     path("reconciliation/<uuid:pk>/match/", views.add_match, name="add_match"),
     path("reconciliation/<uuid:cluster_pk>/match/<int:match_pk>/delete/", views.delete_match, name="delete_match"),
     path("blockchain/<str:pk>/verify/", views.verify_finance_integrity_view, name="verify_finance_integrity"),
+    path("vouchers/<int:pk>/correct/", views.compensating_correction_voucher, name="compensating_correction_voucher"),
     path("invoice/<int:pk>/pdf/", views.download_invoice_pdf, name="download_invoice_pdf"),
     path("voucher/<int:pk>/pdf/", views.download_voucher_pdf, name="download_voucher_pdf"),
 ]

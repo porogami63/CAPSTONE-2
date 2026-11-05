@@ -1442,4 +1442,69 @@ class FinancialOperationsWorkflowAndBlockchainTests(TestCase):
 		self.assertEqual(res.status_code, 302)
 		self.assertIn(reverse("operations:blockchain_ledger"), res.url)
 
+	def test_compensating_correction_voucher_workflow(self):
+		"""Tests that correcting a cash voucher executes the Compensating Correction Pattern:
+		1. Original voucher marked SUPERSEDED with reason & author.
+		2. Linked compensating voucher created with corrected amount.
+		3. Indelible log recorded in SystemAuditTrail.
+		"""
+		from finance.models import CashVoucher
+		from audit.models import SystemAuditTrail
+
+		# Create an original voucher
+		voucher = CashVoucher.objects.create(
+			cluster=self.cluster,
+			loan=self.loan,
+			voucher_number="CV-TEST-ORIG-001",
+			amount=Decimal("500000.00"),
+			purpose="Initial upfront trucking deposit",
+			status=CashVoucher.Status.ISSUED,
+			cheque_number="CHQ-991122",
+		)
+
+		correct_url = reverse("finance:compensating_correction_voucher", kwargs={"pk": voucher.pk})
+
+		# 1. Non-authorized role (Invoicing) should be rejected (403)
+		self.client.login(username="regular_invoicing", password="password123")
+		res_invoicing = self.client.post(correct_url, {
+			"error_type": "Typo in Encoded Amount (Adjustment)",
+			"new_amount": "50000.00",
+			"new_cheque_number": "CHQ-991122",
+			"correction_reason": "Typo encode: entered ₱500,000 instead of ₱50,000",
+		})
+		self.assertEqual(res_invoicing.status_code, 403)
+
+		# 2. Finance role submits compensating correction
+		self.client.login(username="regular_finance", password="password123")
+		res = self.client.post(correct_url, {
+			"error_type": "Typo in Encoded Amount (Adjustment)",
+			"new_amount": "50000.00",
+			"new_cheque_number": "CHQ-991122",
+			"correction_reason": "Typo encode: entered ₱500,000 instead of ₱50,000 per signed cheque stub",
+		})
+		self.assertEqual(res.status_code, 302)
+
+		# Verify original voucher is retained as SUPERSEDED (not deleted or edited in place)
+		voucher.refresh_from_db()
+		self.assertEqual(voucher.status, CashVoucher.Status.SUPERSEDED)
+		self.assertEqual(voucher.amount, Decimal("500000.00")) # Untouched!
+		self.assertIsNotNone(voucher.superseded_by)
+		self.assertEqual(voucher.corrected_by, self.finance_user)
+		self.assertIn("Typo encode", voucher.correction_reason)
+
+		# Verify compensating voucher exists
+		comp = voucher.superseded_by
+		self.assertEqual(comp.amount, Decimal("50000.00"))
+		self.assertEqual(comp.voucher_number, "CV-TEST-ORIG-001-REV")
+		self.assertEqual(comp.status, CashVoucher.Status.ISSUED)
+
+		# Verify SystemAuditTrail entry
+		audit_entry = SystemAuditTrail.objects.filter(
+			table_name="CashVoucher (Compensating Correction)",
+			record_id=voucher.voucher_number,
+		).first()
+		self.assertIsNotNone(audit_entry)
+		self.assertEqual(audit_entry.user, self.finance_user)
+		self.assertEqual(audit_entry.new_values.get("compensating_voucher"), comp.voucher_number)
+
 

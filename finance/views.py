@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.template.loader import get_template
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -1045,7 +1046,7 @@ def loan_list(request):
         })
 
     from .models import CashVoucher
-    vouchers = list(CashVoucher.objects.select_related("cluster"))
+    vouchers = list(CashVoucher.objects.select_related("cluster", "superseded_by").order_by("-issued_at", "-created_at"))
     for idx, v in enumerate(vouchers, 1):
         v_status = v.get_status_display() if hasattr(v, "get_status_display") else ("Issued" if v.cheque_number else "Pending Disbursement")
         cheques.append({
@@ -1060,6 +1061,11 @@ def loan_list(request):
             "type": "Cash Voucher",
             "status": v_status,
             "voucher_number": v.voucher_number,
+            "voucher_pk": v.pk,
+            "is_superseded": (v.status == CashVoucher.Status.SUPERSEDED),
+            "superseded_by_voucher": v.superseded_by.voucher_number if v.superseded_by else None,
+            "correction_reason": v.correction_reason,
+            "can_correct": (v.status != CashVoucher.Status.SUPERSEDED),
         })
 
     loan_form = bound_loan_form or StandaloneLoanForm(user=request.user)
@@ -1622,3 +1628,113 @@ def verify_finance_integrity_view(request, pk):
     from finance.services.finance_hash_chain import verify_finance_integrity
     result = verify_finance_integrity(cluster)
     return JsonResponse(result)
+
+
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE)
+def compensating_correction_voucher(request, pk):
+    """
+    Compensating Correction Pattern:
+    When an operational human data-entry error occurs on a cheque/voucher,
+    the original entry is preserved as an indelible historical artifact marked as 'superseded'.
+    A linked compensating voucher is recorded with mandatory managerial explanation and dual-authorization sign-off.
+    """
+    from audit.models import SystemAuditTrail
+    from .models import CashVoucher, PaymentExpenseMatch
+
+    voucher = get_object_or_404(CashVoucher.objects.select_related("cluster", "loan"), pk=pk)
+
+    correction_reason = (request.POST.get("correction_reason") or "").strip()
+    if len(correction_reason) < 10:
+        messages.error(
+            request,
+            "A detailed managerial justification (minimum 10 characters) is strictly required for audit log compliance."
+        )
+        return redirect(f"{reverse('finance:loan_list')}?tab=cheques")
+
+    error_type = request.POST.get("error_type", "Typo in Encoded Amount (Adjustment)")
+    raw_new_amount = request.POST.get("new_amount")
+    new_cheque_num = (request.POST.get("new_cheque_number") or "").strip()
+
+    try:
+        new_amount = Decimal(str(raw_new_amount)).quantize(Decimal("0.01")) if raw_new_amount else voucher.amount
+        if new_amount <= Decimal("0.00"):
+            raise ValueError("Amount must be greater than zero.")
+    except Exception as e:
+        messages.error(request, f"Invalid correction amount provided: {str(e)}")
+        return redirect(f"{reverse('finance:loan_list')}?tab=cheques")
+
+    old_amount = voucher.amount
+    old_cheque_num = voucher.cheque_number
+    old_num = voucher.voucher_number
+
+    # Generate distinct compensating voucher number
+    suffix = 1
+    base_rev = f"{old_num}-REV"
+    new_v_num = base_rev
+    while CashVoucher.objects.filter(voucher_number=new_v_num).exists():
+        suffix += 1
+        new_v_num = f"{base_rev}{suffix}"
+
+    # 1. Create compensating voucher
+    compensating_voucher = CashVoucher.objects.create(
+        cluster=voucher.cluster,
+        loan=voucher.loan,
+        voucher_number=new_v_num,
+        amount=new_amount,
+        purpose=f"Compensating Entry for #{old_num}: {error_type} — {correction_reason}"[:200],
+        status=CashVoucher.Status.ISSUED if (new_cheque_num or old_cheque_num) else CashVoucher.Status.PENDING,
+        cheque_number=new_cheque_num or old_cheque_num,
+        cheque_date=voucher.cheque_date or timezone.localdate(),
+        issued_at=timezone.localdate(),
+    )
+
+    # 2. Mark original voucher as SUPERSEDED (audit retained)
+    voucher.status = CashVoucher.Status.SUPERSEDED
+    voucher.superseded_by = compensating_voucher
+    voucher.correction_reason = f"[{error_type}] Superseded by #{new_v_num}. Reason: {correction_reason}"
+    voucher.corrected_by = request.user
+    voucher.corrected_at = timezone.now()
+    voucher.save(update_fields=["status", "superseded_by", "correction_reason", "corrected_by", "corrected_at"])
+
+    # 3. Synchronize PaymentExpenseMatch if matched
+    match = PaymentExpenseMatch.objects.filter(payment_reference=old_num).first()
+    if match:
+        match.amount = new_amount
+        match.payment_reference = new_v_num
+        match.save(update_fields=["amount", "payment_reference"])
+        recon = match.reconciliation
+        recon.matched_payment_amount = (
+            recon.matches.aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+        )
+        recon.save(update_fields=["matched_payment_amount", "updated_at"])
+
+    # 4. Log indelibly to SystemAuditTrail
+    try:
+        SystemAuditTrail.objects.create_entry(
+            user=request.user,
+            action=SystemAuditTrail.Action.UPDATE,
+            table_name="CashVoucher (Compensating Correction)",
+            record_id=old_num,
+            old_values={
+                "voucher_number": old_num,
+                "amount": str(old_amount),
+                "cheque_number": old_cheque_num,
+                "status": "issued",
+            },
+            new_values={
+                "compensating_voucher": new_v_num,
+                "new_amount": str(new_amount),
+                "new_cheque_number": compensating_voucher.cheque_number,
+                "error_type": error_type,
+                "reason": correction_reason,
+                "authorized_by": request.user.get_full_name() or request.user.username,
+            },
+        )
+    except Exception:
+        pass
+
+    messages.success(
+        request,
+        f"Compensating Correction Entry successfully recorded. Original voucher #{old_num} is retained as an indelible historical artifact. New compensating voucher #{new_v_num} issued."
+    )
+    return redirect(f"{reverse('finance:loan_list')}?tab=cheques")

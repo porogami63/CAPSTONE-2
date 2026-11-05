@@ -2084,3 +2084,68 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
         delivery.delivered_mt = Decimal("520.000")
         with self.assertRaises(ValidationError):
             delivery.full_clean()
+
+    def test_compensating_correction_delivery_workflow(self):
+        """Tests that delivery compensating adjustments require manager role,
+        record an entry in SystemAuditTrail, and append indelible notes without breaking continuity.
+        """
+        from audit.models import SystemAuditTrail
+        from operations.models import DeliveryLedger
+        from accounts.models import User
+
+        invoicing_user = User.objects.create_user(
+            username="invoicing_test_user",
+            password="password123",
+            role=User.Role.INVOICING,
+        )
+        ops_mgr = User.objects.create_user(
+            username="ops_mgr_test",
+            password="password123",
+            role=User.Role.OPERATIONS_MANAGEMENT,
+        )
+
+        delivery = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill,
+            dispatched_mt=Decimal("100.000"),
+            delivered_mt=Decimal("100.000"),
+            receiving_location="Customer Main Site",
+            delivery_date=timezone.localdate(),
+            received_at=timezone.now(),
+        )
+
+        correct_url = reverse("operations:compensating_correction_delivery", kwargs={"pk": delivery.pk})
+
+        # 1. Standard logistics/invoicing user blocked with 403
+        self.client.login(username="invoicing_test_user", password="password123")
+        res_blocked = self.client.post(correct_url, {
+            "dispatched_mt": "100.000",
+            "delivered_mt": "98.500",
+            "correction_reason": "Typo in scale encode: corrected to 98.500 MT per physical DR",
+        })
+        self.assertEqual(res_blocked.status_code, 403)
+
+        # 2. Operations Manager authorized to post compensating adjustment
+        self.client.login(username="ops_mgr_test", password="password123")
+        res = self.client.post(correct_url, {
+            "dispatched_mt": "100.000",
+            "delivered_mt": "98.500",
+            "correction_reason": "Typo in scale encode: corrected to 98.500 MT per physical DR #8812 scale receipt",
+        })
+        self.assertEqual(res.status_code, 302)
+
+        # 3. Verify delivery volume updated and note appended
+        delivery.refresh_from_db()
+        self.assertEqual(delivery.delivered_mt, Decimal("98.500"))
+        self.assertIn("COMPENSATING ADJUSTMENT", delivery.notes)
+        self.assertIn("DR #8812 scale receipt", delivery.notes)
+
+        # 4. Verify SystemAuditTrail recorded the compensating adjustment
+        short_id = str(delivery.delivery_id)[:8].upper()
+        audit_entry = SystemAuditTrail.objects.filter(
+            table_name="DeliveryLedger (Compensating Adjustment)",
+            record_id=f"DEL-{short_id}",
+        ).first()
+        self.assertIsNotNone(audit_entry)
+        self.assertEqual(audit_entry.new_values.get("delivered_mt"), "98.500")
+        self.assertIn("DR #8812", audit_entry.new_values.get("reason"))
