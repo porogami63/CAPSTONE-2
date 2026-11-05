@@ -1285,6 +1285,13 @@ function setPresetTenor(days) {
         dueDateInput.value = baseDate.toISOString().split('T')[0];
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        [...tooltipTriggerList].map(el => new bootstrap.Tooltip(el));
+    } catch(e) {}
+});
 </script>
 {% endif %}
 

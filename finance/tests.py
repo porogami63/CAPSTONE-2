@@ -1223,3 +1223,82 @@ class DynamicSuggestedLogisticsPaymentAndOpExAuditTests(TestCase):
 		self.assertEqual(audit_log[1]["event_type"], "DP Reconciliation")
 		self.assertEqual(audit_log[1]["reconciled_amount"], 225000.0)
 		self.assertEqual(audit_log[1]["status"], "Reconciled")
+
+
+class FinancialBlockchainAndLifecycleTests(TestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(
+			username="fin_blockchain_admin",
+			password="password123",
+			role=User.Role.ADMINISTRATOR,
+		)
+		self.client.force_login(self.user)
+
+		from masters.models import Client as MasterClient, SugarMill
+		self.client_corp = MasterClient.objects.create(name="Tanduay Distillers")
+		self.mill = SugarMill.objects.create(name="Victorias Milling", location="Negros")
+
+		self.cluster = TransactionCluster.objects.create(
+			reference_code="PO-20261106-CHAIN",
+			client=self.client_corp,
+			sugar_mill=self.mill,
+			status=TransactionCluster.Status.ACTIVE,
+		)
+		self.po = PurchaseOrder.objects.create(
+			cluster=self.cluster,
+			customer=self.client_corp,
+			po_reference_number="PO-20261106-CHAIN",
+			volume_mt=Decimal("1500.000"),
+			unit_price=Decimal("12000.00"),
+			selling_price=Decimal("16500.00"),
+		)
+
+	def test_finance_hash_chain_service_integrity(self):
+		from finance.services.finance_hash_chain import (
+			get_finance_lifecycle_chain,
+			get_finance_block_info,
+			verify_finance_integrity,
+		)
+
+		chain = get_finance_lifecycle_chain(self.cluster)
+		self.assertEqual(len(chain), 5)
+		self.assertEqual(chain[0]["block_index"], 1)
+		self.assertEqual(chain[0]["stage_key"], "capital_formulation")
+		self.assertEqual(chain[0]["prev_hash_short"], "00000000...000000 (Genesis)")
+		self.assertTrue(chain[0]["is_sealed"])
+		self.assertIn("PST", chain[0]["timestamp"])
+
+		block_info = get_finance_block_info(self.cluster)
+		self.assertEqual(block_info["po_reference"], "PO-20261106-CHAIN")
+		self.assertTrue(block_info["is_verified"])
+		self.assertEqual(len(block_info["block_hash"]), 64)
+
+		integrity = verify_finance_integrity(self.cluster)
+		self.assertTrue(integrity["is_intact"])
+		self.assertEqual(integrity["total_stages"], 5)
+		self.assertGreaterEqual(integrity["sealed_stages"], 1)
+		self.assertIn("PST", integrity["verified_at_pst"])
+
+	def test_verify_finance_integrity_endpoint(self):
+		url = reverse("finance:verify_finance_integrity", kwargs={"pk": self.cluster.pk})
+		res = self.client.get(url)
+		self.assertEqual(res.status_code, 200)
+		data = res.json()
+		self.assertTrue(data["is_intact"])
+		self.assertEqual(data["po_reference"], "PO-20261106-CHAIN")
+		self.assertEqual(len(data["lifecycle"]), 5)
+		self.assertEqual(data["lifecycle"][0]["stage_title"], "PO Capital Formulation")
+
+	def test_finance_views_render_blockchain_component(self):
+		recon_url = reverse("finance:reconciliation", kwargs={"pk": self.cluster.pk})
+		recon_res = self.client.get(recon_url)
+		self.assertEqual(recon_res.status_code, 200)
+		self.assertContains(recon_res, "financeBlockchainModal")
+		self.assertContains(recon_res, "Financial Blockchain")
+
+		ws_url = reverse("finance:po_workspace", kwargs={"pk": self.cluster.pk})
+		ws_res = self.client.get(ws_url)
+		self.assertEqual(ws_res.status_code, 200)
+		self.assertContains(ws_res, "financeBlockchainModal")
+		self.assertContains(ws_res, "Financial Blockchain")
+

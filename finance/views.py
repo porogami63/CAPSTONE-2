@@ -18,6 +18,7 @@ from operations.models import TransactionCluster
 
 from .forms import PaymentExpenseMatchForm, StandaloneInvoiceForm, StandaloneLoanForm
 from .models import CapitalLoan, CashVoucher, FinancialReconciliation, Invoice, PaymentExpenseMatch
+from .services.finance_hash_chain import get_finance_block_info, verify_finance_integrity
 
 
 def _safe_next_url(request, raw_url):
@@ -219,6 +220,9 @@ def reconciliation_detail(request, pk):
     selected_voucher_ref = request.GET.get("voucher", "").strip()
     selected_voucher = next((v for v in vouchers if v.voucher_number == selected_voucher_ref), None)
 
+    from finance.services.finance_hash_chain import get_finance_block_info
+    finance_block_info = get_finance_block_info(cluster)
+
     return render(
         request,
         "finance/reconciliation.html",
@@ -256,6 +260,7 @@ def reconciliation_detail(request, pk):
             "match_status": match_status,
             "match_badge": match_badge,
             "financials": fin,
+            "finance_block_info": finance_block_info,
             "reconciliation_suggestions_json": json.dumps(reconciliation_suggestions),
         },
     )
@@ -749,6 +754,7 @@ def po_financial_workspace(request, pk):
             "mro_scan_name": mro_scan_name,
             "mro_scan_url": mro_scan_url,
             "is_consolidated_mro": is_consolidated_mro,
+            "finance_block_info": get_finance_block_info(cluster),
         },
     )
 
@@ -1428,3 +1434,36 @@ def download_voucher_pdf(request, pk):
     if pisa_status.err:
         return HttpResponse("Error generating Cash Voucher PDF document.", status=500, content_type="text/plain")
     return response
+
+
+@role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE, User.Role.OPERATIONS, User.Role.MANAGEMENT)
+def verify_finance_integrity_view(request, pk):
+    """
+    Cryptographic verification endpoint for a Purchase Order's financial records.
+    Calculates SHA-256 hash chaining across:
+    1. PO Capital Formulation (Genesis)
+    2. Bank Facility Allocation & Dual Verification
+    3. Cash Voucher & Logistics Advance Disbursements
+    4. Zero-Tolerance Payment Expense Reconciler
+    5. Tax Invoicing & Final Loan Clearance
+    """
+    cluster = None
+    try:
+        import uuid
+        u = uuid.UUID(str(pk))
+        cluster = TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics").filter(pk=u).first()
+    except (ValueError, TypeError, AttributeError):
+        pass
+
+    if not cluster:
+        cluster = TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics").filter(
+            Q(reference_code__iexact=str(pk)) | Q(purchase_order__po_reference_number__iexact=str(pk))
+        ).first()
+
+    from django.http import JsonResponse
+    if not cluster:
+        return JsonResponse({"error": "NOT_FOUND", "message": "Transaction cluster not found."}, status=404)
+
+    from finance.services.finance_hash_chain import verify_finance_integrity
+    result = verify_finance_integrity(cluster)
+    return JsonResponse(result)

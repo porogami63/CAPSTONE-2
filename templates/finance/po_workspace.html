@@ -114,6 +114,12 @@
         </ol>
     </nav>
     <div class="d-flex gap-3 align-items-center flex-wrap">
+        <button type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-1.5 py-2 px-3.5 fs-7 fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#financeBlockchainModal" id="financeBlockchainBtn" title="View Cryptographic Financial Blockchain Record & Lifecycle Stages">
+            <i class="bi bi-shield-check text-primary"></i>
+            <span>Financial Blockchain</span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle ms-1 font-monospace" style="font-size: 0.72rem;">{{ finance_block_info.sealed_count }}/5</span>
+            <span class="badge bg-danger rounded-pill ms-1 d-none" id="financeBlockchainUpdateDot" style="font-size: 0.65rem;">New</span>
+        </button>
         <a href="{% url 'finance:loan_list' %}" class="btn btn-outline-secondary py-2 px-3.5 fs-7 fw-semibold" title="Return to Loans Portfolio">
             &larr; Loans <span class="visually-hidden">Return to Loans Portfolio</span>
         </a>
@@ -184,21 +190,21 @@
             </div>
         </div>
 
-        <!-- Sizable Deal Metrics - Spacious, High-Contrast -->
+        <!-- Sizable Deal Metrics - Spacious, High-Contrast with Educational Tooltips -->
         <div class="d-flex gap-3 flex-wrap align-items-center">
-            <div class="metric-stat-box text-center" style="min-width: 140px;">
+            <div class="metric-stat-box text-center" style="min-width: 140px;" data-bs-toggle="tooltip" data-bs-placement="top" title="Total metric tons of molasses contracted in this purchase order.">
                 <div class="text-xs text-muted text-uppercase fw-semibold mb-1">Contract Volume</div>
                 <div class="fs-6 fw-bold text-dark font-monospace">{{ po.volume_mt|floatformat:3|intcomma }} MT</div>
             </div>
-            <div class="metric-stat-box text-center" style="min-width: 155px;">
+            <div class="metric-stat-box text-center" style="min-width: 155px;" data-bs-toggle="tooltip" data-bs-placement="top" title="Total procurement cost payable to the sugar mill (MT x Unit Buying Price).">
                 <div class="text-xs text-muted text-uppercase fw-semibold mb-1">Purchase Cost</div>
                 <div class="fs-6 fw-bold text-dark font-monospace">₱{{ financials.purchase_total|floatformat:2|intcomma }}</div>
             </div>
-            <div class="metric-stat-box text-center" style="min-width: 155px;">
+            <div class="metric-stat-box text-center" style="min-width: 155px;" data-bs-toggle="tooltip" data-bs-placement="top" title="Gross commercial income receivable from customer (MT x Unit Selling Price).">
                 <div class="text-xs text-muted text-uppercase fw-semibold mb-1">Projected Sales</div>
                 <div class="fs-6 fw-bold text-dark font-monospace">₱{{ expected_sales|floatformat:2|intcomma }}</div>
             </div>
-            <div class="metric-stat-box text-center" style="min-width: 155px; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.25);">
+            <div class="metric-stat-box text-center" style="min-width: 155px; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.25);" data-bs-toggle="tooltip" data-bs-placement="top" title="HTC's projected trading spread: Projected Sales minus Purchase Cost and Logistics Expenses.">
                 <div class="text-xs text-success text-uppercase fw-semibold mb-1">Gross Margin</div>
                 <div class="fs-6 fw-bold text-success font-monospace">
                     +₱{{ gross_margin|floatformat:2|intcomma }}
@@ -227,10 +233,10 @@
             <thead class="table-light">
                 <tr>
                     <th class="ps-4 py-2.5">Expense Audit Metric</th>
-                    <th class="text-end py-2.5">Sourcing (Sugar Mill)</th>
-                    <th class="text-end py-2.5">Delivery (Trucking)</th>
-                    <th class="text-end py-2.5">Barge (Marine Freight)</th>
-                    <th class="text-end pe-4 py-2.5">Total PO Expenses</th>
+                    <th class="text-end py-2.5" data-bs-toggle="tooltip" data-bs-placement="top" title="100% Raw sugar molasses purchase price from origin sugar mill.">Sourcing (Sugar Mill)</th>
+                    <th class="text-end py-2.5" data-bs-toggle="tooltip" data-bs-placement="top" title="Land transport fees for moving cargo from mill to port or customer.">Delivery (Trucking)</th>
+                    <th class="text-end py-2.5" data-bs-toggle="tooltip" data-bs-placement="top" title="Sea shipping, boat, and vessel freight fees.">Barge (Marine Freight)</th>
+                    <th class="text-end pe-4 py-2.5" data-bs-toggle="tooltip" data-bs-placement="top" title="Total combined expenses needed to fulfill this purchase order.">Total PO Expenses</th>
                 </tr>
             </thead>
             <tbody>
@@ -342,22 +348,22 @@
                 </span>
             </div>
 
-            <!-- 3 Symmetrical Metric Tiles with Generous Margins -->
+            <!-- 3 Symmetrical Metric Tiles with Generous Margins & Helpful Tooltips -->
             <div class="row g-3 mb-4">
                 <div class="col-4">
-                    <div class="metric-stat-box h-100">
+                    <div class="metric-stat-box h-100" data-bs-toggle="tooltip" data-bs-placement="top" title="100% of raw sugar purchase cost payable to the sugar mill.">
                         <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Sourcing Price (100%)</div>
                         <div class="fs-5 fw-bold text-dark font-monospace">₱{{ loan_req.sourcing|floatformat:2|intcomma }}</div>
                     </div>
                 </div>
                 <div class="col-4">
-                    <div class="metric-stat-box h-100">
+                    <div class="metric-stat-box h-100" data-bs-toggle="tooltip" data-bs-placement="top" title="Combined land trucking and marine freight transport expenses.">
                         <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Logistics Price (100%)</div>
                         <div class="fs-5 fw-bold text-dark font-monospace">₱{{ loan_req.logistics_total|floatformat:2|intcomma }}</div>
                     </div>
                 </div>
                 <div class="col-4">
-                    <div class="metric-stat-box h-100" style="border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.05);">
+                    <div class="metric-stat-box h-100" style="border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.05);" data-bs-toggle="tooltip" data-bs-placement="top" title="Recommended bank facility ceiling to finance this order (100% Sourcing + 100% Logistics).">
                         <div class="text-xs text-success text-uppercase fw-semibold mb-1.5">Suggested Loan (100%)</div>
                         <div class="fs-5 fw-bold text-success font-monospace">₱{{ loan_req.required|floatformat:2|intcomma }}</div>
                     </div>
@@ -416,16 +422,16 @@
                 </div>
                 {% endif %}
 
-                <!-- 3 Symmetrical Metric Tiles with Generous Margins -->
+                <!-- 3 Symmetrical Metric Tiles with Generous Margins & Helpful Tooltips -->
                 <div class="row g-3 mb-4">
                     <div class="col-4">
-                        <div class="metric-stat-box h-100">
+                        <div class="metric-stat-box h-100" data-bs-toggle="tooltip" data-bs-placement="top" title="Total target budget required to pay mill and freight carriers in full.">
                             <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Total Budget</div>
                             <div class="fs-5 fw-bold text-dark font-monospace">₱{{ recon_target|floatformat:2|intcomma }}</div>
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="metric-stat-box h-100">
+                        <div class="metric-stat-box h-100" data-bs-toggle="tooltip" data-bs-placement="top" title="Total payment vouchers matched and reconciled to date.">
                             <div class="text-xs text-muted text-uppercase fw-semibold mb-1.5">Paid So Far</div>
                             <div class="fs-5 fw-bold {% if is_over_target %}text-danger{% else %}text-success{% endif %} font-monospace">
                                 ₱{{ matched_amount|floatformat:2|intcomma }}
@@ -433,7 +439,7 @@
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="metric-stat-box h-100" style="{% if is_over_target %}border-color: rgba(220, 53, 69, 0.25); background: rgba(220, 53, 69, 0.03);{% endif %}">
+                        <div class="metric-stat-box h-100" style="{% if is_over_target %}border-color: rgba(220, 53, 69, 0.25); background: rgba(220, 53, 69, 0.03);{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="{% if is_over_target %}Alert: Matched payments exceed target budget.{% else %}Net remaining unpaid balance to be settled.{% endif %}">
                             {% if is_over_target %}
                             <div class="text-xs text-danger text-uppercase fw-semibold mb-1.5">Over Budget</div>
                             <div class="fs-5 fw-bold text-danger font-monospace">+₱{{ excess_amount|floatformat:2|intcomma }}</div>
@@ -1295,5 +1301,15 @@ function previewWorkspaceDoc(url, title) {
     const modal = new bootstrap.Modal(document.getElementById('workspaceDocPreviewModal'));
     modal.show();
 }
+
+// Initialize Bootstrap Tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        [...tooltipTriggerList].map(el => new bootstrap.Tooltip(el));
+    } catch(e) {}
+});
 </script>
+
+{% include "finance/includes/finance_blockchain_modal.html" %}
 {% endblock %}

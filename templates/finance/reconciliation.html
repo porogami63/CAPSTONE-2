@@ -79,7 +79,13 @@
                 Contract Volume: <strong class="text-dark font-monospace">{{ cluster.purchase_order.volume_mt|floatformat:3|intcomma }} MT</strong>
             </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 px-3 shadow-xs" data-bs-toggle="modal" data-bs-target="#financeBlockchainModal" id="financeBlockchainBtn" title="View Cryptographic Financial Blockchain Record & Lifecycle Stages">
+                <i class="bi bi-shield-check text-primary"></i>
+                <span>Financial Blockchain</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle ms-1 font-monospace" style="font-size: 0.7rem;">{{ finance_block_info.sealed_count }}/5</span>
+                <span class="badge bg-danger rounded-pill ms-1 d-none" id="financeBlockchainUpdateDot" style="font-size: 0.65rem;">New</span>
+            </button>
             <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-sm btn-outline-secondary px-3">
                 <i class="bi bi-bank me-1"></i> Finance Workspace
             </a>
@@ -94,17 +100,20 @@
         <div class="progress-bar bg-{{ match_badge }}" role="progressbar" style="width: {{ match_pct }}%;" aria-valuenow="{{ match_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
     </div>
 
-    <!-- Streamlined 4-Card KPI Row (Layman Language + Helpful Indicators) -->
+    <!-- Streamlined 4-Card KPI Row (Layman Language + Tooltips + Helpful Indicators) -->
     <div class="row g-3">
         <div class="col-md-3 col-6">
-            <div class="recon-kpi-tile h-100">
-                <div class="text-xs text-muted text-uppercase fw-bold mb-1">Total Budget to Pay</div>
+            <div class="recon-kpi-tile h-100" data-bs-toggle="tooltip" data-bs-placement="top" title="Total funds required to fulfill this purchase order in full (Sugar Mill molasses purchase + Trucking + Barging fees).">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-xs text-muted text-uppercase fw-bold">Total Budget to Pay</span>
+                    <i class="bi bi-info-circle text-muted" style="font-size: 0.7rem;"></i>
+                </div>
                 <div class="fs-5 fw-bold text-dark font-monospace">₱{{ total_target|floatformat:2|intcomma }}</div>
                 <div class="text-xs text-muted mt-1">Sugar mill + all delivery costs</div>
             </div>
         </div>
         <div class="col-md-3 col-6">
-            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('sourcing')" title="Click to select Sugar Mill Cost">
+            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('sourcing')" data-bs-toggle="tooltip" data-bs-placement="top" title="100% contracted purchase cost payable to the origin sugar mill for molasses volume. Click to pay mill.">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <span class="text-xs text-muted text-uppercase fw-bold">Sugar Mill Cost</span>
                     <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">100%</span>
@@ -114,7 +123,7 @@
             </div>
         </div>
         <div class="col-md-3 col-6">
-            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('logistics_deposit')" title="Click to select Delivery & Shipping">
+            <div class="recon-kpi-tile clickable h-100" onclick="selectReconCategory('logistics_deposit')" data-bs-toggle="tooltip" data-bs-placement="top" title="Philippine standard 50/50 logistics protocol: 50% advance downpayment on departure, and 50% final balance released after destination weighbridge receipt.">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <span class="text-xs text-muted text-uppercase fw-bold">Delivery &amp; Shipping</span>
                     <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">50% / 50%</span>
@@ -124,7 +133,7 @@
             </div>
         </div>
         <div class="col-md-3 col-6">
-            <div class="recon-kpi-tile h-100" style="background: rgba(16, 185, 129, 0.04); border-color: rgba(16, 185, 129, 0.25);">
+            <div class="recon-kpi-tile h-100" style="background: rgba(16, 185, 129, 0.04); border-color: rgba(16, 185, 129, 0.25);" data-bs-toggle="tooltip" data-bs-placement="top" title="Cumulative payment vouchers matched and reconciled to date. Zero tolerance is enforced against budget overruns.">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <span class="text-xs text-success text-uppercase fw-bold">Total Money Paid</span>
                     <span class="text-xs fw-bold text-success">{{ match_pct }}%</span>
@@ -165,12 +174,12 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold text-xs text-uppercase text-muted mb-1.5">1. What are you paying for?</label>
                         <div class="d-flex flex-wrap gap-1.5" id="reconCategoryTabs" role="tablist">
-                            <button type="button" class="nav-link active" data-recon-cat="sourcing">Sugar Mill</button>
-                            <button type="button" class="nav-link" data-recon-cat="trucking">Trucking</button>
-                            <button type="button" class="nav-link" data-recon-cat="barge">Barge</button>
-                            <button type="button" class="nav-link" data-recon-cat="logistics_deposit">50% Deposit</button>
-                            <button type="button" class="nav-link" data-recon-cat="logistics_balance">50% Balance</button>
-                            <button type="button" class="nav-link" data-recon-cat="other">Other</button>
+                            <button type="button" class="nav-link active" data-recon-cat="sourcing" data-bs-toggle="tooltip" data-bs-placement="bottom" title="100% Purchase Cost payable to origin sugar mill for contracted molasses volume.">Sugar Mill</button>
+                            <button type="button" class="nav-link" data-recon-cat="trucking" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Land transport & hauling expenses from mill to port or customer silo.">Trucking</button>
+                            <button type="button" class="nav-link" data-recon-cat="barge" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Marine freight, boat, or barge sea charter shipping costs.">Barge</button>
+                            <button type="button" class="nav-link" data-recon-cat="logistics_deposit" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Philippine standard: 50% advance downpayment required prior to vessel departure.">50% Deposit</button>
+                            <button type="button" class="nav-link" data-recon-cat="logistics_balance" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Philippine standard: 50% post-delivery balance released after confirmed destination arrival.">50% Balance</button>
+                            <button type="button" class="nav-link" data-recon-cat="other" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Miscellaneous port handling, permits, laboratory testing, or other outlays.">Other</button>
                         </div>
                         <div class="text-xs text-muted mt-1.5" id="suggDescription">100% Purchase Cost from Sugar Mill / Supplier</div>
                         <div class="d-none">
@@ -674,6 +683,14 @@ document.addEventListener('DOMContentLoaded', function() {
         'voucher-row-{{ selected_voucher.pk }}'
     );
     {% endif %}
+
+    // Initialize Bootstrap Tooltips
+    try {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        [...tooltipTriggerList].map(el => new bootstrap.Tooltip(el));
+    } catch(e) {}
 });
 </script>
+
+{% include "finance/includes/finance_blockchain_modal.html" %}
 {% endblock %}

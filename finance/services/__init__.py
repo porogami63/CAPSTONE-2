@@ -3,6 +3,12 @@
 from decimal import Decimal
 from django.db.models import Sum
 
+from .finance_hash_chain import (
+    get_finance_lifecycle_chain,
+    get_finance_block_info,
+    verify_finance_integrity,
+)
+
 
 FUNDED_LOAN_STATUSES = ("active", "overdue", "pending_settlement", "closed")
 
