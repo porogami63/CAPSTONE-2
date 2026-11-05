@@ -749,10 +749,10 @@ class IncrementalDeliveryLedgerTests(TestCase):
         self.assertEqual(self.po.remaining_mt, Decimal("8000.000"))
         self.assertEqual(self.po.po_status, "Partially Fulfilled")
 
-        # 3. Second Shipment: 5,000 MT from CASA -> HTC Tank
+        # 3. Second Shipment: 5,000 MT from BUSCO -> HTC Tank
         d2 = DeliveryLedger.objects.create(
             purchase_order=self.po,
-            supplier=self.mill_casa,
+            supplier=self.mill_busco,
             delivered_mt=Decimal("5000.000"),
             receiving_location="HTC Storage Tank",
             carrier=self.logistics_partner,
@@ -762,10 +762,10 @@ class IncrementalDeliveryLedgerTests(TestCase):
         self.assertEqual(self.po.remaining_mt, Decimal("3000.000"))
         self.assertEqual(self.po.po_status, "Partially Fulfilled")
 
-        # 4. Third Shipment: 3,000 MT from Balayan -> Balayan
+        # 4. Third Shipment: 3,000 MT from BUSCO -> Balayan
         d3 = DeliveryLedger.objects.create(
             purchase_order=self.po,
-            supplier=self.mill_balayan,
+            supplier=self.mill_busco,
             delivered_mt=Decimal("3000.000"),
             receiving_location="Balayan Distillery",
             carrier=self.logistics_partner,
@@ -1501,7 +1501,9 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
     def test_fixed_price_and_barger_trucker_locked_once_initialized(self):
         from django.core.exceptions import ValidationError
         from operations.models import DeliveryLedger
+        from django.utils import timezone
 
+        now = timezone.now()
         d1 = DeliveryLedger.objects.create(
             purchase_order=self.po,
             supplier=self.mill,
@@ -1509,13 +1511,17 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
             delivered_mt=Decimal("500.000"),
             receiving_location="Batangas Port",
             trucking_partner=self.trucker_a,
-            flat_trucking_fee=Decimal("250000.00"),
+            trucking_rate_per_mt=Decimal("450.00"),
             barge_partner=self.barger_a,
-            flat_barge_fee=Decimal("650000.00"),
+            barge_rate_per_mt=Decimal("1200.00"),
+            dispatched_at=now - timezone.timedelta(hours=5),
+            received_at=now,
         )
-        self.assertEqual(d1.trucking_cost, Decimal("250000.00"))
-        self.assertEqual(d1.barge_cost, Decimal("650000.00"))
+        # Pricing strictly per-MT based on dispatched volume
+        self.assertEqual(d1.trucking_cost, Decimal("225000.00"))  # 500 * 450
+        self.assertEqual(d1.barge_cost, Decimal("600000.00"))    # 500 * 1200
 
+        # Attempting different trucker, barger, or per-MT rates fails validation
         d2 = DeliveryLedger(
             purchase_order=self.po,
             supplier=self.mill,
@@ -1523,16 +1529,57 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
             delivered_mt=Decimal("500.000"),
             receiving_location="Batangas Port",
             trucking_partner=self.trucker_b,
-            flat_trucking_fee=Decimal("300000.00"),
+            trucking_rate_per_mt=Decimal("500.00"),
             barge_partner=self.barger_b,
-            flat_barge_fee=Decimal("700000.00"),
+            barge_rate_per_mt=Decimal("1300.00"),
+            dispatched_at=now - timezone.timedelta(hours=2),
+            received_at=now,
         )
         with self.assertRaises(ValidationError):
             d2.full_clean()
 
+    def test_post_arrival_volume_input_timing_constraint(self):
+        from operations.models import DeliveryLedger
+        from django.utils import timezone
+
+        now = timezone.now()
+        # Case 1: In transit (no received_at). Delivered volume must equal dispatched volume
+        d_transit = DeliveryLedger(
+            purchase_order=self.po,
+            supplier=self.mill,
+            dispatched_mt=Decimal("800.000"),
+            delivered_mt=Decimal("750.000"),  # Attempt to report different delivered MT before arrival
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_a,
+            trucking_rate_per_mt=Decimal("450.00"),
+            dispatched_at=now - timezone.timedelta(hours=3),
+            received_at=None,
+        )
+        d_transit.full_clean()
+        # Clean forces delivered_mt = dispatched_mt when received_at is None
+        self.assertEqual(d_transit.delivered_mt, Decimal("800.000"))
+
+        # Case 2: Arrival confirmed (received_at set). Actual delivered MT can be entered & verified
+        d_arrived = DeliveryLedger(
+            purchase_order=self.po,
+            supplier=self.mill,
+            dispatched_mt=Decimal("800.000"),
+            delivered_mt=Decimal("792.000"),
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_a,
+            trucking_rate_per_mt=Decimal("450.00"),
+            dispatched_at=now - timezone.timedelta(hours=5),
+            received_at=now,
+        )
+        d_arrived.full_clean()
+        self.assertEqual(d_arrived.delivered_mt, Decimal("792.000"))
+        self.assertEqual(d_arrived.volume_discrepancy_mt, Decimal("-8.000"))
+
     def test_volume_confirmation_and_variance_calculator_catches_discrepancies(self):
         from operations.models import DeliveryLedger, LogisticsLedger
+        from django.utils import timezone
 
+        now = timezone.now()
         LogisticsLedger.objects.create(
             cluster=self.cluster,
             partner=self.trucker_a,
@@ -1546,9 +1593,11 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
             delivered_mt=Decimal("980.000"),
             receiving_location="Batangas Port",
             trucking_partner=self.trucker_a,
-            flat_trucking_fee=Decimal("250000.00"),
+            trucking_rate_per_mt=Decimal("450.00"),
             barge_partner=self.barger_a,
-            flat_barge_fee=Decimal("650000.00"),
+            barge_rate_per_mt=Decimal("1200.00"),
+            dispatched_at=now - timezone.timedelta(hours=8),
+            received_at=now,
         )
         self.assertEqual(d1.volume_discrepancy_mt, Decimal("-20.000"))
         self.assertEqual(d1.variance_percent, Decimal("2.00"))
@@ -1571,10 +1620,8 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
             "delivery_date": "2026-11-19",
             "trucking_partner": self.trucker_a.pk,
             "trucking_rate_per_mt": "1250.00",
-            "flat_trucking_fee": "500.00",
-            # barge_rate_per_mt and flat_barge_fee omitted (empty string / None)
+            # barge_rate_per_mt omitted (empty string)
             "barge_rate_per_mt": "",
-            "flat_barge_fee": "",
             "vessel_or_truck": "",
             "dr_number": "",
             "waybill_number": "",
@@ -1584,7 +1631,5 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         delivery = form.save()
         self.assertEqual(delivery.barge_rate_per_mt, Decimal("0.00"))
-        self.assertEqual(delivery.flat_barge_fee, Decimal("0.00"))
         self.assertEqual(delivery.trucking_rate_per_mt, Decimal("1250.00"))
-        self.assertEqual(delivery.flat_trucking_fee, Decimal("500.00"))
         self.assertEqual(delivery.delivered_mt, Decimal("2000.000"))

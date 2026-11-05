@@ -425,22 +425,19 @@
                             </span>
                         {% endif %}
                     </td>
-                    <!-- Land Trucking: Locked Carrier & Fixed/Rate Pricing -->
+                    <!-- Land Trucking: Per-MT Pricing -->
                     <td>
-                        {% if d.trucking_partner or d.trucking_rate_per_mt > 0 or d.flat_trucking_fee > 0 or d.carrier or d.vessel_or_truck %}
+                        {% if d.trucking_partner or d.trucking_rate_per_mt > 0 or d.carrier or d.vessel_or_truck %}
                         <div class="d-flex align-items-center gap-1">
                             <span class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 145px;" title="{% if d.trucking_partner %}{{ d.trucking_partner.name }}{% elif d.carrier %}{{ d.carrier.name }}{% else %}Hauler Carrier{% endif %}">
                                 {% if d.trucking_partner %}{{ d.trucking_partner.name }}{% elif d.carrier %}{{ d.carrier.name }}{% else %}Hauler Carrier{% endif %}
                             </span>
-                            <i class="bi bi-lock-fill text-secondary fs-8" title="Locked once initialized"></i>
                         </div>
                         <div class="fs-8 text-muted">
-                            {% if d.flat_trucking_fee > 0 and d.trucking_rate_per_mt > 0 %}
-                                Fixed ₱{{ d.flat_trucking_fee|floatformat:2|intcomma }} + ₱{{ d.trucking_rate_per_mt|floatformat:2 }}/MT
-                            {% elif d.flat_trucking_fee > 0 %}
-                                Fixed: <span class="fw-semibold text-dark">₱{{ d.flat_trucking_fee|floatformat:2|intcomma }}</span>
-                            {% elif d.trucking_rate_per_mt > 0 %}
+                            {% if d.trucking_rate_per_mt > 0 %}
                                 ₱{{ d.trucking_rate_per_mt|floatformat:2 }}/MT (₱{{ d.trucking_cost|floatformat:2|intcomma }})
+                            {% elif d.flat_trucking_fee > 0 %}
+                                ₱{{ d.flat_trucking_fee|floatformat:2|intcomma }}
                             {% else %}
                                 Price: —
                             {% endif %}
@@ -452,22 +449,19 @@
                         <span class="text-muted fs-8">—</span>
                         {% endif %}
                     </td>
-                    <!-- Marine Barging: Locked Carrier & Fixed/Rate Pricing -->
+                    <!-- Marine Barging: Per-MT Pricing -->
                     <td>
-                        {% if d.barge_partner or d.barge_rate_per_mt > 0 or d.flat_barge_fee > 0 or d.vessel_or_barge_name %}
+                        {% if d.barge_partner or d.barge_rate_per_mt > 0 or d.vessel_or_barge_name %}
                         <div class="d-flex align-items-center gap-1">
                             <span class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 145px;" title="{% if d.barge_partner %}{{ d.barge_partner.name }}{% else %}Barge Operator{% endif %}">
                                 {% if d.barge_partner %}{{ d.barge_partner.name }}{% else %}Barge Operator{% endif %}
                             </span>
-                            <i class="bi bi-lock-fill text-secondary fs-8" title="Locked once initialized"></i>
                         </div>
                         <div class="fs-8 text-muted">
-                            {% if d.flat_barge_fee > 0 and d.barge_rate_per_mt > 0 %}
-                                Fixed ₱{{ d.flat_barge_fee|floatformat:2|intcomma }} + ₱{{ d.barge_rate_per_mt|floatformat:2 }}/MT
-                            {% elif d.flat_barge_fee > 0 %}
-                                Fixed: <span class="fw-semibold text-dark">₱{{ d.flat_barge_fee|floatformat:2|intcomma }}</span>
-                            {% elif d.barge_rate_per_mt > 0 %}
+                            {% if d.barge_rate_per_mt > 0 %}
                                 ₱{{ d.barge_rate_per_mt|floatformat:2 }}/MT (₱{{ d.barge_cost|floatformat:2|intcomma }})
+                            {% elif d.flat_barge_fee > 0 %}
+                                ₱{{ d.flat_barge_fee|floatformat:2|intcomma }}
                             {% else %}
                                 Price: —
                             {% endif %}
@@ -555,12 +549,9 @@
                     <h6 class="modal-title fw-bold mb-0 text-white" id="logBatchModalLabel">Log Delivery Batch</h6>
                     <div class="fs-8 text-white-75 d-flex align-items-center flex-wrap gap-2 mt-0.5">
                         <span>PO #{% if focused_po.po_reference_number %}{{ focused_po.po_reference_number }}{% else %}{{ focused_po.cluster.reference_code }}{% endif %} — {% if focused_po.cluster.client %}{{ focused_po.cluster.client.name }}{% elif focused_po.customer %}{{ focused_po.customer.name }}{% else %}—{% endif %}</span>
-                        <span class="badge bg-white bg-opacity-25 text-white border-0 py-0.5 px-2">
-                            <i class="bi bi-person-check-fill me-1 text-info"></i>Customer Origin: {% if focused_po.cluster.client %}{{ focused_po.cluster.client.origin_indicator|default:focused_po.cluster.client.name }}{% elif focused_po.customer %}{{ focused_po.customer.origin_indicator|default:focused_po.customer.name }}{% else %}—{% endif %}
-                        </span>
                         {% if focused_po.cluster.sugar_mill %}
                         <span class="badge bg-white bg-opacity-25 text-white border-0 py-0.5 px-2">
-                            <i class="bi bi-geo-alt-fill me-1 text-warning"></i>Mill Source: {{ focused_po.cluster.sugar_mill.name }}
+                            <i class="bi bi-geo-alt-fill me-1 text-warning"></i>Source Mill: {{ focused_po.cluster.sugar_mill.name }}
                         </span>
                         {% endif %}
                     </div>
@@ -580,16 +571,9 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <div class="form-field-symmetric">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label class="mb-0">Source Sugar Mill <span class="text-danger">*</span></label>
-                                    {% if focused_po.cluster.sugar_mill %}
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-0.5 px-2" title="Contract Origin from PO Header">
-                                        <i class="bi bi-geo-alt me-1"></i>Origin: {{ focused_po.cluster.sugar_mill.name }}
-                                    </span>
-                                    {% endif %}
-                                </div>
+                                <label class="mb-1">Source Sugar Mill <span class="text-danger">*</span></label>
                                 {{ form.supplier }}
-                                <div class="field-help">Origin sugar mill sourcing this batch.</div>
+                                <div class="field-help">Source sugar mill sourcing this batch.</div>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -609,7 +593,7 @@
                                     {{ form.delivered_mt }}
                                     <span class="addon addon-suffix">MT</span>
                                 </div>
-                                <div class="field-help">Confirmed delivered MT (Max: {{ focused_po.remaining_mt|floatformat:3 }} MT).</div>
+                                <div class="field-help" id="modalDeliveredHelp">Editable after batch arrival date is confirmed.</div>
                             </div>
                         </div>
                         <!-- Live Volume Variance Indicator -->
@@ -629,14 +613,9 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <div class="form-field-symmetric">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label class="mb-0">Receiving Customer <span class="text-danger">*</span></label>
-                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-8 py-0.5 px-2" title="Origin Indicator determined by PO Customer">
-                                        Customer Origin: {% if focused_po.cluster.client %}{{ focused_po.cluster.client.origin_indicator|default:focused_po.cluster.client.name }}{% elif focused_po.customer %}{{ focused_po.customer.origin_indicator|default:focused_po.customer.name }}{% else %}—{% endif %}
-                                    </span>
-                                </div>
+                                <label class="mb-1">Receiving Customer <span class="text-danger">*</span></label>
                                 {{ form.receiving_customer }}
-                                <div class="field-help">Strictly locked to PO Customer ({% if focused_po.cluster.client %}{{ focused_po.cluster.client.name }}{% elif focused_po.customer %}{{ focused_po.customer.name }}{% endif %}).</div>
+                                <div class="field-help">Customer strictly locked to linked PO.</div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -673,86 +652,48 @@
                         </div>
                     </div>
 
-                    <!-- Freight & Carrier Details (Fixed Price & Locked Carrier Once Initialized) -->
+                    <!-- Freight & Logistics Rates (Per-MT Pricing & Locked Providers Once Initialized) -->
                     <div class="mt-4 pt-3 border-top">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <h6 class="fw-bold text-dark fs-7 mb-0">
-                                    Trucker / Barger &amp; Fixed Pricing
-                                    {% if form.logistics_locked %}
-                                    <span class="badge bg-secondary text-white fs-8 ms-1.5 py-0.5 px-2"><i class="bi bi-lock-fill me-1"></i>Locked — Initialized on PO</span>
-                                    {% else %}
-                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-8 ms-1.5 py-0.5 px-2"><i class="bi bi-shield-lock me-1"></i>Locks After First Batch</span>
-                                    {% endif %}
-                                </h6>
-                                <p class="text-muted fs-8 mb-0">
-                                    {% if form.logistics_locked %}
-                                    Trucker, Barger, and Fixed Prices were initialized on the first delivery for this PO and cannot be changed.
-                                    {% else %}
-                                    Set the Trucker / Barger and Fixed Price (or Rate/MT) below. Once initialized, carrier and price are locked for this PO.
-                                    {% endif %}
-                                </p>
-                            </div>
-                            <span class="badge bg-light text-primary border fs-8 px-2 py-1 fw-semibold">
-                                <i class="bi bi-lock-fill me-1"></i>Fixed Price Protected
-                            </span>
+                        <div class="mb-3">
+                            <h6 class="fw-bold text-dark fs-7 mb-0">Trucker / Barger &amp; Freight Rates</h6>
+                            <p class="text-muted fs-8 mb-0">Delivery pricing is calculated strictly per-MT based on dispatched volume.</p>
                         </div>
                         <div class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-field-symmetric">
-                                    <label>Trucker (Land Transport) {% if form.logistics_locked and form.initialized_logistics.trucking_partner_id %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
+                                    <label>Trucker (Land Transport)</label>
                                     {{ form.trucking_partner }}
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-field-symmetric">
-                                    <label>Fixed Trucking Price (₱) {% if form.logistics_locked and form.initialized_logistics.flat_trucking_fee > 0 %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
-                                        {{ form.flat_trucking_fee }}
-                                    </div>
-                                    <div class="field-help">Fixed flat price for land trucking.</div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-field-symmetric">
-                                    <label>Trucking Rate (₱/MT) {% if form.logistics_locked and form.initialized_logistics.trucking_rate_per_mt > 0 %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
+                                    <label>Trucking Rate (₱/MT)</label>
                                     <div class="input-addon-group">
                                         <span class="addon addon-prefix">₱</span>
                                         {{ form.trucking_rate_per_mt }}
                                     </div>
                                     <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="modalTrkCalcRow">
-                                        <span><i class="bi bi-truck me-1"></i>Land Total:</span>
+                                        <span><i class="bi bi-truck me-1"></i>Land Freight Total:</span>
                                         <span class="text-primary font-monospace fw-bold" id="modalTrkCalcText">₱0.00</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-field-symmetric">
-                                    <label>Barger (Marine Transport) {% if form.logistics_locked and form.initialized_logistics.barge_partner_id %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
+                                    <label>Barger (Marine Transport)</label>
                                     {{ form.barge_partner }}
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-field-symmetric">
-                                    <label>Fixed Barging Price (₱) {% if form.logistics_locked and form.initialized_logistics.flat_barge_fee > 0 %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
-                                        {{ form.flat_barge_fee }}
-                                    </div>
-                                    <div class="field-help">Fixed flat price for marine barging.</div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-field-symmetric">
-                                    <label>Barging Rate (₱/MT) {% if form.logistics_locked and form.initialized_logistics.barge_rate_per_mt > 0 %}<i class="bi bi-lock-fill text-secondary ms-1" title="Locked"></i>{% endif %}</label>
+                                    <label>Barging Rate (₱/MT)</label>
                                     <div class="input-addon-group">
                                         <span class="addon addon-prefix">₱</span>
                                         {{ form.barge_rate_per_mt }}
                                     </div>
                                     <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="modalBrgCalcRow">
-                                        <span><i class="bi bi-water me-1"></i>Marine Total:</span>
+                                        <span><i class="bi bi-water me-1"></i>Marine Freight Total:</span>
                                         <span class="text-primary font-monospace fw-bold" id="modalBrgCalcText">₱0.00</span>
                                     </div>
                                 </div>
@@ -766,13 +707,12 @@
                                             <i class="bi bi-calculator-fill fs-6"></i>
                                         </div>
                                         <div>
-                                            <div class="fs-8 fw-bold text-dark">Total Initialized Batch Logistics Cost</div>
-                                            <div class="text-xs text-muted" id="modalFreightFormulaText">Fixed price + (Dispatched MT × ₱/MT rate)</div>
+                                            <div class="fs-8 fw-bold text-dark">Total Batch Freight Cost</div>
+                                            <div class="text-xs text-muted" id="modalFreightFormulaText">Dispatched MT × (₱/MT Trucking Rate + ₱/MT Barging Rate)</div>
                                         </div>
                                     </div>
                                     <div class="text-end">
                                         <div class="fs-6 fw-bold text-primary font-monospace" id="modalTotalFreightText">₱0.00</div>
-                                        <div class="text-xs text-muted"><i class="bi bi-lock-fill me-0.5"></i>Locked upon initialization</div>
                                     </div>
                                 </div>
                             </div>
@@ -820,8 +760,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const mtInput = document.querySelector('#logBatchModal input[name="delivered_mt"]');
     const trkRateInput = document.querySelector('#logBatchModal input[name="trucking_rate_per_mt"]');
     const brgRateInput = document.querySelector('#logBatchModal input[name="barge_rate_per_mt"]');
-    const flatTrkInput = document.querySelector('#logBatchModal input[name="flat_trucking_fee"]');
-    const flatBrgInput = document.querySelector('#logBatchModal input[name="flat_barge_fee"]');
+    const receivedInput = document.querySelector('#logBatchModal input[name="received_at"]');
+    const dispatchedInput = document.querySelector('#logBatchModal input[name="dispatched_at"]');
 
     const warnBox = document.getElementById('modalOverDelivWarning');
     const btnSubmit = document.getElementById('btnModalSubmit');
@@ -833,6 +773,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const poCustomerName = "{% if focused_po.cluster.client %}{{ focused_po.cluster.client.name|escapejs }}{% elif focused_po.customer %}{{ focused_po.customer.name|escapejs }}{% endif %}";
     const poMillId = "{{ focused_po.cluster.sugar_mill_id|default:'' }}";
     let userEditedDelivered = false;
+
+    function updateModalDeliveredVolumeEditability() {
+        if (!mtInput) return;
+        const arrivalSet = receivedInput && receivedInput.value;
+        if (arrivalSet) {
+            mtInput.readOnly = false;
+            mtInput.classList.remove('bg-slate-100', 'cursor-not-allowed');
+            mtInput.style.backgroundColor = '';
+            mtInput.style.color = '';
+            const help = document.getElementById('modalDeliveredHelp');
+            if (help) help.textContent = 'Confirmed delivered MT (arrival verified).';
+        } else {
+            mtInput.readOnly = true;
+            mtInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+            mtInput.style.backgroundColor = '#f1f5f9';
+            mtInput.style.color = '#64748b';
+            if (dispInput && dispInput.value) {
+                mtInput.value = dispInput.value;
+            }
+            const help = document.getElementById('modalDeliveredHelp');
+            if (help) help.textContent = 'Editable after batch arrival date is confirmed.';
+        }
+    }
 
     function syncModalToPoCustomer() {
         if (custSelect && poCustomerId) {
@@ -854,6 +817,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 locInput.value = poCustomerName + ' Main Site';
             }
         }
+        updateModalDeliveredVolumeEditability();
     }
     syncModalToPoCustomer();
     window.addEventListener('pageshow', syncModalToPoCustomer);
@@ -864,15 +828,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateModalVarianceAndFreight() {
-        const dispMt = parseFloat(dispInput?.value) || parseFloat(mtInput?.value) || 0;
+        const dispMt = parseFloat(dispInput?.value) || 0;
         const delivMt = parseFloat(mtInput?.value) || 0;
         const trkRate = parseFloat(trkRateInput?.value) || 0;
         const brgRate = parseFloat(brgRateInput?.value) || 0;
-        const flatTrk = parseFloat(flatTrkInput?.value) || 0;
-        const flatBrg = parseFloat(flatBrgInput?.value) || 0;
 
-        const totalTrk = (dispMt * trkRate) + flatTrk;
-        const totalBrg = (dispMt * brgRate) + flatBrg;
+        const totalTrk = dispMt * trkRate;
+        const totalBrg = dispMt * brgRate;
         const grandTotal = totalTrk + totalBrg;
 
         const trkText = document.getElementById('modalTrkCalcText');
@@ -886,13 +848,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (formulaText) {
             if (grandTotal > 0) {
                 let parts = [];
-                if (flatTrk > 0) parts.push(`Fixed Land ₱${flatTrk.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
                 if (trkRate > 0) parts.push(`Land ₱${trkRate.toFixed(2)}/MT`);
-                if (flatBrg > 0) parts.push(`Fixed Barge ₱${flatBrg.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
                 if (brgRate > 0) parts.push(`Barge ₱${brgRate.toFixed(2)}/MT`);
-                formulaText.textContent = parts.join(' + ');
+                formulaText.textContent = `${dispMt.toFixed(3)} MT × (${parts.join(' + ')})`;
             } else {
-                formulaText.textContent = `Fixed price + (Dispatched MT × ₱/MT rate)`;
+                formulaText.textContent = `Dispatched MT × (₱/MT Trucking Rate + ₱/MT Barging Rate)`;
             }
         }
 
@@ -928,11 +888,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (dispInput) {
         dispInput.addEventListener('input', function() {
-            if (mtInput && (!userEditedDelivered || !mtInput.value)) {
+            if (mtInput && mtInput.readOnly) {
+                mtInput.value = this.value;
+            } else if (mtInput && (!userEditedDelivered || !mtInput.value)) {
                 mtInput.value = this.value;
             }
             updateModalVarianceAndFreight();
         });
+    }
+
+    if (receivedInput) {
+        receivedInput.addEventListener('input', function() {
+            updateModalDeliveredVolumeEditability();
+            updateModalVarianceAndFreight();
+        });
+        receivedInput.addEventListener('change', function() {
+            updateModalDeliveredVolumeEditability();
+            updateModalVarianceAndFreight();
+        });
+    }
+    if (dispatchedInput) {
+        dispatchedInput.addEventListener('input', updateModalVarianceAndFreight);
+        dispatchedInput.addEventListener('change', updateModalVarianceAndFreight);
     }
 
     if (mtInput) {
@@ -955,12 +932,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    [trkRateInput, brgRateInput, flatTrkInput, flatBrgInput].forEach(inp => {
+    [trkRateInput, brgRateInput].forEach(inp => {
         if (inp) {
             inp.addEventListener('input', updateModalVarianceAndFreight);
         }
     });
 
+    updateModalDeliveredVolumeEditability();
     updateModalVarianceAndFreight();
 
     {% if request.GET.open_log == '1' and focused_po.remaining_mt > 0 %}

@@ -763,7 +763,7 @@ class DeferredLogisticsAndBatchAccountingTests(TestCase):
 		from operations.models import DeliveryLedger
 		from operations.services.pricing import get_po_logistics_summary
 
-		# Log batch 1: 200 MT @ 300/MT trucking + 1,000 flat trucking fee, 400/MT barge + 2,000 flat barge fee
+		# Log batch 1: 200 MT strictly per-MT (300/MT trucking, 400/MT barge)
 		d1 = DeliveryLedger.objects.create(
 			purchase_order=self.po,
 			supplier=self.mill,
@@ -771,44 +771,42 @@ class DeferredLogisticsAndBatchAccountingTests(TestCase):
 			receiving_location="Warehouse A",
 			trucking_partner=self.logistics_partner,
 			trucking_rate_per_mt=Decimal("300.00"),
-			flat_trucking_fee=Decimal("1000.00"),
 			barge_partner=self.logistics_partner,
 			barge_rate_per_mt=Decimal("400.00"),
-			flat_barge_fee=Decimal("2000.00"),
 		)
-		# Trucking cost = (200 * 300) + 1,000 = 61,000
-		self.assertEqual(d1.trucking_cost, Decimal("61000.00"))
-		# Barge cost = (200 * 400) + 2,000 = 82,000
-		self.assertEqual(d1.barge_cost, Decimal("82000.00"))
-		# Total freight = 61,000 + 82,000 = 143,000
-		self.assertEqual(d1.total_freight_cost, Decimal("143000.00"))
+		# Trucking cost = 200 * 300 = 60,000
+		self.assertEqual(d1.trucking_cost, Decimal("60000.00"))
+		# Barge cost = 200 * 400 = 80,000
+		self.assertEqual(d1.barge_cost, Decimal("80000.00"))
+		# Total freight = 60,000 + 80,000 = 140,000
+		self.assertEqual(d1.total_freight_cost, Decimal("140000.00"))
 
 		# Sync vouchers
 		d1.sync_delivery_expense_vouchers()
 		vouchers = self.cluster.cash_vouchers.all()
 		short_id = str(d1.delivery_id)[:8].upper()
-		self.assertTrue(vouchers.filter(voucher_number=f"CV-DEL-{short_id}-TRK", amount=Decimal("61000.00")).exists())
-		self.assertTrue(vouchers.filter(voucher_number=f"CV-DEL-{short_id}-BRG", amount=Decimal("82000.00")).exists())
+		self.assertTrue(vouchers.filter(voucher_number=f"CV-DEL-{short_id}-TRK", amount=Decimal("60000.00")).exists())
+		self.assertTrue(vouchers.filter(voucher_number=f"CV-DEL-{short_id}-BRG", amount=Decimal("80000.00")).exists())
 
 		# PO Logistics Summary check
 		summary = get_po_logistics_summary(self.cluster)
-		self.assertEqual(summary["total_incurred"], Decimal("143000.00"))
+		self.assertEqual(summary["total_incurred"], Decimal("140000.00"))
 		self.assertEqual(summary["status_indicator"], "In Progress / Ongoing")
 		self.assertEqual(summary["total_delivered_mt"], Decimal("200.000"))
 		self.assertEqual(summary["remaining_undelivered_mt"], Decimal("300.000"))
-		# Avg rate = 143,000 / 200 = 715.00/MT
-		self.assertEqual(summary["avg_rate_per_mt"], Decimal("715.00"))
-		# Projected = 143,000 + (300 * 715) = 143,000 + 214,500 = 357,500
-		self.assertEqual(summary["projected_total"], Decimal("357500.00"))
+		# Avg rate = 140,000 / 200 = 700.00/MT
+		self.assertEqual(summary["avg_rate_per_mt"], Decimal("700.00"))
+		# Projected = 140,000 + (300 * 700) = 140,000 + 210,000 = 350,000
+		self.assertEqual(summary["projected_total"], Decimal("350000.00"))
 
 		# Check cluster_detail rendering
 		res = self.client.get(reverse("operations:cluster_detail", args=[self.cluster.pk]))
 		self.assertEqual(res.status_code, 200)
 		self.assertContains(res, "Logistics Summary")
 		self.assertContains(res, "Total Incurred Logistics Expense")
-		self.assertContains(res, "143,000.00")
+		self.assertContains(res, "140,000.00")
 		self.assertContains(res, "Projected Total Logistics Expense")
-		self.assertContains(res, "357,500.00")
+		self.assertContains(res, "350,000.00")
 		self.assertContains(res, "In Progress / Ongoing")
 
 

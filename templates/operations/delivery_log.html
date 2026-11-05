@@ -246,12 +246,9 @@
                                     <label for="{{ form.supplier.id_for_label }}" class="mb-0">
                                         {{ form.supplier.label }} <span class="text-danger">*</span>
                                     </label>
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-0.5 px-2 d-none" id="originMillPill">
-                                        <i class="bi bi-geo-alt me-1"></i>Origin: <span id="originMillPillText"></span>
-                                    </span>
                                 </div>
                                 {{ form.supplier }}
-                                <div class="field-help">Source sugar mill (defaults to PO contract origin).</div>
+                                <div class="field-help">Source sugar mill.</div>
                                 {% if form.supplier.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1">{{ form.supplier.errors|striptags }}</div>
                                 {% endif %}
@@ -285,7 +282,7 @@
                                     {{ form.delivered_mt }}
                                     <span class="addon addon-suffix">MT</span>
                                 </div>
-                                <div class="field-help" id="maxHelpText">Confirmed delivered MT (max: remaining balance).</div>
+                                <div class="field-help" id="maxHelpText">Editable after batch arrival date is confirmed.</div>
                                 {% if form.delivered_mt.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1">{{ form.delivered_mt.errors|striptags }}</div>
                                 {% endif %}
@@ -313,12 +310,9 @@
                                     <label for="{{ form.receiving_customer.id_for_label }}" class="mb-0">
                                         {{ form.receiving_customer.label }} <span class="text-danger">*</span>
                                     </label>
-                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-8 py-0.5 px-2 d-none" id="customerOriginPill">
-                                        Customer Origin: <span id="customerOriginPillText"></span>
-                                    </span>
                                 </div>
                                 {{ form.receiving_customer }}
-                                <div class="field-help" id="customerLockHelp">Strictly locked to the selected PO's Customer.</div>
+                                <div class="field-help" id="customerLockHelp">Customer strictly locked to the linked PO.</div>
                                 {% if form.receiving_customer.errors %}
                                 <div class="text-danger fs-8 fw-bold mt-1">{{ form.receiving_customer.errors|striptags }}</div>
                                 {% endif %}
@@ -379,33 +373,14 @@
                         </div>
                     </div>
 
-                    <!-- Freight & Carrier Details (Fixed Price & Locked Carrier Once Initialized) -->
+                    <!-- Freight & Logistics Rates (Per-MT Pricing & Locked Providers Once Initialized) -->
                     <div class="mt-4 pt-3 border-top">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <h6 class="fw-bold text-dark fs-7 mb-0">
-                                    Trucker / Barger &amp; Fixed Pricing
-                                    <span class="badge bg-secondary text-white fs-8 ms-1.5 py-0.5 px-2 {% if not form.logistics_locked %}d-none{% endif %}" id="pageLogisticsLockedBadge">
-                                        <i class="bi bi-lock-fill me-1"></i>Locked — Initialized on PO
-                                    </span>
-                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fs-8 ms-1.5 py-0.5 px-2 {% if form.logistics_locked %}d-none{% endif %}" id="pageLogisticsUnlockedBadge">
-                                        <i class="bi bi-shield-lock me-1"></i>Locks After First Batch
-                                    </span>
-                                </h6>
-                                <p class="text-muted fs-8 mb-0" id="pageLogisticsLockDesc">
-                                    {% if form.logistics_locked %}
-                                    Trucker, Barger, and Fixed Prices were initialized on the first delivery for this PO and cannot be changed.
-                                    {% else %}
-                                    Set the Trucker / Barger and Fixed Price (or Rate/MT) below. Once initialized, carrier and price are locked for this PO.
-                                    {% endif %}
-                                </p>
-                            </div>
-                            <span class="badge bg-light text-primary border fs-8 px-2 py-1 fw-semibold">
-                                <i class="bi bi-lock-fill me-1"></i>Fixed Price Protected
-                            </span>
+                        <div class="mb-3">
+                            <h6 class="fw-bold text-dark fs-7 mb-0">Trucking &amp; Barging Rates</h6>
+                            <p class="text-muted fs-8 mb-0">Delivery freight computed strictly per metric ton (₱/MT).</p>
                         </div>
                         <div class="row g-3">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.trucking_partner.id_for_label }}">{{ form.trucking_partner.label }}</label>
                                     {{ form.trucking_partner }}
@@ -414,20 +389,7 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-field-symmetric">
-                                    <label for="{{ form.flat_trucking_fee.id_for_label }}">{{ form.flat_trucking_fee.label }}</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
-                                        {{ form.flat_trucking_fee }}
-                                    </div>
-                                    <div class="field-help">Fixed flat price for land trucking.</div>
-                                    {% if form.flat_trucking_fee.errors %}
-                                    <div class="text-danger fs-8 fw-bold mt-1">{{ form.flat_trucking_fee.errors|striptags }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.trucking_rate_per_mt.id_for_label }}">{{ form.trucking_rate_per_mt.label }}</label>
                                     <div class="input-addon-group">
@@ -435,7 +397,7 @@
                                         {{ form.trucking_rate_per_mt }}
                                     </div>
                                     <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="pageTrkCalcRow">
-                                        <span><i class="bi bi-truck me-1"></i>Land Total:</span>
+                                        <span><i class="bi bi-truck me-1"></i>Land Freight Total:</span>
                                         <span class="text-primary font-monospace fw-bold" id="pageTrkCalcText">₱0.00</span>
                                     </div>
                                     {% if form.trucking_rate_per_mt.errors %}
@@ -444,7 +406,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.barge_partner.id_for_label }}">{{ form.barge_partner.label }}</label>
                                     {{ form.barge_partner }}
@@ -453,20 +415,7 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-field-symmetric">
-                                    <label for="{{ form.flat_barge_fee.id_for_label }}">{{ form.flat_barge_fee.label }}</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
-                                        {{ form.flat_barge_fee }}
-                                    </div>
-                                    <div class="field-help">Fixed flat price for marine barging.</div>
-                                    {% if form.flat_barge_fee.errors %}
-                                    <div class="text-danger fs-8 fw-bold mt-1">{{ form.flat_barge_fee.errors|striptags }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.barge_rate_per_mt.id_for_label }}">{{ form.barge_rate_per_mt.label }}</label>
                                     <div class="input-addon-group">
@@ -474,7 +423,7 @@
                                         {{ form.barge_rate_per_mt }}
                                     </div>
                                     <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="pageBrgCalcRow">
-                                        <span><i class="bi bi-water me-1"></i>Marine Total:</span>
+                                        <span><i class="bi bi-water me-1"></i>Marine Freight Total:</span>
                                         <span class="text-primary font-monospace fw-bold" id="pageBrgCalcText">₱0.00</span>
                                     </div>
                                     {% if form.barge_rate_per_mt.errors %}
@@ -491,13 +440,12 @@
                                             <i class="bi bi-calculator-fill fs-6"></i>
                                         </div>
                                         <div>
-                                            <div class="fs-8 fw-bold text-dark">Total Initialized Batch Logistics Cost</div>
-                                            <div class="text-xs text-muted" id="pageFreightFormulaText">Fixed price + (Dispatched MT × ₱/MT rate)</div>
+                                            <div class="fs-8 fw-bold text-dark">Total Batch Freight Cost</div>
+                                            <div class="text-xs text-muted" id="pageFreightFormulaText">Dispatched MT × (₱/MT Trucking Rate + ₱/MT Barging Rate)</div>
                                         </div>
                                     </div>
                                     <div class="text-end">
                                         <div class="fs-6 fw-bold text-primary font-monospace" id="pageTotalFreightText">₱0.00</div>
-                                        <div class="text-xs text-muted"><i class="bi bi-lock-fill me-0.5"></i>Locked upon initialization</div>
                                     </div>
                                 </div>
                             </div>
@@ -628,53 +576,72 @@ document.addEventListener('DOMContentLoaded', function() {
     const brgSelect = document.getElementById('id_barge_partner') || document.querySelector('select[name="barge_partner"]');
     const trkRateInput = document.querySelector('input[name="trucking_rate_per_mt"]');
     const brgRateInput = document.querySelector('input[name="barge_rate_per_mt"]');
-    const flatTrkInput = document.querySelector('input[name="flat_trucking_fee"]');
-    const flatBrgInput = document.querySelector('input[name="flat_barge_fee"]');
     const vesselBargeInput = document.querySelector('input[name="vessel_or_barge_name"]');
     const truckPlateInput = document.querySelector('input[name="vessel_or_truck"]');
+    const dispatchedInput = document.getElementById('id_dispatched_at') || document.querySelector('input[name="dispatched_at"]');
+    const receivedInput = document.getElementById('id_received_at') || document.querySelector('input[name="received_at"]');
+    const receivedAtClientErr = document.getElementById('receivedAtClientErr');
+    const receivedAtHelp = document.getElementById('receivedAtHelp');
+
+    function updateDeliveredVolumeEditability() {
+        if (!mtInput) return;
+        const arrivalSet = receivedInput && receivedInput.value && checkArrivalDateAndStatus();
+        if (arrivalSet) {
+            mtInput.readOnly = false;
+            mtInput.classList.remove('bg-slate-100', 'cursor-not-allowed');
+            mtInput.style.backgroundColor = '';
+            mtInput.style.color = '';
+            const maxHelp = document.getElementById('maxHelpText');
+            if (maxHelp) maxHelp.textContent = `Confirmed delivered MT (arrival verified). Max: ${currentRemainingMT.toLocaleString('en-US', {minimumFractionDigits: 3})} MT.`;
+        } else {
+            mtInput.readOnly = true;
+            mtInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+            mtInput.style.backgroundColor = '#f1f5f9';
+            mtInput.style.color = '#64748b';
+            if (dispMtInput && dispMtInput.value) {
+                mtInput.value = dispMtInput.value;
+            }
+            const maxHelp = document.getElementById('maxHelpText');
+            if (maxHelp) maxHelp.textContent = 'Editable after batch arrival date is confirmed.';
+        }
+    }
 
     function applyLogisticsConfigLock(cfg) {
-        const lockedBadge = document.getElementById('pageLogisticsLockedBadge');
-        const unlockedBadge = document.getElementById('pageLogisticsUnlockedBadge');
-        const lockDesc = document.getElementById('pageLogisticsLockDesc');
-
-        const isInit = cfg && cfg.is_initialized;
-        if (lockedBadge) lockedBadge.classList.toggle('d-none', !isInit);
-        if (unlockedBadge) unlockedBadge.classList.toggle('d-none', !!isInit);
-        if (lockDesc) {
-            lockDesc.textContent = isInit
-                ? 'Trucker, Barger, and Fixed Prices were initialized on the first delivery for this PO and cannot be changed.'
-                : 'Set the Trucker / Barger and Fixed Price (or Rate/MT) below. Once initialized, carrier and price are locked for this PO.';
-        }
+        const isInit = Boolean(cfg && cfg.is_initialized);
+        const supSelect = document.getElementById('id_delivery_supplier') || document.querySelector('select[name="supplier"]');
 
         if (isInit) {
+            if (supSelect && cfg.supplier_id) {
+                supSelect.value = String(cfg.supplier_id);
+                supSelect.classList.add('bg-slate-100', 'pointer-events-none', 'cursor-not-allowed');
+                supSelect.style.backgroundColor = '#f1f5f9';
+                supSelect.style.color = '#64748b';
+            }
             if (trkSelect && cfg.trucking_partner_id) {
                 trkSelect.value = String(cfg.trucking_partner_id);
-                trkSelect.classList.add('bg-slate-100', 'pointer-events-none');
+                trkSelect.classList.add('bg-slate-100', 'pointer-events-none', 'cursor-not-allowed');
+                trkSelect.style.backgroundColor = '#f1f5f9';
+                trkSelect.style.color = '#64748b';
             }
             if (brgSelect && cfg.barge_partner_id) {
                 brgSelect.value = String(cfg.barge_partner_id);
-                brgSelect.classList.add('bg-slate-100', 'pointer-events-none');
+                brgSelect.classList.add('bg-slate-100', 'pointer-events-none', 'cursor-not-allowed');
+                brgSelect.style.backgroundColor = '#f1f5f9';
+                brgSelect.style.color = '#64748b';
             }
-            if (trkRateInput && parseFloat(cfg.trucking_rate_per_mt) > 0) {
+            if (trkRateInput && parseFloat(cfg.trucking_rate_per_mt) >= 0) {
                 trkRateInput.value = cfg.trucking_rate_per_mt;
                 trkRateInput.readOnly = true;
-                trkRateInput.classList.add('bg-slate-100');
+                trkRateInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+                trkRateInput.style.backgroundColor = '#f1f5f9';
+                trkRateInput.style.color = '#64748b';
             }
-            if (flatTrkInput && parseFloat(cfg.flat_trucking_fee) > 0) {
-                flatTrkInput.value = cfg.flat_trucking_fee;
-                flatTrkInput.readOnly = true;
-                flatTrkInput.classList.add('bg-slate-100');
-            }
-            if (brgRateInput && parseFloat(cfg.barge_rate_per_mt) > 0) {
+            if (brgRateInput && parseFloat(cfg.barge_rate_per_mt) >= 0) {
                 brgRateInput.value = cfg.barge_rate_per_mt;
                 brgRateInput.readOnly = true;
-                brgRateInput.classList.add('bg-slate-100');
-            }
-            if (flatBrgInput && parseFloat(cfg.flat_barge_fee) > 0) {
-                flatBrgInput.value = cfg.flat_barge_fee;
-                flatBrgInput.readOnly = true;
-                flatBrgInput.classList.add('bg-slate-100');
+                brgRateInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+                brgRateInput.style.backgroundColor = '#f1f5f9';
+                brgRateInput.style.color = '#64748b';
             }
             if (vesselBargeInput && cfg.vessel_or_barge_name && !vesselBargeInput.value) {
                 vesselBargeInput.value = cfg.vessel_or_barge_name;
@@ -683,13 +650,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 truckPlateInput.value = cfg.vessel_or_truck;
             }
         } else {
-            [trkSelect, brgSelect].forEach(sel => {
-                if (sel) sel.classList.remove('bg-slate-100', 'pointer-events-none');
+            [supSelect, trkSelect, brgSelect].forEach(sel => {
+                if (sel && !sel.dataset.locked) {
+                    sel.classList.remove('bg-slate-100', 'pointer-events-none', 'cursor-not-allowed');
+                    sel.style.backgroundColor = '';
+                    sel.style.color = '';
+                }
             });
-            [trkRateInput, flatTrkInput, brgRateInput, flatBrgInput].forEach(inp => {
-                if (inp) {
+            [trkRateInput, brgRateInput].forEach(inp => {
+                if (inp && !inp.dataset.locked) {
                     inp.readOnly = false;
-                    inp.classList.remove('bg-slate-100');
+                    inp.classList.remove('bg-slate-100', 'cursor-not-allowed');
+                    inp.style.backgroundColor = '';
+                    inp.style.color = '';
                 }
             });
         }
@@ -697,15 +670,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateFreightCalculations() {
-        const dispMt = parseFloat(dispMtInput?.value) || parseFloat(mtInput?.value) || 0;
+        const dispMt = parseFloat(dispMtInput?.value) || 0;
         const delivMt = parseFloat(mtInput?.value) || 0;
         const trkRate = parseFloat(trkRateInput?.value) || 0;
         const brgRate = parseFloat(brgRateInput?.value) || 0;
-        const flatTrk = parseFloat(flatTrkInput?.value) || 0;
-        const flatBrg = parseFloat(flatBrgInput?.value) || 0;
 
-        const totalTrk = (dispMt * trkRate) + flatTrk;
-        const totalBrg = (dispMt * brgRate) + flatBrg;
+        const totalTrk = dispMt * trkRate;
+        const totalBrg = dispMt * brgRate;
         const grandTotal = totalTrk + totalBrg;
 
         const trkText = document.getElementById('pageTrkCalcText');
@@ -725,13 +696,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (formulaText) {
             if (grandTotal > 0) {
                 let parts = [];
-                if (flatTrk > 0) parts.push(`Fixed Land ₱${flatTrk.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
                 if (trkRate > 0) parts.push(`Land ₱${trkRate.toFixed(2)}/MT`);
-                if (flatBrg > 0) parts.push(`Fixed Barge ₱${flatBrg.toLocaleString('en-US', {minimumFractionDigits: 2})}`);
                 if (brgRate > 0) parts.push(`Barge ₱${brgRate.toFixed(2)}/MT`);
-                formulaText.textContent = parts.join(' + ');
+                formulaText.textContent = `${dispMt.toFixed(3)} MT × (${parts.join(' + ')})`;
             } else {
-                formulaText.textContent = `Fixed price + (Dispatched MT × ₱/MT rate)`;
+                formulaText.textContent = `Dispatched MT × (₱/MT Trucking Rate + ₱/MT Barging Rate)`;
             }
         }
 
@@ -767,17 +736,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (dispMtInput) {
         dispMtInput.addEventListener('input', function() {
-            if (mtInput && (!userEditedDelivered || !mtInput.value)) {
+            if (mtInput && mtInput.readOnly) {
+                mtInput.value = this.value;
+            } else if (mtInput && (!userEditedDelivered || !mtInput.value)) {
                 mtInput.value = this.value;
             }
             checkOverDelivery();
         });
     }
-
-    const dispatchedInput = document.getElementById('id_dispatched_at') || document.querySelector('input[name="dispatched_at"]');
-    const receivedInput = document.getElementById('id_received_at') || document.querySelector('input[name="received_at"]');
-    const receivedAtClientErr = document.getElementById('receivedAtClientErr');
-    const receivedAtHelp = document.getElementById('receivedAtHelp');
 
     function checkArrivalDateAndStatus() {
         if (!receivedInput) return true;
@@ -816,7 +782,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function checkNegativeFees() {
         let isValid = true;
-        [trkRateInput, brgRateInput, flatTrkInput, flatBrgInput].forEach(inp => {
+        [trkRateInput, brgRateInput].forEach(inp => {
             if (inp && parseFloat(inp.value) < 0) {
                 inp.classList.add('is-invalid');
                 isValid = false;
@@ -829,6 +795,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function checkOverDelivery() {
         if (!mtInput) return;
+        updateDeliveredVolumeEditability();
+
         let isOver = false;
         const val = parseFloat(mtInput.value) || 0;
         if (currentRemainingMT > 0 && val > currentRemainingMT) {
@@ -864,20 +832,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     if (receivedInput) {
-        receivedInput.addEventListener('input', checkOverDelivery);
-        receivedInput.addEventListener('change', checkOverDelivery);
+        receivedInput.addEventListener('input', function() {
+            updateDeliveredVolumeEditability();
+            checkOverDelivery();
+        });
+        receivedInput.addEventListener('change', function() {
+            updateDeliveredVolumeEditability();
+            checkOverDelivery();
+        });
     }
     if (dispatchedInput) {
-        dispatchedInput.addEventListener('input', checkOverDelivery);
-        dispatchedInput.addEventListener('change', checkOverDelivery);
+        dispatchedInput.addEventListener('input', function() {
+            updateDeliveredVolumeEditability();
+            checkOverDelivery();
+        });
+        dispatchedInput.addEventListener('change', function() {
+            updateDeliveredVolumeEditability();
+            checkOverDelivery();
+        });
     }
 
-    [trkRateInput, brgRateInput, flatTrkInput, flatBrgInput].forEach(inp => {
+    [trkRateInput, brgRateInput].forEach(inp => {
         if (inp) {
             inp.addEventListener('input', checkOverDelivery);
         }
     });
 
+    updateDeliveredVolumeEditability();
     updateFreightCalculations();
     checkArrivalDateAndStatus();
 
@@ -942,12 +923,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             o.selected = (o.value === String(data.customer_id));
                         });
                     }
-                    const custOriginPill = document.getElementById('customerOriginPill');
-                    const custOriginText = document.getElementById('customerOriginPillText');
-                    if (custOriginPill && custOriginText) {
-                        custOriginText.textContent = data.customer_origin_indicator || data.customer_name;
-                        custOriginPill.classList.remove('d-none');
-                    }
                     const custLockHelp = document.getElementById('customerLockHelp');
                     if (custLockHelp && data.customer_name) {
                         custLockHelp.textContent = `Strictly locked to PO Customer (${data.customer_name}).`;
@@ -961,15 +936,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                if (data.preferred_supplier_name) {
-                    const pill = document.getElementById('originMillPill');
-                    const pillText = document.getElementById('originMillPillText');
-                    if (pill && pillText) {
-                        pillText.textContent = data.preferred_supplier_name;
-                        pill.classList.remove('d-none');
-                    }
-                }
-
                 if (data.preferred_supplier_id) {
                     const supSelect = document.getElementById('id_delivery_supplier');
                     if (supSelect) {
@@ -980,10 +946,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                const maxHelp = document.getElementById('maxHelpText');
-                if (maxHelp) {
-                    maxHelp.textContent = `Maximum deliverable balance: ${currentRemainingMT.toLocaleString('en-US', {minimumFractionDigits: 3})} MT.`;
-                }
                 if (mtInput) {
                     mtInput.max = currentRemainingMT;
                 }
@@ -992,6 +954,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     applyLogisticsConfigLock(data.logistics_config);
                 }
 
+                updateDeliveredVolumeEditability();
                 checkOverDelivery();
             })
             .catch(err => {
@@ -1011,8 +974,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const badge = document.getElementById('poStatusBadge');
         badge.textContent = 'No PO Selected';
         badge.className = 'badge bg-secondary text-uppercase fs-8 px-2.5 py-1.5';
-        const pill = document.getElementById('originMillPill');
-        if (pill) pill.classList.add('d-none');
     }
 
     if (poSelect) {

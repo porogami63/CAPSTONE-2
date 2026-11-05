@@ -312,47 +312,38 @@ class PurchaseOrder(models.Model):
 
     def get_initialized_logistics(self, exclude_delivery_id=None):
         """
-        Once a PO's delivery logistics (trucker / barger and fixed price / rate) is initialized
+        Once an order's delivery logistics (rates, providers, mill, and customer) is initialized
         on its first delivery batch, return that locked configuration so subsequent batches or
-        edits cannot alter the carrier or fixed price.
+        edits cannot alter them.
         """
-        qs = self.deliveries.select_related("trucking_partner", "barge_partner", "carrier").order_by("created_at")
+        qs = self.deliveries.select_related("supplier", "trucking_partner", "barge_partner", "carrier").order_by("created_at")
         if exclude_delivery_id:
             qs = qs.exclude(pk=exclude_delivery_id)
         first_batch = qs.first()
         if not first_batch:
             return {"is_initialized": False}
 
-        has_trucking = bool(
-            first_batch.trucking_partner_id
-            or (first_batch.trucking_rate_per_mt and first_batch.trucking_rate_per_mt > Decimal("0.00"))
-            or (first_batch.flat_trucking_fee and first_batch.flat_trucking_fee > Decimal("0.00"))
-        )
-        has_barge = bool(
-            first_batch.barge_partner_id
-            or (first_batch.barge_rate_per_mt and first_batch.barge_rate_per_mt > Decimal("0.00"))
-            or (first_batch.flat_barge_fee and first_batch.flat_barge_fee > Decimal("0.00"))
-        )
-        has_carrier = bool(first_batch.carrier_id)
-
-        if not (has_trucking or has_barge or has_carrier):
-            return {"is_initialized": False}
+        po_cust = (self.cluster.client if getattr(self, "cluster", None) and self.cluster.client else None) or self.customer
 
         return {
             "is_initialized": True,
             "source_delivery_id": str(first_batch.delivery_id),
             "carrier": first_batch.carrier,
             "carrier_id": first_batch.carrier_id,
+            "supplier": first_batch.supplier,
+            "supplier_id": first_batch.supplier_id,
+            "supplier_name": first_batch.supplier.name if first_batch.supplier else "",
+            "customer": po_cust,
+            "customer_id": po_cust.pk if po_cust else None,
+            "customer_name": po_cust.name if po_cust else "",
             "trucking_partner": first_batch.trucking_partner,
             "trucking_partner_id": first_batch.trucking_partner_id,
             "trucking_partner_name": first_batch.trucking_partner.name if first_batch.trucking_partner else "",
             "trucking_rate_per_mt": first_batch.trucking_rate_per_mt or Decimal("0.00"),
-            "flat_trucking_fee": first_batch.flat_trucking_fee or Decimal("0.00"),
             "barge_partner": first_batch.barge_partner,
             "barge_partner_id": first_batch.barge_partner_id,
             "barge_partner_name": first_batch.barge_partner.name if first_batch.barge_partner else "",
             "barge_rate_per_mt": first_batch.barge_rate_per_mt or Decimal("0.00"),
-            "flat_barge_fee": first_batch.flat_barge_fee or Decimal("0.00"),
             "vessel_or_barge_name": first_batch.vessel_or_barge_name or "",
             "vessel_or_truck": first_batch.vessel_or_truck or "",
         }
@@ -593,23 +584,19 @@ class DeliveryLedger(models.Model):
 
     @property
     def trucking_cost(self):
-        """Calculated land freight cost for this batch (fixed upon initialization using dispatched MT + flat fee)."""
-        rate_cost = Decimal("0.00")
+        """Calculated land freight cost for this batch strictly on per-MT basis."""
         vol = self.effective_dispatched_mt
         if vol > Decimal("0") and self.trucking_rate_per_mt:
-            rate_cost = (vol * Decimal(str(self.trucking_rate_per_mt))).quantize(Decimal("0.01"))
-        flat = Decimal(str(self.flat_trucking_fee or "0.00"))
-        return (rate_cost + flat).quantize(Decimal("0.01"))
+            return (vol * Decimal(str(self.trucking_rate_per_mt))).quantize(Decimal("0.01"))
+        return Decimal("0.00")
 
     @property
     def barge_cost(self):
-        """Calculated marine freight cost for this batch (fixed upon initialization using dispatched MT + flat fee)."""
-        rate_cost = Decimal("0.00")
+        """Calculated marine freight cost for this batch strictly on per-MT basis."""
         vol = self.effective_dispatched_mt
         if vol > Decimal("0") and self.barge_rate_per_mt:
-            rate_cost = (vol * Decimal(str(self.barge_rate_per_mt))).quantize(Decimal("0.01"))
-        flat = Decimal(str(self.flat_barge_fee or "0.00"))
-        return (rate_cost + flat).quantize(Decimal("0.01"))
+            return (vol * Decimal(str(self.barge_rate_per_mt))).quantize(Decimal("0.01"))
+        return Decimal("0.00")
 
     @property
     def total_freight_cost(self):
@@ -658,7 +645,11 @@ class DeliveryLedger(models.Model):
         if self.dispatched_mt is not None and self.dispatched_mt <= Decimal("0"):
             raise ValidationError({"dispatched_mt": "Dispatched quantity must be greater than 0 MT."})
 
-        if self.delivered_mt is None and self.dispatched_mt is not None:
+        # Post-Arrival Volume Input: Restrict delivered_mt so it only diverges from dispatched_mt once arrival is confirmed
+        if not self.received_at:
+            if self.dispatched_mt is not None and self.dispatched_mt > Decimal("0"):
+                self.delivered_mt = self.dispatched_mt
+        elif self.delivered_mt is None and self.dispatched_mt is not None:
             self.delivered_mt = self.dispatched_mt
         elif self.dispatched_mt is None and self.delivered_mt is not None:
             self.dispatched_mt = self.delivered_mt
@@ -683,39 +674,42 @@ class DeliveryLedger(models.Model):
                     "delivered_mt": f"Delivered quantity ({self.delivered_mt:,.3f} MT) exceeds the available remaining balance ({available_balance:,.3f} MT) for PO {ref}."
                 })
 
-            # Enforce Fixed Price & Carrier Lock once initialized
+            # Enforce Rate & Provider Immutability once initialized
             if self.pk:
                 orig = DeliveryLedger.objects.filter(pk=self.pk).first()
                 if orig:
                     errors = {}
+                    if orig.supplier_id and self.supplier_id != orig.supplier_id:
+                        errors["supplier"] = f"Source sugar mill ({orig.supplier.name}) is locked once initialized and cannot be changed."
                     if orig.trucking_partner_id and self.trucking_partner_id != orig.trucking_partner_id:
-                        errors["trucking_partner"] = f"Trucker ({orig.trucking_partner.name}) is locked once initialized and cannot be changed."
+                        errors["trucking_partner"] = f"Trucking provider ({orig.trucking_partner.name}) is locked once initialized and cannot be changed."
                     if orig.barge_partner_id and self.barge_partner_id != orig.barge_partner_id:
-                        errors["barge_partner"] = f"Barger ({orig.barge_partner.name}) is locked once initialized and cannot be changed."
+                        errors["barge_partner"] = f"Barging provider ({orig.barge_partner.name}) is locked once initialized and cannot be changed."
                     if (orig.trucking_rate_per_mt or Decimal("0")) > Decimal("0") and (self.trucking_rate_per_mt or Decimal("0")) != (orig.trucking_rate_per_mt or Decimal("0")):
                         errors["trucking_rate_per_mt"] = f"Trucking rate (₱{orig.trucking_rate_per_mt:,.2f}/MT) is locked once initialized and cannot be changed."
-                    if (orig.flat_trucking_fee or Decimal("0")) > Decimal("0") and (self.flat_trucking_fee or Decimal("0")) != (orig.flat_trucking_fee or Decimal("0")):
-                        errors["flat_trucking_fee"] = f"Fixed trucking price (₱{orig.flat_trucking_fee:,.2f}) is locked once initialized and cannot be changed."
                     if (orig.barge_rate_per_mt or Decimal("0")) > Decimal("0") and (self.barge_rate_per_mt or Decimal("0")) != (orig.barge_rate_per_mt or Decimal("0")):
                         errors["barge_rate_per_mt"] = f"Barging rate (₱{orig.barge_rate_per_mt:,.2f}/MT) is locked once initialized and cannot be changed."
-                    if (orig.flat_barge_fee or Decimal("0")) > Decimal("0") and (self.flat_barge_fee or Decimal("0")) != (orig.flat_barge_fee or Decimal("0")):
-                        errors["flat_barge_fee"] = f"Fixed barging price (₱{orig.flat_barge_fee:,.2f}) is locked once initialized and cannot be changed."
                     if errors:
                         raise ValidationError(errors)
 
             init_cfg = po.get_initialized_logistics(exclude_delivery_id=self.pk)
             if init_cfg.get("is_initialized"):
                 errors = {}
+                if init_cfg.get("supplier_id"):
+                    if not self.supplier_id:
+                        self.supplier_id = init_cfg["supplier_id"]
+                    elif self.supplier_id != init_cfg["supplier_id"]:
+                        errors["supplier"] = f"Source sugar mill is locked to {init_cfg['supplier_name']} once initialized for this order."
                 if init_cfg.get("trucking_partner_id"):
                     if not self.trucking_partner_id:
                         self.trucking_partner_id = init_cfg["trucking_partner_id"]
                     elif self.trucking_partner_id != init_cfg["trucking_partner_id"]:
-                        errors["trucking_partner"] = f"Trucker is locked to {init_cfg['trucking_partner_name']} once initialized for this PO."
+                        errors["trucking_partner"] = f"Trucking provider is locked to {init_cfg['trucking_partner_name']} once initialized for this order."
                 if init_cfg.get("barge_partner_id"):
                     if not self.barge_partner_id:
                         self.barge_partner_id = init_cfg["barge_partner_id"]
                     elif self.barge_partner_id != init_cfg["barge_partner_id"]:
-                        errors["barge_partner"] = f"Barger is locked to {init_cfg['barge_partner_name']} once initialized for this PO."
+                        errors["barge_partner"] = f"Barging provider is locked to {init_cfg['barge_partner_name']} once initialized for this order."
                 if init_cfg.get("carrier_id") and not self.carrier_id:
                     self.carrier_id = init_cfg["carrier_id"]
 
@@ -725,15 +719,7 @@ class DeliveryLedger(models.Model):
                     if cur_trk_rate == Decimal("0.00"):
                         self.trucking_rate_per_mt = init_trk_rate
                     elif cur_trk_rate != init_trk_rate:
-                        errors["trucking_rate_per_mt"] = f"Trucking rate is locked at ₱{init_trk_rate:,.2f}/MT once initialized for this PO."
-
-                init_trk_flat = Decimal(str(init_cfg.get("flat_trucking_fee") or "0.00"))
-                if init_trk_flat > Decimal("0.00"):
-                    cur_trk_flat = Decimal(str(self.flat_trucking_fee or "0.00"))
-                    if cur_trk_flat == Decimal("0.00"):
-                        self.flat_trucking_fee = init_trk_flat
-                    elif cur_trk_flat != init_trk_flat:
-                        errors["flat_trucking_fee"] = f"Fixed trucking price is locked at ₱{init_trk_flat:,.2f} once initialized for this PO."
+                        errors["trucking_rate_per_mt"] = f"Trucking rate is locked at ₱{init_trk_rate:,.2f}/MT once initialized for this order."
 
                 init_brg_rate = Decimal(str(init_cfg.get("barge_rate_per_mt") or "0.00"))
                 if init_brg_rate > Decimal("0.00"):
@@ -741,15 +727,7 @@ class DeliveryLedger(models.Model):
                     if cur_brg_rate == Decimal("0.00"):
                         self.barge_rate_per_mt = init_brg_rate
                     elif cur_brg_rate != init_brg_rate:
-                        errors["barge_rate_per_mt"] = f"Barging rate is locked at ₱{init_brg_rate:,.2f}/MT once initialized for this PO."
-
-                init_brg_flat = Decimal(str(init_cfg.get("flat_barge_fee") or "0.00"))
-                if init_brg_flat > Decimal("0.00"):
-                    cur_brg_flat = Decimal(str(self.flat_barge_fee or "0.00"))
-                    if cur_brg_flat == Decimal("0.00"):
-                        self.flat_barge_fee = init_brg_flat
-                    elif cur_brg_flat != init_brg_flat:
-                        errors["flat_barge_fee"] = f"Fixed barging price is locked at ₱{init_brg_flat:,.2f} once initialized for this PO."
+                        errors["barge_rate_per_mt"] = f"Barging rate is locked at ₱{init_brg_rate:,.2f}/MT once initialized for this order."
 
                 if init_cfg.get("vessel_or_barge_name") and not self.vessel_or_barge_name:
                     self.vessel_or_barge_name = init_cfg["vessel_or_barge_name"]
@@ -842,13 +820,8 @@ class DeliveryLedger(models.Model):
         trk_ref = f"CV-DEL-{short_id}-TRK"
         if self.trucking_cost > Decimal("0.00"):
             trk_partner = self.trucking_partner.name if self.trucking_partner else "Land Freight"
-            if self.flat_trucking_fee and self.flat_trucking_fee > Decimal("0.00") and (not self.trucking_rate_per_mt or self.trucking_rate_per_mt <= Decimal("0.00")):
-                trk_rate_info = f"Flat ₱{self.flat_trucking_fee:,.2f}"
-            elif self.flat_trucking_fee and self.flat_trucking_fee > Decimal("0.00"):
-                trk_rate_info = f"₱{self.trucking_rate_per_mt:,.2f}/MT + Flat ₱{self.flat_trucking_fee:,.2f}"
-            else:
-                trk_rate_info = f"₱{self.trucking_rate_per_mt:,.2f}/MT"
-            trk_purpose = f"Truck Delivery Batch #{short_id} ({self.delivered_mt:,.3f} MT @ {trk_rate_info}) — {trk_partner}"[:200]
+            trk_rate_info = f"₱{self.trucking_rate_per_mt:,.2f}/MT"
+            trk_purpose = f"Truck Delivery Batch #{short_id} ({self.effective_dispatched_mt:,.3f} MT @ {trk_rate_info}) — {trk_partner}"[:200]
 
             existing_trk_voucher = CashVoucher.objects.filter(voucher_number=trk_ref).first()
             trk_status = existing_trk_voucher.status if existing_trk_voucher and existing_trk_voucher.cheque_number else CashVoucher.Status.PENDING
@@ -877,13 +850,8 @@ class DeliveryLedger(models.Model):
         brg_ref = f"CV-DEL-{short_id}-BRG"
         if self.barge_cost > Decimal("0.00"):
             brg_partner = self.barge_partner.name if self.barge_partner else (self.vessel_or_barge_name or "Sea Freight")
-            if self.flat_barge_fee and self.flat_barge_fee > Decimal("0.00") and (not self.barge_rate_per_mt or self.barge_rate_per_mt <= Decimal("0.00")):
-                brg_rate_info = f"Flat ₱{self.flat_barge_fee:,.2f}"
-            elif self.flat_barge_fee and self.flat_barge_fee > Decimal("0.00"):
-                brg_rate_info = f"₱{self.barge_rate_per_mt:,.2f}/MT + Flat ₱{self.flat_barge_fee:,.2f}"
-            else:
-                brg_rate_info = f"₱{self.barge_rate_per_mt:,.2f}/MT"
-            brg_purpose = f"Marine Barging Batch #{short_id} ({self.delivered_mt:,.3f} MT @ {brg_rate_info}) — {brg_partner}"[:200]
+            brg_rate_info = f"₱{self.barge_rate_per_mt:,.2f}/MT"
+            brg_purpose = f"Marine Barging Batch #{short_id} ({self.effective_dispatched_mt:,.3f} MT @ {brg_rate_info}) — {brg_partner}"[:200]
 
             existing_brg_voucher = CashVoucher.objects.filter(voucher_number=brg_ref).first()
             brg_status = existing_brg_voucher.status if existing_brg_voucher and existing_brg_voucher.cheque_number else CashVoucher.Status.PENDING

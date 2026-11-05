@@ -331,11 +331,9 @@ class DeliveryLedgerForm(forms.ModelForm):
             "carrier",
             "trucking_partner",
             "trucking_rate_per_mt",
-            "flat_trucking_fee",
             "barge_partner",
             "vessel_or_barge_name",
             "barge_rate_per_mt",
-            "flat_barge_fee",
             "vessel_or_truck",
             "dr_number",
             "waybill_number",
@@ -354,11 +352,9 @@ class DeliveryLedgerForm(forms.ModelForm):
             "carrier": "Carrier (Optional)",
             "trucking_partner": "Trucker (Land Transport Partner)",
             "trucking_rate_per_mt": "Trucking Rate (₱/MT)",
-            "flat_trucking_fee": "Fixed Trucking Price (₱)",
             "barge_partner": "Barger (Marine Transport Partner)",
             "vessel_or_barge_name": "Vessel / Barge Name",
             "barge_rate_per_mt": "Barging Rate (₱/MT)",
-            "flat_barge_fee": "Fixed Barging Price (₱)",
             "vessel_or_truck": "Truck Plate #",
             "dr_number": "DR Number",
             "waybill_number": "Waybill Number",
@@ -377,11 +373,9 @@ class DeliveryLedgerForm(forms.ModelForm):
             "carrier": forms.Select(attrs={"class": "form-select-htc"}),
             "trucking_partner": forms.Select(attrs={"class": "form-select-htc", "id": "id_trucking_partner"}),
             "trucking_rate_per_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 450.00", "id": "id_trucking_rate_per_mt"}),
-            "flat_trucking_fee": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 50000.00 (Fixed Price)", "id": "id_flat_trucking_fee"}),
             "barge_partner": forms.Select(attrs={"class": "form-select-htc", "id": "id_barge_partner"}),
             "vessel_or_barge_name": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. LCT LBC-1 / Barge 08", "id": "id_vessel_or_barge_name"}),
             "barge_rate_per_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 1200.00", "id": "id_barge_rate_per_mt"}),
-            "flat_barge_fee": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.01", "placeholder": "e.g. 150000.00 (Fixed Price)", "id": "id_flat_barge_fee"}),
             "vessel_or_truck": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Plate NBD-1234", "id": "id_vessel_or_truck"}),
             "dr_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. DR-8890"}),
             "waybill_number": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. WB-9921"}),
@@ -451,9 +445,8 @@ class DeliveryLedgerForm(forms.ModelForm):
         self.fields["receiving_customer"].disabled = True
         self.fields["receiving_customer"].widget.attrs.update({
             "class": "form-select-htc bg-slate-100 cursor-not-allowed pointer-events-none",
-            "title": "Customer is strictly locked to the linked Purchase Order (PO Link Lock)",
+            "style": "background-color: #f1f5f9; color: #64748b;",
         })
-        self.fields["receiving_customer"].help_text = "Locked to linked PO customer (PO Link Lock)"
 
         from operations.models import MolassesReleaseOrder
         self.fields["mro_permit"].required = False
@@ -498,37 +491,45 @@ class DeliveryLedgerForm(forms.ModelForm):
                 else:
                     self.initial.setdefault("supplier", mill.pk)
 
-            # Pre-fill and lock initialized barger / trucker and fixed price / rate if already initialized on this PO
+            # Pre-fill and lock initialized barger / trucker and rates if already initialized on this PO
             init_cfg = initial_po.get_initialized_logistics(exclude_delivery_id=self.instance.pk if self.instance and self.instance.pk else None)
             self.initialized_logistics = init_cfg
             if init_cfg.get("is_initialized"):
                 self.logistics_locked = True
+                if init_cfg.get("supplier_id"):
+                    self.fields["supplier"].initial = init_cfg["supplier_id"]
+                    self.initial["supplier"] = init_cfg["supplier_id"]
+                    self.fields["supplier"].widget.attrs.update({
+                        "class": "form-select-htc bg-slate-100 pointer-events-none cursor-not-allowed",
+                        "style": "background-color: #f1f5f9; color: #64748b;",
+                        "data-locked": "true",
+                    })
                 if init_cfg.get("trucking_partner_id"):
                     self.fields["trucking_partner"].initial = init_cfg["trucking_partner_id"]
                     self.initial["trucking_partner"] = init_cfg["trucking_partner_id"]
                     self.fields["trucking_partner"].widget.attrs.update({
-                        "class": "form-select-htc bg-slate-100 pointer-events-none",
+                        "class": "form-select-htc bg-slate-100 pointer-events-none cursor-not-allowed",
+                        "style": "background-color: #f1f5f9; color: #64748b;",
                         "data-locked": "true",
-                        "title": "Locked — Trucker was initialized on first delivery for this PO",
                     })
                 if init_cfg.get("barge_partner_id"):
                     self.fields["barge_partner"].initial = init_cfg["barge_partner_id"]
                     self.initial["barge_partner"] = init_cfg["barge_partner_id"]
                     self.fields["barge_partner"].widget.attrs.update({
-                        "class": "form-select-htc bg-slate-100 pointer-events-none",
+                        "class": "form-select-htc bg-slate-100 pointer-events-none cursor-not-allowed",
+                        "style": "background-color: #f1f5f9; color: #64748b;",
                         "data-locked": "true",
-                        "title": "Locked — Barger was initialized on first delivery for this PO",
                     })
-                for rate_field in ["trucking_rate_per_mt", "flat_trucking_fee", "barge_rate_per_mt", "flat_barge_fee"]:
+                for rate_field in ["trucking_rate_per_mt", "barge_rate_per_mt"]:
                     val = init_cfg.get(rate_field)
                     if val is not None and val > Decimal("0.00"):
                         self.fields[rate_field].initial = val
                         self.initial[rate_field] = val
                         self.fields[rate_field].widget.attrs.update({
                             "readonly": "readonly",
-                            "class": "form-control-htc bg-slate-100 cursor-not-allowed",
+                            "class": "form-control-htc bg-slate-100 text-slate-500 cursor-not-allowed",
+                            "style": "background-color: #f1f5f9; color: #64748b;",
                             "data-locked": "true",
-                            "title": "Locked — Fixed price / rate was initialized on first delivery for this PO",
                         })
                 for txt_field in ["vessel_or_barge_name", "vessel_or_truck"]:
                     val = init_cfg.get(txt_field)
@@ -542,23 +543,44 @@ class DeliveryLedgerForm(forms.ModelForm):
                 self.fields["receiving_customer"].initial = cust
                 self.initial["receiving_customer"] = cust.pk
 
+        # Post-Arrival Volume Input: Volume Delivered (MT) only editable after batch arrival is confirmed
+        has_arrival = bool(
+            (self.instance and self.instance.received_at)
+            or (self.data and self.data.get("received_at"))
+        )
+        if not has_arrival:
+            self.fields["delivered_mt"].widget.attrs.update({
+                "readonly": "readonly",
+                "class": "form-control-htc bg-slate-100 text-slate-500 cursor-not-allowed",
+                "style": "background-color: #f1f5f9; color: #64748b;",
+            })
+
     def clean(self):
         cleaned_data = super().clean()
-        for rate_field in ["trucking_rate_per_mt", "flat_trucking_fee", "barge_rate_per_mt", "flat_barge_fee"]:
-            if cleaned_data.get(rate_field) is None:
-                cleaned_data[rate_field] = Decimal("0.00")
+        cleaned_data["flat_trucking_fee"] = Decimal("0.00")
+        cleaned_data["flat_barge_fee"] = Decimal("0.00")
 
         po = cleaned_data.get("purchase_order")
+        dispatched_mt = cleaned_data.get("dispatched_mt")
         delivered_mt = cleaned_data.get("delivered_mt")
         rec_loc = cleaned_data.get("receiving_location")
         supplier = cleaned_data.get("supplier")
         delivery_date = cleaned_data.get("delivery_date")
         dispatched_at = cleaned_data.get("dispatched_at")
         received_at = cleaned_data.get("received_at")
-        trucking_rate = cleaned_data.get("trucking_rate_per_mt")
-        flat_trucking = cleaned_data.get("flat_trucking_fee")
-        barge_rate = cleaned_data.get("barge_rate_per_mt")
-        flat_barge = cleaned_data.get("flat_barge_fee")
+        trucking_rate = cleaned_data.get("trucking_rate_per_mt") or Decimal("0.00")
+        barge_rate = cleaned_data.get("barge_rate_per_mt") or Decimal("0.00")
+        cleaned_data["trucking_rate_per_mt"] = trucking_rate
+        cleaned_data["barge_rate_per_mt"] = barge_rate
+
+        # Post-Arrival Volume Input: delivered_mt only editable after batch arrival is confirmed
+        if not received_at:
+            if dispatched_mt is not None and dispatched_mt > 0:
+                delivered_mt = dispatched_mt
+                cleaned_data["delivered_mt"] = delivered_mt
+        elif delivered_mt is None and dispatched_mt is not None and dispatched_mt > 0:
+            delivered_mt = dispatched_mt
+            cleaned_data["delivered_mt"] = delivered_mt
 
         # 1. Customer Immutability (PO Link Lock):
         # Receiving Customer MUST strictly match the Customer associated with the linked Purchase Order.
@@ -607,18 +629,10 @@ class DeliveryLedgerForm(forms.ModelForm):
             self.add_error("supplier", "Source Sugar Mill / Supplier is required.")
 
         # 4. Dispatched & Delivered Quantity Validation
-        dispatched_mt = cleaned_data.get("dispatched_mt")
         if dispatched_mt is not None and dispatched_mt <= 0:
             self.add_error("dispatched_mt", "Dispatched quantity must be greater than 0 MT.")
         elif dispatched_mt is not None and dispatched_mt > Decimal("100000.000"):
             self.add_error("dispatched_mt", "Dispatched quantity exceeds maximum batch limit (100,000 MT).")
-
-        if delivered_mt is None and dispatched_mt is not None and dispatched_mt > 0:
-            delivered_mt = dispatched_mt
-            cleaned_data["delivered_mt"] = delivered_mt
-        elif dispatched_mt is None and delivered_mt is not None and delivered_mt > 0:
-            dispatched_mt = delivered_mt
-            cleaned_data["dispatched_mt"] = dispatched_mt
 
         if delivered_mt is None:
             self.add_error("delivered_mt", "Delivered quantity is required.")
@@ -668,41 +682,51 @@ class DeliveryLedgerForm(forms.ModelForm):
                     "Arrival timestamp cannot be earlier than departure dispatch timestamp."
                 )
 
-        # 6. Logistics Fee Validations (non-negative) & Fixed Price / Carrier Lock Enforcement
-        if trucking_rate is not None and trucking_rate < 0:
+        # 6. Logistics Rate Validations (non-negative) & Provider / Rate Immutability Enforcement
+        if trucking_rate < 0:
             self.add_error("trucking_rate_per_mt", "Trucking rate cannot be negative.")
-        if flat_trucking is not None and flat_trucking < 0:
-            self.add_error("flat_trucking_fee", "Flat trucking fee cannot be negative.")
-        if barge_rate is not None and barge_rate < 0:
+        if barge_rate < 0:
             self.add_error("barge_rate_per_mt", "Barging rate cannot be negative.")
-        if flat_barge is not None and flat_barge < 0:
-            self.add_error("flat_barge_fee", "Flat barge fee cannot be negative.")
 
         if po:
             init_cfg = po.get_initialized_logistics(exclude_delivery_id=self.instance.pk if self.instance and self.instance.pk else None)
             if init_cfg.get("is_initialized"):
+                if init_cfg.get("supplier"):
+                    sub_sup = cleaned_data.get("supplier")
+                    if not sub_sup:
+                        cleaned_data["supplier"] = init_cfg["supplier"]
+                    elif sub_sup.pk != init_cfg["supplier_id"]:
+                        self.add_error("supplier", f"Source sugar mill is locked to {init_cfg['supplier_name']} once initialized for this order.")
                 if init_cfg.get("trucking_partner"):
                     sub_trk = cleaned_data.get("trucking_partner")
                     if not sub_trk:
                         cleaned_data["trucking_partner"] = init_cfg["trucking_partner"]
                     elif sub_trk.pk != init_cfg["trucking_partner_id"]:
-                        self.add_error("trucking_partner", f"Trucker is locked to {init_cfg['trucking_partner_name']} once initialized for this PO.")
+                        self.add_error("trucking_partner", f"Trucking provider is locked to {init_cfg['trucking_partner_name']} once initialized for this order.")
                 if init_cfg.get("barge_partner"):
                     sub_brg = cleaned_data.get("barge_partner")
                     if not sub_brg:
                         cleaned_data["barge_partner"] = init_cfg["barge_partner"]
                     elif sub_brg.pk != init_cfg["barge_partner_id"]:
-                        self.add_error("barge_partner", f"Barger is locked to {init_cfg['barge_partner_name']} once initialized for this PO.")
+                        self.add_error("barge_partner", f"Barging provider is locked to {init_cfg['barge_partner_name']} once initialized for this order.")
                 if init_cfg.get("carrier") and not cleaned_data.get("carrier"):
                     cleaned_data["carrier"] = init_cfg["carrier"]
 
                 for r_field, label_str in [
                     ("trucking_rate_per_mt", "Trucking rate"),
-                    ("flat_trucking_fee", "Fixed trucking price"),
                     ("barge_rate_per_mt", "Barging rate"),
-                    ("flat_barge_fee", "Fixed barging price"),
                 ]:
                     init_val = Decimal(str(init_cfg.get(r_field) or "0.00"))
+                    if init_val > Decimal("0.00"):
+                        sub_val = Decimal(str(cleaned_data.get(r_field) or "0.00"))
+                        if sub_val == Decimal("0.00"):
+                            cleaned_data[r_field] = init_val
+                        elif sub_val != init_val:
+                            self.add_error(r_field, f"{label_str} is locked at ₱{init_val:,.2f}/MT once initialized for this order and cannot be changed.")
+
+                for t_field in ["vessel_or_barge_name", "vessel_or_truck"]:
+                    if init_cfg.get(t_field) and not cleaned_data.get(t_field):
+                        cleaned_data[t_field] = init_cfg[t_field]
                     if init_val > Decimal("0.00"):
                         sub_val = Decimal(str(cleaned_data.get(r_field) or "0.00"))
                         if sub_val == Decimal("0.00"):
