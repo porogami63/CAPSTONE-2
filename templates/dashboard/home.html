@@ -111,7 +111,7 @@
         border: 1px solid var(--htc-border);
         border-radius: var(--htc-radius);
         padding: 1.25rem 1.5rem;
-        height: 100%;
+        height: auto;
     }
     .recent-orders-scroll {
         max-height: 480px;
@@ -468,7 +468,7 @@
 <div class="row g-4 mb-4">
     <!-- Volume Trend Graph & Table with Monthly, Weekly, Yearly Cadence Filters -->
     <div class="col-12 col-lg-7">
-        <div class="card-panel">
+        <div class="card-panel h-100">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <div>
                     <h6 class="fw-bold mb-0" id="volumeChartTitle">Monthly Volume Fulfillment (MT)</h6>
@@ -541,7 +541,7 @@
 
     <!-- Provider Reliability / Sugar Mill Balances -->
     <div class="col-12 col-lg-5">
-        <div class="card-panel">
+        <div class="card-panel h-100">
             {% if insights.providers %}
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="fw-bold mb-0">Carrier &amp; Hauler Reliability</h6>
