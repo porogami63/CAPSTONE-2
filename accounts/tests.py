@@ -44,7 +44,7 @@ class AccountsPermissionTests(TestCase):
 
     def test_operations_management_user_permissions(self):
         """Operations Manager encompasses finance, invoicing, and operations."""
-        self.assertTrue(user_has_perm(self.ops_mgmt_user, "manage_users"))
+        self.assertFalse(user_has_perm(self.ops_mgmt_user, "manage_users"))
         self.assertTrue(user_has_perm(self.ops_mgmt_user, "create_transaction"))
         self.assertTrue(user_has_perm(self.ops_mgmt_user, "edit_logistics"))
         self.assertTrue(user_has_perm(self.ops_mgmt_user, "import_excel"))
@@ -83,7 +83,10 @@ class AccountsPermissionTests(TestCase):
     def test_nav_items_for_roles(self):
         admin_nav = get_nav_items(self.admin_user)
         fin_nav = get_nav_items(self.finance_user)
+        ops_mgmt_nav = get_nav_items(self.ops_mgmt_user)
         self.assertGreater(len(admin_nav), len(fin_nav))
+        self.assertNotIn("accounts:user_list", [item[0] for item in ops_mgmt_nav])
+        self.assertIn("accounts:user_list", [item[0] for item in admin_nav])
 
 
 class AccountsViewTests(TestCase):

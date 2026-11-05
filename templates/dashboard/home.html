@@ -584,68 +584,6 @@
     </div>
 </div>
 
-<!-- 4. Active Order Fulfillment Table -->
-<div class="card-panel mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h6 class="fw-bold mb-0">Active Order Fulfillment Status</h6>
-            <span class="fs-8 text-muted">
-                Overall: {{ insights.fulfillment.delivered_mt|floatformat:0|intcomma }} of {{ insights.fulfillment.contracted_mt|floatformat:0|intcomma }} MT ({{ insights.fulfillment.overall_pct }}%)
-            </span>
-        </div>
-        <div class="progress" style="width: 140px; height: 8px; border-radius: 9999px;">
-            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ insights.fulfillment.overall_pct }}%;" aria-valuenow="{{ insights.fulfillment.overall_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
-        </div>
-    </div>
-
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0 fs-8">
-            <thead>
-                <tr class="text-uppercase text-muted border-bottom">
-                    <th>Order Reference</th>
-                    <th>Customer</th>
-                    <th class="text-end">Progress</th>
-                    <th class="text-end">Delivered / Contracted</th>
-                    <th class="text-center">Status</th>
-                    <th class="text-end">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in insights.fulfillment.top %}
-                <tr>
-                    <td>
-                        <a href="{% url 'operations:cluster_detail' row.pk %}" class="fw-bold text-decoration-none text-primary">
-                            {{ row.ref }}
-                        </a>
-                    </td>
-                    <td>{{ row.customer }}</td>
-                    <td class="text-end fw-semibold">{{ row.pct }}%</td>
-                    <td class="text-end text-muted">{{ row.delivered_mt|floatformat:1|intcomma }} / {{ row.contracted_mt|floatformat:1|intcomma }} MT</td>
-                    <td class="text-center">
-                        {% if row.at_risk %}
-                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0.5 px-2">At Risk</span>
-                        {% elif row.pct >= 100 %}
-                        <span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-2">Completed</span>
-                        {% else %}
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-2">In Progress</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end">
-                        <a href="{% url 'operations:cluster_detail' row.pk %}" class="btn btn-sm btn-outline-secondary py-0.5 px-2 fs-8">
-                            Details &rarr;
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted py-3">No active orders in progress.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
 <!-- 6. Recent Orders Feed -->
 <div class="card-panel mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -701,24 +639,6 @@
 </div>
 
 {% endif %}
-
-<!-- Bottom Operational Status Strip -->
-<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 py-2 px-3 bg-body-tertiary border rounded fs-8 text-muted">
-    <div class="d-flex align-items-center gap-3">
-        <span>System Status: <strong class="text-success">Active</strong></span>
-        <span>·</span>
-        <span>Audit Trail: <strong class="text-dark">Running</strong></span>
-        <span>·</span>
-        <span>Variance Monitor: <strong class="text-dark">Active</strong></span>
-    </div>
-    {% if variance_alert_count > 0 %}
-    <div>
-        <a href="{% url 'operations:logistics_list' %}" class="badge bg-danger-subtle text-danger border border-danger-subtle text-decoration-none py-1 px-2">
-            {{ variance_alert_count }} Weight Difference Issue{{ variance_alert_count|pluralize }} &rarr;
-        </a>
-    </div>
-    {% endif %}
-</div>
 
 {% if is_ops_manager and financial_intervals %}
 <!-- ================================================================= -->

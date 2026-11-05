@@ -49,7 +49,7 @@ NAV_ITEMS = {
     ],
     Role.OPERATIONS_MANAGEMENT: [
         i for i in CORE_NAV_ITEMS 
-        if i[0] not in ("admin_hub:dashboard",)
+        if i[0] not in ("admin_hub:dashboard", "accounts:user_list")
     ],
     Role.FINANCE: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "finance:loan_list", "dashboard:analytics", "dashboard:documents", "chat:room")],
     Role.INVOICING: [i for i in CORE_NAV_ITEMS if i[0] in ("dashboard:home", "operations:pending_tasks", "operations:cluster_list", "operations:mro_summary", "finance:invoice_list", "dashboard:documents", "chat:room")],
@@ -64,7 +64,7 @@ MGMT_INVOICING = {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.INVOICING
 
 # Fine-grained permissions
 PERMISSIONS = {
-    "manage_users": {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT},
+    "manage_users": {Role.ADMINISTRATOR},
     "create_transaction": ALL_ROLES,
     "edit_transaction": ALL_ROLES,
     "approve_transaction": {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT, Role.OPERATIONS},
