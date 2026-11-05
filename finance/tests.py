@@ -595,7 +595,7 @@ class POFocusedFinanceWorkspaceTests(TestCase):
 		self.assertEqual(res.status_code, 200)
 		self.assertContains(res, reverse("finance:po_workspace", args=[self.cluster.pk]))
 		self.assertNotContains(res, 'id="clusterDetailLoanForm"')
-		self.assertContains(res, "Open Bank Loans &amp; Matching Panel")
+		self.assertContains(res, "Open Financial Operations &amp; Cheque Ledger")
 
 
 class DeliveryExpenseMatchingLinkTests(TestCase):
@@ -714,7 +714,7 @@ class DeliveryExpenseMatchingLinkTests(TestCase):
 		self.assertNotContains(res, "Min Capital Required")
 		self.assertNotContains(res, "Funded Loan Principal")
 		self.assertContains(res, "Finance is currently pending for this PO.")
-		self.assertContains(res, "Open Bank Loans &amp; Matching Panel")
+		self.assertContains(res, "Open Financial Operations &amp; Cheque Ledger")
 		self.assertContains(res, 'id="ledgerVerifyModal"')
 		self.assertContains(res, 'id="tab-audit-pane"')
 		self.assertContains(res, "Activity Audit Trail")
@@ -1301,4 +1301,145 @@ class FinancialBlockchainAndLifecycleTests(TestCase):
 		self.assertEqual(ws_res.status_code, 200)
 		self.assertContains(ws_res, "financeBlockchainModal")
 		self.assertContains(ws_res, "Financial Blockchain")
+
+
+class FinancialOperationsWorkflowAndBlockchainTests(TestCase):
+	def setUp(self):
+		self.admin_user = User.objects.create_user(
+			username="master_admin",
+			password="password123",
+			role=User.Role.ADMINISTRATOR,
+		)
+		self.ops_mgr = User.objects.create_user(
+			username="master_ops_mgr",
+			password="password123",
+			role=User.Role.OPERATIONS_MANAGEMENT,
+		)
+		self.ops_user = User.objects.create_user(
+			username="regular_ops",
+			password="password123",
+			role=User.Role.OPERATIONS,
+		)
+		self.finance_user = User.objects.create_user(
+			username="regular_finance",
+			password="password123",
+			role=User.Role.FINANCE,
+		)
+		self.invoicing_user = User.objects.create_user(
+			username="regular_invoicing",
+			password="password123",
+			role=User.Role.INVOICING,
+		)
+		self.client_entity = Client.objects.create(name="Tanduay Distillers")
+		self.mill = SugarMill.objects.create(name="First Farmers Holding")
+		self.cluster = TransactionCluster.objects.create(
+			reference_code="PO-FO-2026-01",
+			client=self.client_entity,
+			sugar_mill=self.mill,
+			status=TransactionCluster.Status.ACTIVE,
+		)
+		self.loan = CapitalLoan.objects.create(
+			cluster=self.cluster,
+			bank_name="BDO Unibank",
+			principal=Decimal("5000000.00"),
+			interest_rate_annual=Decimal("6.5000"),
+			start_date=date.today() - timedelta(days=20),
+			due_date=date.today() + timedelta(days=40),
+			cheque_number="CHQ-990123",
+			status=CapitalLoan.Status.ACTIVE,
+			created_by=self.finance_user,
+		)
+
+	def test_screen_naming_standardisation(self):
+		"""Asserts exact string match for 'Financial Operations & Cheque Ledger'."""
+		self.client.login(username="master_admin", password="password123")
+		url = reverse("finance:loan_list")
+		res = self.client.get(url)
+		self.assertEqual(res.status_code, 200)
+		self.assertContains(res, "Financial Operations &amp; Cheque Ledger")
+		self.assertNotContains(res, "Bank Loans Registry")
+
+	def test_loan_settlement_and_archival_workflow(self):
+		"""Tests closing a settled loan, archiving it to vault, and restoring."""
+		self.client.login(username="master_ops_mgr", password="password123")
+
+		# 1. Close the active loan
+		close_url = reverse("finance:close_loan", kwargs={"pk": self.loan.pk})
+		res = self.client.post(close_url, {
+			"settlement_receipt_number": "OR-BDO-2026-881",
+			"settlement_notes": "Payoff confirmed with branch manager.",
+		})
+		self.assertEqual(res.status_code, 302)
+		self.loan.refresh_from_db()
+		self.assertEqual(self.loan.status, CapitalLoan.Status.CLOSED)
+		self.assertFalse(self.loan.is_archived)
+
+		# 2. Archive the closed loan to vault
+		archive_url = reverse("finance:archive_loan", kwargs={"pk": self.loan.pk})
+		res = self.client.post(archive_url)
+		self.assertEqual(res.status_code, 302)
+		self.loan.refresh_from_db()
+		self.assertTrue(self.loan.is_archived)
+		self.assertIsNotNone(self.loan.archived_at)
+		self.assertEqual(self.loan.archived_by, self.ops_mgr)
+
+		# 3. Verify archived loan appears in archived filter and excluded from active
+		list_url = reverse("finance:loan_list")
+		res_active = self.client.get(list_url)
+		self.assertNotContains(res_active, "CHQ-990123")
+
+		res_archived = self.client.get(list_url + "?status=archived")
+		self.assertContains(res_archived, "CHQ-990123")
+		self.assertContains(res_archived, "Archived in Vault")
+
+		# 4. Unarchive loan
+		unarchive_url = reverse("finance:unarchive_loan", kwargs={"pk": self.loan.pk})
+		res = self.client.post(unarchive_url)
+		self.assertEqual(res.status_code, 302)
+		self.loan.refresh_from_db()
+		self.assertFalse(self.loan.is_archived)
+
+	def test_blockchain_ledger_rbac_access_control(self):
+		"""
+		Tests strict RBAC:
+		Admin & Operations Management can access Blockchain Ledger (200).
+		Operations, Finance, and Invoicing are strictly forbidden (403).
+		"""
+		bc_url = reverse("operations:blockchain_ledger")
+
+		# Admin can access
+		self.client.login(username="master_admin", password="password123")
+		res = self.client.get(bc_url)
+		self.assertEqual(res.status_code, 200)
+		self.assertContains(res, "Cryptographic Blockchain Ledger")
+		self.assertContains(res, "SHA-256 Merkle Chain")
+
+		# Operations Manager can access
+		self.client.login(username="master_ops_mgr", password="password123")
+		res = self.client.get(bc_url)
+		self.assertEqual(res.status_code, 200)
+
+		# Operations cannot access (403)
+		self.client.login(username="regular_ops", password="password123")
+		res = self.client.get(bc_url)
+		self.assertEqual(res.status_code, 403)
+
+		# Finance cannot access (403)
+		self.client.login(username="regular_finance", password="password123")
+		res = self.client.get(bc_url)
+		self.assertEqual(res.status_code, 403)
+
+		# Invoicing cannot access (403)
+		self.client.login(username="regular_invoicing", password="password123")
+		res = self.client.get(bc_url)
+		self.assertEqual(res.status_code, 403)
+
+	def test_activity_history_deprecated_and_redirects(self):
+		"""Tests that /audit/ cleanly redirects to /operations/blockchain/ for authorized users."""
+		self.client.login(username="master_admin", password="password123")
+		audit_url = reverse("audit:list")
+		res = self.client.get(audit_url)
+		self.assertEqual(res.status_code, 302)
+		self.assertIn(reverse("operations:blockchain_ledger"), res.url)
+
 

@@ -8,50 +8,12 @@ from .models import SystemAuditTrail
 
 @role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
 def audit_list(request):
-    action_filter = request.GET.get("action", "").strip()
-    table_filter = request.GET.get("table", "").strip()
-    user_filter = request.GET.get("user", "").strip()
-    q = request.GET.get("q", "").strip()
-
-    entries_qs = SystemAuditTrail.objects.select_related("user").all()
-
-    if action_filter:
-        entries_qs = entries_qs.filter(action=action_filter)
-    if table_filter:
-        entries_qs = entries_qs.filter(table_name__icontains=table_filter)
-    if user_filter:
-        try:
-            entries_qs = entries_qs.filter(user_id=user_filter)
-        except Exception:
-            pass
-    if q:
-        entries_qs = entries_qs.filter(
-            Q(table_name__icontains=q) |
-            Q(record_id__icontains=q) |
-            Q(user__username__icontains=q) |
-            Q(user__first_name__icontains=q) |
-            Q(user__last_name__icontains=q)
-        )
-
-    users_list = User.objects.filter(audit_entries__isnull=False).distinct()
-    available_actions = SystemAuditTrail.Action.choices
-
-    entries = entries_qs.order_by("-timestamp")[:300]
-
-    return render(
-        request,
-        "audit/list.html",
-        {
-            "entries": entries,
-            "users_list": users_list,
-            "available_actions": available_actions,
-            "action_filter": action_filter,
-            "table_filter": table_filter,
-            "user_filter": user_filter,
-            "q": q,
-            "total_audit_count": SystemAuditTrail.objects.count(),
-        },
-    )
+    """
+    Deprecated Activity History route. Redirects seamlessly to the unified Blockchain Ledger.
+    Access restricted exclusively to Administrator and Operations Management roles.
+    """
+    from django.shortcuts import redirect
+    return redirect("operations:blockchain_ledger")
 
 
 from django.http import JsonResponse

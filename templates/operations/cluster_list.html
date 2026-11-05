@@ -159,7 +159,9 @@
 <div class="tabs-row d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
         <button class="tab-btn active" type="button"><i class="bi bi-receipt"></i> Orders &amp; Deals</button>
-        <a href="{% url 'audit:list' %}" class="tab-btn"><i class="bi bi-shield-check"></i> Activity History</a>
+        {% if user_role_code == 'administrator' or user_role_code == 'operations_management' %}
+        <a href="{% url 'operations:blockchain_ledger' %}" class="tab-btn"><i class="bi bi-link-45deg"></i> Blockchain Ledger</a>
+        {% endif %}
     </div>
 
     <div class="d-none d-lg-flex align-items-center gap-1">
@@ -381,7 +383,7 @@
                         <div class="flowchart-subtext" style="font-size: 0.65rem;" id="flowSub4">Billing</div>
                     </div>
                 </a>
-                <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link" title="Step 05: View Bank Loan &amp; Deal Completion">
+                <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link" title="Step 05: View Financial Operations &amp; Cheque Ledger">
                     <div class="flowchart-step w-100" id="flowStep5">
                         <div class="flowchart-node" style="width: 32px; height: 32px; font-size: 0.75rem;">05</div>
                         <div class="flowchart-label" style="font-size: 0.72rem;">Completed</div>

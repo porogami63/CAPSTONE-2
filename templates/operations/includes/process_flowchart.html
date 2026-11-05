@@ -209,7 +209,7 @@
         {% else %}
         <a href="{% url 'finance:loan_list' %}" class="flowchart-step-link"
            data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top"
-           title="&lt;div class='text-start p-1'&gt;&lt;strong&gt;⚠️ Step 05: Bank Loan Paid &amp; Deal Completed&lt;/strong&gt;&lt;br&gt;&lt;span class='text-xs text-muted'&gt;Status: {{ wf.step5.status_text }}&lt;/span&gt;{% if wf.step5.missing %}&lt;div class='mt-1 pt-1 border-top border-secondary text-warning text-xs'&gt;&lt;strong&gt;Missing items:&lt;/strong&gt;&lt;br&gt;{% for m in wf.step5.missing %}• {{ m }}&lt;br&gt;{% endfor %}&lt;/div&gt;{% else %}&lt;div class='text-success text-xs mt-1'&gt;✓ Bank loan settled and deal completed.&lt;/div&gt;{% endif %}&lt;/div&gt;">
+           title="&lt;div class='text-start p-1'&gt;&lt;strong&gt;⚠️ Step 05: Financial Settlement &amp; Cheque Ledger&lt;/strong&gt;&lt;br&gt;&lt;span class='text-xs text-muted'&gt;Status: {{ wf.step5.status_text }}&lt;/span&gt;{% if wf.step5.missing %}&lt;div class='mt-1 pt-1 border-top border-secondary text-warning text-xs'&gt;&lt;strong&gt;Missing items:&lt;/strong&gt;&lt;br&gt;{% for m in wf.step5.missing %}• {{ m }}&lt;br&gt;{% endfor %}&lt;/div&gt;{% else %}&lt;div class='text-success text-xs mt-1'&gt;✓ Facility settled and deal completed.&lt;/div&gt;{% endif %}&lt;/div&gt;">
             {% if wf.current_step == 5 %}
             <div class="flowchart-step is-active w-100">
                 <div class="flowchart-node">05</div>

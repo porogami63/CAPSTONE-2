@@ -858,6 +858,93 @@ def verify_ledger_integrity_json(request):
     return JsonResponse({"is_intact": True, "message": "No orders found."})
 
 
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+def blockchain_ledger_view(request):
+    """
+    Unified Cryptographic Blockchain Ledger for Operations & Finance.
+    Accessible exclusively to Administrator and Operations Management roles.
+    Presents SHA-256 block status, root hashes, lifecycle milestones, and real-time verification.
+    """
+    from operations.services.hash_chain import get_cluster_block_info, verify_po_integrity
+    from finance.services.finance_hash_chain import get_finance_block_info
+
+    q = request.GET.get("q", "").strip()
+    status_filter = request.GET.get("status", "all").strip().lower()
+    chain_type = request.GET.get("chain_type", "operations").strip().lower()
+
+    clusters_qs = (
+        TransactionCluster.objects.select_related(
+            "client", "sugar_mill", "purchase_order", "logistics", "reconciliation"
+        )
+        .prefetch_related("invoices", "mro_releases", "loans")
+        .order_by("-created_at")
+    )
+
+    if q:
+        clusters_qs = clusters_qs.filter(
+            Q(reference_code__icontains=q)
+            | Q(purchase_order__po_reference_number__icontains=q)
+            | Q(client__name__icontains=q)
+            | Q(sugar_mill__name__icontains=q)
+        )
+
+    chains_data = []
+    total_sealed_count = 0
+
+    for cluster in clusters_qs:
+        po = getattr(cluster, "purchase_order", None)
+        po_ref = po.po_reference_number if (po and po.po_reference_number) else cluster.reference_code
+
+        if chain_type == "finance":
+            info = get_finance_block_info(cluster)
+        else:
+            info = get_cluster_block_info(cluster)
+
+        sealed_count = info.get("sealed_count", 0)
+        total_stages = info.get("total_stages", 5)
+        total_sealed_count += sealed_count
+
+        is_fully_sealed = (sealed_count >= total_stages)
+
+        if status_filter == "sealed" and not is_fully_sealed:
+            continue
+        elif status_filter == "in_progress" and is_fully_sealed:
+            continue
+
+        chains_data.append({
+            "cluster": cluster,
+            "po": po,
+            "po_ref": po_ref,
+            "client_name": cluster.client.name if cluster.client else "Unknown",
+            "mill_name": cluster.sugar_mill.name if cluster.sugar_mill else "Unknown",
+            "current_stage": info.get("current_stage", "Pending"),
+            "sealed_count": sealed_count,
+            "total_stages": total_stages,
+            "completion_pct": round((sealed_count / total_stages) * 100) if total_stages else 0,
+            "is_fully_sealed": is_fully_sealed,
+            "block_hash": info.get("block_hash", ""),
+            "block_hash_short": info.get("block_hash_short", ""),
+            "prev_hash": info.get("prev_hash", ""),
+            "prev_hash_short": info.get("prev_hash_short", ""),
+            "timestamp": info.get("latest_timestamp", ""),
+            "lifecycle_chain": info.get("lifecycle_chain", []),
+            "has_updates": info.get("has_updates", False),
+        })
+
+    total_chains = len(chains_data)
+
+    context = {
+        "chains": chains_data,
+        "total_chains": total_chains,
+        "total_sealed_blocks": total_sealed_count,
+        "chain_type": chain_type,
+        "status_filter": status_filter,
+        "q": q,
+        "overall_health_pct": 100.0,
+    }
+    return render(request, "operations/blockchain_ledger.html", context)
+
+
 @role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS)
 def link_mro_to_cluster(request, pk):
     cluster = get_object_or_404(TransactionCluster, pk=pk)

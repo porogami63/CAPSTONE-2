@@ -22,6 +22,7 @@ urlpatterns = [
     path("<uuid:pk>/resolve-weight-difference/", views.resolve_weight_difference_view, name="resolve_weight_difference"),
     path("<uuid:pk>/verify-integrity/", views.verify_po_integrity_json, name="verify_po_integrity"),
     path("ledger-integrity/", views.verify_ledger_integrity_json, name="verify_ledger_integrity"),
+    path("blockchain/", views.blockchain_ledger_view, name="blockchain_ledger"),
     path("archive/", views.archive_list, name="archive_list"),
     path("bulk-archive/", views.bulk_archive_completed, name="bulk_archive_completed"),
     path("<uuid:pk>/archive/", views.archive_cluster, name="archive_cluster"),

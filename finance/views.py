@@ -823,6 +823,9 @@ def loan_list(request):
 
     q = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "all").strip().lower()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    manager_filter = request.GET.get("manager", "").strip()
     po_ref = request.GET.get("po", "").strip() or request.GET.get("focus_po", "").strip()
 
     # If user selected a PO to focus workspace, redirect to the dedicated PO workspace view
@@ -931,16 +934,54 @@ def loan_list(request):
             "excess_amount": c_excess,
         })
 
-    loans = list(
-        CapitalLoan.objects.select_related(
-            "cluster",
-            "cluster__client",
-            "cluster__sugar_mill",
-            "cluster__purchase_order",
-            "verified_by",
-            "created_by",
-        ).order_by("-created_at")
-    )
+    archived_loans_count = CapitalLoan.objects.filter(is_archived=True).count()
+    settled_loans_count = CapitalLoan.objects.filter(status=CapitalLoan.Status.CLOSED, is_archived=False).count()
+    active_loans_count = CapitalLoan.objects.filter(status=CapitalLoan.Status.ACTIVE, is_archived=False).count()
+
+    loans_qs = CapitalLoan.objects.select_related(
+        "cluster",
+        "cluster__client",
+        "cluster__sugar_mill",
+        "cluster__purchase_order",
+        "verified_by",
+        "created_by",
+        "archived_by",
+    ).order_by("-created_at")
+
+    if status_filter == "archived":
+        loans_qs = loans_qs.filter(is_archived=True)
+    else:
+        loans_qs = loans_qs.filter(is_archived=False)
+        if status_filter == "active":
+            loans_qs = loans_qs.filter(status=CapitalLoan.Status.ACTIVE)
+        elif status_filter == "pending":
+            loans_qs = loans_qs.filter(status__in=[CapitalLoan.Status.PENDING_CREATION, CapitalLoan.Status.PENDING_SETTLEMENT])
+        elif status_filter in ("settled", "closed"):
+            loans_qs = loans_qs.filter(status=CapitalLoan.Status.CLOSED)
+        elif status_filter == "overdue":
+            loans_qs = loans_qs.filter(status=CapitalLoan.Status.OVERDUE)
+
+    if q:
+        loans_qs = loans_qs.filter(
+            Q(bank_name__icontains=q) |
+            Q(cheque_number__icontains=q) |
+            Q(settlement_receipt_number__icontains=q) |
+            Q(cluster__reference_code__icontains=q) |
+            Q(cluster__client__name__icontains=q) |
+            Q(cluster__sugar_mill__name__icontains=q)
+        )
+
+    if date_from:
+        loans_qs = loans_qs.filter(start_date__gte=date_from)
+    if date_to:
+        loans_qs = loans_qs.filter(start_date__lte=date_to)
+    if manager_filter:
+        loans_qs = loans_qs.filter(Q(verified_by_id=manager_filter) | Q(created_by_id=manager_filter))
+
+    loans = list(loans_qs)
+    managers_list = User.objects.filter(
+        role__in=[User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE]
+    ).order_by("first_name", "username").distinct()
 
     active_exposure = Decimal("0")
     accrued_interest = Decimal("0")
@@ -1043,6 +1084,13 @@ def loan_list(request):
             "q": q,
             "status_filter": status_filter,
             "po_ref": po_ref,
+            "date_from": date_from,
+            "date_to": date_to,
+            "manager_filter": manager_filter,
+            "managers_list": managers_list,
+            "archived_loans_count": archived_loans_count,
+            "settled_loans_count": settled_loans_count,
+            "active_loans_count": active_loans_count,
         },
     )
 
@@ -1111,6 +1159,110 @@ def settle_loan(request, pk):
             request,
             f"Bank loan facility for {loan.cluster.reference_code} submitted for SETTLEMENT VERIFICATION. Bank Clearance Advice #{receipt_num or 'Recorded'}.",
         )
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
+    if next_url:
+        return redirect(next_url)
+    return redirect("finance:loan_list")
+
+
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE)
+def close_loan(request, pk):
+    """
+    Directly transition a reconciled/settled loan account to 'CLOSED' state.
+    Dual authorization / manager sign-off.
+    """
+    loan = get_object_or_404(CapitalLoan, pk=pk)
+    if request.method == "POST":
+        if loan.status == CapitalLoan.Status.CLOSED:
+            messages.info(request, f"Loan #{loan.pk} is already closed.")
+        else:
+            receipt_num = request.POST.get("settlement_receipt_number", "").strip() or loan.settlement_receipt_number
+            settlement_notes = request.POST.get("settlement_notes", "").strip() or loan.settlement_notes
+            loan.status = CapitalLoan.Status.CLOSED
+            if receipt_num:
+                loan.settlement_receipt_number = receipt_num
+            if settlement_notes:
+                loan.settlement_notes = settlement_notes
+            loan.settlement_date = timezone.localdate()
+            loan.verified_by = request.user
+            loan.verified_at = timezone.now()
+            loan._audit_user = request.user
+            loan.save()
+
+            from chat.views import send_system_notification
+            send_system_notification(
+                loan.cluster,
+                f"Capital Loan facility ₱{loan.principal:,.2f} ({loan.bank_name}) was CLOSED & SETTLED by {request.user.get_full_name() or request.user.username}.",
+                sender_user=request.user,
+            )
+            messages.success(
+                request,
+                f"Loan facility #{loan.pk} ({loan.bank_name}) has been marked as Settled & Closed.",
+            )
+
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
+    if next_url:
+        return redirect(next_url)
+    return redirect("finance:loan_list")
+
+
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+def archive_loan(request, pk):
+    """
+    Explicit action to archive closed loans out of active operational table into the historical vault.
+    """
+    loan = get_object_or_404(CapitalLoan, pk=pk)
+    if request.method == "POST":
+        if loan.status != CapitalLoan.Status.CLOSED:
+            messages.error(request, "Only settled and closed loans can be archived to the historical vault.")
+        else:
+            loan.is_archived = True
+            loan.archived_at = timezone.now()
+            loan.archived_by = request.user
+            loan._audit_user = request.user
+            loan.save()
+
+            from chat.views import send_system_notification
+            send_system_notification(
+                loan.cluster,
+                f"Capital Loan #{loan.pk} ({loan.bank_name}) was ARCHIVED to historical vault by {request.user.get_full_name() or request.user.username}.",
+                sender_user=request.user,
+            )
+            messages.success(
+                request,
+                f"Loan #{loan.pk} ({loan.bank_name}) has been archived and moved to the historical vault.",
+            )
+
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
+    if next_url:
+        return redirect(next_url)
+    return redirect("finance:loan_list")
+
+
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
+def unarchive_loan(request, pk):
+    """
+    Restore an archived loan facility back into the active ledger.
+    """
+    loan = get_object_or_404(CapitalLoan, pk=pk)
+    if request.method == "POST":
+        loan.is_archived = False
+        loan.archived_at = None
+        loan.archived_by = None
+        loan._audit_user = request.user
+        loan.save()
+
+        from chat.views import send_system_notification
+        send_system_notification(
+            loan.cluster,
+            f"Capital Loan #{loan.pk} ({loan.bank_name}) was RESTORED from archive by {request.user.get_full_name() or request.user.username}.",
+            sender_user=request.user,
+        )
+        messages.success(
+            request,
+            f"Loan #{loan.pk} ({loan.bank_name}) has been restored from the historical vault to active view.",
+        )
+
     next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
     if next_url:
         return redirect(next_url)

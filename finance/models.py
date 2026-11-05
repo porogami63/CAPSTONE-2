@@ -195,6 +195,16 @@ class CapitalLoan(models.Model):
         help_text="Finance user or team member who created this loan facility proposal",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="archived_loans",
+        help_text="User who archived this loan facility",
+    )
 
     class Meta:
         ordering = ["-start_date"]
