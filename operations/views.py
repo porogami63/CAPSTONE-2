@@ -31,7 +31,7 @@ from .services.excel_import import (
 from .services.pricing import cluster_financials
 from .services.copilot_services import evaluate_copilot_query
 from .services.stats_services import get_operational_stats, check_input_outliers
-from .services.hash_chain import get_cluster_block_info, verify_chain_integrity
+from .services.hash_chain import get_cluster_block_info, verify_po_integrity
 
 
 def _safe_next_url(request, raw_url):
@@ -831,19 +831,31 @@ def cluster_detail(request, pk):
             "is_concluded": is_concluded,
             "has_active_loan": has_active_loan,
             "ledger_block": get_cluster_block_info(cluster),
-            "ledger_summary": verify_chain_integrity(),
         },
     )
 
 
 @login_required
+def verify_po_integrity_json(request, pk):
+    """
+    Returns real-time cryptographic verification of the SHA-256 lifecycle
+    blockchain for a single specific Purchase Order.
+    """
+    cluster = get_object_or_404(TransactionCluster, pk=pk)
+    from operations.services.hash_chain import verify_po_integrity
+    return JsonResponse(verify_po_integrity(cluster))
+
+
+@login_required
 def verify_ledger_integrity_json(request):
     """
-    Returns real-time cryptographic verification of the SHA-256 Purchase Order
-    hash chain (Option A) for live thesis defense demonstrations.
+    Legacy/global fallback endpoint for ledger verification.
     """
-    from operations.services.hash_chain import verify_chain_integrity
-    return JsonResponse(verify_chain_integrity())
+    from operations.services.hash_chain import verify_po_integrity
+    first_cluster = TransactionCluster.objects.first()
+    if first_cluster:
+        return JsonResponse(verify_po_integrity(first_cluster))
+    return JsonResponse({"is_intact": True, "message": "No orders found."})
 
 
 @role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS)

@@ -1992,25 +1992,30 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
         self.assertEqual(delivery.delivered_mt, Decimal("2000.000"))
 
     def test_cryptographic_hash_chain_integrity(self):
-        from operations.services.hash_chain import get_ledger_chain, get_cluster_block_info, verify_chain_integrity
-        chain = get_ledger_chain()
-        self.assertTrue(len(chain) >= 1)
+        from operations.services.hash_chain import get_po_lifecycle_chain, get_cluster_block_info, verify_po_integrity
+        chain = get_po_lifecycle_chain(self.cluster)
+        self.assertEqual(len(chain), 5)
+        self.assertEqual(chain[0]["stage_key"], "creation")
+        self.assertEqual(chain[0]["block_index"], 1)
+        self.assertEqual(chain[0]["prev_hash_short"], "00000000...000000 (Genesis)")
         
         # Test individual block retrieval
         block_info = get_cluster_block_info(self.cluster)
         self.assertTrue(block_info["is_verified"])
         self.assertEqual(len(block_info["block_hash"]), 64)
         
-        # Test full chain integrity
-        res = verify_chain_integrity()
+        # Test per-PO integrity
+        res = verify_po_integrity(self.cluster)
         self.assertTrue(res["is_intact"])
-        self.assertIsNone(res["broken_index"])
-        self.assertTrue(res["total_verified"] >= 1)
+        self.assertEqual(res["total_stages"], 5)
+        self.assertTrue(res["sealed_stages"] >= 1)
+        self.assertEqual(len(res["lifecycle"]), 5)
         
-        # Test JSON endpoint
+        # Test per-PO JSON endpoint
         user = User.objects.create_user(username="hash_test_user", password="pw", role=User.Role.OPERATIONS)
         self.client.force_login(user)
-        response = self.client.get(reverse("operations:verify_ledger_integrity"))
+        response = self.client.get(reverse("operations:verify_po_integrity", kwargs={"pk": self.cluster.pk}))
         self.assertEqual(response.status_code, 200)
         json_data = response.json()
         self.assertTrue(json_data["is_intact"])
+        self.assertEqual(len(json_data["lifecycle"]), 5)

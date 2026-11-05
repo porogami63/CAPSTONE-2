@@ -20,6 +20,7 @@ urlpatterns = [
     path("invoice/<int:invoice_pk>/status/", views.update_invoice_status, name="update_invoice_status"),
     path("<uuid:pk>/resolve-dispute/", views.resolve_dispute, name="resolve_dispute"),
     path("<uuid:pk>/resolve-weight-difference/", views.resolve_weight_difference_view, name="resolve_weight_difference"),
+    path("<uuid:pk>/verify-integrity/", views.verify_po_integrity_json, name="verify_po_integrity"),
     path("ledger-integrity/", views.verify_ledger_integrity_json, name="verify_ledger_integrity"),
     path("archive/", views.archive_list, name="archive_list"),
     path("bulk-archive/", views.bulk_archive_completed, name="bulk_archive_completed"),
