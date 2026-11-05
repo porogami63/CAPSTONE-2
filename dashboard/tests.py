@@ -39,7 +39,7 @@ class DashboardRoleInterfaceTests(TestCase):
         self.assertEqual(res.context["user_role"], User.Role.OPERATIONS)
         self.assertIn("active_shipments_count", res.context)
 
-    def test_financial_table_cadence_and_copilot_context(self):
+    def test_non_monetary_operational_insights_and_no_peso_leak(self):
         client = Client.objects.create(name="San Miguel Corp")
         mill = SugarMill.objects.create(name="Central Azucarera")
         cluster = TransactionCluster.objects.create(
@@ -56,7 +56,6 @@ class DashboardRoleInterfaceTests(TestCase):
             customer=client,
         )
 
-        # Create second cluster with an issued Invoice (date field) alongside cluster created_at (datetime field)
         from finance.models import Invoice
         cluster2 = TransactionCluster.objects.create(
             reference_code="PO-CADENCE-02",
@@ -79,21 +78,22 @@ class DashboardRoleInterfaceTests(TestCase):
             status=Invoice.Status.ISSUED,
         )
 
-        self.client.login(username="ops_user", password="password123")
-        res = self.client.get("/")
-        self.assertEqual(res.status_code, 200)
-        self.assertIn("financial_intervals", res.context)
-        intervals = res.context["financial_intervals"]
-        self.assertIn("weekly", intervals)
-        self.assertIn("monthly", intervals)
-        self.assertIn("yearly", intervals)
-        for cadence in ["weekly", "monthly", "yearly"]:
-            self.assertIn("title", intervals[cadence])
-            self.assertIn("labels", intervals[cadence])
-            self.assertIn("table", intervals[cadence])
-            self.assertIn("copilot_text", intervals[cadence])
-        self.assertContains(res, 'id="financialTableContainer"')
-        self.assertContains(res, 'id="financialCopilotFootnote"')
+        # Test across roles: Operations Management, Operations, Finance, Invoicing
+        for user_name in ["ops_user", "ops_role_user", "fin_user", "inv_user"]:
+            self.client.login(username=user_name, password="password123")
+            res = self.client.get("/")
+            self.assertEqual(res.status_code, 200)
+            self.assertIn("insights", res.context)
+            insights = res.context["insights"]
+            self.assertIn("indicators", insights)
+            self.assertIn("todo_items", insights)
+            self.assertIn("fulfillment", insights)
+
+            # Strict Panel Review constraint: No ₱ currency on the main dashboard
+            content = res.content.decode("utf-8")
+            self.assertNotIn("₱", content, f"Monetary symbol '₱' leaked on dashboard for {user_name}!")
+            self.assertNotIn("Total Revenue", content)
+            self.assertNotIn("Net Profit", content)
 
     def test_finance_dashboard_home(self):
         self.client.login(username="fin_user", password="password123")
