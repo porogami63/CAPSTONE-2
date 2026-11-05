@@ -10,6 +10,21 @@ import json
 import time
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
+from django.utils import timezone
+
+
+def _format_pst(dt) -> str:
+    """Format datetime into Philippine Standard Time (PST / UTC+8)."""
+    if not dt:
+        return ""
+    try:
+        if timezone.is_aware(dt):
+            local_dt = timezone.localtime(dt, timezone.get_fixed_timezone(480))
+        else:
+            local_dt = timezone.make_aware(dt, timezone.get_fixed_timezone(480))
+        return local_dt.strftime("%b %d, %Y %I:%M %p PST")
+    except Exception:
+        return dt.strftime("%b %d, %Y %I:%M %p PST")
 
 
 def _compute_hash(payload_dict: Dict[str, Any]) -> str:
@@ -57,7 +72,7 @@ def get_po_lifecycle_chain(cluster) -> List[Dict[str, Any]]:
         "stage_title": "Order Created",
         "badge_label": "Genesis Block",
         "summary": f"Contract registered for {vol_str} MT between {cluster.client.name if cluster.client else 'Client'} and {cluster.sugar_mill.name if cluster.sugar_mill else 'Supplier'}.",
-        "timestamp": cluster.created_at.strftime("%b %d, %Y %I:%M %p") if cluster.created_at else "Initial",
+        "timestamp": _format_pst(cluster.created_at) if cluster.created_at else "Genesis Initial",
         "is_sealed": True,
         "prev_hash": prev_hash,
         "prev_hash_short": "00000000...000000 (Genesis)",
@@ -91,7 +106,7 @@ def get_po_lifecycle_chain(cluster) -> List[Dict[str, Any]]:
         "stage_title": "Management Approval",
         "badge_label": "Approved & Sealed" if is_approved else "Pending Review",
         "summary": f"Reviewed and authorized for operations by {cluster.approved_by.get_full_name() if cluster.approved_by else 'Operations Management'}." if is_approved else "Pending executive manager review and approval.",
-        "timestamp": (cluster.approved_at or cluster.created_at).strftime("%b %d, %Y %I:%M %p") if is_approved else "Pending",
+        "timestamp": _format_pst(cluster.approved_at or cluster.created_at) if is_approved else "Pending Review",
         "is_sealed": is_approved,
         "prev_hash": prev_hash,
         "prev_hash_short": prev_hash[:8] + "..." + prev_hash[-6:],
@@ -122,7 +137,7 @@ def get_po_lifecycle_chain(cluster) -> List[Dict[str, Any]]:
         "stage_title": "Logistics & Loading Permits",
         "badge_label": "Logistics Locked" if has_logistics else "In Preparation",
         "summary": f"Carrier assigned ({carrier_name}) with {mro_count} Molasses Release Order permit(s) linked." if has_logistics else "Loading permits and carrier assignment being processed.",
-        "timestamp": cluster.created_at.strftime("%b %d, %Y %I:%M %p"),
+        "timestamp": _format_pst(cluster.created_at) if has_logistics else "In Preparation",
         "is_sealed": has_logistics,
         "prev_hash": prev_hash,
         "prev_hash_short": prev_hash[:8] + "..." + prev_hash[-6:],
@@ -158,7 +173,7 @@ def get_po_lifecycle_chain(cluster) -> List[Dict[str, Any]]:
         "stage_title": "Delivery & Weighbridge Receipt",
         "badge_label": "Delivery Confirmed" if is_delivered else "In Transit",
         "summary": f"Weighbridge confirmed {received_mt:,.3f} MT received (Variance: {variance_pct:+.2f}% vs {loaded_mt:,.3f} MT dispatched)." if is_delivered else "Shipment in transit to destination receiving terminal.",
-        "timestamp": cluster.updated_at.strftime("%b %d, %Y %I:%M %p") if is_delivered else "In Progress",
+        "timestamp": _format_pst(cluster.updated_at) if is_delivered else "In Progress",
         "is_sealed": is_delivered,
         "prev_hash": prev_hash,
         "prev_hash_short": prev_hash[:8] + "..." + prev_hash[-6:],
@@ -188,7 +203,7 @@ def get_po_lifecycle_chain(cluster) -> List[Dict[str, Any]]:
         "stage_title": "Billing & Final Settlement",
         "badge_label": "Deal Concluded" if cluster.status == cluster.Status.CLOSED else ("Invoiced" if invoices else "Open"),
         "summary": f"Sales Invoice {invoice_num} generated and financial accounts balanced." if is_closed else "Customer billing and final account settlement.",
-        "timestamp": cluster.updated_at.strftime("%b %d, %Y %I:%M %p") if is_closed else "Upcoming",
+        "timestamp": _format_pst(cluster.updated_at) if is_closed else "Upcoming",
         "is_sealed": is_closed,
         "prev_hash": prev_hash,
         "prev_hash_short": prev_hash[:8] + "..." + prev_hash[-6:],
@@ -221,6 +236,8 @@ def get_cluster_block_info(cluster) -> Dict[str, Any]:
         "is_verified": True,
         "algorithm": "SHA-256 Cryptographic Hash Chaining",
         "lifecycle_chain": chain,
+        "latest_timestamp": current_sealed["timestamp"],
+        "has_updates": len(sealed_blocks) > 1,
     }
 
 
@@ -246,4 +263,6 @@ def verify_po_integrity(cluster) -> Dict[str, Any]:
         "verification_time_ms": elapsed_ms,
         "message": f"All {len(sealed_blocks)} active lifecycle stages for {cluster.reference_code} verified. Zero tampering detected.",
         "lifecycle": chain,
+        "latest_timestamp": active_root["timestamp"],
+        "verified_at_pst": _format_pst(timezone.now()),
     }

@@ -12,11 +12,14 @@
         <span class="badge bg-body border text-dark fs-7 px-3 py-1.5 shadow-2xs font-monospace" style="border-color: var(--htc-border) !important;">
             {{ cluster.reference_code }}
         </span>
-        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold px-3 py-1.5 shadow-2xs d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#ledgerVerifyModal" onclick="triggerLedgerVerification()" title="Open Immutable Blockchain Lifecycle &amp; Audit Trail">
+        <button type="button" id="blockchainPillBtn" class="btn btn-sm btn-outline-primary fw-semibold px-3 py-1.5 shadow-2xs d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#ledgerVerifyModal" onclick="triggerLedgerVerification()" title="Open Immutable Blockchain Lifecycle &amp; Audit Trail">
             <i class="bi bi-shield-check text-primary fs-6"></i>
             <span>Audit Trail &amp; Blockchain</span>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-0.5 px-1.5">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-0.5 px-1.5" id="blockchainSealedBadge">
                 {{ ledger_block.sealed_count }}/{{ ledger_block.total_stages }} Sealed
+            </span>
+            <span id="blockchainUpdateDot" class="badge bg-warning text-dark border border-warning-subtle py-0.5 px-1.5 fs-8 d-none">
+                <i class="bi bi-bell-fill me-0.5"></i> Update
             </span>
         </button>
     </div>
@@ -1415,6 +1418,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="tab-content" id="auditBlockchainTabContent">
                     <!-- TAB 1: BLOCKCHAIN LIFECYCLE -->
                     <div class="tab-pane fade show active" id="tab-blockchain-pane" role="tabpanel" aria-labelledby="tab-blockchain-btn">
+                        <!-- Dynamic Blockchain Update Alert (In Blockchain Tab Only) -->
+                        <div id="blockchainTabUpdateAlert" class="alert alert-info border border-info-subtle d-flex align-items-center justify-content-between flex-wrap gap-2 p-2.5 rounded-3 mb-3" style="background: rgba(37, 99, 235, 0.08);">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-bell-fill text-primary fs-6"></i>
+                                <div class="text-xs">
+                                    <strong id="blockchainAlertHeading">Blockchain Ledger Update Notice:</strong>
+                                    <span id="blockchainAlertText">Stage {{ ledger_block.sealed_count }} of {{ ledger_block.total_stages }} (<strong>{{ ledger_block.current_stage }}</strong>) is cryptographically sealed and chained.</span>
+                                    <div class="text-muted mt-0.5">
+                                        Latest Sealed Timestamp: <span class="font-monospace text-dark fw-semibold" id="blockchainAlertTimestamp">{{ ledger_block.latest_timestamp }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="badge bg-primary text-white py-1 px-2 text-xs font-monospace">PST (UTC+8)</span>
+                        </div>
+
                         <!-- Loading State -->
                         <div id="ledgerVerifyingState" class="text-center py-4">
                             <div class="spinner-border text-primary mb-3" role="status"></div>
@@ -1556,6 +1574,51 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <script>
+// Blockchain Update Alert & Button Highlighting Engine
+document.addEventListener('DOMContentLoaded', function() {
+    const clusterId = "{{ cluster.id }}";
+    const currentSealed = {{ ledger_block.sealed_count }};
+    const currentHash = "{{ ledger_block.block_hash }}";
+    const lastKey = 'htc_blockchain_state_' + clusterId;
+    const stored = localStorage.getItem(lastKey);
+
+    const btn = document.getElementById('blockchainPillBtn');
+    const updateDot = document.getElementById('blockchainUpdateDot');
+
+    let hasChange = false;
+    if (stored) {
+        try {
+            const parsed = JSON.parse(stored);
+            if (parsed.sealed !== currentSealed || parsed.hash !== currentHash) {
+                hasChange = true;
+            }
+        } catch(e) { hasChange = true; }
+    } else {
+        // Highlight on first load if already progressed past draft/genesis
+        if (currentSealed > 1 || "{{ cluster.status }}" !== "draft") {
+            hasChange = true;
+        }
+    }
+
+    if (hasChange && btn) {
+        btn.classList.add('blockchain-btn-highlight');
+        if (updateDot) updateDot.classList.remove('d-none');
+    }
+
+    const ledgerModal = document.getElementById('ledgerVerifyModal');
+    if (ledgerModal) {
+        ledgerModal.addEventListener('show.bs.modal', function () {
+            // Mark blockchain as seen when opened
+            try {
+                localStorage.setItem(lastKey, JSON.stringify({ sealed: currentSealed, hash: currentHash }));
+            } catch(e) {}
+            if (btn) btn.classList.remove('blockchain-btn-highlight');
+            if (updateDot) updateDot.classList.add('d-none');
+            triggerLedgerVerification();
+        });
+    }
+});
+
 function triggerLedgerVerification() {
     const verifyingBox = document.getElementById('ledgerVerifyingState');
     const verifiedBox = document.getElementById('ledgerVerifiedState');
@@ -1577,6 +1640,16 @@ function triggerLedgerVerification() {
                 document.getElementById('poSealedStages').textContent = `${data.sealed_stages} of ${data.total_stages} Stages`;
                 document.getElementById('poCurrentStage').textContent = data.current_stage;
                 document.getElementById('poLatency').textContent = `${data.verification_time_ms} ms (Real-time)`;
+
+                // Update Alert in Blockchain tab
+                const alertHeading = document.getElementById('blockchainAlertHeading');
+                const alertText = document.getElementById('blockchainAlertText');
+                const alertTs = document.getElementById('blockchainAlertTimestamp');
+                if (alertHeading && alertText && alertTs) {
+                    alertHeading.textContent = "Blockchain Ledger Verified & Chained:";
+                    alertText.innerHTML = `Stage ${data.sealed_stages} of ${data.total_stages} (<strong>${data.current_stage}</strong>) verified with zero discrepancies.`;
+                    alertTs.textContent = data.latest_timestamp || data.verified_at_pst;
+                }
 
                 // Render each lifecycle block dynamically
                 let html = '';
