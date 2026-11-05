@@ -3042,6 +3042,19 @@ def update_delivery_arrival_view(request, delivery_id):
     delivered_mt_raw = (data.get("delivered_mt") or "").strip() if data.get("delivered_mt") is not None else ""
     next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
 
+    # Strict One-Time Volume Verification Check:
+    # Volume can only be verified once upon arrival. Once confirmed, further alterations are strictly prohibited.
+    if delivery.received_at is not None:
+        msg = (
+            f"Delivery batch #{str(delivery.delivery_id)[:8].upper()} volume has already been confirmed and sealed "
+            f"({delivery.delivered_mt:,.3f} MT on {delivery.received_at.strftime('%b %d, %Y %H:%M')}). "
+            f"Arrival volume can only be verified once to prevent post-delivery manipulation."
+        )
+        if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
+            return JsonResponse({"error": "VOLUME_ALREADY_VERIFIED", "message": msg}, status=400)
+        messages.error(request, msg)
+        return redirect(next_url or "operations:deliveries_list")
+
     if not received_at_raw:
         msg = "Arrival date & time is required."
         if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":

@@ -2019,3 +2019,68 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
         json_data = response.json()
         self.assertTrue(json_data["is_intact"])
         self.assertEqual(len(json_data["lifecycle"]), 5)
+
+    def test_volume_verified_only_once_arrival_locked_against_manipulation(self):
+        import json
+        from operations.models import DeliveryLedger
+        from django.core.exceptions import ValidationError
+        from django.utils import timezone
+
+        user = User.objects.create_user(username="arrival_verifier", password="pw", role=User.Role.OPERATIONS)
+        self.client.force_login(user)
+
+        local_now = timezone.localtime()
+        disp_time = local_now - timezone.timedelta(hours=4)
+        delivery = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill,
+            dispatched_mt=Decimal("600.000"),
+            delivered_mt=Decimal("600.000"),
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_a,
+            trucking_rate_per_mt=Decimal("450.00"),
+            dispatched_at=disp_time,
+            received_at=None,
+        )
+
+        arrival_url = reverse("operations:update_delivery_arrival", kwargs={"delivery_id": delivery.delivery_id})
+
+        # Step 1: Initial arrival verification succeeds
+        arr_iso = local_now.strftime("%Y-%m-%dT%H:%M")
+        res1 = self.client.post(
+            arrival_url,
+            data=json.dumps({
+                "received_at": arr_iso,
+                "dispatched_mt": "600.000",
+                "delivered_mt": "595.000",
+            }),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(res1.status_code, 200)
+        delivery.refresh_from_db()
+        self.assertIsNotNone(delivery.received_at)
+        self.assertEqual(delivery.delivered_mt, Decimal("595.000"))
+
+        # Step 2: Attempting to re-verify or alter volume via API fails with VOLUME_ALREADY_VERIFIED
+        res2 = self.client.post(
+            arrival_url,
+            data=json.dumps({
+                "received_at": arr_iso,
+                "dispatched_mt": "600.000",
+                "delivered_mt": "550.000",
+            }),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(res2.status_code, 400)
+        self.assertEqual(res2.json().get("error"), "VOLUME_ALREADY_VERIFIED")
+
+        # Step 3: Verify delivered_mt in database was not manipulated
+        delivery.refresh_from_db()
+        self.assertEqual(delivery.delivered_mt, Decimal("595.000"))
+
+        # Step 4: Model layer also prevents altering delivered_mt once received_at is set
+        delivery.delivered_mt = Decimal("520.000")
+        with self.assertRaises(ValidationError):
+            delivery.full_clean()

@@ -534,9 +534,9 @@
                                     <i class="bi bi-calendar-check me-1"></i>Confirm Arrival
                                 </button>
                                 {% else %}
-                                <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 fs-8 d-inline-flex align-items-center gap-1" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '{{ d.received_at|date:"Y-m-d\\TH:i"|default:"" }}')" title="Update arrival date or confirmed volume">
-                                    <i class="bi bi-pencil-square me-1"></i>Verify Volume
-                                </button>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2.5 fs-8 fw-semibold" title="Arrival confirmed on {{ d.received_at|date:'M d, Y H:i' }} PST. Volume is verified and sealed.">
+                                    <i class="bi bi-lock-fill me-1"></i>Verified &amp; Sealed
+                                </span>
                                 {% endif %}
                             {% endif %}
                             {% if d.purchase_order.cluster %}

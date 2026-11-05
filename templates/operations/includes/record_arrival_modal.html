@@ -19,6 +19,14 @@
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <div class="modal-body p-4">
+                    <!-- Sealed Volume Alert -->
+                    <div class="alert alert-warning py-2.5 px-3 fs-8 mb-3 d-none d-flex align-items-center gap-2 border-warning" id="arrivalLockedAlert" style="border-radius: 8px;">
+                        <i class="bi bi-lock-fill text-warning fs-6"></i>
+                        <div>
+                            <strong>Volume Verified &amp; Sealed:</strong> This shipment arrival and delivered volume have already been verified. Further modifications are prohibited to guarantee audit trail integrity.
+                        </div>
+                    </div>
+
                     <!-- Delivery Summary Card -->
                     <div class="p-3 rounded-3 bg-light border mb-3">
                         <div class="row g-2 fs-8">
@@ -176,6 +184,35 @@ function openRecordArrivalModal(deliveryId, poRef, dispatchedMt, deliveredMt, lo
             const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().substring(0, 16);
             input.value = localIso;
         }
+    }
+
+    const isAlreadyVerified = Boolean(receivedIso);
+    const btnSubmit = document.getElementById('btnArrivalSubmit');
+    const btnSetNow = document.getElementById('btnArrivalSetNow');
+    const alertBox = document.getElementById('arrivalLockedAlert');
+
+    if (isAlreadyVerified) {
+        if (dispInput) dispInput.setAttribute('disabled', 'disabled');
+        if (delivInput) delivInput.setAttribute('disabled', 'disabled');
+        if (input) input.setAttribute('disabled', 'disabled');
+        if (btnSetNow) btnSetNow.classList.add('d-none');
+        if (btnSubmit) {
+            btnSubmit.setAttribute('disabled', 'disabled');
+            btnSubmit.classList.add('disabled');
+            btnSubmit.innerHTML = '<i class="bi bi-lock-fill me-1"></i> Volume Sealed &amp; Immutable';
+        }
+        if (alertBox) alertBox.classList.remove('d-none');
+    } else {
+        if (dispInput) dispInput.removeAttribute('disabled');
+        if (delivInput) delivInput.removeAttribute('disabled');
+        if (input) input.removeAttribute('disabled');
+        if (btnSetNow) btnSetNow.classList.remove('d-none');
+        if (btnSubmit) {
+            btnSubmit.removeAttribute('disabled');
+            btnSubmit.classList.remove('disabled');
+            btnSubmit.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Confirm Volume &amp; Arrival';
+        }
+        if (alertBox) alertBox.classList.add('d-none');
     }
 
     updateArrivalVariancePreview();

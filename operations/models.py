@@ -679,6 +679,11 @@ class DeliveryLedger(models.Model):
                 orig = DeliveryLedger.objects.filter(pk=self.pk).first()
                 if orig:
                     errors = {}
+                    if orig.received_at is not None:
+                        if self.delivered_mt is not None and self.delivered_mt != orig.delivered_mt:
+                            errors["delivered_mt"] = f"Delivered volume ({orig.delivered_mt:,.3f} MT) has already been verified upon arrival and is sealed against modification."
+                        if orig.dispatched_mt is not None and self.dispatched_mt != orig.dispatched_mt:
+                            errors["dispatched_mt"] = f"Dispatched volume ({orig.dispatched_mt:,.3f} MT) has already been verified upon arrival and is sealed against modification."
                     if orig.trucking_partner_id and self.trucking_partner_id != orig.trucking_partner_id:
                         errors["trucking_partner"] = f"Trucking provider ({orig.trucking_partner.name}) is locked once initialized and cannot be changed."
                     if orig.barge_partner_id and self.barge_partner_id != orig.barge_partner_id:
@@ -732,6 +737,17 @@ class DeliveryLedger(models.Model):
 
                 if errors:
                     raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            orig = DeliveryLedger.objects.filter(pk=self.pk).only("received_at", "delivered_mt").first()
+            if orig and orig.received_at is not None:
+                if self.delivered_mt is not None and self.delivered_mt != orig.delivered_mt:
+                    from django.core.exceptions import ValidationError
+                    raise ValidationError(
+                        f"Delivered volume ({orig.delivered_mt:,.3f} MT) is sealed upon arrival and cannot be modified."
+                    )
+        super().save(*args, **kwargs)
 
     def sync_cluster_logistics(self):
         """Sync delivery batch logistics timestamps, rates, and dispatched/delivered volumes into the cluster's LogisticsLedger."""
