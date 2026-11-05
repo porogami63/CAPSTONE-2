@@ -518,7 +518,8 @@
                             <th>Source Supplier</th>
                             <th>Receiving Destination</th>
                             <th class="text-end">Delivered MT</th>
-                            <th>Action</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -539,9 +540,27 @@
                             <td>{{ d.receiving_location }}</td>
                             <td class="text-end fw-bold text-success">{{ d.delivered_mt|floatformat:3|intcomma }} MT</td>
                             <td>
-                                <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="btn-htc-outline btn-sm py-0 px-2 fs-8">
+                                {% if d.received_at %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle fs-8">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Arrived
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-8">
+                                    <i class="bi bi-clock-history me-1"></i>In Transit
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end text-nowrap">
+                                {% if not d.received_at %}
+                                <a href="{% url 'operations:deliveries_list' %}?po={% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code }}{% endif %}&confirm_arrival={{ d.delivery_id }}" class="btn btn-warning btn-sm py-0.5 px-2 fs-8 fw-bold text-dark shadow-xs me-1" title="Confirm arrival date and delivered volume">
+                                    <i class="bi bi-calendar-check me-1"></i>Confirm Arrival
+                                </a>
+                                {% endif %}
+                                {% if d.purchase_order.cluster %}
+                                <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}" class="btn-htc-outline btn-sm py-0.5 px-2 fs-8">
                                     View PO
                                 </a>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -611,11 +630,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const supSelect = document.getElementById('id_delivery_supplier') || document.querySelector('select[name="supplier"]');
 
         if (isInit) {
-            if (supSelect && cfg.supplier_id) {
+            // Source sugar mill is flexible across batches; pre-select as default if not already selected
+            if (supSelect && cfg.supplier_id && !supSelect.value) {
                 supSelect.value = String(cfg.supplier_id);
-                supSelect.classList.add('bg-slate-100', 'pointer-events-none', 'cursor-not-allowed');
-                supSelect.style.backgroundColor = '#f1f5f9';
-                supSelect.style.color = '#64748b';
             }
             if (trkSelect && cfg.trucking_partner_id) {
                 trkSelect.value = String(cfg.trucking_partner_id);

@@ -496,14 +496,10 @@ class DeliveryLedgerForm(forms.ModelForm):
             self.initialized_logistics = init_cfg
             if init_cfg.get("is_initialized"):
                 self.logistics_locked = True
-                if init_cfg.get("supplier_id"):
+                # Source sugar mill is flexible across deliveries; default if not yet specified
+                if init_cfg.get("supplier_id") and not self.initial.get("supplier"):
                     self.fields["supplier"].initial = init_cfg["supplier_id"]
                     self.initial["supplier"] = init_cfg["supplier_id"]
-                    self.fields["supplier"].widget.attrs.update({
-                        "class": "form-select-htc bg-slate-100 pointer-events-none cursor-not-allowed",
-                        "style": "background-color: #f1f5f9; color: #64748b;",
-                        "data-locked": "true",
-                    })
                 if init_cfg.get("trucking_partner_id"):
                     self.fields["trucking_partner"].initial = init_cfg["trucking_partner_id"]
                     self.initial["trucking_partner"] = init_cfg["trucking_partner_id"]
@@ -695,8 +691,6 @@ class DeliveryLedgerForm(forms.ModelForm):
                     sub_sup = cleaned_data.get("supplier")
                     if not sub_sup:
                         cleaned_data["supplier"] = init_cfg["supplier"]
-                    elif sub_sup.pk != init_cfg["supplier_id"]:
-                        self.add_error("supplier", f"Source sugar mill is locked to {init_cfg['supplier_name']} once initialized for this order.")
                 if init_cfg.get("trucking_partner"):
                     sub_trk = cleaned_data.get("trucking_partner")
                     if not sub_trk:

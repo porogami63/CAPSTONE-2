@@ -674,13 +674,11 @@ class DeliveryLedger(models.Model):
                     "delivered_mt": f"Delivered quantity ({self.delivered_mt:,.3f} MT) exceeds the available remaining balance ({available_balance:,.3f} MT) for PO {ref}."
                 })
 
-            # Enforce Rate & Provider Immutability once initialized
+            # Enforce Rate & Provider Immutability once initialized (Source Sugar Mill is flexible)
             if self.pk:
                 orig = DeliveryLedger.objects.filter(pk=self.pk).first()
                 if orig:
                     errors = {}
-                    if orig.supplier_id and self.supplier_id != orig.supplier_id:
-                        errors["supplier"] = f"Source sugar mill ({orig.supplier.name}) is locked once initialized and cannot be changed."
                     if orig.trucking_partner_id and self.trucking_partner_id != orig.trucking_partner_id:
                         errors["trucking_partner"] = f"Trucking provider ({orig.trucking_partner.name}) is locked once initialized and cannot be changed."
                     if orig.barge_partner_id and self.barge_partner_id != orig.barge_partner_id:
@@ -695,11 +693,9 @@ class DeliveryLedger(models.Model):
             init_cfg = po.get_initialized_logistics(exclude_delivery_id=self.pk)
             if init_cfg.get("is_initialized"):
                 errors = {}
-                if init_cfg.get("supplier_id"):
-                    if not self.supplier_id:
-                        self.supplier_id = init_cfg["supplier_id"]
-                    elif self.supplier_id != init_cfg["supplier_id"]:
-                        errors["supplier"] = f"Source sugar mill is locked to {init_cfg['supplier_name']} once initialized for this order."
+                # Source sugar mill can be flexible after initial delivery; default if not set
+                if init_cfg.get("supplier_id") and not self.supplier_id:
+                    self.supplier_id = init_cfg["supplier_id"]
                 if init_cfg.get("trucking_partner_id"):
                     if not self.trucking_partner_id:
                         self.trucking_partner_id = init_cfg["trucking_partner_id"]

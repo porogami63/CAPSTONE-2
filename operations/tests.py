@@ -1538,6 +1538,84 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
         with self.assertRaises(ValidationError):
             d2.full_clean()
 
+    def test_supplier_flexible_after_initial_delivery_while_providers_and_rates_locked(self):
+        from django.core.exceptions import ValidationError
+        from operations.models import DeliveryLedger
+        from django.utils import timezone
+        from masters.models import SugarMill
+
+        other_mill = SugarMill.objects.create(name="Victorias Milling Co.", location="Victorias, Negros")
+        now = timezone.now()
+
+        # Batch 1 initialized with self.mill, trucker_a @ 450, barger_a @ 1200
+        d1 = DeliveryLedger.objects.create(
+            purchase_order=self.po,
+            supplier=self.mill,
+            dispatched_mt=Decimal("400.000"),
+            delivered_mt=Decimal("400.000"),
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_a,
+            trucking_rate_per_mt=Decimal("450.00"),
+            barge_partner=self.barger_a,
+            barge_rate_per_mt=Decimal("1200.00"),
+            dispatched_at=now - timezone.timedelta(hours=6),
+            received_at=now,
+        )
+
+        # Batch 2 with a DIFFERENT sugar mill (other_mill) succeeds because sugar mill is flexible
+        d2_valid = DeliveryLedger(
+            purchase_order=self.po,
+            supplier=other_mill,
+            dispatched_mt=Decimal("400.000"),
+            delivered_mt=Decimal("400.000"),
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_a,
+            trucking_rate_per_mt=Decimal("450.00"),
+            barge_partner=self.barger_a,
+            barge_rate_per_mt=Decimal("1200.00"),
+            dispatched_at=now - timezone.timedelta(hours=3),
+            received_at=now,
+        )
+        d2_valid.full_clean()
+        d2_valid.save()
+        self.assertEqual(d2_valid.supplier, other_mill)
+
+        # Batch 3 attempting different trucker fails validation
+        d3_invalid_trucker = DeliveryLedger(
+            purchase_order=self.po,
+            supplier=other_mill,
+            dispatched_mt=Decimal("200.000"),
+            delivered_mt=Decimal("200.000"),
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_b,
+            trucking_rate_per_mt=Decimal("450.00"),
+            barge_partner=self.barger_a,
+            barge_rate_per_mt=Decimal("1200.00"),
+            dispatched_at=now,
+            received_at=now,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            d3_invalid_trucker.full_clean()
+        self.assertIn("trucking_partner", ctx.exception.message_dict)
+
+        # Batch 4 attempting different barging rate fails validation
+        d4_invalid_rate = DeliveryLedger(
+            purchase_order=self.po,
+            supplier=other_mill,
+            dispatched_mt=Decimal("200.000"),
+            delivered_mt=Decimal("200.000"),
+            receiving_location="Batangas Port",
+            trucking_partner=self.trucker_a,
+            trucking_rate_per_mt=Decimal("450.00"),
+            barge_partner=self.barger_a,
+            barge_rate_per_mt=Decimal("1500.00"),
+            dispatched_at=now,
+            received_at=now,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            d4_invalid_rate.full_clean()
+        self.assertIn("barge_rate_per_mt", ctx.exception.message_dict)
+
     def test_post_arrival_volume_input_timing_constraint(self):
         from operations.models import DeliveryLedger
         from django.utils import timezone

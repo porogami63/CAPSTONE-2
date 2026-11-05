@@ -638,18 +638,39 @@
                                     <th>Date</th>
                                     <th>Source Supplier (Mill)</th>
                                     <th>Receiving Location</th>
-                                    <th class="text-end">Delivered MT</th>
+                                    <th class="text-end">Volume (Disp / Deliv)</th>
                                     <th>Carrier / DR</th>
                                     <th>MRO Permit &amp; Scan</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Arrival Confirmation</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for d in deliveries %}
                                 <tr>
-                                    <td class="text-nowrap fw-semibold">{{ d.delivery_date|date:"M d, Y" }}</td>
+                                    <td class="text-nowrap fw-semibold">
+                                        <div>{{ d.delivery_date|date:"M d, Y" }}</div>
+                                        {% if d.dispatched_at %}
+                                        <div class="fs-8 text-muted">Dep: {{ d.dispatched_at|date:"M d, H:i" }}</div>
+                                        {% endif %}
+                                    </td>
                                     <td><span class="badge bg-light text-dark border"><i class="bi bi-building me-1"></i>{{ d.supplier.name }}</span></td>
                                     <td><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ d.receiving_location }}</td>
-                                    <td class="text-end fw-bold text-success text-nowrap">{{ d.delivered_mt|floatformat:3|intcomma }} MT</td>
+                                    <td class="text-end text-nowrap font-monospace">
+                                        <div class="fs-8 text-muted">Disp: {{ d.effective_dispatched_mt|floatformat:3|intcomma }} MT</div>
+                                        <div class="fw-bold text-success">Deliv: {{ d.delivered_mt|floatformat:3|intcomma }} MT</div>
+                                        {% if d.has_volume_discrepancy %}
+                                            {% if d.variance_exceeds_tolerance %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8">
+                                                {{ d.volume_discrepancy_mt|floatformat:3 }} MT ({{ d.variance_percent|floatformat:2 }}%)
+                                            </span>
+                                            {% else %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-8">
+                                                {{ d.volume_discrepancy_mt|floatformat:3 }} MT ({{ d.variance_percent|floatformat:2 }}%)
+                                            </span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         {% if d.carrier %}<span class="text-muted">{{ d.carrier.name }}</span>{% endif %}
                                         {% if d.dr_number %}<span class="badge bg-secondary-subtle text-secondary ms-1">DR: {{ d.dr_number }}</span>{% endif %}
@@ -669,6 +690,32 @@
                                             <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 ms-1 text-xs d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#previewMroScanModal" title="Preview MRO Scan for this delivery batch">
                                                 <i class="bi bi-file-earmark-pdf text-primary"></i> Scan
                                             </button>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if d.received_at %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle fs-8 py-1 px-2">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Arrived: {{ d.received_at|date:"M d, H:i" }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-8 py-1 px-2">
+                                            <i class="bi bi-clock-history me-1"></i>In Transit
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        {% if not d.received_at %}
+                                        <button type="button" class="btn btn-warning btn-sm py-1 px-2.5 fs-8 fw-bold text-dark shadow-xs d-inline-flex align-items-center gap-1"
+                                            onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if po.po_reference_number %}{{ po.po_reference_number|escapejs }}{% else %}{{ cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')"
+                                            title="Confirm destination arrival date and verify delivered volume">
+                                            <i class="bi bi-calendar-check me-1"></i>Confirm Arrival
+                                        </button>
+                                        {% else %}
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 fs-8 d-inline-flex align-items-center gap-1"
+                                            onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if po.po_reference_number %}{{ po.po_reference_number|escapejs }}{% else %}{{ cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '{{ d.received_at|date:"Y-m-d\\TH:i"|default:"" }}')"
+                                            title="Update arrival date or confirmed volume">
+                                            <i class="bi bi-pencil-square me-1"></i>Verify Volume
+                                        </button>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -1319,4 +1366,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+{% include "operations/includes/record_arrival_modal.html" %}
 {% endblock %}

@@ -32,8 +32,8 @@
     <div class="col-6 col-md-3">
         <div class="card p-3 border-0 shadow-sm" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
             <div class="text-xs text-muted fw-bold text-uppercase">Deliveries &amp; Quality</div>
-            <div class="fs-3 fw-bold mt-1 text-warning">{{ disputed_logistics.count|add:offspec_chai.count|add:unlinked_mros.count }}</div>
-            <div class="text-xs text-muted mt-1">Weight shortages &amp; quality alerts</div>
+            <div class="fs-3 fw-bold mt-1 text-warning">{{ disputed_logistics.count|add:offspec_chai.count|add:unlinked_mros.count|add:in_transit_deliveries.count }}</div>
+            <div class="text-xs text-muted mt-1">Weight shortages, arrivals &amp; quality</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
@@ -56,7 +56,7 @@
 <div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border-radius: 12px; border: 1px solid var(--htc-border) !important;">
     <div class="card-header bg-transparent border-bottom p-3 d-flex justify-content-between align-items-center">
         <h5 class="fw-bold mb-0 text-warning"><i class="bi bi-truck me-2"></i> Deliveries &amp; Quality Tasks</h5>
-        <span class="badge bg-warning text-dark">{{ disputed_logistics.count|add:offspec_chai.count }} Items Needing Attention</span>
+        <span class="badge bg-warning text-dark">{{ disputed_logistics.count|add:offspec_chai.count|add:in_transit_deliveries.count }} Items Needing Attention</span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -71,6 +71,31 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <!-- In-Transit Deliveries Awaiting Arrival & Volume Confirmation -->
+                    {% for d in in_transit_deliveries %}
+                    <tr>
+                        <td class="ps-3"><span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="bi bi-clock-history me-1"></i> Delivery in Transit</span></td>
+                        <td class="fw-bold">
+                            {% if d.purchase_order.cluster %}
+                            <a href="{% url 'operations:cluster_detail' d.purchase_order.cluster.pk %}">{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number }}{% else %}{{ d.purchase_order.cluster.reference_code }}{% endif %}</a>
+                            {% else %}
+                            {{ d.purchase_order.po_reference_number }}
+                            {% endif %}
+                            <div class="fs-8 text-muted font-monospace">#{{ d.delivery_id|stringformat:"s"|slice:":8"|upper }}</div>
+                        </td>
+                        <td>
+                            Mill: <strong>{{ d.supplier.name }}</strong> &rarr; Destination: {{ d.receiving_location }}
+                            <div class="fs-8 text-muted">Dispatched: {{ d.effective_dispatched_mt|floatformat:3 }} MT {% if d.dispatched_at %}({{ d.dispatched_at|date:"M d, H:i" }}){% endif %}</div>
+                        </td>
+                        <td><span class="badge bg-warning text-dark">Awaiting Arrival</span></td>
+                        <td class="text-end pe-3">
+                            <a href="{% url 'operations:deliveries_list' %}?po={% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code }}{% endif %}&confirm_arrival={{ d.delivery_id }}" class="btn btn-sm btn-warning font-semibold text-dark shadow-xs">
+                                Confirm Arrival &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
                     <!-- Logistics Shortage Disputes -->
                     {% for d in disputed_logistics %}
                     <tr>
@@ -97,7 +122,7 @@
                     </tr>
                     {% endfor %}
 
-                    {% if not disputed_logistics and not offspec_chai %}
+                    {% if not disputed_logistics and not offspec_chai and not in_transit_deliveries %}
                     <tr>
                         <td colspan="5" class="text-center py-4 text-muted">No pending delivery issues or quality alerts. All deliveries are in good order.</td>
                     </tr>

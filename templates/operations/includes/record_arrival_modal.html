@@ -1,0 +1,244 @@
+{% load role_tags %}
+{% if user|has_perm:"edit_logistics" %}
+<!-- Modal: Confirm Delivery Arrival & Volume Verification -->
+<div class="modal fade" id="recordArrivalModal" tabindex="-1" aria-labelledby="recordArrivalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header bg-dark text-white py-3 px-4">
+                <div>
+                    <h6 class="modal-title fw-bold mb-0 text-white" id="recordArrivalModalLabel">
+                        <i class="bi bi-calendar-check me-1.5 text-success"></i> Confirm Delivery Arrival &amp; Volume
+                    </h6>
+                    <div class="fs-8 text-white-50 mt-0.5">
+                        Verify dispatched vs. delivered volume and check for shrinkage discrepancies
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" id="recordArrivalForm" action="">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <div class="modal-body p-4">
+                    <!-- Delivery Summary Card -->
+                    <div class="p-3 rounded-3 bg-light border mb-3">
+                        <div class="row g-2 fs-8">
+                            <div class="col-6">
+                                <span class="text-muted text-uppercase fw-bold d-block">PO Reference</span>
+                                <span class="fw-bold text-dark fs-7" id="arrivalPoRef">—</span>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span class="text-muted text-uppercase fw-bold d-block">Destination Site</span>
+                                <span class="fw-medium text-dark" id="arrivalLocation">—</span>
+                            </div>
+                            <div class="col-12 mt-1 pt-1 border-top" id="arrivalDispatchRow">
+                                <span class="text-muted text-uppercase fw-bold d-block">Dispatched Departure</span>
+                                <span class="fw-medium text-primary font-monospace" id="arrivalDispatchedText">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Volume Confirmation & Variance Calculator -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <div class="form-field-symmetric">
+                                <label class="mb-1 fw-bold fs-8 text-dark" for="arrivalDispatchedMtInput">
+                                    Volume Dispatched (MT) <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-addon-group">
+                                    <input type="number" step="0.001" min="0.001" class="form-control-htc font-monospace" name="dispatched_mt" id="arrivalDispatchedMtInput" required>
+                                    <span class="addon addon-suffix">MT</span>
+                                </div>
+                                <div class="field-help fs-8 text-muted mt-1">Origin mill loaded volume.</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-field-symmetric">
+                                <label class="mb-1 fw-bold fs-8 text-dark" for="arrivalDeliveredMtInput">
+                                    Volume Delivered (MT) <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-addon-group">
+                                    <input type="number" step="0.001" min="0.001" class="form-control-htc font-monospace fw-bold text-success" name="delivered_mt" id="arrivalDeliveredMtInput" required>
+                                    <span class="addon addon-suffix">MT</span>
+                                </div>
+                                <div class="field-help fs-8 text-muted mt-1">Actual received at destination.</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="p-2.5 rounded-3 border d-flex justify-content-between align-items-center fs-8" id="arrivalVarianceCalcBox">
+                                <div>
+                                    <i class="bi bi-calculator me-1"></i>
+                                    <span class="fw-semibold" id="arrivalVarianceSummaryText">Variance Calculator: 0.000 MT difference</span>
+                                </div>
+                                <span class="badge bg-success text-white fs-8" id="arrivalVarianceBadge">0.00% OK</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-field-symmetric mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="mb-0 fw-bold fs-7 text-dark" for="arrivalReceivedAtInput">
+                                Arrival Date &amp; Time <span class="text-danger">*</span>
+                            </label>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 fs-8" id="btnArrivalSetNow">
+                                <i class="bi bi-clock me-1"></i>Set to Now
+                            </button>
+                        </div>
+                        <input type="datetime-local" class="form-control-htc" name="received_at" id="arrivalReceivedAtInput" required>
+                        <div class="field-help text-muted fs-8 mt-1">Timestamp when shipment was received and accepted at customer facility.</div>
+                        <div class="text-danger fs-8 fw-bold mt-1 d-none" id="arrivalInputError"></div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-3 px-4 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary px-3 py-2 fs-7 fw-semibold" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success px-4 py-2 fs-7 fw-bold shadow-xs" id="btnArrivalSubmit">
+                        <i class="bi bi-check2-circle me-1"></i> Confirm Volume &amp; Arrival
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDispatchIso = '';
+
+function updateArrivalVariancePreview() {
+    const dispInput = document.getElementById('arrivalDispatchedMtInput');
+    const delivInput = document.getElementById('arrivalDeliveredMtInput');
+    const box = document.getElementById('arrivalVarianceCalcBox');
+    const text = document.getElementById('arrivalVarianceSummaryText');
+    const badge = document.getElementById('arrivalVarianceBadge');
+    if (!dispInput || !delivInput || !box) return;
+
+    const disp = parseFloat(dispInput.value) || 0;
+    const deliv = parseFloat(delivInput.value) || 0;
+    if (disp <= 0) return;
+
+    const diff = deliv - disp;
+    const absDiff = Math.abs(diff);
+    const pct = (absDiff / disp) * 100;
+    const sign = diff > 0 ? '+' : '';
+
+    text.textContent = `Dispatched ${disp.toFixed(3)} MT → Delivered ${deliv.toFixed(3)} MT (${sign}${diff.toFixed(3)} MT)`;
+    if (pct > 1.0) {
+        box.className = 'p-2.5 rounded-3 border border-danger bg-danger-subtle text-danger d-flex justify-content-between align-items-center fs-8';
+        badge.className = 'badge bg-danger text-white fs-8';
+        badge.textContent = `${pct.toFixed(2)}% Exceeds 1% Tolerance (Dispute)`;
+    } else if (absDiff > 0.0005) {
+        box.className = 'p-2.5 rounded-3 border border-warning bg-warning-subtle text-dark d-flex justify-content-between align-items-center fs-8';
+        badge.className = 'badge bg-warning text-dark fs-8';
+        badge.textContent = `${pct.toFixed(2)}% Variance (Within 1% Tol.)`;
+    } else {
+        box.className = 'p-2.5 rounded-3 border border-success-subtle bg-success-subtle text-success d-flex justify-content-between align-items-center fs-8';
+        badge.className = 'badge bg-success text-white fs-8';
+        badge.textContent = `0.00% Exact Match`;
+    }
+}
+
+function openRecordArrivalModal(deliveryId, poRef, dispatchedMt, deliveredMt, location, dispatchedIso, receivedIso) {
+    const modalEl = document.getElementById('recordArrivalModal');
+    if (!modalEl) return;
+
+    const form = document.getElementById('recordArrivalForm');
+    form.action = `/operations/deliveries/${deliveryId}/arrival/`;
+
+    const poEl = document.getElementById('arrivalPoRef');
+    const locEl = document.getElementById('arrivalLocation');
+    if (poEl) poEl.textContent = poRef || '—';
+    if (locEl) locEl.textContent = location || '—';
+
+    const dispInput = document.getElementById('arrivalDispatchedMtInput');
+    const delivInput = document.getElementById('arrivalDeliveredMtInput');
+    if (dispInput) dispInput.value = parseFloat(dispatchedMt || deliveredMt || 0).toFixed(3);
+    if (delivInput) delivInput.value = parseFloat(deliveredMt || dispatchedMt || 0).toFixed(3);
+
+    currentDispatchIso = dispatchedIso || '';
+    const dispatchRow = document.getElementById('arrivalDispatchRow');
+    const dispatchText = document.getElementById('arrivalDispatchedText');
+    if (dispatchRow && dispatchText) {
+        if (dispatchedIso) {
+            dispatchRow.classList.remove('d-none');
+            dispatchText.textContent = dispatchedIso.replace('T', ' ') + ' PST';
+        } else {
+            dispatchRow.classList.add('d-none');
+        }
+    }
+
+    const input = document.getElementById('arrivalReceivedAtInput');
+    const errBox = document.getElementById('arrivalInputError');
+    if (errBox) errBox.classList.add('d-none');
+    if (input) {
+        input.classList.remove('is-invalid');
+        if (receivedIso) {
+            input.value = receivedIso.substring(0, 16);
+        } else {
+            const now = new Date();
+            const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().substring(0, 16);
+            input.value = localIso;
+        }
+    }
+
+    updateArrivalVariancePreview();
+
+    if (typeof bootstrap !== 'undefined') {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const dispInput = document.getElementById('arrivalDispatchedMtInput');
+    const delivInput = document.getElementById('arrivalDeliveredMtInput');
+    if (dispInput) dispInput.addEventListener('input', updateArrivalVariancePreview);
+    if (delivInput) delivInput.addEventListener('input', updateArrivalVariancePreview);
+
+    const btnSetNow = document.getElementById('btnArrivalSetNow');
+    if (btnSetNow) {
+        btnSetNow.addEventListener('click', function() {
+            const input = document.getElementById('arrivalReceivedAtInput');
+            if (input) {
+                const now = new Date();
+                const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().substring(0, 16);
+                input.value = localIso;
+                input.dispatchEvent(new Event('input'));
+            }
+        });
+    }
+
+    const arrivalForm = document.getElementById('recordArrivalForm');
+    const arrivalInput = document.getElementById('arrivalReceivedAtInput');
+    const arrivalErr = document.getElementById('arrivalInputError');
+
+    if (arrivalForm && arrivalInput) {
+        arrivalForm.addEventListener('submit', function(e) {
+            if (currentDispatchIso && arrivalInput.value) {
+                const dispDate = new Date(currentDispatchIso);
+                const arrDate = new Date(arrivalInput.value);
+                if (arrDate < dispDate) {
+                    e.preventDefault();
+                    arrivalInput.classList.add('is-invalid');
+                    if (arrivalErr) {
+                        arrivalErr.textContent = 'Arrival date & time cannot be earlier than departure dispatch date & time.';
+                        arrivalErr.classList.remove('d-none');
+                    }
+                    return false;
+                }
+            }
+        });
+    }
+
+    // Auto-open arrival confirmation modal if confirm_arrival=<uuid> parameter is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetArrivalId = urlParams.get('confirm_arrival');
+    if (targetArrivalId) {
+        const targetBtn = document.querySelector(`button[onclick*="${targetArrivalId}"]`);
+        if (targetBtn) {
+            setTimeout(function() {
+                targetBtn.click();
+                targetBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 150);
+        }
+    }
+});
+</script>
+{% endif %}

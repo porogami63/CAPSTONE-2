@@ -2280,6 +2280,9 @@ def pending_tasks_view(request):
     # Base Querysets
     unlinked_mros = MolassesReleaseOrder.objects.filter(cluster__isnull=True).select_related("planter", "sugar_mill").order_by("-release_date")[:50]
     disputed_logistics = LogisticsLedger.objects.filter(dispute_status=LogisticsLedger.DisputeStatus.DISPUTED).select_related("cluster", "cluster__client", "partner").order_by("-updated_at")
+    in_transit_deliveries = DeliveryLedger.objects.filter(received_at__isnull=True).select_related(
+        "purchase_order", "purchase_order__cluster", "purchase_order__customer", "supplier", "trucking_partner", "barge_partner"
+    ).order_by("-delivery_date", "-created_at")[:50]
     offspec_chai = CHAIRecord.objects.filter(Q(status="rejected") | Q(chai_value__gte=Decimal("4.0"))).select_related("sugar_mill", "cluster").order_by("-tested_at")
     unbilled_clusters = TransactionCluster.objects.filter(invoices__isnull=True, is_archived=False).select_related("client", "sugar_mill", "purchase_order").order_by("-created_at")
     unpaid_invoices = Invoice.objects.filter(status__in=[Invoice.Status.ISSUED, Invoice.Status.DRAFT], is_archived=False).select_related("cluster", "cluster__client").order_by("-issued_at")
@@ -2290,10 +2293,12 @@ def pending_tasks_view(request):
         if role == User.Role.FINANCE:
             unlinked_mros = MolassesReleaseOrder.objects.none()
             disputed_logistics = LogisticsLedger.objects.none()
+            in_transit_deliveries = DeliveryLedger.objects.none()
             offspec_chai = CHAIRecord.objects.none()
         elif role == User.Role.INVOICING:
             unlinked_mros = MolassesReleaseOrder.objects.none()
             disputed_logistics = LogisticsLedger.objects.none()
+            in_transit_deliveries = DeliveryLedger.objects.none()
             offspec_chai = CHAIRecord.objects.none()
             open_loans = CapitalLoan.objects.none()
         elif role == User.Role.OPERATIONS:
@@ -2304,6 +2309,7 @@ def pending_tasks_view(request):
     total_pending_action = (
         unlinked_mros.count() +
         disputed_logistics.count() +
+        in_transit_deliveries.count() +
         offspec_chai.count() +
         unbilled_clusters.count() +
         unpaid_invoices.count() +
@@ -2313,6 +2319,7 @@ def pending_tasks_view(request):
     context = {
         "unlinked_mros": unlinked_mros,
         "disputed_logistics": disputed_logistics,
+        "in_transit_deliveries": in_transit_deliveries,
         "offspec_chai": offspec_chai,
         "unbilled_clusters": unbilled_clusters,
         "unpaid_invoices": unpaid_invoices,
@@ -2705,7 +2712,11 @@ def deliveries_list_view(request):
     )
 
 
-@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+@role_required(
+    User.Role.ADMINISTRATOR,
+    User.Role.OPERATIONS_MANAGEMENT,
+    User.Role.OPERATIONS,
+)
 def update_delivery_arrival_view(request, delivery_id):
     """
     Log or update the destination arrival timestamp (received_at) and confirm
