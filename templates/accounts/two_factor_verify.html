@@ -13,42 +13,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
-                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
-                    },
-                    colors: {
-                        slate: {
-                            50: '#f8fafc',
-                            100: '#f1f5f9',
-                            200: '#e2e8f0',
-                            300: '#cbd5e1',
-                            400: '#94a3b8',
-                            500: '#64748b',
-                            600: '#475569',
-                            700: '#334155',
-                            800: '#1e293b',
-                            900: '#0f172a',
-                            950: '#020617',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Bootstrap 5.3 CSS (Allowed by CSP) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}?v=11" rel="stylesheet">
 
     <style>
-        /* Base page reset */
+        /* Base page layout & full viewport centering */
         html, body {
             margin: 0;
             padding: 0;
@@ -57,86 +27,325 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* City photograph background container */
-        .page-bg-container {
+        .twofactor-page-wrapper {
             min-height: 100vh;
-            background: url("{% static 'img/login-bg.jpg' %}") center/cover no-repeat fixed;
-            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1.5rem 1rem;
-        }
-
-        /* Subtle dark/neutral tint overlay over city image */
-        .city-tint-overlay {
-            position: absolute;
-            inset: 0;
-            background-color: rgba(2, 6, 23, 0.30); /* bg-slate-950/30 */
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        /* Glassmorphic card styling & dark mode adaptability */
-        .twofactor-card {
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.92)),
+                        url('{% static "img/login-bg.jpg" %}') center/cover no-repeat fixed;
             position: relative;
-            z-index: 10;
+            padding: 2rem 1rem;
+        }
+
+        [data-theme="light"] .twofactor-page-wrapper {
+            background: linear-gradient(to bottom, rgba(241, 245, 249, 0.82), rgba(241, 245, 249, 0.94)),
+                        url('{% static "img/login-bg.jpg" %}') center/cover no-repeat fixed;
+        }
+
+        /* High-contrast, clean enterprise card */
+        .twofactor-card {
+            background: rgba(30, 41, 59, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+            padding: 2.75rem 2.25rem;
             width: 100%;
             max-width: 440px;
-            transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
         }
 
-        [data-theme="dark"] .twofactor-card {
-            background-color: rgba(15, 23, 42, 0.90) !important;
-            border-color: rgba(255, 255, 255, 0.12) !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
-        }
-        [data-theme="dark"] .card-heading {
-            color: #f8fafc !important;
-        }
-        [data-theme="dark"] .card-subtext {
-            color: #94a3b8 !important;
-        }
-        [data-theme="dark"] .user-pill {
-            background-color: #1e293b !important;
-            color: #60a5fa !important;
-            border-color: #334155 !important;
-        }
-        [data-theme="dark"] .otp-slot {
-            background-color: #0f172a !important;
-            border-color: #334155 !important;
-            color: #f8fafc !important;
-        }
-        [data-theme="dark"] .otp-slot:focus {
-            border-color: transparent !important;
-            box-shadow: 0 0 0 2px #3b82f6 !important;
-        }
-        [data-theme="dark"] .back-link {
-            color: #94a3b8 !important;
-        }
-        [data-theme="dark"] .back-link:hover {
-            color: #f1f5f9 !important;
+        [data-theme="light"] .twofactor-card {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.75);
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
         }
 
-        /* Input slot number arrows reset */
+        .brand-badge {
+            width: 58px;
+            height: 58px;
+            margin: 0 auto 1.25rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-badge img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .page-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #f8fafc;
+            margin-bottom: 0.35rem;
+        }
+
+        [data-theme="light"] .page-title {
+            color: #0f172a;
+        }
+
+        .page-subtitle {
+            font-size: 0.825rem;
+            line-height: 1.5;
+            color: #94a3b8;
+            margin-bottom: 1.75rem;
+        }
+
+        [data-theme="light"] .page-subtitle {
+            color: #64748b;
+        }
+
+        .user-tag {
+            display: inline-block;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            background: rgba(37, 99, 235, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(37, 99, 235, 0.3);
+        }
+
+        [data-theme="light"] .user-tag {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+
+        /* 6-Digit OTP Pin Grid */
+        .otp-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-bottom: 1.25rem;
+        }
+
         .otp-slot {
+            width: 100%;
+            height: 54px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.4rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1.5px solid #334155;
+            border-radius: 12px;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
             appearance: none;
             -moz-appearance: textfield;
-            font-variant-numeric: tabular-nums;
         }
+
         .otp-slot::-webkit-outer-spin-button,
         .otp-slot::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
 
-        /* Fade in animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-6px); }
-            to { opacity: 1; transform: translateY(0); }
+        .otp-slot:focus {
+            border-color: #2563eb;
+            background: #1e293b;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.28);
         }
-        .animate-fade-in {
-            animation: fadeIn 0.25s ease-out forwards;
+
+        [data-theme="light"] .otp-slot {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        [data-theme="light"] .otp-slot:focus {
+            border-color: #2563eb;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        }
+
+        /* Backup code alternative input */
+        .backup-field {
+            width: 100%;
+            height: 50px;
+            padding: 0.65rem 1rem;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.05rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1.5px solid #334155;
+            border-radius: 12px;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .backup-field:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.28);
+        }
+
+        [data-theme="light"] .backup-field {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        [data-theme="light"] .backup-field:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        }
+
+        /* Verification Error Banner (Icon-free) */
+        .error-banner {
+            background: rgba(220, 53, 69, 0.15);
+            border: 1px solid rgba(220, 53, 69, 0.45);
+            color: #fca5a5;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.25rem;
+            font-size: 0.825rem;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        .error-banner strong {
+            display: block;
+            font-size: 0.72rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+            color: #f87171;
+        }
+
+        [data-theme="light"] .error-banner {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+
+        [data-theme="light"] .error-banner strong {
+            color: #b91c1c;
+        }
+
+        /* Primary action button (Icon-free) */
+        .btn-verify {
+            width: 100%;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            border-radius: 12px;
+            background: #2563eb;
+            border: 1px solid #1d4ed8;
+            color: #ffffff;
+            transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+            cursor: pointer;
+        }
+
+        .btn-verify:hover {
+            background: #1d4ed8;
+            border-color: #1e40af;
+            color: #ffffff;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+        }
+
+        .btn-verify:active {
+            transform: scale(0.99);
+        }
+
+        /* Toggle & Back links */
+        .mode-toggle-link {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #60a5fa;
+            text-decoration: none;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            transition: color 0.15s ease;
+        }
+
+        .mode-toggle-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+
+        [data-theme="light"] .mode-toggle-link {
+            color: #2563eb;
+        }
+
+        [data-theme="light"] .mode-toggle-link:hover {
+            color: #1d4ed8;
+        }
+
+        .back-link {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #94a3b8;
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        .back-link:hover {
+            color: #f1f5f9;
+        }
+
+        [data-theme="light"] .back-link {
+            color: #64748b;
+        }
+
+        [data-theme="light"] .back-link:hover {
+            color: #0f172a;
+        }
+
+        /* Top right theme pill button (Icon-free) */
+        .theme-pill-btn {
+            position: fixed;
+            top: 1.25rem;
+            right: 1.25rem;
+            z-index: 1050;
+            padding: 0.4rem 0.85rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            border-radius: 9999px;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #f8fafc;
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .theme-pill-btn:hover {
+            background: rgba(15, 23, 42, 0.85);
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+
+        [data-theme="light"] .theme-pill-btn {
+            background: rgba(255, 255, 255, 0.75);
+            border-color: rgba(0, 0, 0, 0.12);
+            color: #0f172a;
+        }
+
+        [data-theme="light"] .theme-pill-btn:hover {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(0, 0, 0, 0.22);
         }
     </style>
 
@@ -144,127 +353,110 @@
         (function() {
             var theme = localStorage.getItem('htc-theme') || 'dark';
             document.documentElement.setAttribute('data-theme', theme);
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
+            document.documentElement.setAttribute('data-bs-theme', theme);
         })();
     </script>
 </head>
-<body class="antialiased">
+<body>
 
-    <!-- Viewport Top-Right Theme Toggle: fixed top-6 right-6 -->
-    <div class="fixed top-6 right-6 z-50">
-        <button type="button" 
-                id="themeToggleBtn" 
-                class="flex items-center justify-center w-10 h-10 rounded-full bg-slate-900/40 hover:bg-slate-900/60 text-white backdrop-blur-md border border-white/20 shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-white/50 cursor-pointer" 
-                title="Toggle Theme" 
-                aria-label="Toggle theme">
-            <i class="bi bi-moon-stars-fill text-base" id="themeIcon"></i>
-        </button>
-    </div>
+    <!-- Top-Right Theme Toggle Button (Icon-Free) -->
+    <button type="button" 
+            id="themeToggleBtn" 
+            class="theme-pill-btn" 
+            title="Toggle color theme" 
+            aria-label="Toggle theme">
+        <span id="themeToggleText">Theme: Dark</span>
+    </button>
 
-    <!-- Background & Overlay Integration -->
-    <div class="page-bg-container">
-        <!-- City Background Overlay: subtle dark tint overlay -->
-        <div class="city-tint-overlay bg-slate-950/30"></div>
+    <div class="twofactor-page-wrapper">
+        <div class="twofactor-card">
 
-        <!-- Glassmorphic Card -->
-        <div class="twofactor-card bg-white/90 backdrop-blur-xl border border-white/40 shadow-2xl rounded-2xl p-8 sm:p-10">
-
-            <!-- Shield Icon Badge -->
-            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
-                <i class="bi bi-shield-lock-fill text-xl"></i>
+            <!-- Brand Identity -->
+            <div class="brand-badge">
+                <img src="{% static 'img/htc-logo.png' %}" alt="Heindrich Trading Corporation Logo">
             </div>
 
             <!-- Typography & Instructions -->
-            <h1 class="card-heading text-slate-900 font-bold text-xl text-center mb-1.5 tracking-tight">Two-Factor Authentication</h1>
-            <p class="card-subtext text-slate-600 text-sm text-center mb-6 leading-relaxed">
-                Enter the 6-digit code generated by your Authenticator app or a backup recovery code for 
-                <span class="user-pill inline-flex items-center bg-slate-100 text-blue-700 px-2 py-0.5 rounded-md font-mono text-xs border border-slate-200 font-medium">@{{ target_user.username|default:"ops_mgmt" }}</span>.
+            <h1 class="page-title">Two-Factor Authentication</h1>
+            <p class="page-subtitle">
+                Enter the 6-digit verification code from your authenticator app for 
+                <span class="user-tag">@{{ target_user.username|default:"user" }}</span>
             </p>
 
-            <!-- Authentication Error Notification Banner -->
+            <!-- Error Banner (Icon-Free) -->
             {% if error_message %}
-            <div class="mb-5 p-3.5 rounded-xl bg-red-50/95 border border-red-200 text-red-700 text-sm flex items-start gap-3 shadow-sm animate-fade-in" role="alert">
-                <i class="bi bi-exclamation-circle-fill text-red-500 text-lg flex-shrink-0 mt-0.5"></i>
-                <div class="flex-1 text-left leading-snug">
-                    <strong class="font-semibold block mb-0.5 text-red-800 text-xs uppercase tracking-wide">Authentication Failed</strong>
-                    <div class="text-red-700 text-xs">{{ error_message }}</div>
-                </div>
+            <div class="error-banner" role="alert">
+                <strong>Verification Failed</strong>
+                <div>{{ error_message }}</div>
             </div>
             {% endif %}
 
             <!-- Verification Form -->
-            <form method="post" action="{% url 'accounts:two_factor_verify' %}" id="twoFactorForm">
+            <form method="post" action="{% url 'accounts:two_factor_verify' %}" id="twoFactorForm" autocomplete="off">
                 {% csrf_token %}
 
                 <!-- Hidden Input Bound to Django Form -->
                 <input type="hidden" name="otp_token" id="id_otp_token" value="{{ form.otp_token.value|default:'' }}">
 
-                <!-- Modern 6-Digit OTP Pin Layout -->
-                <div class="mb-4" id="otpPinSection">
-                    <div class="grid grid-cols-6 gap-2 sm:gap-2.5 mb-2" id="otpGrid">
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="0" autofocus>
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="1">
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="2">
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="3">
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="4">
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot w-full aspect-square text-center font-bold text-lg text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm" data-index="5">
+                <!-- 6-Digit OTP Pin Input Slots -->
+                <div id="otpPinSection">
+                    <div class="otp-grid" id="otpGrid">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" class="otp-slot" data-index="0" autofocus>
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot" data-index="1">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot" data-index="2">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot" data-index="3">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot" data-index="4">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-slot" data-index="5">
                     </div>
                 </div>
 
-                <!-- Backup Recovery Code Alternative Input Field (Toggleable) -->
-                <div class="mb-4 hidden" id="backupCodeSection">
-                    <label for="backupCodeField" class="block text-center text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                <!-- Backup Recovery Code Input (Toggled) -->
+                <div id="backupCodeSection" style="display: none; margin-bottom: 1.25rem;">
+                    <label for="backupCodeField" class="d-block text-muted text-uppercase fw-bold fs-8 mb-2" style="letter-spacing: 0.05em;">
                         Backup Recovery Code
                     </label>
                     <input type="text" 
                            id="backupCodeField" 
-                           maxlength="10" 
+                           maxlength="16" 
                            placeholder="e.g. BACKUP123" 
-                           class="w-full px-4 py-3 text-center font-mono font-bold text-base text-slate-900 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition-all shadow-sm uppercase">
+                           class="backup-field">
                 </div>
 
                 <!-- Django Field Validation Errors -->
                 {% if form.otp_token.errors %}
-                <div class="text-red-500 text-xs text-center mb-4 font-medium">
+                <div class="text-danger fs-8 text-center fw-semibold mb-3">
                     {{ form.otp_token.errors.0 }}
                 </div>
                 {% endif %}
 
-                <!-- Subtle Toggle Between 6-digit Code & Backup Code -->
-                <div class="text-center mb-6">
+                <!-- Toggle Between Authenticator Code & Backup Code -->
+                <div class="mb-4">
                     <button type="button" 
                             id="toggleModeBtn" 
-                            class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors focus:outline-none underline decoration-blue-300 underline-offset-4 cursor-pointer">
+                            class="mode-toggle-link">
                         Use a backup recovery code instead
                     </button>
                 </div>
 
-                <!-- Primary Action Button -->
+                <!-- Primary Action Button (Icon-Free) -->
                 <button type="submit" 
                         id="submitBtn" 
-                        class="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 cursor-pointer">
-                    <i class="bi bi-shield-check text-base"></i>
-                    <span>Verify &amp; Sign In</span>
+                        class="btn-verify">
+                    Verify &amp; Sign In
                 </button>
             </form>
 
-            <!-- Actions & Clean Footer (No harsh divider line) -->
-            <div class="mt-6 text-center">
-                <a href="{% url 'accounts:login' %}" 
-                   class="back-link inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-sm font-medium transition-colors">
-                    <span class="text-base leading-none">&larr;</span>
-                    <span>Back to Primary Login</span>
+            <!-- Back to Sign In Link (Icon-Free) -->
+            <div class="mt-4 pt-2">
+                <a href="{% url 'accounts:login' %}" class="back-link">
+                    Back to Sign In
                 </a>
             </div>
 
         </div>
     </div>
 
-    <!-- Scripts: 6-Digit Pin Navigation, Pasting, Form Sync, and Theme Toggle -->
+    <!-- Interactive Scripts: Pin Navigation, Pasting, Form Sync, and Theme Toggle -->
     <script>
         (function() {
             const slots = Array.from(document.querySelectorAll('.otp-slot'));
@@ -276,16 +468,14 @@
             const toggleBtn = document.getElementById('toggleModeBtn');
             let isBackupMode = false;
 
-            // Synchronize individual slots into the hidden input
             function syncSlotsToHidden() {
                 if (isBackupMode) {
-                    hiddenToken.value = backupField.value.trim();
+                    hiddenToken.value = backupField ? backupField.value.trim() : '';
                 } else {
                     hiddenToken.value = slots.map(s => s.value).join('');
                 }
             }
 
-            // Keyboard navigation & typing handler for the 6 digit slots
             slots.forEach((slot, index) => {
                 slot.addEventListener('keydown', function(e) {
                     if (e.key === 'Backspace') {
@@ -313,14 +503,19 @@
                 });
 
                 slot.addEventListener('input', function(e) {
-                    // Extract only numbers
                     const val = slot.value.replace(/[^0-9]/g, '');
                     if (val.length > 0) {
-                        slot.value = val[val.length - 1]; // Keep single digit
+                        slot.value = val[val.length - 1];
                         syncSlotsToHidden();
                         if (index < slots.length - 1) {
                             slots[index + 1].focus();
                             slots[index + 1].select();
+                        } else {
+                            // Check if all 6 slots are filled, then auto-submit
+                            const allFilled = slots.every(s => s.value.length === 1);
+                            if (allFilled && otpForm) {
+                                otpForm.submit();
+                            }
                         }
                     } else {
                         slot.value = '';
@@ -332,7 +527,6 @@
                     slot.select();
                 });
 
-                // Paste support across all 6 slots
                 slot.addEventListener('paste', function(e) {
                     e.preventDefault();
                     const pastedData = (e.clipboardData || window.clipboardData).getData('text').trim();
@@ -344,14 +538,15 @@
                         }
                         syncSlotsToHidden();
                         slots[5].focus();
+                        if (otpForm) otpForm.submit();
                     } else if (pastedData.length >= 6 && /[A-Za-z]/.test(pastedData)) {
-                        // Alphanumeric backup recovery code pasted
                         switchToBackupMode();
-                        backupField.value = pastedData;
-                        syncSlotsToHidden();
-                        backupField.focus();
+                        if (backupField) {
+                            backupField.value = pastedData;
+                            syncSlotsToHidden();
+                            backupField.focus();
+                        }
                     } else if (cleanDigits.length > 0) {
-                        // Partial digits
                         for (let i = 0; i < cleanDigits.length && (index + i) < slots.length; i++) {
                             slots[index + i].value = cleanDigits[i];
                         }
@@ -362,29 +557,27 @@
                 });
             });
 
-            // Backup code input handler
             if (backupField) {
                 backupField.addEventListener('input', function() {
                     syncSlotsToHidden();
                 });
             }
 
-            // Mode switcher function
             function switchToBackupMode() {
                 isBackupMode = true;
-                otpSection.classList.add('hidden');
-                backupSection.classList.remove('hidden');
-                toggleBtn.textContent = 'Use authenticator app code instead';
-                backupField.focus();
+                if (otpSection) otpSection.style.display = 'none';
+                if (backupSection) backupSection.style.display = 'block';
+                if (toggleBtn) toggleBtn.textContent = 'Use authenticator app code instead';
+                if (backupField) backupField.focus();
                 syncSlotsToHidden();
             }
 
             function switchToOtpMode() {
                 isBackupMode = false;
-                backupSection.classList.add('hidden');
-                otpSection.classList.remove('hidden');
-                toggleBtn.textContent = 'Use a backup recovery code instead';
-                slots[0].focus();
+                if (backupSection) backupSection.style.display = 'none';
+                if (otpSection) otpSection.style.display = 'block';
+                if (toggleBtn) toggleBtn.textContent = 'Use a backup recovery code instead';
+                if (slots[0]) slots[0].focus();
                 syncSlotsToHidden();
             }
 
@@ -398,14 +591,12 @@
                 });
             }
 
-            // Ensure hidden field is populated on submit
             if (otpForm) {
                 otpForm.addEventListener('submit', function() {
                     syncSlotsToHidden();
                 });
             }
 
-            // Pre-fill slots if initial value exists in hidden field
             if (hiddenToken && hiddenToken.value) {
                 const initVal = hiddenToken.value.trim();
                 if (/^[0-9]{6}$/.test(initVal)) {
@@ -414,36 +605,31 @@
                     }
                 } else if (initVal) {
                     switchToBackupMode();
-                    backupField.value = initVal;
+                    if (backupField) backupField.value = initVal;
                 }
             }
 
-            // Theme toggle logic (Viewport Top-Right)
+            // Theme toggle logic (Icon-Free)
             const themeToggleBtn = document.getElementById('themeToggleBtn');
-            const themeIcon = document.getElementById('themeIcon');
+            const themeToggleText = document.getElementById('themeToggleText');
             const htmlTag = document.documentElement;
 
-            function updateThemeIcon() {
-                const isDark = htmlTag.getAttribute('data-theme') === 'dark';
-                if (themeIcon) {
-                    themeIcon.className = isDark ? 'bi bi-sun-fill text-base' : 'bi bi-moon-stars-fill text-base';
-                }
-                if (isDark) {
-                    htmlTag.classList.add('dark');
-                } else {
-                    htmlTag.classList.remove('dark');
+            function updateThemeText() {
+                const currentTheme = htmlTag.getAttribute('data-theme') || 'dark';
+                if (themeToggleText) {
+                    themeToggleText.textContent = currentTheme === 'dark' ? 'Theme: Dark' : 'Theme: Light';
                 }
             }
 
             if (themeToggleBtn) {
-                updateThemeIcon();
+                updateThemeText();
                 themeToggleBtn.addEventListener('click', function() {
                     const currentTheme = htmlTag.getAttribute('data-theme') || 'dark';
                     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
                     htmlTag.setAttribute('data-theme', newTheme);
                     htmlTag.setAttribute('data-bs-theme', newTheme);
                     localStorage.setItem('htc-theme', newTheme);
-                    updateThemeIcon();
+                    updateThemeText();
                 });
             }
         })();
