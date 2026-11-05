@@ -419,7 +419,7 @@ def home(request):
     recent_clusters = (
         TransactionCluster.objects.select_related("client", "sugar_mill", "logistics")
         .prefetch_related("invoices")
-        .order_by("-created_at")[:25]
+        .order_by("-created_at")[:50]
     )
     for cluster in recent_clusters:
         invs = list(cluster.invoices.all())

@@ -115,17 +115,17 @@
     }
     .recent-orders-scroll {
         max-height: 480px;
-        overflow-y: auto;
+        overflow-y: scroll;
     }
     .recent-orders-scroll::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 8px;
     }
     .recent-orders-scroll::-webkit-scrollbar-track {
-        background: transparent;
+        background: var(--htc-surface-subtle, #f8fafc);
+        border-radius: 4px;
     }
     .recent-orders-scroll::-webkit-scrollbar-thumb {
-        background-color: var(--htc-border);
+        background-color: var(--htc-border, #cbd5e1);
         border-radius: 4px;
     }
     .recent-orders-scroll::-webkit-scrollbar-thumb:hover {
@@ -605,9 +605,12 @@
 <!-- 6. Recent Orders Feed -->
 <div class="card-panel mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h6 class="fw-bold mb-0">Recent Orders</h6>
-            <span class="fs-8 text-muted">Latest operational transactions and movement</span>
+        <div class="d-flex align-items-center gap-2">
+            <div>
+                <h6 class="fw-bold mb-0">Recent Orders</h6>
+                <span class="fs-8 text-muted">Latest operational transactions and movement &middot; Scroll to view all</span>
+            </div>
+            <span class="badge bg-secondary-subtle text-secondary border fs-8 ms-1">{{ recent_clusters|length }} Orders</span>
         </div>
         <a href="{% url 'operations:cluster_list' %}" class="btn btn-outline-secondary btn-sm px-3 py-1 fs-8">
             View All Orders &rarr;
