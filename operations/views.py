@@ -10,7 +10,6 @@ from django.db import transaction
 from django.db.models import F, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
@@ -758,23 +757,16 @@ def cluster_detail(request, pk):
         .select_related("planter", "sugar_mill")
         .order_by("-release_date", "mro_number")[:50]
     )
-    total_mro_tons = sum((m.tons for m in linked_mros), Decimal("0"))
-    po_actual_mt = Decimal(str(po.total_contracted_mt if (po and po.total_contracted_mt is not None) else (po.volume_mt or 0))) if po else Decimal("0")
-    mro_remaining_capacity = max(po_actual_mt - total_mro_tons, Decimal("0"))
-    mro_is_fully_matched = (po_actual_mt > Decimal("0") and total_mro_tons == po_actual_mt)
-    mro_is_over_allocated = (po_actual_mt > Decimal("0") and total_mro_tons > po_actual_mt)
-    mro_match_percent = round((total_mro_tons / po_actual_mt * 100), 1) if po_actual_mt > Decimal("0") else 0
-
+    total_mro_tons = sum(m.tons for m in linked_mros)
     available_sugar_mills = list(SugarMill.objects.filter(is_active=True).order_by("name"))
     available_planters = list(Planter.objects.filter(is_active=True).order_by("name"))
 
-    initial_mro_tons = mro_remaining_capacity if mro_remaining_capacity > Decimal("0") else (po.volume_mt if po and po.volume_mt else None)
     mro_create_form = MolassesReleaseOrderForm(initial={
         "trader": "HEINDRICH",
         "crop_year": "2024 - 25",
         "sugar_mill_name": cluster.sugar_mill.name if cluster.sugar_mill else "BUSCO",
         "sugar_mill": cluster.sugar_mill_id,
-        "tons": initial_mro_tons,
+        "tons": po.volume_mt if po and po.volume_mt else None,
         "cluster": cluster.pk,
     })
 
@@ -821,11 +813,6 @@ def cluster_detail(request, pk):
             "available_sugar_mills": available_sugar_mills,
             "available_planters": available_planters,
             "total_mro_tons": total_mro_tons,
-            "po_actual_mt": po_actual_mt,
-            "mro_remaining_capacity": mro_remaining_capacity,
-            "mro_is_fully_matched": mro_is_fully_matched,
-            "mro_is_over_allocated": mro_is_over_allocated,
-            "mro_match_percent": mro_match_percent,
             "wf": wf,
             "is_concluded": is_concluded,
             "has_active_loan": has_active_loan,
@@ -1477,7 +1464,7 @@ def mro_ocr_job_status(request, job_id):
 
 
 @csrf_protect
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS)
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGER)
 def commit_mro_ocr_result(request, pk):
     """
     Receives user-verified MRO data, creates or updates the MolassesReleaseOrder,
@@ -1496,36 +1483,8 @@ def commit_mro_ocr_result(request, pk):
     job_id = payload.get("job_id")
     batch_permits = payload.get("permits")
 
-    po = getattr(cluster, "purchase_order", None)
-    po_actual_mt = Decimal(str(po.total_contracted_mt if po.total_contracted_mt is not None else (po.volume_mt or 0))) if po else Decimal("0")
-
     # Handle Batch Ingestion (e.g. multi-page MRO scan filing)
     if batch_permits and isinstance(batch_permits, list) and len(batch_permits) > 0:
-        incoming_batch_tons = Decimal("0")
-        batch_mros = []
-        for p in batch_permits:
-            p_mro = str(p.get("mro_number", "")).strip()
-            if p_mro:
-                batch_mros.append(p_mro)
-                try:
-                    p_t = Decimal(str(p.get("tons", 0)))
-                    if p_t > 0:
-                        incoming_batch_tons += p_t
-                except Exception:
-                    pass
-
-        if po and po_actual_mt > Decimal("0"):
-            existing_tons = cluster.mro_releases.exclude(mro_number__in=batch_mros).aggregate(total=Sum("tons"))["total"] or Decimal("0")
-            existing_tons = Decimal(str(existing_tons))
-            if (existing_tons + incoming_batch_tons) > po_actual_mt:
-                excess = (existing_tons + incoming_batch_tons) - po_actual_mt
-                remaining_cap = max(po_actual_mt - existing_tons, Decimal("0"))
-                ref = po.po_reference_number or cluster.reference_code
-                return JsonResponse({
-                    "error": f"Batch MRO volume ({incoming_batch_tons:,.3f} MT) exceeds the actual contracted volume for PO {ref} ({po_actual_mt:,.3f} MT). "
-                             f"Already linked: {existing_tons:,.3f} MT | Available capacity: {remaining_cap:,.3f} MT | Excess: {excess:,.3f} MT."
-                }, status=400)
-
         saved_count = 0
         total_tons_filed = Decimal("0")
         with transaction.atomic():
@@ -1643,18 +1602,6 @@ def commit_mro_ocr_result(request, pk):
 
     if not planter:
         return JsonResponse({"error": "No active planter found in master records."}, status=400)
-
-    if po and po_actual_mt > Decimal("0"):
-        existing_tons = cluster.mro_releases.exclude(mro_number=mro_number).aggregate(total=Sum("tons"))["total"] or Decimal("0")
-        existing_tons = Decimal(str(existing_tons))
-        if (existing_tons + tons) > po_actual_mt:
-            excess = (existing_tons + tons) - po_actual_mt
-            remaining_cap = max(po_actual_mt - existing_tons, Decimal("0"))
-            ref = po.po_reference_number or cluster.reference_code
-            return JsonResponse({
-                "error": f"Proposed MRO volume ({tons:,.3f} MT) exceeds the actual contracted volume for PO {ref} ({po_actual_mt:,.3f} MT). "
-                         f"Already linked: {existing_tons:,.3f} MT | Available capacity: {remaining_cap:,.3f} MT | Excess: {excess:,.3f} MT."
-            }, status=400)
 
     with transaction.atomic():
         mro, created = MolassesReleaseOrder.objects.update_or_create(
@@ -1844,68 +1791,17 @@ def mro_edit_view(request, pk):
     return redirect("operations:mro_summary")
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS)
+from django.views.decorators.http import require_POST
+
+@require_POST
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.OPERATIONS)
 def mro_delete_view(request, pk):
-    """
-    Dedicated view for Molasses Release Order deletion.
-    - GET: renders operations/mro_confirm_delete.html showing full permit details,
-           referencing delivery batches, and linked deal summary.
-    - POST: unlinks referencing delivery batches, deletes the MRO, and redirects.
-    """
-    mro = get_object_or_404(
-        MolassesReleaseOrder.objects.select_related("planter", "sugar_mill", "cluster", "cluster__client", "cluster__purchase_order"),
-        pk=pk
-    )
-
-    next_url = request.POST.get("next") or request.GET.get("next") or ""
-    if not (next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()})):
-        if mro.cluster:
-            next_url = reverse("operations:cluster_detail", kwargs={"pk": mro.cluster.pk})
-        else:
-            next_url = reverse("operations:mro_summary")
-
-    if request.method == "POST":
-        mro_num = mro.mro_number
-        planter_name = mro.planter.name if mro.planter else "N/A"
-        mill_name = mro.display_sugar_mill
-        cluster_ref = mro.cluster.reference_code if mro.cluster else None
-
-        # Safely null out foreign keys on any DeliveryLedger entries referencing this MRO
-        unlinked_deliveries = DeliveryLedger.objects.filter(mro_permit=mro).update(mro_permit=None)
-
-        mro.delete()
-
-        if unlinked_deliveries > 0:
-            messages.success(
-                request,
-                f"Successfully deleted MRO #{mro_num} ({mill_name} - {planter_name}). Unlinked {unlinked_deliveries} associated delivery batch(es)."
-            )
-        elif cluster_ref:
-            messages.success(
-                request,
-                f"Successfully deleted MRO #{mro_num} ({mill_name} - {planter_name}) from deal {cluster_ref}."
-            )
-        else:
-            messages.success(request, f"Successfully deleted MRO #{mro_num} ({mill_name} - {planter_name}).")
-
-        return redirect(next_url)
-
-    # GET: Render dedicated confirmation review page
-    associated_deliveries = list(
-        DeliveryLedger.objects.filter(mro_permit=mro).select_related(
-            "supplier", "carrier", "purchase_order", "purchase_order__cluster"
-        )
-    )
-    return render(
-        request,
-        "operations/mro_confirm_delete.html",
-        {
-            "mro": mro,
-            "cluster": mro.cluster,
-            "associated_deliveries": associated_deliveries,
-            "next_url": next_url,
-        }
-    )
+    mro = get_object_or_404(MolassesReleaseOrder, pk=pk)
+    mro_num = mro.mro_number
+    planter_name = mro.planter.name
+    mro.delete()
+    messages.success(request, f"Deleted MRO item #{mro_num} ({planter_name}).")
+    return redirect("operations:mro_summary")
 
 
 @role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.OPERATIONS)

@@ -24,20 +24,26 @@
     <!-- Confirmation Card -->
     <div class="card border-0 shadow-sm" style="background: var(--htc-surface); border: 1px solid var(--htc-border) !important; border-radius: 12px; overflow: hidden;">
         <div class="card-header bg-danger text-white py-3 px-4 d-flex align-items-center justify-content-between">
-            <div>
-                <h5 class="mb-0 fw-bold text-white">Confirm MRO Deletion</h5>
-                <div class="fs-8 text-white-50">Permanent removal of loading permit record</div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="rounded-circle bg-white text-danger d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                    <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                </div>
+                <div>
+                    <h5 class="mb-0 fw-bold text-white">Confirm MRO Deletion</h5>
+                    <div class="fs-8 text-white-50">Permanent removal of loading permit record</div>
+                </div>
             </div>
-            <span class="badge bg-white text-danger font-monospace fs-8 px-2.5 py-1">#{{ mro.mro_number }}</span>
+            <span class="badge bg-white text-danger font-monospace fs-8 px-2 py-1">#{{ mro.mro_number }}</span>
         </div>
 
         <div class="card-body p-4">
             <!-- Warning Banner -->
             {% if mro.cluster %}
-            <div class="alert alert-warning border border-warning-subtle p-3 rounded-3 mb-4" style="background-color: #fffbeb;">
+            <div class="alert alert-warning border border-warning-subtle d-flex align-items-center gap-2.5 p-3 rounded-3 mb-4" style="background-color: #fffbeb;">
+                <i class="bi bi-exclamation-circle-fill text-warning fs-4 flex-shrink-0"></i>
                 <div class="fs-7">
                     <strong class="text-dark">Permit is currently linked to an active deal:</strong>
-                    <div class="text-muted mt-1">
+                    <div class="text-muted mt-0.5">
                         This MRO is attached to Purchase Order <strong>{{ mro.cluster.reference_code }}</strong> ({{ mro.cluster.client.name }}).
                         Deleting it will remove <strong>{{ mro.tons|floatformat:3|intcomma }} MT</strong> from the order's attached MRO permits.
                     </div>
@@ -46,11 +52,12 @@
             {% endif %}
 
             {% if associated_deliveries %}
-            <div class="alert alert-danger border border-danger-subtle p-3 rounded-3 mb-4" style="background-color: #fef2f2;">
+            <div class="alert alert-danger border border-danger-subtle d-flex align-items-center gap-2.5 p-3 rounded-3 mb-4" style="background-color: #fef2f2;">
+                <i class="bi bi-shield-exclamation text-danger fs-4 flex-shrink-0"></i>
                 <div class="fs-7">
                     <strong class="text-danger">Delivery Batches Reference this Permit:</strong>
-                    <div class="text-muted mt-1">
-                        There {{ associated_deliveries|length|pluralize:"is,are" }} <strong>{{ associated_deliveries|length }} delivery batch{{ associated_deliveries|length|pluralize:"es" }}</strong> referencing this MRO permit. Deleting the permit will unlink the permit reference from those deliveries without altering the physical delivery records.
+                    <div class="text-muted mt-0.5">
+                        There {{ associated_deliveries|length|pluralize:"is,are" }} <strong>{{ associated_deliveries|length }} delivery batch{{ associated_deliveries|length|pluralize:"es" }}</strong> referencing this MRO permit. Deleting the permit will unlink the permit reference from those deliveries without altering the delivery physical records.
                     </div>
                 </div>
             </div>
@@ -106,7 +113,7 @@
                             <td class="pe-3 py-2">
                                 {% if mro.has_scanned_document %}
                                 <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                    {{ mro.is_shared_document|yesno:"Consolidated Shared Scan,Direct Permit Scan" }}
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>{{ mro.is_shared_document|yesno:"Consolidated Shared Scan,Direct Permit Scan" }}
                                 </span>
                                 {% else %}
                                 <span class="text-muted fs-8">No document attached</span>
@@ -129,7 +136,7 @@
                         Cancel &amp; Keep Permit
                     </a>
                     <button type="submit" class="btn btn-danger px-4 py-2 fs-7 fw-bold shadow-xs">
-                        Permanently Delete MRO Permit
+                        <i class="bi bi-trash3-fill me-1.5"></i> Permanently Delete MRO Permit
                     </button>
                 </div>
             </form>
@@ -137,3 +144,4 @@
     </div>
 </div>
 {% endblock %}
+
