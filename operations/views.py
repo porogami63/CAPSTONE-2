@@ -554,6 +554,7 @@ def cluster_create(request):
                     level="info",
                     link=f"/operations/{cluster.pk}/",
                     exclude_user=request.user,
+                    category="approval",
                 )
 
             messages.success(request, f"Transaction cluster {cluster.reference_code} created.")
@@ -642,6 +643,7 @@ def submit_cluster_for_approval(request, pk):
             level="info",
             link=f"/operations/{cluster.pk}/",
             exclude_user=request.user,
+            category="approval",
         )
         messages.success(request, f"Transaction {cluster.reference_code} submitted for executive approval.")
     return redirect("operations:cluster_detail", pk=pk)
@@ -675,6 +677,7 @@ def approve_cluster(request, pk):
             level="success",
             link=f"/operations/{cluster.pk}/",
             exclude_user=request.user,
+            category="approval",
         )
         messages.success(request, f"Transaction {cluster.reference_code} approved successfully.")
     return redirect("operations:cluster_detail", pk=pk)
@@ -715,6 +718,7 @@ def reject_cluster(request, pk):
             level="danger",
             link=f"/operations/{cluster.pk}/",
             exclude_user=request.user,
+            category="approval",
         )
         messages.warning(request, f"Transaction {cluster.reference_code} returned with rejection comments.")
     return redirect("operations:cluster_detail", pk=pk)
@@ -926,6 +930,7 @@ def update_logistics(request, pk):
                     level="danger",
                     link=f"/operations/{cluster.pk}/",
                     exclude_user=request.user,
+                    category="variance",
                 )
             else:
                 messages.success(request, "Logistics updated.")
@@ -969,6 +974,7 @@ def add_invoice(request, pk):
                 level="success",
                 link=f"/operations/{cluster.pk}/",
                 exclude_user=request.user,
+                category="approval",
             )
 
             messages.success(request, f"Invoice {invoice.invoice_number} recorded.")
@@ -1009,6 +1015,7 @@ def add_voucher(request, pk):
                 level="info",
                 link=f"/operations/{cluster.pk}/",
                 exclude_user=request.user,
+                category="approval",
             )
 
             messages.success(request, f"Cash voucher {voucher.voucher_number} recorded and linked to facility.")
@@ -1815,7 +1822,8 @@ def download_contract_pdf(request, pk):
     context = {"cluster": cluster}
 
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="Contract_{cluster.reference_code}.pdf"'
+    disposition = "inline" if (request.GET.get("inline") == "1" or request.GET.get("preview") == "1") else "attachment"
+    response["Content-Disposition"] = f'{disposition}; filename="Contract_{cluster.reference_code}.pdf"'
 
     template = get_template(template_path)
     html = template.render(context)
@@ -1844,7 +1852,8 @@ def download_po_pdf(request, pk):
     context = {"cluster": cluster}
 
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="PurchaseOrder_{cluster.reference_code}.pdf"'
+    disposition = "inline" if (request.GET.get("inline") == "1" or request.GET.get("preview") == "1") else "attachment"
+    response["Content-Disposition"] = f'{disposition}; filename="PurchaseOrder_{cluster.reference_code}.pdf"'
 
     template = get_template(template_path)
     html = template.render(context)
@@ -1954,6 +1963,7 @@ def chai_create(request):
                     level="danger",
                     link=f"/operations/chai/{record.pk}/",
                     exclude_user=request.user,
+                    category="variance",
                 )
             elif record.status == "approved":
                 notify_roles(
@@ -1963,6 +1973,7 @@ def chai_create(request):
                     level="success",
                     link=f"/operations/chai/{record.pk}/",
                     exclude_user=request.user,
+                    category="logistics",
                 )
 
             messages.success(request, f"CHAI Quality Record '{record.chai_number}' (Grade {record.chai_value}) registered successfully.")
@@ -2032,6 +2043,7 @@ def approve_chai(request, pk):
             level="success",
             link=f"/operations/chai/{record.pk}/",
             exclude_user=request.user,
+            category="logistics",
         )
         messages.success(request, f"CHAI Record {record.chai_number} approved.")
     return redirect("operations:chai_detail", pk=pk)
@@ -2061,6 +2073,7 @@ def reject_chai(request, pk):
             level="danger",
             link=f"/operations/chai/{record.pk}/",
             exclude_user=request.user,
+            category="variance",
         )
         messages.warning(request, f"CHAI Record {record.chai_number} rejected with comments.")
     return redirect("operations:chai_detail", pk=pk)
@@ -2837,6 +2850,7 @@ def update_delivery_arrival_view(request, delivery_id):
                     level="danger",
                     link=f"/operations/{cluster.pk}/",
                     exclude_user=request.user,
+                    category="variance",
                 )
         else:
             messages.info(request, f"{var_summary} (Within 1.0% tolerance).")

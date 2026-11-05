@@ -2,6 +2,7 @@ from datetime import timedelta
 from django.utils import timezone
 from accounts.models import User
 from audit.services import notify_roles
+from audit.models import Notification
 
 
 def process_timeline_reminders():
@@ -31,6 +32,7 @@ def process_timeline_reminders():
             message=f"Upcoming Payment Timeline: Invoice {inv.invoice_number} (₱{inv.amount:,.2f} for {inv.cluster.client.name}) is due in 3 days on {inv.due_date.strftime('%b %d, %Y')}.",
             level="info",
             link=f"/operations/{inv.cluster.pk}/",
+            category=Notification.Category.APPROVAL,
         )
         sent_count += 1
 
@@ -51,6 +53,7 @@ def process_timeline_reminders():
                 message=f"Timeline Exceeded: Invoice {inv.invoice_number} (₱{inv.amount:,.2f}) has surpassed its agreed payment timeline ({due_str}). Immediate follow-up required.",
                 level="danger",
                 link=f"/operations/{inv.cluster.pk}/",
+                category=Notification.Category.APPROVAL,
             )
             sent_count += 1
 
@@ -69,6 +72,7 @@ def process_timeline_reminders():
             message=f"Logistics Timeline Exceeded: Shipment for {log.cluster.reference_code} loaded on {log.loaded_at.strftime('%b %d, %Y')} has been in transit over 5 days without receipt confirmation.",
             level="warning",
             link=f"/operations/{log.cluster.pk}/",
+            category=Notification.Category.LOGISTICS,
         )
         sent_count += 1
 
@@ -87,6 +91,7 @@ def process_timeline_reminders():
             message=f"Approval Timeline Idle: Transaction {cl.reference_code} has been pending executive review for over 48 hours.",
             level="warning",
             link=f"/operations/{cl.pk}/",
+            category=Notification.Category.APPROVAL,
         )
         sent_count += 1
 

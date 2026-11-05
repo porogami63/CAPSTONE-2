@@ -1394,7 +1394,8 @@ def download_invoice_pdf(request, pk):
     }
 
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="Invoice_{invoice.invoice_number}.pdf"'
+    disposition = "inline" if (request.GET.get("inline") == "1" or request.GET.get("preview") == "1") else "attachment"
+    response["Content-Disposition"] = f'{disposition}; filename="Invoice_{invoice.invoice_number}.pdf"'
 
     template = get_template(template_path)
     html = template.render(context)
@@ -1416,7 +1417,8 @@ def download_voucher_pdf(request, pk):
     context = {"voucher": voucher}
 
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="Voucher_{voucher.voucher_number}.pdf"'
+    disposition = "inline" if (request.GET.get("inline") == "1" or request.GET.get("preview") == "1") else "attachment"
+    response["Content-Disposition"] = f'{disposition}; filename="Voucher_{voucher.voucher_number}.pdf"'
 
     template = get_template(template_path)
     html = template.render(context)

@@ -203,6 +203,15 @@
             <div class="modal-body p-0 bg-dark position-relative" style="height: calc(88vh - 54px);">
                 <iframe id="pdfPreviewIframe" src="" style="width: 100%; height: 100%; border: none; display: none;"></iframe>
                 <img id="imgPreview" src="" alt="Scanned Document" style="max-width: 100%; max-height: 100%; object-fit: contain; margin: auto; display: none;" class="position-absolute top-50 start-50 translate-middle">
+                <!-- Inline Error State Fallback -->
+                <div id="previewErrorFallback" class="d-none text-center text-white position-absolute top-50 start-50 translate-middle p-4" style="background: rgba(15, 23, 42, 0.9); border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); max-width: 440px; width: 90%; z-index: 10;">
+                    <i class="bi bi-file-earmark-pdf fs-1 text-warning mb-2 d-block"></i>
+                    <h6 class="fw-bold mb-1">Preview Unavailable in Frame</h6>
+                    <p class="fs-8 text-white-50 mb-3">Your browser security settings or network policies prevent inline document embedding.</p>
+                    <a id="previewFallbackDownloadBtn" href="#" class="btn btn-primary btn-sm fw-semibold px-3 py-1.5" download>
+                        <i class="bi bi-download me-1"></i> Download PDF Directly
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -734,24 +743,67 @@ function executeBatchMarkReviewed() {
 // --------------------------------------------------------------------------
 function previewSoftCopy(url, title, isPdf) {
     document.getElementById('previewModalTitle').innerText = title;
-    document.getElementById('previewDownloadBtn').setAttribute('href', url);
+    const downloadBtn = document.getElementById('previewDownloadBtn');
+    if (downloadBtn) downloadBtn.setAttribute('href', url);
 
     const iframe = document.getElementById('pdfPreviewIframe');
     const img = document.getElementById('imgPreview');
+    const errorBox = document.getElementById('previewErrorFallback');
+    const fallbackLink = document.getElementById('previewFallbackDownloadBtn');
+
+    if (errorBox) errorBox.classList.add('d-none');
 
     if (isPdf) {
-        iframe.src = url;
-        iframe.style.display = 'block';
-        img.style.display = 'none';
+        let previewUrl = url;
+        if (url && !url.includes('inline=1')) {
+            previewUrl += (url.includes('?') ? '&' : '?') + 'inline=1';
+        }
+        if (img) { img.style.display = 'none'; img.src = ''; }
+        if (iframe) {
+            iframe.style.display = 'block';
+            iframe.src = previewUrl;
+            iframe.onerror = function() {
+                if (errorBox) {
+                    errorBox.classList.remove('d-none');
+                    if (fallbackLink) fallbackLink.setAttribute('href', url);
+                }
+            };
+        }
     } else {
-        img.src = url;
-        img.style.display = 'block';
-        iframe.style.display = 'none';
+        if (iframe) { iframe.style.display = 'none'; iframe.src = ''; }
+        if (img) {
+            img.style.display = 'block';
+            img.src = url;
+            img.onerror = function() {
+                if (errorBox) {
+                    errorBox.classList.remove('d-none');
+                    if (fallbackLink) fallbackLink.setAttribute('href', url);
+                }
+            };
+        }
     }
 
-    const modal = new bootstrap.Modal(document.getElementById('previewDocModal'));
-    modal.show();
+    const modalEl = document.getElementById('previewDocModal');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
 }
+
+// Ensure cleanup on modal dismiss
+document.addEventListener('DOMContentLoaded', function() {
+    const previewModalEl = document.getElementById('previewDocModal');
+    if (previewModalEl) {
+        previewModalEl.addEventListener('hidden.bs.modal', function () {
+            const iframe = document.getElementById('pdfPreviewIframe');
+            const img = document.getElementById('imgPreview');
+            const errorBox = document.getElementById('previewErrorFallback');
+            if (iframe) { iframe.src = ''; iframe.style.display = 'none'; }
+            if (img) { img.src = ''; img.style.display = 'none'; }
+            if (errorBox) errorBox.classList.add('d-none');
+        });
+    }
+});
 
 // --------------------------------------------------------------------------
 // 7. INITIALIZATION ON DOM READY

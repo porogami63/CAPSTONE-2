@@ -37,3 +37,61 @@ class NotificationSystemTests(TestCase):
         mark_resp = self.client.post(reverse("audit:api_mark_notifications_read"))
         self.assertEqual(mark_resp.status_code, 200)
         self.assertEqual(Notification.objects.filter(recipient=self.admin, is_read=False).count(), 0)
+
+    def test_category_counts_and_filtering_across_more_than_50_items(self):
+        self.client.login(username="adminuser", password="password123")
+        # 1. Bulk create 60 system / chat notifications
+        notifs = [
+            Notification(
+                recipient=self.admin,
+                title=f"New Message {i}",
+                message="General chat update",
+                link="/chat/",
+                category=Notification.Category.SYSTEM,
+            )
+            for i in range(60)
+        ]
+        # 2. Add 5 specific loan notifications
+        notifs.extend([
+            Notification(
+                recipient=self.admin,
+                title=f"Loan Facility {i}",
+                message="Review loan proposal",
+                link="/finance/loans/",
+                category=Notification.Category.LOAN,
+            )
+            for i in range(5)
+        ]
+        )
+        Notification.objects.bulk_create(notifs)
+
+        # Total unread is 65
+        res_all = self.client.get(reverse("audit:api_notifications"))
+        self.assertEqual(res_all.status_code, 200)
+        data_all = res_all.json()
+        self.assertEqual(data_all["unread_count"], 65)
+        self.assertEqual(data_all["category_counts"]["all"], 65)
+        self.assertEqual(data_all["category_counts"]["loan"], 5)
+        self.assertEqual(data_all["category_counts"]["system"], 60)
+        self.assertEqual(len(data_all["notifications"]), 50)
+
+        # Category filter: loan returns all 5 loan items without being blocked by the 60 chat items
+        res_loan = self.client.get(reverse("audit:api_notifications") + "?category=loan")
+        self.assertEqual(res_loan.status_code, 200)
+        data_loan = res_loan.json()
+        self.assertEqual(data_loan["unread_count"], 65)
+        self.assertEqual(data_loan["category_counts"]["loan"], 5)
+        self.assertEqual(len(data_loan["notifications"]), 5)
+        for item in data_loan["notifications"]:
+            self.assertEqual(item["category"], "loan")
+
+    def test_chat_notifications_do_not_pollute_operational_categories(self):
+        # A chat notification that mentions loan, interest, and variance keywords
+        n = Notification.objects.create(
+            recipient=self.admin,
+            title="Message from opsuser",
+            message="Can we check the loan interest calculation and barge variance?",
+            link="/chat/?user=2",
+            category=Notification.Category.SYSTEM,
+        )
+        self.assertEqual(n.get_classified_category(), Notification.Category.SYSTEM)

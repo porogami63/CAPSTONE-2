@@ -646,7 +646,8 @@ def download_consolidated_report(request, period):
     }
     
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="Consolidated_Report_{period}.pdf"'
+    disposition = "inline" if (request.GET.get("inline") == "1" or request.GET.get("preview") == "1") else "attachment"
+    response['Content-Disposition'] = f'{disposition}; filename="Consolidated_Report_{period}.pdf"'
     
     template = get_template('dashboard/report_pdf.html')
     html = template.render(context)
@@ -654,7 +655,7 @@ def download_consolidated_report(request, period):
     pisa_status = pisa.CreatePDF(html, dest=response)
        
     if pisa_status.err:
-       return HttpResponse('We had some errors generating the PDF.')
+        return HttpResponse("Error generating Consolidated Report PDF document.", status=500, content_type="text/plain")
     return response
 
 

@@ -83,7 +83,14 @@ class Notification(models.Model):
             return self.category
         link_str = (self.link or "").lower()
         title_str = (self.title or "").lower()
-        if "/chat/" in link_str or title_str.startswith("message from") or title_str.startswith("discussion on") or title_str.startswith("general team chat"):
+        if (
+            "/chat" in link_str
+            or title_str.startswith("new message")
+            or title_str.startswith("message from")
+            or title_str.startswith("discussion on")
+            or title_str.startswith("general team chat")
+            or "chat" in title_str
+        ):
             return self.Category.SYSTEM
         text = f"{title_str} {(self.message or '').lower()} {link_str}"
         if "variance" in text or self.level == self.Level.DANGER:

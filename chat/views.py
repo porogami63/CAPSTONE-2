@@ -129,6 +129,7 @@ def api_send_message(request):
 
         # Trigger Topbar System Notifications for chat messages
         from audit.services import notify_user, notify_roles
+        from audit.models import Notification
         sender_name = request.user.get_full_name() or request.user.username
 
         if recipient:
@@ -138,6 +139,7 @@ def api_send_message(request):
                 message=text[:100],
                 level="info",
                 link=f"/chat/?user={request.user.id}",
+                category=Notification.Category.SYSTEM,
             )
         elif cluster:
             notify_roles(
@@ -147,6 +149,7 @@ def api_send_message(request):
                 level="info",
                 link=f"/chat/?cluster={cluster.id}",
                 exclude_user=request.user,
+                category=Notification.Category.SYSTEM,
             )
         else:
             notify_roles(
@@ -156,6 +159,7 @@ def api_send_message(request):
                 level="info",
                 link="/chat/",
                 exclude_user=request.user,
+                category=Notification.Category.SYSTEM,
             )
 
         return JsonResponse({
@@ -199,6 +203,7 @@ def send_system_notification(cluster, message_text, sender_user=None, create_not
 
     if create_notification:
         from audit.services import notify_roles
+        from audit.models import Notification
         notify_roles(
             [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.FINANCE, User.Role.MANAGEMENT],
             title=f"Operational Event — {cluster.reference_code}",
@@ -206,6 +211,7 @@ def send_system_notification(cluster, message_text, sender_user=None, create_not
             level="warning",
             link=f"/operations/{cluster.pk}/",
             exclude_user=sender_user,
+            category=Notification.Category.SYSTEM,
         )
 
     return msg
