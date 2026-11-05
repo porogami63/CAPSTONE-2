@@ -153,6 +153,18 @@
             </a>
             {% endif %}
 
+            {% if is_ops_manager %}
+            <a href="#opsFinancialsSection" class="btn btn-outline-secondary btn-sm px-3 py-1.5" title="Jump to subtle financial breakdown">
+                Financials Breakdown &darr;
+            </a>
+            {% endif %}
+
+            {% if request.user.role == 'administrator' or request.user.is_superuser %}
+            <a href="{% url 'admin_hub:dashboard' %}" class="btn btn-outline-dark btn-sm px-3 py-1.5 fw-semibold">
+                <i class="bi bi-shield-shaded me-1"></i> Admin Hub
+            </a>
+            {% endif %}
+
             <div class="dropdown">
                 <button class="btn btn-outline-secondary btn-sm dropdown-toggle px-2.5 py-1.5" type="button" id="moreActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     More

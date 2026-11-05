@@ -238,10 +238,6 @@ def cache_dashboard_page(timeout=60):
 @vary_on_cookie
 @cache_dashboard_page(60)
 def home(request):
-    # Make admin view the default dashboard for the admin (not the company metrics)
-    if getattr(request.user, "role", None) == User.Role.ADMINISTRATOR:
-        return redirect("admin_hub:dashboard")
-
     # Process automated pre- and post-timeline activity reminders
     try:
         from operations.services.reminder_services import process_timeline_reminders
@@ -252,9 +248,15 @@ def home(request):
     # ── Role resolution ──────────────────────────────────────────────────
     user_role = request.user.role if hasattr(request.user, "role") and request.user.role else "administrator"
     role_override = request.GET.get("role") or request.GET.get("view_as")
+    view_param = request.GET.get("view")
     if role_override and request.user.is_superuser:
         if role_override in [User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS, User.Role.FINANCE, User.Role.INVOICING]:
             user_role = role_override
+
+    # Make admin view the default dashboard for the admin (not the company metrics),
+    # unless an admin/superuser explicitly requested the operations dashboard via ?view=ops or a role override
+    if getattr(request.user, "role", None) == User.Role.ADMINISTRATOR and not (role_override or view_param == "ops"):
+        return redirect("admin_hub:dashboard")
 
     # ── Operational insights (completely non-monetary) ───────────────────
     insights = build_dashboard_insights(user_role)
