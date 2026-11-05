@@ -1197,55 +1197,150 @@ def update_invoice_status(request, invoice_pk):
 
 
 @role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
-def resolve_dispute(request, pk):
-    cluster = get_object_or_404(TransactionCluster, pk=pk)
-    logistics = get_object_or_404(LogisticsLedger, cluster=cluster)
+def resolve_weight_difference_view(request, pk):
+    cluster = get_object_or_404(
+        TransactionCluster.objects.select_related("client", "purchase_order"),
+        pk=pk
+    )
+    logistics = get_object_or_404(
+        LogisticsLedger.objects.select_related("partner", "trucking_partner", "barge_partner"),
+        cluster=cluster
+    )
+    po = getattr(cluster, "purchase_order", None)
+
+    loaded_mt = Decimal(str(logistics.loaded_volume_mt or 0))
+    if po and po.total_delivered_mt and po.total_delivered_mt > Decimal("0"):
+        received_mt = po.total_delivered_mt
+    elif logistics.received_volume_mt is not None:
+        received_mt = Decimal(str(logistics.received_volume_mt))
+    else:
+        received_mt = loaded_mt
+
+    shortage_mt = max(Decimal("0.000"), loaded_mt - received_mt)
+    variance_pct = logistics.variance_percent if logistics.variance_percent is not None else Decimal("0.00")
+
+    customer_price_per_mt = Decimal("0.00")
+    if po:
+        if po.selling_price and po.selling_price > Decimal("0"):
+            customer_price_per_mt = Decimal(str(po.selling_price))
+        elif po.unit_price and po.unit_price > Decimal("0"):
+            customer_price_per_mt = Decimal(str(po.unit_price))
+
+    contract_value = (loaded_mt * customer_price_per_mt).quantize(Decimal("0.01"))
+    adjusted_product_value = (received_mt * customer_price_per_mt).quantize(Decimal("0.01"))
+    value_discrepancy = (shortage_mt * customer_price_per_mt).quantize(Decimal("0.01"))
 
     if request.method == "POST":
-        res_type = request.POST.get("resolution_type")
+        action = (request.POST.get("action") or request.POST.get("resolution_type") or "").strip()
         notes = request.POST.get("resolution_notes", "").strip()
 
-        if res_type in LogisticsLedger.ResolutionType.values:
+        # 1. ABSORB: automatically adjust invoice price based on total received volume
+        if action.upper() in (
+            "ABSORB",
+            "ABSORBED",
+            "BILLING_ADJUSTED",
+            LogisticsLedger.ResolutionType.ABSORBED,
+            LogisticsLedger.ResolutionType.BILLING_ADJUSTED,
+        ):
+            invoices = list(cluster.invoices.all())
+            if invoices:
+                for inv in invoices:
+                    fee = inv.logistics_fee or Decimal("0.00")
+                    inv.amount = (adjusted_product_value + fee).quantize(Decimal("0.01"))
+                    inv._audit_user = request.user
+                    inv.save(update_fields=["amount"])
+
             logistics.dispute_status = LogisticsLedger.DisputeStatus.RESOLVED
-            logistics.resolution_type = res_type
-            logistics.resolution_notes = notes
+            logistics.resolution_type = LogisticsLedger.ResolutionType.ABSORBED
+            logistics.resolution_notes = notes or f"Weight difference absorbed. Customer invoice adjusted to ₱{adjusted_product_value:,.2f} based on {received_mt:,.3f} MT received."
             logistics.variance_exceeds_tolerance = False
             logistics._audit_user = request.user
             logistics.save()
-
-            # Execute financial adjustments based on choice
-            if res_type == LogisticsLedger.ResolutionType.BILLING_ADJUSTED:
-                if hasattr(cluster, "purchase_order") and logistics.received_volume_mt:
-                    new_val = Decimal(str(logistics.received_volume_mt)) * Decimal(str(cluster.purchase_order.unit_price))
-                    for inv in cluster.invoices.all():
-                        inv.amount = new_val
-                        inv._audit_user = request.user
-                        inv.save(update_fields=["amount"])
-                    messages.success(request, f"Dispute resolved: Invoices adjusted to received volume value (₱{new_val:,.2f}).")
-                else:
-                    messages.success(request, "Dispute resolved: Invoices set for billing adjustment.")
-            elif res_type == LogisticsLedger.ResolutionType.BARGE_PENALTY:
-                if hasattr(cluster, "purchase_order") and logistics.loaded_volume_mt and logistics.received_volume_mt:
-                    shortage_mt = Decimal(str(logistics.loaded_volume_mt)) - Decimal(str(logistics.received_volume_mt))
-                    penalty_val = shortage_mt * Decimal(str(cluster.purchase_order.unit_price))
-                    logistics.barge_fees = max(Decimal("0"), Decimal(str(logistics.barge_fees)) - penalty_val)
-                    logistics.save(update_fields=["barge_fees"])
-                    messages.success(request, f"Dispute resolved: ₱{penalty_val:,.2f} shortage penalty applied.")
-                else:
-                    messages.success(request, "Dispute resolved: Shortage penalty applied.")
-            elif res_type == LogisticsLedger.ResolutionType.CONCEDED:
-                messages.success(request, "Dispute resolved: Conceded variance and proceeding with deal as-is.")
-            elif res_type == LogisticsLedger.ResolutionType.WAIVED:
-                messages.success(request, "Dispute resolved: Management waiver approved for brix / evaporation loss.")
 
             cluster.status = TransactionCluster.Status.DELIVERED
             cluster._audit_user = request.user
             cluster.save(update_fields=["status", "updated_at"])
 
-    next_url = _safe_next_url(request, request.META.get("HTTP_REFERER"))
-    if next_url and "/operations/" in next_url:
-        return redirect(next_url)
-    return redirect("operations:cluster_detail", pk=pk)
+            messages.success(
+                request,
+                f"Weight difference absorbed. Invoice amount adjusted to ₱{adjusted_product_value:,.2f} based on {received_mt:,.3f} MT received."
+            )
+
+        # 2. DISPUTE: let variance float until user deems resolved without modifying invoice
+        elif action.upper() in (
+            "DISPUTE",
+            "DISPUTED",
+            "FLOAT",
+            "FLOAT_VARIANCE",
+            LogisticsLedger.ResolutionType.DISPUTED,
+        ):
+            logistics.dispute_status = LogisticsLedger.DisputeStatus.DISPUTED
+            logistics.resolution_type = LogisticsLedger.ResolutionType.DISPUTED
+            logistics.resolution_notes = notes or f"Weight discrepancy disputed. The {shortage_mt:,.3f} MT ({variance_pct:.2f}%) variance will remain floating until resolved."
+            logistics.variance_exceeds_tolerance = True
+            logistics._audit_user = request.user
+            logistics.save()
+
+            messages.warning(
+                request,
+                f"Weight difference marked as Disputed. The {variance_pct:.2f}% variance will remain floating until formally settled."
+            )
+
+        # 3. Backwards compatibility legacy resolutions
+        elif action == LogisticsLedger.ResolutionType.BARGE_PENALTY:
+            penalty_val = (shortage_mt * customer_price_per_mt).quantize(Decimal("0.01"))
+            logistics.barge_fees = max(Decimal("0.00"), Decimal(str(logistics.barge_fees or 0)) - penalty_val)
+            logistics.dispute_status = LogisticsLedger.DisputeStatus.RESOLVED
+            logistics.resolution_type = LogisticsLedger.ResolutionType.BARGE_PENALTY
+            logistics.resolution_notes = notes or f"Shortage penalty of ₱{penalty_val:,.2f} deducted from barging fee."
+            logistics.variance_exceeds_tolerance = False
+            logistics._audit_user = request.user
+            logistics.save()
+            cluster.status = TransactionCluster.Status.DELIVERED
+            cluster.save(update_fields=["status", "updated_at"])
+            messages.success(request, f"Dispute resolved: ₱{penalty_val:,.2f} shortage penalty applied.")
+
+        elif action in (LogisticsLedger.ResolutionType.CONCEDED, LogisticsLedger.ResolutionType.WAIVED):
+            logistics.dispute_status = LogisticsLedger.DisputeStatus.RESOLVED
+            logistics.resolution_type = action
+            logistics.resolution_notes = notes
+            logistics.variance_exceeds_tolerance = False
+            logistics._audit_user = request.user
+            logistics.save()
+            cluster.status = TransactionCluster.Status.DELIVERED
+            cluster.save(update_fields=["status", "updated_at"])
+            messages.success(request, f"Dispute resolved ({action}). Order marked as Delivered.")
+
+        else:
+            messages.error(request, "Invalid resolution option selected. Please choose Absorb or Dispute.")
+            return redirect("operations:resolve_weight_difference", pk=pk)
+
+        next_url = _safe_next_url(request, request.META.get("HTTP_REFERER"))
+        if next_url and "/operations/" in next_url and "resolve-weight-difference" not in next_url:
+            return redirect(next_url)
+        return redirect("operations:cluster_detail", pk=pk)
+
+    context = {
+        "cluster": cluster,
+        "logistics": logistics,
+        "po": po,
+        "loaded_mt": loaded_mt,
+        "received_mt": received_mt,
+        "shortage_mt": shortage_mt,
+        "variance_pct": variance_pct,
+        "customer_price_per_mt": customer_price_per_mt,
+        "contract_value": contract_value,
+        "adjusted_product_value": adjusted_product_value,
+        "value_discrepancy": value_discrepancy,
+        "invoices": cluster.invoices.all(),
+        "is_floating": logistics.dispute_status == LogisticsLedger.DisputeStatus.DISPUTED,
+    }
+    return render(request, "operations/resolve_weight_difference.html", context)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)
+def resolve_dispute(request, pk):
+    return resolve_weight_difference_view(request, pk)
 
 
 @role_required(User.Role.MANAGEMENT, User.Role.OPERATIONS)

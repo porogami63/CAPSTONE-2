@@ -1,0 +1,240 @@
+{% extends "app_base.html" %}
+{% load humanize %}
+
+{% block title %}Resolve Weight Difference · {{ cluster.reference_code }} · HTC Core{% endblock %}
+{% block topbar_title %}Resolve Weight Difference{% endblock %}
+{% block topbar_subtitle %}Determine financial settlement for physical weight discrepancy{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0" style="max-width: 900px; margin: 0 auto;">
+
+    <!-- Breadcrumb Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0 fs-8">
+                <li class="breadcrumb-item"><a href="{% url 'operations:cluster_list' %}" class="text-decoration-none">Orders &amp; Deals</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'operations:cluster_detail' cluster.pk %}" class="text-decoration-none">{{ cluster.reference_code }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Resolve Weight Difference</li>
+            </ol>
+        </nav>
+        <a href="{% url 'operations:cluster_detail' cluster.pk %}" class="btn-htc-outline btn-sm">
+            &larr; Back to Order Details
+        </a>
+    </div>
+
+    <!-- Active Status Banner -->
+    {% if is_floating %}
+    <div class="alert alert-warning border border-warning-subtle p-3 rounded-3 mb-4" style="background-color: #fffbeb;">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <strong class="text-warning-emphasis d-block">Status: Actively Disputed (Floating Variance)</strong>
+                <span class="fs-8 text-muted">
+                    This order's {{ variance_pct|floatformat:2 }}% weight shortage is currently marked as disputed. Invoices remain at their original unadjusted value until final settlement.
+                </span>
+            </div>
+            <span class="badge bg-warning text-dark px-2.5 py-1.5 fs-8 fw-semibold">Dispute Floating</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-danger border border-danger-subtle p-3 rounded-3 mb-4" style="background-color: #fef2f2;">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <strong class="text-danger d-block">Weight Shortage Over Allowable Limit</strong>
+                <span class="fs-8 text-muted">
+                    The physical delivery variance of {{ variance_pct|floatformat:2 }}% exceeds the standard 1.00% tolerance. Please choose whether to absorb the difference or dispute it.
+                </span>
+            </div>
+            <span class="badge bg-danger text-white px-2.5 py-1.5 fs-8 fw-semibold">{{ variance_pct|floatformat:2 }}% Shortage</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Physical Discrepancy Breakdown Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 h-100" style="background: var(--htc-surface); border: 1px solid var(--htc-border) !important; border-radius: 10px;">
+                <span class="text-muted text-uppercase fs-9 fw-bold d-block mb-1" style="letter-spacing: 0.5px;">Loaded / Dispatched</span>
+                <span class="fs-4 fw-bold text-dark font-monospace">{{ loaded_mt|floatformat:3|intcomma }}</span>
+                <span class="fs-8 text-muted">Metric Tons</span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 h-100" style="background: var(--htc-surface); border: 1px solid var(--htc-border) !important; border-radius: 10px;">
+                <span class="text-muted text-uppercase fs-9 fw-bold d-block mb-1" style="letter-spacing: 0.5px;">Received (Confirmed)</span>
+                <span class="fs-4 fw-bold text-success font-monospace">{{ received_mt|floatformat:3|intcomma }}</span>
+                <span class="fs-8 text-muted">Metric Tons</span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 h-100" style="background: var(--htc-surface); border: 1px solid var(--htc-border) !important; border-radius: 10px;">
+                <span class="text-muted text-uppercase fs-9 fw-bold d-block mb-1" style="letter-spacing: 0.5px;">Physical Shortage</span>
+                <span class="fs-4 fw-bold text-danger font-monospace">-{{ shortage_mt|floatformat:3|intcomma }}</span>
+                <span class="fs-8 text-muted">Metric Tons</span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 h-100" style="background: var(--htc-surface); border: 1px solid var(--htc-border) !important; border-radius: 10px;">
+                <span class="text-muted text-uppercase fs-9 fw-bold d-block mb-1" style="letter-spacing: 0.5px;">Variance vs Limit</span>
+                <span class="fs-4 fw-bold text-danger font-monospace">{{ variance_pct|floatformat:2 }}%</span>
+                <span class="fs-8 text-muted">Limit: &plusmn;1.00%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Impact Analysis Card -->
+    <div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border) !important; border-radius: 12px; overflow: hidden;">
+        <div class="card-header py-3 px-4" style="background: var(--htc-bg); border-bottom: 1px solid var(--htc-border);">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                    <h6 class="mb-0 fw-bold text-dark">Financial Impact Analysis</h6>
+                    <span class="fs-8 text-muted">Customer billing comparison based on contracted vs received volume</span>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fs-8 font-monospace">
+                    Rate: &#8369;{{ customer_price_per_mt|floatformat:2|intcomma }} / MT
+                </span>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0 align-middle fs-8" style="border-color: var(--htc-border);">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 35%;">Metric</th>
+                            <th style="width: 25%;" class="text-end">Volume Basis</th>
+                            <th style="width: 40%;" class="text-end">Revenue / Invoice Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <strong>Original Dispatched Contract Value</strong>
+                                <div class="text-muted fs-9">Billed at initial loaded/contracted weight</div>
+                            </td>
+                            <td class="text-end font-monospace">{{ loaded_mt|floatformat:3|intcomma }} MT</td>
+                            <td class="text-end font-monospace fw-semibold">&#8369;{{ contract_value|floatformat:2|intcomma }}</td>
+                        </tr>
+                        <tr class="table-success-subtle">
+                            <td>
+                                <strong class="text-success-emphasis">Adjusted Value at Actual Received Volume</strong>
+                                <div class="text-muted fs-9">New invoice basis if difference is absorbed</div>
+                            </td>
+                            <td class="text-end font-monospace text-success fw-bold">{{ received_mt|floatformat:3|intcomma }} MT</td>
+                            <td class="text-end font-monospace text-success fw-bold">&#8369;{{ adjusted_product_value|floatformat:2|intcomma }}</td>
+                        </tr>
+                        <tr class="table-danger-subtle">
+                            <td>
+                                <strong class="text-danger">Discrepancy (Net Billing Reduction)</strong>
+                                <div class="text-muted fs-9">Adjustment deducted from customer billing</div>
+                            </td>
+                            <td class="text-end font-monospace text-danger">-{{ shortage_mt|floatformat:3|intcomma }} MT</td>
+                            <td class="text-end font-monospace text-danger fw-bold">-&#8369;{{ value_discrepancy|floatformat:2|intcomma }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {% if invoices %}
+            <div class="mt-3 p-3 rounded-2" style="background: var(--htc-bg); border: 1px solid var(--htc-border);">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <span class="fs-8 text-muted">
+                        Linked Invoices ({{ invoices|length }}):
+                        {% for inv in invoices %}
+                            <strong class="text-dark">{{ inv.invoice_number }}</strong> (Current: &#8369;{{ inv.amount|floatformat:2|intcomma }}){% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </span>
+                    <span class="fs-8 text-muted">Includes billable freight/logistics if applicable</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Decision Form: Absorb vs Dispute -->
+    <div class="card border-0 shadow-sm mb-4" style="background: var(--htc-surface); border: 1px solid var(--htc-border) !important; border-radius: 12px; overflow: hidden;">
+        <div class="card-header py-3 px-4" style="background: var(--htc-bg); border-bottom: 1px solid var(--htc-border);">
+            <h6 class="mb-0 fw-bold text-dark">Select Resolution Action</h6>
+            <span class="fs-8 text-muted">Choose how operations will handle this weight difference</span>
+        </div>
+
+        <form method="post" action="{% url 'operations:resolve_weight_difference' cluster.pk %}" class="card-body p-4">
+            {% csrf_token %}
+
+            <!-- Option 1: ABSORB -->
+            <div class="border rounded-3 p-3 mb-3 option-card" style="border-color: var(--htc-border) !important; background: var(--htc-bg); cursor: pointer;" onclick="document.getElementById('actionAbsorb').checked = true;">
+                <div class="form-check d-flex align-items-start gap-2 m-0">
+                    <input class="form-check-input mt-1" type="radio" name="action" id="actionAbsorb" value="ABSORBED" {% if not is_floating %}checked{% endif %}>
+                    <label class="form-check-label w-100" for="actionAbsorb" style="cursor: pointer;">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                            <strong class="text-dark fs-7">Absorb Weight Difference (Adjust Invoice)</strong>
+                            <span class="badge bg-success text-white px-2 py-0.5 fs-8">Auto-Adjust Billing</span>
+                        </div>
+                        <div class="fs-8 text-muted mb-2">
+                            Automatically recalculate and update customer sales invoices to reflect the actual received volume (<strong>{{ received_mt|floatformat:3|intcomma }} MT</strong> &rarr; <strong>&#8369;{{ adjusted_product_value|floatformat:2|intcomma }}</strong>).
+                        </div>
+                        <div class="fs-8 text-dark fw-semibold">
+                            Outcome: The dispute is cleared, invoice amounts are adjusted, and the order status is advanced to Delivered.
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Option 2: DISPUTE -->
+            <div class="border rounded-3 p-3 mb-4 option-card" style="border-color: var(--htc-border) !important; background: var(--htc-bg); cursor: pointer;" onclick="document.getElementById('actionDispute').checked = true;">
+                <div class="form-check d-flex align-items-start gap-2 m-0">
+                    <input class="form-check-input mt-1" type="radio" name="action" id="actionDispute" value="DISPUTED" {% if is_floating %}checked{% endif %}>
+                    <label class="form-check-label w-100" for="actionDispute" style="cursor: pointer;">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                            <strong class="text-dark fs-7">Dispute &amp; Let Variance Float</strong>
+                            <span class="badge bg-warning text-dark px-2 py-0.5 fs-8">Keep Variance Active</span>
+                        </div>
+                        <div class="fs-8 text-muted mb-2">
+                            Keep existing invoice prices unchanged (<strong>&#8369;{{ contract_value|floatformat:2|intcomma }}</strong>) while lodging a formal dispute against the logistics partner / mill.
+                        </div>
+                        <div class="fs-8 text-dark fw-semibold">
+                            Outcome: The {{ variance_pct|floatformat:2 }}% shortage remains flagged as an active floating variance in operations until formally investigated and resolved.
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Resolution Notes Field -->
+            <div class="mb-4">
+                <label for="resolutionNotes" class="form-label fs-8 fw-bold text-dark text-uppercase" style="letter-spacing: 0.5px;">
+                    Resolution Notes &amp; Audit Comments
+                </label>
+                <textarea name="resolution_notes" 
+                          id="resolutionNotes" 
+                          rows="3" 
+                          class="form-control form-control-sm fs-8" 
+                          placeholder="Provide details regarding the agreement with the customer, carrier investigation findings, or management approval..."
+                          style="border-color: var(--htc-border);">{{ logistics.resolution_notes }}</textarea>
+                <span class="fs-9 text-muted mt-1 d-block">
+                    These notes will be permanently logged in the transaction history and audit trail.
+                </span>
+            </div>
+
+            <!-- Form Actions (Icon-Free) -->
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2 border-top" style="border-color: var(--htc-border) !important;">
+                <a href="{% url 'operations:cluster_detail' cluster.pk %}" class="btn-htc-outline btn-sm">
+                    Cancel &amp; Return
+                </a>
+                <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold">
+                    Confirm Resolution
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+<style>
+.option-card:hover {
+    border-color: #2563eb !important;
+    background-color: var(--htc-surface) !important;
+}
+.fs-7 { font-size: 0.95rem !important; }
+.fs-8 { font-size: 0.825rem !important; }
+.fs-9 { font-size: 0.725rem !important; }
+</style>
+{% endblock %}

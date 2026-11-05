@@ -232,6 +232,158 @@ class DisputeResolutionTests(TestCase):
         self.assertEqual(ledger.dispute_status, LogisticsLedger.DisputeStatus.RESOLVED)
         self.assertEqual(ledger.resolution_type, "CONCEDED")
 
+    def test_resolve_weight_difference_absorb_adjusts_invoice(self):
+        from masters.models import Client, LogisticsPartner, SugarMill
+        from operations.models import LogisticsLedger, PurchaseOrder, TransactionCluster
+        from finance.models import Invoice
+
+        user = User.objects.create_user(
+            username="ops_absorb_user",
+            password="password123",
+            role=User.Role.OPERATIONS,
+            is_staff=True,
+        )
+        client = Client.objects.create(name="Universal Robina Corp")
+        mill = SugarMill.objects.create(name="Central Azucarera de Don Pedro")
+        partner = LogisticsPartner.objects.create(name="Eagle Shipping")
+
+        cluster = TransactionCluster.objects.create(
+            reference_code="PO-ABSORB-TEST",
+            client=client,
+            sugar_mill=mill,
+            status=TransactionCluster.Status.ACTIVE,
+        )
+        po = PurchaseOrder.objects.create(
+            cluster=cluster,
+            po_reference_number="PO-ABSORB-001",
+            volume_mt=Decimal("1000.000"),
+            unit_price=Decimal("12000.00"),
+            selling_price=Decimal("14000.00"),
+        )
+        # Loaded 1000 MT, Received 980 MT -> 20 MT shortage (2% variance > 1% tolerance)
+        ledger = LogisticsLedger.objects.create(
+            cluster=cluster,
+            partner=partner,
+            loaded_volume_mt=Decimal("1000.000"),
+            received_volume_mt=Decimal("980.000"),
+        )
+        self.assertTrue(ledger.variance_exceeds_tolerance)
+        self.assertEqual(ledger.dispute_status, LogisticsLedger.DisputeStatus.DISPUTED)
+
+        # Invoice initially billed at full 1000 MT loaded volume = 14,000,000 + 50,000 logistics fee
+        inv = Invoice.objects.create(
+            cluster=cluster,
+            invoice_number="INV-ABSORB-001",
+            amount=Decimal("14050000.00"),
+            logistics_fee=Decimal("50000.00"),
+        )
+
+        self.client.login(username="ops_absorb_user", password="password123")
+
+        # Test GET dedicated resolution page
+        get_url = reverse("operations:resolve_weight_difference", kwargs={"pk": cluster.pk})
+        get_resp = self.client.get(get_url)
+        self.assertEqual(get_resp.status_code, 200)
+        self.assertContains(get_resp, "Resolve Weight Difference")
+        self.assertContains(get_resp, "14,000.00") # Selling price rate
+        self.assertContains(get_resp, "PO-ABSORB-TEST")
+
+        # Test POST Absorb: Should adjust invoice to 980 MT * 14,000 + 50,000 = 13,720,000 + 50,000 = 13,770,000
+        post_resp = self.client.post(
+            get_url,
+            {
+                "action": "ABSORBED",
+                "resolution_notes": "Absorbed 20 MT moisture loss per customer reconciliation.",
+            },
+            follow=True,
+        )
+        self.assertEqual(post_resp.status_code, 200)
+
+        ledger.refresh_from_db()
+        self.assertEqual(ledger.dispute_status, LogisticsLedger.DisputeStatus.RESOLVED)
+        self.assertEqual(ledger.resolution_type, LogisticsLedger.ResolutionType.ABSORBED)
+        self.assertFalse(ledger.variance_exceeds_tolerance)
+        self.assertIn("Absorbed 20 MT", ledger.resolution_notes)
+
+        inv.refresh_from_db()
+        # Expected: 980 MT * 14,000/MT + 50,000 logistics fee = 13,770,000.00
+        self.assertEqual(inv.amount, Decimal("13770000.00"))
+
+        cluster.refresh_from_db()
+        self.assertEqual(cluster.status, TransactionCluster.Status.DELIVERED)
+
+    def test_resolve_weight_difference_dispute_floats_variance(self):
+        from masters.models import Client, LogisticsPartner, SugarMill
+        from operations.models import LogisticsLedger, PurchaseOrder, TransactionCluster
+        from finance.models import Invoice
+
+        user = User.objects.create_user(
+            username="ops_dispute_user",
+            password="password123",
+            role=User.Role.OPERATIONS,
+            is_staff=True,
+        )
+        client = Client.objects.create(name="Nestle Philippines")
+        mill = SugarMill.objects.create(name="Victorias Milling")
+        partner = LogisticsPartner.objects.create(name="FastBarge Cargo")
+
+        cluster = TransactionCluster.objects.create(
+            reference_code="PO-DISPUTE-TEST",
+            client=client,
+            sugar_mill=mill,
+            status=TransactionCluster.Status.ACTIVE,
+        )
+        po = PurchaseOrder.objects.create(
+            cluster=cluster,
+            po_reference_number="PO-DISPUTE-001",
+            volume_mt=Decimal("500.000"),
+            unit_price=Decimal("11000.00"),
+            selling_price=Decimal("13500.00"),
+        )
+        # Loaded 500 MT, Received 475 MT -> 25 MT shortage (5% variance > 1% tolerance)
+        ledger = LogisticsLedger.objects.create(
+            cluster=cluster,
+            partner=partner,
+            loaded_volume_mt=Decimal("500.000"),
+            received_volume_mt=Decimal("475.000"),
+        )
+        self.assertTrue(ledger.variance_exceeds_tolerance)
+
+        initial_invoice_amt = Decimal("6750000.00")
+        inv = Invoice.objects.create(
+            cluster=cluster,
+            invoice_number="INV-DISPUTE-001",
+            amount=initial_invoice_amt,
+        )
+
+        self.client.login(username="ops_dispute_user", password="password123")
+        url = reverse("operations:resolve_weight_difference", kwargs={"pk": cluster.pk})
+
+        post_resp = self.client.post(
+            url,
+            {
+                "action": "DISPUTED",
+                "resolution_notes": "Logistics carrier short-delivered by 25 MT; launching marine cargo investigation.",
+            },
+            follow=True,
+        )
+        self.assertEqual(post_resp.status_code, 200)
+
+        ledger.refresh_from_db()
+        # Variance remains floating: dispute_status = DISPUTED, variance_exceeds_tolerance = True
+        self.assertEqual(ledger.dispute_status, LogisticsLedger.DisputeStatus.DISPUTED)
+        self.assertEqual(ledger.resolution_type, LogisticsLedger.ResolutionType.DISPUTED)
+        self.assertTrue(ledger.variance_exceeds_tolerance)
+        self.assertIn("marine cargo investigation", ledger.resolution_notes)
+
+        # Invoices MUST NOT be modified when dispute is chosen
+        inv.refresh_from_db()
+        self.assertEqual(inv.amount, initial_invoice_amt)
+
+        # Cluster status remains unresolved (IN_PROGRESS)
+        cluster.refresh_from_db()
+        self.assertEqual(cluster.status, TransactionCluster.Status.ACTIVE)
+
 
 class MROSummaryTests(TestCase):
     def setUp(self):

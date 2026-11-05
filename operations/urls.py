@@ -19,6 +19,7 @@ urlpatterns = [
     path("<uuid:pk>/loan/", views.add_loan, name="add_loan"),
     path("invoice/<int:invoice_pk>/status/", views.update_invoice_status, name="update_invoice_status"),
     path("<uuid:pk>/resolve-dispute/", views.resolve_dispute, name="resolve_dispute"),
+    path("<uuid:pk>/resolve-weight-difference/", views.resolve_weight_difference_view, name="resolve_weight_difference"),
     path("archive/", views.archive_list, name="archive_list"),
     path("bulk-archive/", views.bulk_archive_completed, name="bulk_archive_completed"),
     path("<uuid:pk>/archive/", views.archive_cluster, name="archive_cluster"),
@@ -62,5 +63,3 @@ urlpatterns = [
     path("deliveries/api/", views.delivery_api_view, name="delivery_api"),
     path("deliveries/api/po-status/<str:po_reference_number>/", views.po_status_api, name="po_status_api"),
 ]
-
-

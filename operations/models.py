@@ -962,6 +962,8 @@ class LogisticsLedger(models.Model):
         RESOLVED = "RESOLVED", "Resolved"
 
     class ResolutionType(models.TextChoices):
+        ABSORBED = "ABSORBED", "Absorb Weight Difference (Adjust Invoice)"
+        DISPUTED = "DISPUTED", "Dispute & Let Variance Float"
         CONCEDED = "CONCEDED", "Concede & Proceed As-Is"
         BILLING_ADJUSTED = "BILLING_ADJUSTED", "Adjust Billing to Received Volume"
         BARGE_PENALTY = "BARGE_PENALTY", "Deduct Shortage Penalty from Logistics"
