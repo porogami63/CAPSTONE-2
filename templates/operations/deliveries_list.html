@@ -159,24 +159,6 @@
     }
 </style>
 
-<!-- Contextual Workflow Guidance Ribbon -->
-<div class="workflow-guidance-card mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2" style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-left: 4px solid var(--htc-primary); border-radius: var(--htc-radius-sm, 8px); padding: 0.85rem 1.15rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-    <div class="d-flex align-items-center gap-2.5">
-        <span class="p-1.5 rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-            <i class="bi bi-lightbulb-fill fs-7"></i>
-        </span>
-        <div>
-            <span class="fw-bold fs-8 text-dark d-block">Local Workflow Assistant: Deliveries &amp; Transit Monitoring</span>
-            <span class="fs-8 text-muted">Fulfillment tracking: 1. Record Dispatch (Loaded MT) &rarr; 2. Track Weighbridge Arrival (Received MT) &rarr; 3. Enforce &plusmn;1.00% physical transit shrinkage threshold.</span>
-        </div>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-        <span class="badge bg-light border text-muted fs-8 px-2.5 py-1">
-            <i class="bi bi-shield-check text-success me-1"></i> &plusmn;1.00% Tolerance Guard
-        </span>
-    </div>
-</div>
-
 {% if focused_po %}
 <!-- Focused PO Logistics Header Deck -->
 <div class="card p-4 mb-4 border shadow-sm" style="background: #f8fafc; border-color: #e2e8f0 !important; border-radius: 12px;">

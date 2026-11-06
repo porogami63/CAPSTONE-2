@@ -97,22 +97,6 @@
         color: var(--htc-text);
     }
 
-    /* Workflow Guidance Banner */
-    .workflow-guidance-card {
-        background: var(--htc-surface);
-        border: 1px solid var(--htc-border);
-        border-left: 4px solid var(--htc-primary);
-        border-radius: var(--htc-radius-sm, 8px);
-        padding: 0.85rem 1.15rem;
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-    }
-
     /* Step Card Panels */
     .wizard-step-panel {
         background: var(--htc-surface);
@@ -235,22 +219,6 @@
         </button>
     </div>
 
-    <!-- Contextual Workflow Assistant Banner -->
-    <div class="workflow-guidance-card" id="guidanceBanner">
-        <div class="d-flex align-items-center gap-2.5">
-            <span class="p-1.5 rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                <i class="bi bi-lightbulb-fill fs-7"></i>
-            </span>
-            <div>
-                <span class="fw-bold fs-8 text-dark d-block" id="guidanceTitle">Step 1 of 3: Trading Parties &amp; Contract Reference</span>
-                <span class="fs-8 text-muted" id="guidanceDescription">Select the buyer distillery client, preferred sugar mill source, and assign or auto-generate the PO tracking number.</span>
-            </div>
-        </div>
-        <div class="badge bg-light border text-muted fs-8 px-2.5 py-1">
-            <i class="bi bi-shield-check text-success me-1"></i> Pre-Audit Verified
-        </div>
-    </div>
-
     <!-- Form Element -->
     <form method="post" id="purchaseOrderForm" data-outlier-guard="true">
         {% csrf_token %}
@@ -344,9 +312,9 @@
                     <label for="{{ form.volume_mt.id_for_label }}" class="form-label fw-semibold fs-8">
                         Contracted Volume <span class="text-danger">*</span>
                     </label>
-                    <div class="input-group input-group-sm">
+                    <div class="input-addon-group">
                         {{ form.volume_mt }}
-                        <span class="input-group-text bg-body-tertiary fw-semibold">MT</span>
+                        <span class="addon addon-suffix">MT</span>
                     </div>
                     <div class="form-text fs-8 text-muted">Total order weight (1 MT = 1,000 kg).</div>
                     {% if form.volume_mt.errors %}<div class="text-danger fs-8 mt-1">{{ form.volume_mt.errors|striptags }}</div>{% endif %}
@@ -357,8 +325,8 @@
                     <label for="{{ form.unit_price.id_for_label }}" class="form-label fw-semibold fs-8">
                         Buying Price (Cost) <span class="text-danger">*</span>
                     </label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-body-tertiary">₱</span>
+                    <div class="input-addon-group">
+                        <span class="addon addon-prefix">₱</span>
                         {{ form.unit_price }}
                     </div>
                     <div class="form-text fs-8 text-muted">Procurement cost paid to mill per MT.</div>
@@ -370,8 +338,8 @@
                     <label for="{{ form.selling_price.id_for_label }}" class="form-label fw-semibold fs-8">
                         Selling Price (Revenue)
                     </label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-body-tertiary">₱</span>
+                    <div class="input-addon-group">
+                        <span class="addon addon-prefix">₱</span>
                         {{ form.selling_price }}
                     </div>
                     <div class="form-text fs-8 text-muted">Sales price billed to customer per MT.</div>
@@ -442,11 +410,11 @@
                 <!-- Sugar Content Brix -->
                 <div class="col-md-3">
                     <label for="{{ form.brix_level.id_for_label }}" class="form-label fw-semibold fs-8">Sugar Content (Brix %)</label>
-                    <div class="input-group input-group-sm">
+                    <div class="input-addon-group">
                         {{ form.brix_level }}
-                        <span class="input-group-text bg-body-tertiary">%</span>
+                        <span class="addon addon-suffix">%</span>
                     </div>
-                    <div class="form-text fs-8 text-muted">Target solids (Standard $\ge 85.0^\circ$).</div>
+                    <div class="form-text fs-8 text-muted">Target solids (Standard &ge; 85.0&deg; Brix).</div>
                     {% if form.brix_level.errors %}<div class="text-danger fs-8 mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
                 </div>
 
@@ -466,18 +434,6 @@
                     {{ form.contract_notes }}
                     <div class="form-text fs-8 text-muted">Optional handling directions, designated discharge port, or trucking coordination notes.</div>
                     {% if form.contract_notes.errors %}<div class="text-danger fs-8 mt-1">{{ form.contract_notes.errors|striptags }}</div>{% endif %}
-                </div>
-            </div>
-
-            <!-- Summary Review Checklist -->
-            <div class="mt-4 p-3 rounded-3 bg-body-tertiary border">
-                <div class="d-flex align-items-center gap-2 mb-2 text-dark fw-bold fs-8">
-                    <i class="bi bi-clipboard-check text-primary"></i> Pre-Submission Validation Checklist
-                </div>
-                <div class="d-flex align-items-center gap-4 flex-wrap fs-8 text-muted">
-                    <span class="d-inline-flex align-items-center gap-1.5"><i class="bi bi-check2-circle text-success"></i> Customer &amp; Mill Linked</span>
-                    <span class="d-inline-flex align-items-center gap-1.5"><i class="bi bi-check2-circle text-success"></i> Real-time Margin Verified</span>
-                    <span class="d-inline-flex align-items-center gap-1.5"><i class="bi bi-check2-circle text-success"></i> SHA-256 Audit Seal Ready</span>
                 </div>
             </div>
 
@@ -501,22 +457,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     let currentStep = 1;
     const maxSteps = 3;
-
-    // Step configuration descriptions
-    const stepMeta = {
-        1: {
-            title: "Step 1 of 3: Trading Parties & Contract Reference",
-            desc: "Select the buyer distillery client, preferred sugar mill source, and assign or auto-generate the PO tracking number."
-        },
-        2: {
-            title: "Step 2 of 3: Contracted Quantity & Pricing Structure",
-            desc: "Specify total contracted volume (MT) and set buying and selling price baselines to project real-time profitability."
-        },
-        3: {
-            title: "Step 3 of 3: Commercial Terms & Specifications",
-            desc: "Define payment terms, molasses laboratory quality specs (Brix & CHAI), and special delivery instructions."
-        }
-    };
 
     window.jumpToStep = function(stepNum) {
         if (stepNum < 1 || stepNum > maxSteps) return;
@@ -556,12 +496,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const pct = ((stepNum - 1) / (maxSteps - 1)) * 100;
             fill.style.width = `${pct}%`;
         }
-
-        // Update workflow guidance banner
-        const titleEl = document.getElementById('guidanceTitle');
-        const descEl = document.getElementById('guidanceDescription');
-        if (titleEl && stepMeta[stepNum]) titleEl.textContent = stepMeta[stepNum].title;
-        if (descEl && stepMeta[stepNum]) descEl.textContent = stepMeta[stepNum].desc;
 
         currentStep = stepNum;
         window.scrollTo({ top: 0, behavior: 'smooth' });
