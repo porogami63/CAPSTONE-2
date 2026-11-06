@@ -556,19 +556,33 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="11" class="text-center py-5 text-muted">
-                        <i class="bi bi-inbox fs-2 d-block mb-2 text-muted"></i>
-                        No incremental delivery records found matching criteria.
-                        <div class="mt-2">
-                            {% if focused_po and focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
-                            <button type="button" class="btn-htc btn-sm" data-bs-toggle="modal" data-bs-target="#logBatchModal">
-                                <i class="bi bi-plus-lg me-1"></i> Log First Delivery
-                            </button>
-                            {% else %}
-                            <a href="{% url 'operations:log_delivery' %}{% if focused_po %}?po_id={{ focused_po.pk }}{% endif %}" class="btn-htc btn-sm">
-                                <i class="bi bi-plus-lg me-1"></i> Log First Delivery
-                            </a>
-                            {% endif %}
+                    <td colspan="11" style="padding: 3.5rem 1.5rem; text-align: center;">
+                        <div class="empty-state-card text-center py-4">
+                            <svg width="68" height="68" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="mb-3" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.04));">
+                                <circle cx="32" cy="32" r="30" fill="var(--htc-surface-subtle, #f8fafc)" stroke="var(--htc-border, #e2e8f0)" stroke-width="1.5" />
+                                <path d="M18 24H46V44H18V24Z" stroke="var(--htc-text-muted, #94a3b8)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M22 29H42M22 35H34" stroke="var(--htc-text-muted, #94a3b8)" stroke-width="1.75" stroke-linecap="round"/>
+                                <circle cx="43" cy="43" r="7" fill="var(--htc-surface, #ffffff)" stroke="var(--htc-primary, #0c385c)" stroke-width="1.75"/>
+                                <path d="M48 48L53 53" stroke="var(--htc-primary, #0c385c)" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <h6 class="fw-bold text-dark mb-1">No Delivery Records Found</h6>
+                            <p class="text-muted fs-8 mb-3" style="max-width: 320px; margin: 0 auto;">No shipment batches match your current search query or filter selection.</p>
+                            <div class="d-flex justify-content-center align-items-center gap-2">
+                                {% if q or current_supplier or current_status or current_po %}
+                                <a href="{% url 'operations:deliveries_list' %}" class="btn btn-sm btn-outline-primary px-3 py-1.5 fs-8 fw-semibold shadow-xs">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                                </a>
+                                {% endif %}
+                                {% if focused_po and focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
+                                <button type="button" class="btn btn-sm btn-primary px-3 py-1.5 fs-8 fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#logBatchModal">
+                                    <i class="bi bi-plus-lg me-1"></i> Log Delivery Batch
+                                </button>
+                                {% elif user|has_perm:"edit_logistics" %}
+                                <a href="{% url 'operations:log_delivery' %}" class="btn btn-sm btn-primary px-3 py-1.5 fs-8 fw-semibold shadow-xs">
+                                    <i class="bi bi-plus-lg me-1"></i> Log Delivery Batch
+                                </a>
+                                {% endif %}
+                            </div>
                         </div>
                     </td>
                 </tr>

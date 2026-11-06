@@ -337,47 +337,46 @@
                 <table class="table table-hover align-middle mb-0 fs-8">
                     <thead class="bg-body border-bottom">
                         <tr class="text-uppercase text-muted border-bottom">
-                            <th>Invoice Number</th>
-                            <th>Purchase Order</th>
-                            <th>Customer</th>
-                            <th class="text-end">Billed Amount</th>
-                            <th>Issue Date</th>
-                            <th class="text-center">Payment Status</th>
-                            <th class="text-end" style="min-width: 220px;">Actions</th>
+                            <th style="min-width: 170px;">Invoice &amp; Customer</th>
+                            <th style="min-width: 150px;">Purchase Order &amp; Date</th>
+                            <th style="min-width: 140px;">Billed Amount &amp; Status</th>
+                            <th class="text-end" style="min-width: 200px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for inv in sales_invoices %}
                         <tr>
                             <td>
-                                <a href="{% url 'operations:cluster_detail' inv.cluster.pk %}" class="fw-bold text-decoration-none text-primary d-inline-flex align-items-center gap-1" title="View PO details">
-                                    <i class="bi bi-file-earmark-text"></i> {{ inv.invoice_number }}
-                                </a>
+                                <div>
+                                    <a href="{% url 'operations:cluster_detail' inv.cluster.pk %}" class="fw-bold text-decoration-none text-primary d-inline-flex align-items-center gap-1 fs-8" title="View PO details">
+                                        <i class="bi bi-file-earmark-text"></i> {{ inv.invoice_number }}
+                                    </a>
+                                </div>
+                                <div class="text-muted fs-8 text-truncate mt-0.5" style="max-width: 190px;" title="{{ inv.cluster.client.name }}">{{ inv.cluster.client.name }}</div>
                             </td>
                             <td>
-                                <a href="{% url 'operations:cluster_detail' inv.cluster.pk %}" class="badge bg-secondary-subtle text-secondary border text-decoration-none">
-                                    {{ inv.cluster.reference_code }}
-                                </a>
+                                <div>
+                                    <a href="{% url 'operations:cluster_detail' inv.cluster.pk %}" class="badge bg-secondary-subtle text-secondary border text-decoration-none font-monospace">
+                                        {{ inv.cluster.reference_code }}
+                                    </a>
+                                </div>
+                                <div class="text-muted fs-9 mt-0.5">Issued: {{ inv.issued_at|date:"M d, Y" }}</div>
                             </td>
                             <td>
-                                <span class="fw-semibold text-dark">{{ inv.cluster.client.name }}</span>
-                            </td>
-                            <td class="text-end fw-bold text-dark sensitive-financial-val">
-                                ₱{{ inv.amount|floatformat:2|intcomma }}
-                            </td>
-                            <td class="text-muted">
-                                {{ inv.issued_at|date:"M d, Y" }}
-                            </td>
-                            <td class="text-center">
-                                <span class="status-badge-modern {{ inv.payable_state|lower }}">
-                                    {% if inv.payable_state == 'Paid' %}
-                                    <i class="bi bi-check-circle-fill"></i> Paid
-                                    {% elif inv.payable_state == 'Overdue' %}
-                                    <i class="bi bi-exclamation-triangle-fill"></i> Overdue
-                                    {% else %}
-                                    <i class="bi bi-clock-fill"></i> {{ inv.payable_state }}
-                                    {% endif %}
-                                </span>
+                                <div class="fw-bold text-dark sensitive-financial-val fs-8">
+                                    ₱{{ inv.amount|floatformat:2|intcomma }}
+                                </div>
+                                <div class="mt-0.5">
+                                    <span class="status-badge-modern {{ inv.payable_state|lower }}">
+                                        {% if inv.payable_state == 'Paid' %}
+                                        <i class="bi bi-check-circle-fill"></i> Paid
+                                        {% elif inv.payable_state == 'Overdue' %}
+                                        <i class="bi bi-exclamation-triangle-fill"></i> Overdue
+                                        {% else %}
+                                        <i class="bi bi-clock-fill"></i> {{ inv.payable_state }}
+                                        {% endif %}
+                                    </span>
+                                </div>
                             </td>
                             <td class="text-end">
                                 <div class="d-inline-flex align-items-center gap-1.5 flex-wrap justify-content-end">
@@ -408,9 +407,30 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-5">
-                                <i class="bi bi-receipt fs-2 d-block mb-2 text-muted"></i>
-                                No customer sales invoices found matching current criteria.
+                            <td colspan="4" style="padding: 3.5rem 1.5rem; text-align: center;">
+                                <div class="empty-state-card text-center py-4">
+                                    <svg width="68" height="68" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="mb-3" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.04));">
+                                        <circle cx="32" cy="32" r="30" fill="var(--htc-surface-subtle, #f8fafc)" stroke="var(--htc-border, #e2e8f0)" stroke-width="1.5" />
+                                        <path d="M20 18H44C45.1046 18 46 18.8954 46 20V46C46 47.1046 45.1046 48 44 48H20C18.8954 48 18 47.1046 18 46V20C18 18.8954 18.8954 18 20 18Z" stroke="var(--htc-text-muted, #94a3b8)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M24 25H40M24 31H36M24 37H30" stroke="var(--htc-text-muted, #94a3b8)" stroke-width="1.75" stroke-linecap="round"/>
+                                        <circle cx="43" cy="43" r="7" fill="var(--htc-surface, #ffffff)" stroke="var(--htc-primary, #0c385c)" stroke-width="1.75"/>
+                                        <path d="M48 48L53 53" stroke="var(--htc-primary, #0c385c)" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                    <h6 class="fw-bold text-dark mb-1">No Invoices Match Criteria</h6>
+                                    <p class="text-muted fs-8 mb-3" style="max-width: 320px; margin: 0 auto;">No customer sales invoices match your search query or filter selection.</p>
+                                    <div class="d-flex justify-content-center align-items-center gap-2">
+                                        {% if current_q or current_status or current_client or current_sort and current_sort != 'newest' %}
+                                        <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-outline-primary px-3 py-1.5 fs-8 fw-semibold shadow-xs">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                                        </a>
+                                        {% endif %}
+                                        {% if user|has_perm:"add_invoice" %}
+                                        <button type="button" class="btn btn-sm btn-primary px-3 py-1.5 fs-8 fw-semibold shadow-xs" data-bs-toggle="modal" data-bs-target="#createInvoiceModal">
+                                            <i class="bi bi-plus-lg me-1"></i> Create Customer Invoice
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -468,7 +488,21 @@
                     </div>
                 </div>
                 {% empty %}
-                <div class="text-center text-muted py-4">No customer sales invoices recorded.</div>
+                <div class="empty-state-card text-center py-4">
+                    <svg width="56" height="56" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="mb-2">
+                        <circle cx="32" cy="32" r="30" fill="var(--htc-surface-subtle, #f8fafc)" stroke="var(--htc-border, #e2e8f0)" stroke-width="1.5" />
+                        <path d="M20 18H44V46H20V18Z" stroke="var(--htc-text-muted, #94a3b8)" stroke-width="1.75" stroke-linejoin="round"/>
+                        <circle cx="43" cy="43" r="7" fill="var(--htc-surface, #ffffff)" stroke="var(--htc-primary, #0c385c)" stroke-width="1.75"/>
+                        <path d="M48 48L53 53" stroke="var(--htc-primary, #0c385c)" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <div class="fw-bold fs-8 text-dark mb-1">No Invoices Found</div>
+                    <div class="fs-9 text-muted mb-2">No invoices match your active filters.</div>
+                    {% if current_q or current_status or current_client or current_sort and current_sort != 'newest' %}
+                    <a href="{% url 'finance:invoice_list' %}" class="btn btn-sm btn-outline-primary px-3 py-1 fs-9 fw-semibold shadow-xs">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                    </a>
+                    {% endif %}
+                </div>
                 {% endfor %}
             </div>
 
@@ -492,35 +526,40 @@
                 <table class="table table-hover align-middle mb-0 fs-8">
                     <thead class="bg-body border-bottom">
                         <tr class="text-uppercase text-muted border-bottom">
-                            <th>Supplier / Sugar Mill</th>
-                            <th>Payable Code</th>
-                            <th>Linked Purchase Order</th>
-                            <th class="text-end">Payable Amount</th>
-                            <th class="text-center">Settlement Status</th>
-                            <th class="text-end">Actions</th>
+                            <th style="min-width: 170px;">Supplier &amp; Payable Code</th>
+                            <th style="min-width: 150px;">Linked Purchase Order</th>
+                            <th style="min-width: 140px;">Payable &amp; Status</th>
+                            <th class="text-end" style="min-width: 120px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for sup in supplier_invoices %}
                         <tr>
-                            <td class="fw-bold text-dark">
-                                <i class="bi bi-building me-1 text-muted"></i> {{ sup.cluster.sugar_mill.name }}
+                            <td>
+                                <div class="fw-bold text-dark fs-8">
+                                    <i class="bi bi-building me-1 text-muted"></i> {{ sup.cluster.sugar_mill.name }}
+                                </div>
+                                <div class="mt-0.5">
+                                    <span class="badge bg-light text-dark border font-monospace fs-9">{{ sup.invoice_number }}</span>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark border">{{ sup.invoice_number }}</span>
+                                <div>
+                                    <a href="{% url 'operations:cluster_detail' sup.cluster.pk %}" class="badge bg-secondary-subtle text-secondary border text-decoration-none font-monospace">
+                                        {{ sup.cluster.reference_code }}
+                                    </a>
+                                </div>
+                                <div class="text-muted fs-9 mt-0.5">Cluster #{{ sup.cluster.pk }}</div>
                             </td>
                             <td>
-                                <a href="{% url 'operations:cluster_detail' sup.cluster.pk %}" class="fw-semibold text-decoration-none text-primary">
-                                    {{ sup.cluster.reference_code }}
-                                </a>
-                            </td>
-                            <td class="text-end fw-bold text-dark sensitive-financial-val">
-                                ₱{{ sup.amount|floatformat:2|intcomma }}
-                            </td>
-                            <td class="text-center">
-                                <span class="status-badge-modern {{ sup.payable_state|lower }}">
-                                    {{ sup.payable_state }}
-                                </span>
+                                <div class="fw-bold text-dark sensitive-financial-val fs-8">
+                                    ₱{{ sup.amount|floatformat:2|intcomma }}
+                                </div>
+                                <div class="mt-0.5">
+                                    <span class="status-badge-modern {{ sup.payable_state|lower }}">
+                                        {{ sup.payable_state }}
+                                    </span>
+                                </div>
                             </td>
                             <td class="text-end">
                                 <a href="{% url 'operations:cluster_detail' sup.cluster.pk %}" class="btn btn-sm btn-outline-primary touch-target-action">
@@ -530,8 +569,18 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-5">
-                                No supplier payables currently recorded.
+                            <td colspan="4" style="padding: 3.5rem 1.5rem; text-align: center;">
+                                <div class="empty-state-card text-center py-4">
+                                    <svg width="68" height="68" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="mb-3" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.04));">
+                                        <circle cx="32" cy="32" r="30" fill="var(--htc-surface-subtle, #f8fafc)" stroke="var(--htc-border, #e2e8f0)" stroke-width="1.5" />
+                                        <path d="M19 22H45V42H19V22Z" stroke="var(--htc-text-muted, #94a3b8)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M23 27H41M23 33H35" stroke="var(--htc-text-muted, #94a3b8)" stroke-width="1.75" stroke-linecap="round"/>
+                                        <circle cx="43" cy="43" r="7" fill="var(--htc-surface, #ffffff)" stroke="var(--htc-primary, #0c385c)" stroke-width="1.75"/>
+                                        <path d="M48 48L53 53" stroke="var(--htc-primary, #0c385c)" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                    <h6 class="fw-bold text-dark mb-1">No Supplier Payables Recorded</h6>
+                                    <p class="text-muted fs-8 mb-0" style="max-width: 320px; margin: 0 auto;">There are currently no supplier payables pending settlement.</p>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

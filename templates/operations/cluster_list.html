@@ -187,13 +187,10 @@
             <table class="table-htc" style="margin:0;border:none;">
                 <thead>
                     <tr>
-                        <th>PO #</th>
-                        <th>Customer</th>
-                        <th>Supplier</th>
-                        <th>Quantity (MT)</th>
-                        <th>Status</th>
-                        <th>Profit</th>
-                        <th>Margin</th>
+                        <th style="min-width: 140px;">Order &amp; Customer</th>
+                        <th style="min-width: 130px;">Supplier &amp; Date</th>
+                        <th style="min-width: 120px;">Volume &amp; Status</th>
+                        <th class="text-end" style="min-width: 110px;">Profit &amp; Margin</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -233,37 +230,54 @@
                         data-pdf-url="{% url 'operations:download_contract_pdf' c.pk %}"
                         data-delete-url="{% url 'operations:delete_cluster' c.pk %}"
                         onclick="selectCluster(this)">
-                        <td><strong>{{ c.reference_code }}</strong></td>
-                        <td>{{ c.client.name }}</td>
-                        <td>{{ c.sugar_mill.name }}</td>
-                        <td>{{ c.vol_mt|floatformat:3|intcomma }}</td>
-                        <td><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></td>
                         <td>
-                            {% if c.revenue > 0 or c.selling_price > 0 %}
-                                ₱{{ c.profit_m|floatformat:2 }}M
-                            {% else %}
-                                <span class="text-muted fst-italic">Pending Pricing</span>
-                            {% endif %}
+                            <div class="fw-bold text-dark font-monospace fs-8">{{ c.reference_code }}</div>
+                            <div class="text-muted fs-8 text-truncate" style="max-width: 180px;" title="{{ c.client.name }}">{{ c.client.name }}</div>
                         </td>
                         <td>
+                            <div class="fw-semibold text-dark fs-8 text-truncate" style="max-width: 160px;" title="{{ c.sugar_mill.name }}">{{ c.sugar_mill.name }}</div>
+                            <div class="text-muted fs-9">{{ c.created_at|date:"M d, Y" }}</div>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark fs-8">{{ c.vol_mt|floatformat:3|intcomma }} <span class="fw-normal text-muted fs-9">MT</span></div>
+                            <div class="mt-0.5"><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></div>
+                        </td>
+                        <td class="text-end">
                             {% if c.revenue > 0 or c.selling_price > 0 %}
-                                {{ c.margin|floatformat:2 }}%
+                                <div class="fw-bold text-success fs-8">₱{{ c.profit_m|floatformat:2 }}M</div>
+                                <div class="text-muted fs-9">{{ c.margin|floatformat:2 }}% margin</div>
                             {% else %}
-                                <span class="text-muted">—</span>
+                                <div class="text-muted fst-italic fs-8">Pending Pricing</div>
+                                <div class="text-muted fs-9">—</div>
                             {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" style="padding: 4rem 2rem; text-align: center; color: var(--htc-text-muted);">
-                            <div class="mb-3">
-                                <i class="bi bi-folder2-open" style="font-size: 2.5rem; color: var(--htc-border);"></i>
+                        <td colspan="4" style="padding: 3.5rem 1.5rem; text-align: center;">
+                            <div class="empty-state-card text-center py-4">
+                                <svg width="68" height="68" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="mb-3" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.04));">
+                                    <circle cx="32" cy="32" r="30" fill="var(--htc-surface-subtle, #f8fafc)" stroke="var(--htc-border, #e2e8f0)" stroke-width="1.5" />
+                                    <path d="M22 20H42C43.1046 20 44 20.8954 44 22V44C44 45.1046 43.1046 46 42 46H22C20.8954 46 20 45.1046 20 44V22C20 20.8954 20.8954 20 22 20Z" stroke="var(--htc-text-muted, #94a3b8)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M26 27H38M26 33H34" stroke="var(--htc-text-muted, #94a3b8)" stroke-width="1.75" stroke-linecap="round"/>
+                                    <circle cx="41" cy="41" r="7" fill="var(--htc-surface, #ffffff)" stroke="var(--htc-primary, #0c385c)" stroke-width="1.75"/>
+                                    <path d="M46 46L51 51" stroke="var(--htc-primary, #0c385c)" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                <h6 class="fw-bold text-dark mb-1">No Orders Match Criteria</h6>
+                                <p class="text-muted fs-8 mb-3" style="max-width: 320px; margin: 0 auto;">No purchase orders match your current search query or active filter settings.</p>
+                                <div class="d-flex justify-content-center align-items-center gap-2">
+                                    {% if q or current_status or current_client or current_mill or current_sort and current_sort != 'newest' %}
+                                    <a href="{% url 'operations:cluster_list' %}" class="btn btn-sm btn-outline-primary px-3 py-1.5 fs-8 fw-semibold shadow-xs">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                                    </a>
+                                    {% endif %}
+                                    {% if user|has_perm:"create_transaction" %}
+                                    <a href="{% url 'operations:cluster_create' %}" class="btn btn-sm btn-primary px-3 py-1.5 fs-8 fw-semibold shadow-xs">
+                                        <i class="bi bi-plus-lg me-1"></i> New Purchase Order
+                                    </a>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <h5 class="fw-bold text-dark mb-2">No Orders Found</h5>
-                            <p class="mb-3">There are currently no active purchase orders in the system.</p>
-                            <a href="{% url 'operations:cluster_create' %}" class="btn btn-primary fw-bold px-4 rounded-pill">
-                                <i class="bi bi-plus-lg me-1"></i> Create First Purchase Order
-                            </a>
                         </td>
                     </tr>
                     {% endfor %}
