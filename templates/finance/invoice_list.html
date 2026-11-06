@@ -787,13 +787,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (eyeIcon && btnText) {
             if (isRevealed) {
                 eyeIcon.className = 'bi bi-eye-slash text-muted';
-                btnText.textContent = 'Mask Financials';
+                btnText.textContent = 'Mask Financials (***)';
             } else {
                 eyeIcon.className = 'bi bi-eye text-primary';
                 btnText.textContent = 'Reveal Figures';
             }
         }
     }
+    window.addEventListener('htc:privacy-toggled', updateInvoicePrivacyBtn);
 
     window.toggleFinancialPrivacy = function() {
         const globalBtn = document.getElementById('toggleFinancialPrivacyBtn');

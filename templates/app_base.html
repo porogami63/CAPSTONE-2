@@ -24,19 +24,21 @@
             position: relative;
             display: inline-block;
             vertical-align: baseline;
-            transition: color 0.15s ease-in-out;
+            transition: all 0.15s ease-in-out;
             border-bottom: 1px dotted rgba(100, 116, 139, 0.4);
-            padding: 0 1px;
-            border-radius: 3px;
+            padding: 0 2px;
+            border-radius: 4px;
         }
         .finance-masked:hover, .finance-masked:focus {
-            background: rgba(59, 130, 246, 0.08);
+            background: rgba(59, 130, 246, 0.12);
             border-bottom-color: var(--htc-primary, #0c385c);
         }
         .finance-masked .masked-stars {
-            letter-spacing: 2px;
+            letter-spacing: 1.5px;
             font-weight: 700;
             display: inline;
+            user-select: none;
+            color: inherit;
         }
         .finance-masked .masked-real {
             display: none;
@@ -50,7 +52,12 @@
             display: inline !important;
         }
 
-        /* Override when user toggles show-all */
+        /* Override when user toggles show-all (Privacy Mode OFF) */
+        html[data-reveal-finances="true"] .finance-masked {
+            border-bottom: none !important;
+            cursor: inherit !important;
+            background: transparent !important;
+        }
         html[data-reveal-finances="true"] .finance-masked .masked-stars {
             display: none !important;
         }
@@ -58,18 +65,15 @@
             display: inline !important;
         }
 
-        /* Exempt sections and pages: Financials & Analytics, Orders & Deals, Deliveries & Trucking, Finance Focus Workspace */
-        [data-no-finance-mask="true"] .finance-masked .masked-stars,
+        /* Explicit opt-outs for inputs or unmaskable admin controls */
         .no-finance-mask .finance-masked .masked-stars {
             display: none !important;
         }
-        [data-no-finance-mask="true"] .finance-masked .masked-real,
         .no-finance-mask .finance-masked .masked-real {
             display: inline !important;
         }
-        [data-no-finance-mask="true"] .finance-masked,
         .no-finance-mask .finance-masked {
-            cursor: default !important;
+            cursor: inherit !important;
             border-bottom: none !important;
             background: transparent !important;
         }
@@ -261,9 +265,9 @@
                 </div>
                 <div class="d-flex align-items-center gap-1 gap-sm-2 flex-wrap justify-content-end" data-intro="System Header Toolbar: Access real-time alerts, team chat, tour guide, theme toggle, and active user role badge." data-step="2">
                     <!-- Financial Privacy Masking Toggle -->
-                    <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 py-1 px-2" id="toggleFinancialPrivacyBtn" title="Finances are masked with asterisks by default. Hover over any amount to reveal. Click to toggle.">
-                        <i class="bi bi-eye-slash-fill text-muted" id="financialPrivacyIcon"></i>
-                        <span class="d-none d-md-inline fs-8" id="financialPrivacyLabel">Masked</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 shadow-xs" id="toggleFinancialPrivacyBtn" title="Financial Privacy Mode: Mask sensitive ₱ figures with *** sitewide. Hover to peek, or click to toggle visibility.">
+                        <i class="bi bi-eye-slash-fill text-warning" id="financialPrivacyIcon"></i>
+                        <span class="fs-8 fw-semibold" id="financialPrivacyLabel"><span class="d-none d-sm-inline">₱ Amounts: </span>Masked (***)</span>
                     </button>
 
                     <!-- Local ORM AI Copilot Drawer Button -->
@@ -790,24 +794,8 @@
             };
 
             function isMaskingExempt(el) {
-                if (el && (el.closest('.no-finance-mask') || el.closest('[data-no-finance-mask="true"]'))) {
-                    return true;
-                }
-                const path = window.location.pathname.toLowerCase();
-                // 1. Financials & Analytics Report: /dashboard/analytics/
-                // 2. Orders & Deals: /operations/clusters/
-                // 3. Deliveries and trucking: /operations/deliveries/
-                // 4. Finance Focus Work Space: /finance/workspace/ or /finance/reconciliation/
-                if (
-                    path.includes('/dashboard/analytics') ||
-                    path.includes('/operations/clusters') ||
-                    path.includes('/operations/deliveries') ||
-                    path.includes('/finance/workspace') ||
-                    path.includes('/finance/reconciliation') ||
-                    document.body.hasAttribute('data-no-finance-mask') ||
-                    document.body.classList.contains('no-finance-mask') ||
-                    document.querySelector('meta[name="no-finance-mask"]')
-                ) {
+                if (!el) return false;
+                if (el.closest && (el.closest('.no-finance-mask') || el.closest('[data-no-finance-mask="true"]') || el.closest('.no-privacy-mask'))) {
                     return true;
                 }
                 return false;
@@ -817,6 +805,7 @@
                 root = root || document.body;
                 if (!root) return;
                 if (isMaskingExempt(root)) return;
+
                 const walker = document.createTreeWalker(
                     root,
                     NodeFilter.SHOW_TEXT,
@@ -826,13 +815,14 @@
                             if (!parent) return NodeFilter.FILTER_REJECT;
                             if (isMaskingExempt(parent)) return NodeFilter.FILTER_REJECT;
                             const tag = parent.tagName.toLowerCase();
-                            if (['script', 'style', 'input', 'textarea', 'select', 'option'].includes(tag)) {
+                            // Do not mask inside inputs, textareas, scripts, styles, or buttons (to protect buttons/toggles themselves)
+                            if (['script', 'style', 'input', 'textarea', 'select', 'option', 'button'].includes(tag)) {
                                 return NodeFilter.FILTER_REJECT;
                             }
-                            if (parent.closest('.finance-masked') || parent.classList.contains('finance-masked')) {
+                            if (parent.closest('.finance-masked') || parent.classList.contains('finance-masked') || parent.classList.contains('masked-stars') || parent.classList.contains('masked-real')) {
                                 return NodeFilter.FILTER_REJECT;
                             }
-                            if (node.nodeValue && node.nodeValue.includes('\u20B1')) {
+                            if (node.nodeValue && (node.nodeValue.includes('\u20B1') || node.nodeValue.includes('PHP'))) {
                                 return NodeFilter.FILTER_ACCEPT;
                             }
                             return NodeFilter.FILTER_SKIP;
@@ -845,7 +835,7 @@
                     nodes.push(walker.currentNode);
                 }
 
-                const pesoRegex = /(\u20B1\s*[\d,]+(?:\.\d+)?(?:\s*[MKBmkb])?)/g;
+                const pesoRegex = /((?:\u20B1|PHP)\s*[\d,]+(?:\.\d+)?(?:\s*[MKBmkb])?)/g;
                 nodes.forEach(node => {
                     const text = node.nodeValue;
                     if (!text || !pesoRegex.test(text)) return;
@@ -861,11 +851,12 @@
                         const span = document.createElement('span');
                         span.className = 'finance-masked';
                         span.setAttribute('tabindex', '0');
-                        span.title = 'Hover to reveal amount';
+                        span.title = 'Financial Privacy Active: Hover or tap to peek amount';
 
+                        const prefix = m[1].startsWith('PHP') ? 'PHP ' : '\u20B1';
                         const stars = document.createElement('span');
                         stars.className = 'masked-stars';
-                        stars.textContent = '\u20B1******';
+                        stars.textContent = `${prefix}***`;
 
                         const real = document.createElement('span');
                         real.className = 'masked-real';
@@ -886,37 +877,116 @@
             }
             window.maskFinancialFigures = maskFinancialFigures;
 
-            document.addEventListener('DOMContentLoaded', function() {
-                maskFinancialFigures(document.body);
-
-                // Privacy toggle button
+            function updatePrivacyUI(isRevealed) {
                 const toggleBtn = document.getElementById('toggleFinancialPrivacyBtn');
                 const icon = document.getElementById('financialPrivacyIcon');
                 const label = document.getElementById('financialPrivacyLabel');
-
-                const savedPref = localStorage.getItem('htc_reveal_finances');
-                if (savedPref === 'true') {
+                if (isRevealed) {
                     document.documentElement.setAttribute('data-reveal-finances', 'true');
-                    if (icon) { icon.className = 'bi bi-eye-fill text-primary'; }
-                    if (label) { label.textContent = 'Visible'; }
+                    if (toggleBtn) {
+                        toggleBtn.className = 'btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5 py-1 px-2.5 shadow-xs';
+                        toggleBtn.setAttribute('title', 'Financial Privacy is OFF: All ₱ amounts are visible sitewide. Click to mask with ***.');
+                    }
+                    if (icon) {
+                        icon.className = 'bi bi-eye-fill text-primary';
+                    }
+                    if (label) {
+                        label.innerHTML = '<span class="d-none d-sm-inline">₱ Amounts: </span><span>Visible</span>';
+                    }
+                } else {
+                    document.documentElement.removeAttribute('data-reveal-finances');
+                    if (toggleBtn) {
+                        toggleBtn.className = 'btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 shadow-xs';
+                        toggleBtn.setAttribute('title', 'Financial Privacy is ON: Sensitive ₱ amounts are masked with *** sitewide. Hover to peek, or click to reveal.');
+                    }
+                    if (icon) {
+                        icon.className = 'bi bi-eye-slash-fill text-warning';
+                    }
+                    if (label) {
+                        label.innerHTML = '<span class="d-none d-sm-inline">₱ Amounts: </span><span>Masked (***)</span>';
+                    }
                 }
 
+                // Run a masking pass to ensure all nodes are wrapped
+                if (document.body) {
+                    maskFinancialFigures(document.body);
+                }
+
+                // Broadcast event for local page handlers
+                window.dispatchEvent(new CustomEvent('htc:privacy-toggled', { detail: { revealed: isRevealed } }));
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                // Initialize state from localStorage (default: masked)
+                const savedPref = localStorage.getItem('htc_reveal_finances');
+                const isRevealed = (savedPref === 'true');
+                updatePrivacyUI(isRevealed);
+
+                // Initial sitewide masking pass
+                maskFinancialFigures(document.body);
+
+                // Privacy toggle button handler
+                const toggleBtn = document.getElementById('toggleFinancialPrivacyBtn');
                 if (toggleBtn) {
                     toggleBtn.addEventListener('click', function() {
                         const current = document.documentElement.getAttribute('data-reveal-finances') === 'true';
                         const nextState = !current;
-                        if (nextState) {
-                            document.documentElement.setAttribute('data-reveal-finances', 'true');
-                            localStorage.setItem('htc_reveal_finances', 'true');
-                            if (icon) { icon.className = 'bi bi-eye-fill text-primary'; }
-                            if (label) { label.textContent = 'Visible'; }
-                        } else {
-                            document.documentElement.removeAttribute('data-reveal-finances');
-                            localStorage.setItem('htc_reveal_finances', 'false');
-                            if (icon) { icon.className = 'bi bi-eye-slash-fill text-muted'; }
-                            if (label) { label.textContent = 'Masked'; }
-                        }
+                        localStorage.setItem('htc_reveal_finances', nextState ? 'true' : 'false');
+                        updatePrivacyUI(nextState);
                     });
+                }
+
+                // Automatically mask dynamically inserted content (e.g. AJAX rows, detail pane clicks, modals)
+                let maskObserverTimer = null;
+                const privacyObserver = new MutationObserver((mutations) => {
+                    let needsMask = false;
+                    for (const m of mutations) {
+                        if (m.type === 'characterData') {
+                            const val = m.target.nodeValue;
+                            if (val && (val.includes('\u20B1') || val.includes('PHP'))) {
+                                const p = m.target.parentElement;
+                                if (!p || (!p.closest('.finance-masked') && !p.closest('.no-finance-mask') && p.tagName !== 'BUTTON')) {
+                                    needsMask = true;
+                                    break;
+                                }
+                            }
+                        } else if (m.type === 'childList') {
+                            for (const n of m.addedNodes) {
+                                if (n.nodeType === Node.TEXT_NODE) {
+                                    if (n.nodeValue && (n.nodeValue.includes('\u20B1') || n.nodeValue.includes('PHP'))) {
+                                        needsMask = true;
+                                        break;
+                                    }
+                                } else if (n.nodeType === Node.ELEMENT_NODE) {
+                                    if (n.classList && (n.classList.contains('finance-masked') || n.classList.contains('masked-stars') || n.classList.contains('masked-real'))) {
+                                        continue;
+                                    }
+                                    if (n.tagName === 'BUTTON' || (n.closest && n.closest('#toggleFinancialPrivacyBtn'))) {
+                                        continue;
+                                    }
+                                    if (n.textContent && (n.textContent.includes('\u20B1') || n.textContent.includes('PHP'))) {
+                                        needsMask = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (needsMask) break;
+                    }
+                    if (needsMask) {
+                        if (maskObserverTimer) cancelAnimationFrame(maskObserverTimer);
+                        maskObserverTimer = requestAnimationFrame(() => {
+                            privacyObserver.disconnect();
+                            maskFinancialFigures(document.body);
+                            privacyObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+                        });
+                    }
+                });
+
+                try {
+                    privacyObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+                } catch (e) {
+                    console.warn('Privacy observer setup:', e);
                 }
             });
 

@@ -1000,6 +1000,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (trkText) trkText.textContent = `₱${totalTrk.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         if (brgText) brgText.textContent = `₱${totalBrg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         if (totalFreightText) totalFreightText.textContent = `₱${grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (typeof maskFinancialFigures === 'function') {
+            const modalEl = document.getElementById('logBatchModal');
+            if (modalEl) maskFinancialFigures(modalEl);
+        }
         if (formulaText) {
             if (grandTotal > 0) {
                 let parts = [];

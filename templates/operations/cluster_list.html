@@ -585,6 +585,9 @@
         if (mode !== 'full') {
             pane.hidden = false;
         }
+        if (typeof maskFinancialFigures === 'function') {
+            maskFinancialFigures(pane);
+        }
     }
 
     function toggleKpis() {
