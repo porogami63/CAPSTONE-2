@@ -580,6 +580,16 @@ def cluster_edit(request, pk):
             messages.error(request, "Cannot edit an approved or active transaction. It must be returned for revision first.")
             return redirect("operations:cluster_detail", pk=cluster.pk)
 
+        old_po = getattr(cluster, "purchase_order", None)
+        old_snapshot = {
+            "volume_mt": str(getattr(old_po, "volume_mt", "")),
+            "unit_price": str(getattr(old_po, "unit_price", "")),
+            "selling_price": str(getattr(old_po, "selling_price", "")),
+            "terms": getattr(old_po, "terms", ""),
+            "client": str(cluster.client.name if cluster.client else ""),
+            "sugar_mill": str(cluster.sugar_mill.name if cluster.sugar_mill else ""),
+        }
+
         form = TransactionClusterForm(request.POST, instance=cluster)
         if form.is_valid():
             with transaction.atomic():
@@ -618,6 +628,30 @@ def cluster_edit(request, pk):
                             )
                         except Exception:
                             pass
+
+                try:
+                    from audit.models import SystemAuditTrail
+                    new_snapshot = {
+                        "cluster": str(cluster.pk),
+                        "po_ref": cluster.reference_code,
+                        "volume_mt": str(po.volume_mt if po else ""),
+                        "unit_price": str(po.unit_price if po else ""),
+                        "selling_price": str(po.selling_price if po else ""),
+                        "terms": po.terms if po else "",
+                        "client": str(cluster.client.name if cluster.client else ""),
+                        "sugar_mill": str(cluster.sugar_mill.name if cluster.sugar_mill else ""),
+                    }
+                    SystemAuditTrail.objects.create_entry(
+                        user=request.user,
+                        action=SystemAuditTrail.Action.UPDATE,
+                        table_name="operations.transactioncluster",
+                        record_id=str(cluster.pk),
+                        old_values=old_snapshot,
+                        new_values=new_snapshot,
+                    )
+                except Exception:
+                    pass
+
             messages.success(request, f"Updated contract parameters for {cluster.reference_code}.")
             return redirect("operations:cluster_detail", pk=cluster.pk)
     else:
@@ -2947,6 +2981,26 @@ def log_delivery_view(request):
         form = DeliveryLedgerForm(request.POST)
         if form.is_valid():
             delivery = form.save()
+            try:
+                from audit.models import SystemAuditTrail
+                short_id = str(delivery.delivery_id)[:8].upper()
+                SystemAuditTrail.objects.create_entry(
+                    user=request.user,
+                    action=SystemAuditTrail.Action.CREATE,
+                    table_name="operations.deliveryledger",
+                    record_id=f"DEL-{short_id}",
+                    old_values={},
+                    new_values={
+                        "cluster": str(delivery.purchase_order.cluster.pk),
+                        "po_ref": delivery.purchase_order.po_reference_number or delivery.purchase_order.cluster.reference_code,
+                        "dispatched_mt": str(delivery.dispatched_mt),
+                        "delivered_mt": str(delivery.delivered_mt),
+                        "receiving_location": delivery.receiving_location,
+                        "supplier": delivery.supplier.name if delivery.supplier else "Supplier",
+                    },
+                )
+            except Exception:
+                pass
             messages.success(
                 request,
                 f"Successfully logged {delivery.delivered_mt:,.3f} MT delivery for PO {delivery.purchase_order.po_reference_number or delivery.purchase_order.cluster.reference_code} sourced from {delivery.supplier.name} to {delivery.receiving_location}."
@@ -3244,6 +3298,27 @@ def update_delivery_arrival_view(request, delivery_id):
         pass
 
     cluster = getattr(delivery.purchase_order, "cluster", None)
+    try:
+        from audit.models import SystemAuditTrail
+        short_id = str(delivery.delivery_id)[:8].upper()
+        SystemAuditTrail.objects.create_entry(
+            user=request.user,
+            action=SystemAuditTrail.Action.UPDATE,
+            table_name="operations.deliveryledger (Arrival Confirmation)",
+            record_id=f"DEL-{short_id}",
+            old_values={"received_at": None},
+            new_values={
+                "cluster": str(cluster.pk) if cluster else "",
+                "po_ref": delivery.purchase_order.po_reference_number or (cluster.reference_code if cluster else ""),
+                "received_at": delivery.received_at.isoformat(),
+                "delivered_mt": str(delivery.delivered_mt),
+                "dispatched_mt": str(delivery.dispatched_mt),
+                "variance_percent": f"{delivery.variance_percent:.2f}",
+                "dispute_flag": bool(delivery.variance_exceeds_tolerance),
+            },
+        )
+    except Exception:
+        pass
     if delivery.has_volume_discrepancy:
         diff_sign = "+" if delivery.volume_discrepancy_mt > 0 else ""
         var_summary = (

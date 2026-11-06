@@ -113,6 +113,23 @@
                             {{ block.summary }}
                         </div>
 
+                        <div class="p-2.5 mb-2 rounded-2 bg-body-tertiary border" style="font-size: 0.74rem;">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+                                <span class="d-inline-flex align-items-center gap-1.5 fw-semibold text-dark">
+                                    <i class="bi bi-person-badge-fill text-primary"></i>
+                                    <span>Recorded / Last Edited By:</span>
+                                    <strong class="text-primary">{{ block.last_edited_by_name|default:"System Core" }}</strong>
+                                </span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                    <i class="bi bi-shield-lock me-0.5"></i>{{ block.last_edited_by_role|default:"Finance" }}
+                                </span>
+                            </div>
+                            <div class="text-secondary" style="line-height: 1.35;">
+                                <i class="bi bi-pencil-square text-muted me-1"></i>
+                                <strong>Action &amp; Modifications:</strong> {{ block.what_edited|default:block.summary }}
+                            </div>
+                        </div>
+
                         <div class="p-2 rounded-2 bg-light border text-xs font-monospace d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
                                 <span class="text-muted">Prev:</span>
@@ -214,6 +231,62 @@ function triggerFinanceVerification() {
                 if (alertHeading) alertHeading.textContent = "Financial Ledger Chained & Verified:";
                 if (alertText) alertText.innerHTML = `Stage ${data.sealed_stages} of ${data.total_stages} (<strong>${data.current_stage}</strong>) verified with zero discrepancies.`;
                 if (alertTs) alertTs.textContent = data.latest_timestamp || data.verified_at_pst;
+
+                if (data.lifecycle && data.lifecycle.length) {
+                    const container = document.getElementById('finLifecycleContainer');
+                    if (container) {
+                        let blocksHtml = '';
+                        data.lifecycle.forEach(block => {
+                            const isSealed = block.is_sealed;
+                            blocksHtml += `
+                            <div class="po-block-card p-3 mb-2.5 rounded-3 border ${isSealed ? 'border-success-subtle bg-white shadow-xs' : 'border-dashed bg-light opacity-75'}" style="transition: all 0.2s ease;">
+                                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1.5">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge ${isSealed ? 'bg-success text-white' : 'bg-secondary text-white'} rounded-pill px-2 py-0.5 font-monospace text-xs">
+                                            Block #${block.block_index}
+                                        </span>
+                                        <strong class="fs-7 text-dark">${block.stage_title}</strong>
+                                        <span class="badge ${isSealed ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-light text-muted border'} text-xs px-2 py-0.5">
+                                            ${block.badge_label}
+                                        </span>
+                                    </div>
+                                    <span class="text-muted font-monospace text-xs">
+                                        <i class="bi bi-clock me-1"></i>${block.timestamp}
+                                    </span>
+                                </div>
+                                <div class="text-secondary text-xs mb-2 lh-sm">${block.summary}</div>
+                                <div class="p-2.5 mb-2 rounded-2 bg-body-tertiary border" style="font-size: 0.74rem;">
+                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+                                        <span class="d-inline-flex align-items-center gap-1.5 fw-semibold text-dark">
+                                            <i class="bi bi-person-badge-fill text-primary"></i>
+                                            <span>Recorded / Last Edited By:</span>
+                                            <strong class="text-primary">${block.last_edited_by_name || 'System Core'}</strong>
+                                        </span>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                            <i class="bi bi-shield-lock me-0.5"></i>${block.last_edited_by_role || 'Finance'}
+                                        </span>
+                                    </div>
+                                    <div class="text-secondary" style="line-height: 1.35;">
+                                        <i class="bi bi-pencil-square text-muted me-1"></i>
+                                        <strong>Action &amp; Modifications:</strong> ${block.what_edited || block.summary}
+                                    </div>
+                                </div>
+                                <div class="p-2 rounded-2 bg-light border text-xs font-monospace d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div>
+                                        <span class="text-muted">Prev:</span>
+                                        <span class="text-secondary" title="${block.prev_hash}">${block.prev_hash_short}</span>
+                                    </div>
+                                    <i class="bi bi-arrow-right text-muted d-none d-sm-inline"></i>
+                                    <div>
+                                        <span class="text-muted">Hash:</span>
+                                        <strong class="${isSealed ? 'text-primary' : 'text-muted'}" title="${block.block_hash}">${block.block_hash_short}</strong>
+                                    </div>
+                                </div>
+                            </div>`;
+                        });
+                        container.innerHTML = blocksHtml;
+                    }
+                }
             }
         })
         .catch(err => {

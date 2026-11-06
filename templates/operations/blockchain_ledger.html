@@ -336,6 +336,30 @@
                     <div class="pt-2" id="inspectorBlocksList">
                         <!-- Rendered dynamically -->
                     </div>
+
+                    <!-- Historical Modifications & Audit Trail Section -->
+                    <div class="mt-4 pt-3 border-top" id="inspectorAuditSection">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="fw-bold text-dark fs-7"><i class="bi bi-clock-history text-primary me-1.5"></i>Historical Modifications &amp; Audit Trail</span>
+                            <span class="badge bg-light text-muted border fs-8" id="inspectorAuditCount">0 Events</span>
+                        </div>
+                        <div class="table-responsive rounded border" style="max-height: 240px; overflow-y: auto;">
+                            <table class="table table-sm table-hover align-middle mb-0 fs-8">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th class="ps-2.5 py-1.5 text-muted">Date &amp; Time</th>
+                                        <th class="py-1.5 text-muted">Actor (Role)</th>
+                                        <th class="py-1.5 text-muted">Action</th>
+                                        <th class="py-1.5 text-muted">Target</th>
+                                        <th class="pe-2.5 py-1.5 text-muted">Modifications / What Was Edited</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inspectorAuditTableBody">
+                                    <!-- Rendered dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer bg-body border-top py-2.5 px-4 d-flex justify-content-between align-items-center">
@@ -417,6 +441,22 @@ function openChainInspector(clusterPk, poRef, chainType) {
                             <span class="text-muted fs-8"><i class="bi bi-clock me-1"></i>${b.timestamp}</span>
                         </div>
                         <p class="text-muted fs-8 mb-2">${b.summary || 'Operational stage in progress.'}</p>
+                        <div class="p-2 mb-2 rounded bg-body-tertiary border" style="font-size: 0.74rem;">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+                                <span class="d-inline-flex align-items-center gap-1.5 fw-semibold text-dark">
+                                    <i class="bi bi-person-badge-fill text-primary"></i>
+                                    <span>Recorded / Last Edited By:</span>
+                                    <strong class="text-primary">${b.last_edited_by_name || 'System Core'}</strong>
+                                </span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                    <i class="bi bi-shield-lock me-0.5"></i>${b.last_edited_by_role || 'Staff'}
+                                </span>
+                            </div>
+                            <div class="text-secondary" style="line-height: 1.35;">
+                                <i class="bi bi-pencil-square text-muted me-1"></i>
+                                <strong>Action &amp; Modifications:</strong> ${b.what_edited || b.summary}
+                            </div>
+                        </div>
                         <div class="d-flex align-items-center flex-wrap gap-2 p-2 bg-body rounded border fs-8 font-monospace">
                             <div><span class="text-muted">Parent Hash:</span> <span class="text-dark">${prevHashShort}</span></div>
                             <i class="bi bi-arrow-right text-muted"></i>
@@ -425,6 +465,37 @@ function openChainInspector(clusterPk, poRef, chainType) {
                     `;
                     container.appendChild(stepItem);
                 });
+            }
+
+            // Populate Historical Modifications & Audit Trail Table
+            const auditSection = document.getElementById("inspectorAuditSection");
+            const auditTableBody = document.getElementById("inspectorAuditTableBody");
+            const auditCountBadge = document.getElementById("inspectorAuditCount");
+            if (auditTableBody && data.audit_trail) {
+                auditTableBody.innerHTML = "";
+                if (auditCountBadge) auditCountBadge.textContent = `${data.audit_trail.length} Events`;
+                if (data.audit_trail.length) {
+                    data.audit_trail.forEach(ev => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td class="ps-2 text-nowrap font-monospace text-muted" style="font-size: 0.7rem;">${ev.date}</td>
+                            <td class="text-nowrap">
+                                <strong>${ev.user_name}</strong>
+                                <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.65rem;">${ev.user_role}</span>
+                            </td>
+                            <td>
+                                <span class="badge ${ev.action === 'Created' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis'} border" style="font-size: 0.65rem;">
+                                    ${ev.action}
+                                </span>
+                            </td>
+                            <td class="text-secondary" style="font-size: 0.7rem;">${ev.model}</td>
+                            <td class="pe-2 text-secondary" style="font-size: 0.72rem; word-break: break-word;">${ev.desc}</td>
+                        `;
+                        auditTableBody.appendChild(tr);
+                    });
+                } else {
+                    auditTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-3 text-muted">No audit modifications recorded for this transaction yet.</td></tr>`;
+                }
             }
         })
         .catch(err => {

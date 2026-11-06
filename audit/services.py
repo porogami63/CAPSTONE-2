@@ -87,104 +87,255 @@ def notify_roles(roles, title, message, level="info", link=None, exclude_user=No
     return Notification.objects.bulk_create(notifications)
 
 
+def _get_user_display_info(user_obj):
+    """Returns (full_name_or_username, role_display) for an authenticated or system actor."""
+    if not user_obj:
+        return "System Core", "System"
+    name = getattr(user_obj, "get_full_name", lambda: "")() or getattr(user_obj, "username", "System")
+    role = (
+        user_obj.get_role_display()
+        if hasattr(user_obj, "get_role_display")
+        else getattr(user_obj, "role", "Staff")
+    )
+    if isinstance(role, str) and not role:
+        role = "Authorized User"
+    return name, role
+
+
 def get_cluster_audit_events(cluster) -> list[dict]:
-    """Collects chronological audit trail events for a transaction cluster across operations, finance, and logistics."""
+    """
+    Collects chronological audit trail events for a transaction cluster across operations,
+    finance, logistics, and SystemAuditTrail, explicitly exposing the actor (person + role)
+    and exact mutations/modifications that occurred.
+    """
     events = []
     if not cluster:
         return events
 
-    # 1. Cluster history
+    from django.db.models import Q
+    from .models import SystemAuditTrail
+
+    c_pk = str(cluster.pk)
+    po_ref = str(cluster.reference_code)
+
+    # 1. SystemAuditTrail immutable database logs
+    trail_entries = (
+        SystemAuditTrail.objects.filter(
+            Q(record_id=c_pk)
+            | Q(record_id=po_ref)
+            | Q(new_values__cluster=c_pk)
+            | Q(old_values__cluster=c_pk)
+            | Q(new_values__po_ref=po_ref)
+        )
+        .select_related("user")
+        .order_by("-timestamp")
+    )
+
+    for entry in trail_entries:
+        actor_name, actor_role = _get_user_display_info(entry.user)
+        changes = []
+        for k, new_v in (entry.new_values or {}).items():
+            old_v = (entry.old_values or {}).get(k)
+            if old_v != new_v and k not in ["cluster", "id", "updated_at"]:
+                changes.append(f"{k.replace('_', ' ').title()}: '{old_v}' → '{new_v}'")
+
+        if entry.action == SystemAuditTrail.Action.CREATE:
+            desc = f"Created record with initial parameters ({', '.join(f'{k}={v}' for k, v in list((entry.new_values or {}).items())[:3])})"
+        elif entry.action == SystemAuditTrail.Action.UPDATE:
+            reason = (entry.new_values or {}).get("reason")
+            if reason:
+                desc = f"Compensating Adjustment: {', '.join(changes)}. Justification: {reason}"
+            else:
+                desc = f"Updated: {', '.join(changes)}" if changes else f"Updated {entry.table_name} state"
+        else:
+            desc = f"Deleted record from {entry.table_name}"
+
+        events.append({
+            "date": entry.timestamp,
+            "user": entry.user,
+            "user_name": actor_name,
+            "user_role": actor_role,
+            "type": "+" if entry.action == "create" else ("~" if entry.action == "update" else "-"),
+            "model": entry.table_name,
+            "desc": desc,
+            "is_audit_trail": True,
+        })
+
+    # 2. Cluster history (HistoricalRecords)
     if hasattr(cluster, "history"):
         for h in cluster.history.all():
+            actor_name, actor_role = _get_user_display_info(h.history_user)
+            changes = []
+            if h.prev_record:
+                try:
+                    delta = h.diff_against(h.prev_record)
+                    for change in delta.changes:
+                        if change.field not in ["updated_at"]:
+                            changes.append(f"{change.field.replace('_', ' ').title()}: '{change.old}' → '{change.new}'")
+                except Exception:
+                    pass
+            desc = f"Updated: {', '.join(changes)}" if changes else f"Status: {h.status}"
             events.append({
                 "date": h.history_date,
                 "user": h.history_user,
+                "user_name": actor_name,
+                "user_role": actor_role,
                 "type": h.history_type,
                 "model": "Transaction Cluster",
-                "desc": f"Status: {h.status}",
+                "desc": desc,
             })
 
-    # 2. Logistics history
+    # 3. Logistics history
     if hasattr(cluster, "logistics") and cluster.logistics and hasattr(cluster.logistics, "history"):
         for h in cluster.logistics.history.all():
+            actor_name, actor_role = _get_user_display_info(h.history_user)
+            changes = []
+            if h.prev_record:
+                try:
+                    delta = h.diff_against(h.prev_record)
+                    for change in delta.changes:
+                        if change.field not in ["updated_at"]:
+                            changes.append(f"{change.field.replace('_', ' ').title()}: '{change.old}' → '{change.new}'")
+                except Exception:
+                    pass
+            desc = f"Logistics Updated: {', '.join(changes)}" if changes else f"Loaded: {h.loaded_volume_mt} MT, Received: {h.received_volume_mt} MT"
             events.append({
                 "date": h.history_date,
                 "user": h.history_user,
+                "user_name": actor_name,
+                "user_role": actor_role,
                 "type": h.history_type,
-                "model": "Logistics",
-                "desc": f"Loaded: {h.loaded_volume_mt} MT, Received: {h.received_volume_mt} MT",
+                "model": "Logistics Ledger",
+                "desc": desc,
             })
 
-    # 3. Purchase Order history
+    # 4. Purchase Order history
     po = getattr(cluster, "purchase_order", None)
     if po and hasattr(po, "history"):
         for h in po.history.all():
+            actor_name, actor_role = _get_user_display_info(h.history_user)
+            changes = []
+            if h.prev_record:
+                try:
+                    delta = h.diff_against(h.prev_record)
+                    for change in delta.changes:
+                        if change.field not in ["updated_at"]:
+                            changes.append(f"{change.field.replace('_', ' ').title()}: '{change.old}' → '{change.new}'")
+                except Exception:
+                    pass
+            desc = f"PO Parameters Updated: {', '.join(changes)}" if changes else f"Contract Volume: {h.volume_mt} MT @ ₱{h.unit_price}"
             events.append({
                 "date": h.history_date,
                 "user": h.history_user,
+                "user_name": actor_name,
+                "user_role": actor_role,
                 "type": h.history_type,
                 "model": "Purchase Order",
-                "desc": f"Volume: {h.volume_mt} MT @ ₱{h.unit_price}",
+                "desc": desc,
             })
 
-    # 4. Invoices history
+    # 5. Invoices history
     if hasattr(cluster, "invoices"):
         for inv in cluster.invoices.all():
             if hasattr(inv, "history"):
                 for h in inv.history.all():
+                    actor_name, actor_role = _get_user_display_info(h.history_user)
                     events.append({
                         "date": h.history_date,
                         "user": h.history_user,
+                        "user_name": actor_name,
+                        "user_role": actor_role,
                         "type": h.history_type,
                         "model": f"Invoice {h.invoice_number}",
                         "desc": f"Status: {h.status}, Amount: ₱{h.amount:,.2f}" if h.amount else f"Status: {h.status}",
                     })
 
-    # 5. Cash Vouchers history
+    # 6. Cash Vouchers history
     if hasattr(cluster, "cash_vouchers"):
         for v in cluster.cash_vouchers.all():
             if hasattr(v, "history"):
                 for h in v.history.all():
+                    actor_name, actor_role = _get_user_display_info(h.history_user)
+                    changes = []
+                    if h.prev_record:
+                        try:
+                            delta = h.diff_against(h.prev_record)
+                            for change in delta.changes:
+                                changes.append(f"{change.field.replace('_', ' ').title()}: '{change.old}' → '{change.new}'")
+                        except Exception:
+                            pass
+                    desc = f"Voucher Updated: {', '.join(changes)}" if changes else f"Voucher #{h.voucher_number}: ₱{h.amount:,.2f} ({h.purpose})"
                     events.append({
                         "date": h.history_date,
                         "user": h.history_user,
+                        "user_name": actor_name,
+                        "user_role": actor_role,
                         "type": h.history_type,
-                        "model": f"Voucher {h.voucher_number}",
-                        "desc": f"Amount: ₱{h.amount:,.2f}, Purpose: {h.purpose}",
+                        "model": f"Voucher #{h.voucher_number}",
+                        "desc": desc,
                     })
 
-    # 6. Deliveries history
+    # 7. Deliveries history
     if po and hasattr(po, "deliveries"):
         for d in po.deliveries.all():
             if hasattr(d, "history"):
                 for h in d.history.all():
+                    actor_name, actor_role = _get_user_display_info(h.history_user)
+                    changes = []
+                    if h.prev_record:
+                        try:
+                            delta = h.diff_against(h.prev_record)
+                            for change in delta.changes:
+                                changes.append(f"{change.field.replace('_', ' ').title()}: '{change.old}' → '{change.new}'")
+                        except Exception:
+                            pass
                     short_id = str(d.delivery_id)[:8].upper()
+                    desc = f"Delivery Adjusted: {', '.join(changes)}" if changes else f"Delivered: {h.delivered_mt} MT to {h.receiving_location or 'Client'}"
                     events.append({
                         "date": h.history_date,
                         "user": h.history_user,
+                        "user_name": actor_name,
+                        "user_role": actor_role,
                         "type": h.history_type,
                         "model": f"Delivery #{short_id}",
-                        "desc": f"Delivered: {h.delivered_mt} MT to {h.receiving_location or 'Client'}",
+                        "desc": desc,
                     })
 
-    # 7. Bank Loan Events
+    # 8. Bank Loans (settlement and verification events)
     if hasattr(cluster, "loans"):
         for loan in cluster.loans.all():
             if loan.created_at:
+                c_name, c_role = _get_user_display_info(getattr(loan, "created_by", None))
                 events.append({
                     "date": loan.created_at,
-                    "user": getattr(loan, "verified_by", None),
+                    "user": getattr(loan, "created_by", None),
+                    "user_name": c_name,
+                    "user_role": c_role,
                     "type": "+",
                     "model": f"Loan ({loan.bank_name})",
-                    "desc": f"Principal: ₱{loan.principal:,.2f}, Status: {loan.get_status_display()}",
+                    "desc": f"Loan Principal: ₱{loan.principal:,.2f} @ {loan.interest_rate_annual:.2f}% p.a. Status: {loan.get_status_display()}",
                 })
             if loan.verified_at:
+                v_name, v_role = _get_user_display_info(loan.verified_by)
                 events.append({
                     "date": loan.verified_at,
                     "user": loan.verified_by,
+                    "user_name": v_name,
+                    "user_role": v_role,
                     "type": "~",
                     "model": f"Loan ({loan.bank_name})",
-                    "desc": f"Verified & Approved by {loan.verified_by}",
+                    "desc": f"Dual-Authorization Verified & Approved by {v_name} ({v_role})",
+                })
+            if getattr(loan, "is_archived", False) and getattr(loan, "archived_at", None):
+                a_name, a_role = _get_user_display_info(getattr(loan, "archived_by", None))
+                events.append({
+                    "date": loan.archived_at,
+                    "user": getattr(loan, "archived_by", None),
+                    "user_name": a_name,
+                    "user_role": a_role,
+                    "type": "~",
+                    "model": f"Loan ({loan.bank_name})",
+                    "desc": f"Settled and Archived by {a_name} ({a_role}). Receipt: {loan.settlement_receipt_number or 'N/A'}",
                 })
 
     events.sort(key=lambda x: x["date"], reverse=True)

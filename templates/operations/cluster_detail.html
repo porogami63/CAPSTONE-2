@@ -1512,11 +1512,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                     {% for event in audit_events %}
                                     <tr style="border-bottom: 1px solid var(--htc-border);">
                                         <td class="ps-3 py-2 text-nowrap">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.78rem;">
-                                                {{ event.user|default:"System" }}
+                                            <div class="fw-bold text-dark d-flex align-items-center gap-1.5" style="font-size: 0.78rem;">
+                                                <i class="bi bi-person-fill text-secondary"></i>
+                                                <span>{{ event.user_name|default:event.user|default:"System Core" }}</span>
                                             </div>
-                                            <div class="font-monospace text-muted" style="font-size: 0.7rem;">
-                                                {{ event.date|date:"M d, Y H:i:s" }} PST
+                                            <div class="d-flex align-items-center gap-1 mt-0.5">
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-1.5" style="font-size: 0.65rem;">
+                                                    {{ event.user_role|default:"System" }}
+                                                </span>
+                                                <span class="font-monospace text-muted" style="font-size: 0.68rem;">
+                                                    {{ event.date|date:"M d, Y H:i" }} PST
+                                                </span>
                                             </div>
                                         </td>
                                         <td class="py-2">
@@ -1676,6 +1682,22 @@ function triggerLedgerVerification() {
                             </div>
                         </div>
                         <div class="text-xs text-muted mb-2">${block.summary}</div>
+                        <div class="p-2.5 mb-2 rounded bg-body-tertiary border" style="font-size: 0.74rem;">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+                                <span class="d-inline-flex align-items-center gap-1.5 fw-semibold text-dark">
+                                    <i class="bi bi-person-badge-fill text-primary"></i>
+                                    <span>Recorded / Last Edited By:</span>
+                                    <strong class="text-primary">${block.last_edited_by_name || 'System Core'}</strong>
+                                </span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-1.5 py-0.5" style="font-size: 0.68rem;">
+                                    <i class="bi bi-shield-lock me-0.5"></i>${block.last_edited_by_role || 'Operations'}
+                                </span>
+                            </div>
+                            <div class="text-secondary" style="line-height: 1.35;">
+                                <i class="bi bi-pencil-square text-muted me-1"></i>
+                                <strong>Action &amp; Modifications:</strong> ${block.what_edited || block.summary}
+                            </div>
+                        </div>
                         <div class="p-2 rounded bg-body font-monospace text-xs" style="border: 1px solid var(--htc-border); font-size: 0.72rem;">
                             <div class="d-flex justify-content-between flex-wrap gap-1">
                                 <span class="text-muted">Current Hash:</span>
