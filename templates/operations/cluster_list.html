@@ -159,9 +159,7 @@
 <div class="tabs-row d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
         <button class="tab-btn active" type="button"><i class="bi bi-receipt"></i> Orders &amp; Deals</button>
-        {% if user_role_code == 'operations_management' or user.is_superuser %}
-        <a href="{% url 'operations:blockchain_ledger' %}" class="tab-btn"><i class="bi bi-link-45deg"></i> Blockchain Ledger</a>
-        {% endif %}
+        <span class="badge bg-secondary-subtle text-secondary border rounded-pill fs-8">{{ clusters|length }} Deals</span>
     </div>
 
     <div class="d-none d-lg-flex align-items-center gap-1">
@@ -242,8 +240,8 @@
                         </td>
                         <td class="text-end">
                             {% if c.revenue > 0 or c.selling_price > 0 %}
-                                <div class="fw-bold text-success fs-8">₱{{ c.profit_m|floatformat:2 }}M</div>
-                                <div class="text-muted fs-9">{{ c.margin|floatformat:2 }}% margin</div>
+                                <div class="fw-bold {% if c.profit_m >= 0 %}text-success{% else %}text-danger{% endif %} fs-8">₱{{ c.profit_m|floatformat:2 }}M</div>
+                                <div class="{% if c.margin >= 0 %}text-muted{% else %}text-danger fw-semibold{% endif %} fs-9">{{ c.margin|floatformat:2 }}% margin</div>
                             {% else %}
                                 <div class="text-muted fst-italic fs-8">Pending Pricing</div>
                                 <div class="text-muted fs-9">—</div>
@@ -481,8 +479,16 @@
         } else {
             if (panelSelling) panelSelling.textContent = d.sellingPrice;
             if (panelRevenue) panelRevenue.textContent = d.revenue;
-            if (panelProfit) panelProfit.textContent = d.profit;
-            if (panelMargin) panelMargin.textContent = d.margin;
+            if (panelProfit) {
+                panelProfit.textContent = d.profit;
+                const isNeg = (d.profit && d.profit.includes('-')) || (d.margin && d.margin.includes('-'));
+                panelProfit.style.color = isNeg ? 'var(--htc-danger, #ef4444)' : 'var(--htc-success, #10b981)';
+            }
+            if (panelMargin) {
+                panelMargin.textContent = d.margin;
+                const isNeg = d.margin && d.margin.includes('-');
+                panelMargin.className = isNeg ? 'text-danger fw-semibold' : 'text-muted';
+            }
         }
 
         // Freight Costs Deduction Sub-Matrix & Margin Leakage Badge

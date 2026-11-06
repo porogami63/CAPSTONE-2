@@ -196,7 +196,7 @@
         <div class="d-flex gap-3 flex-wrap align-items-center">
             <div class="metric-stat-box text-center" style="min-width: 140px;" data-bs-toggle="tooltip" data-bs-placement="top" title="Total metric tons of molasses contracted in this purchase order.">
                 <div class="text-xs text-muted text-uppercase fw-semibold mb-1">Contract Volume</div>
-                <div class="fs-6 fw-bold text-dark font-monospace">{{ po.volume_mt|floatformat:3|intcomma }} MT</div>
+                <div class="fs-6 fw-bold text-dark font-monospace">{{ po.volume_mt|floatformat:2|intcomma }} MT</div>
             </div>
             <div class="metric-stat-box text-center" style="min-width: 155px;" data-bs-toggle="tooltip" data-bs-placement="top" title="Total procurement cost payable to the sugar mill (MT x Unit Buying Price).">
                 <div class="text-xs text-muted text-uppercase fw-semibold mb-1">Purchase Cost</div>
@@ -206,10 +206,10 @@
                 <div class="text-xs text-muted text-uppercase fw-semibold mb-1">Projected Sales</div>
                 <div class="fs-6 fw-bold text-dark font-monospace">₱{{ expected_sales|floatformat:2|intcomma }}</div>
             </div>
-            <div class="metric-stat-box text-center" style="min-width: 155px; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.25);" data-bs-toggle="tooltip" data-bs-placement="top" title="HTC's projected trading spread: Projected Sales minus Purchase Cost and Logistics Expenses.">
-                <div class="text-xs text-success text-uppercase fw-semibold mb-1">Gross Margin</div>
-                <div class="fs-6 fw-bold text-success font-monospace">
-                    +₱{{ gross_margin|floatformat:2|intcomma }}
+            <div class="metric-stat-box text-center" style="min-width: 155px; {% if gross_margin >= 0 %}background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.25);{% else %}background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.25);{% endif %}" data-bs-toggle="tooltip" data-bs-placement="top" title="HTC's projected trading spread: Projected Sales minus Purchase Cost and Logistics Expenses.">
+                <div class="text-xs {% if gross_margin >= 0 %}text-success{% else %}text-danger{% endif %} text-uppercase fw-semibold mb-1">Gross Margin</div>
+                <div class="fs-6 fw-bold {% if gross_margin >= 0 %}text-success{% else %}text-danger{% endif %} font-monospace">
+                    {% if gross_margin >= 0 %}+{% endif %}₱{{ gross_margin|floatformat:2|intcomma }}
                     <span class="fs-8 fw-normal ms-1">({{ gross_margin_pct }}%)</span>
                 </div>
             </div>

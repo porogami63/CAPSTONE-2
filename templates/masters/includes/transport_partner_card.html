@@ -6,11 +6,11 @@
      data-category="{{ p.category|lower }}"
      data-volume="{{ p.total_volume }}"
      data-completed="{{ p.completed_trips }}"
-     style="color: inherit;">
+     style="color: inherit; {% if p.total_volume == 0 %}opacity: 0.65; background-color: var(--htc-surface-subtle);{% endif %}">
     
     <!-- Partner Avatar -->
     {% if p.category == 'barging' %}
-    <div class="partner-icon rounded-circle bg-info-subtle text-info border border-info-subtle fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;" title="Marine Barging Carrier">
+    <div class="partner-icon rounded-circle bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;" title="Marine Barging Carrier">
         <i class="bi bi-water fs-5"></i>
     </div>
     {% else %}
@@ -25,7 +25,7 @@
             <span class="name text-dark"><strong>{{ p.name }}</strong></span>
             
             {% if p.category == 'barging' %}
-            <span class="badge bg-info-subtle text-info border border-info-subtle d-inline-flex align-items-center gap-1 fs-9 py-0.5 px-2">
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle d-inline-flex align-items-center gap-1 fs-9 py-0.5 px-2">
                 <i class="bi bi-water"></i> Barging
             </span>
             {% else %}
@@ -74,7 +74,7 @@
 
     <!-- Volume Metric (Right-aligned) -->
     <div class="partner-stats text-end flex-shrink-0 ms-3">
-        <strong class="d-block text-dark" style="font-size: 1.05rem;">{{ p.total_volume|floatformat:3|intcomma }} MT</strong>
+        <strong class="d-block text-dark" style="font-size: 1.05rem;">{{ p.total_volume|floatformat:2|intcomma }} MT</strong>
         <span class="text-muted small">{{ p.completed_trips }} completed trips</span>
     </div>
 </div>

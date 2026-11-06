@@ -220,11 +220,7 @@
         </div>
     </div>
     <div class="d-flex align-items-center gap-2">
-        <!-- Sensitive Data Masking Toggle -->
-        <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 px-2.5 py-1.5 fs-8" id="togglePrivacyBtn" onclick="toggleFinancialPrivacy()" title="Mask / Unmask sensitive financial numbers">
-            <i class="bi bi-eye-slash" id="privacyEyeIcon"></i>
-            <span id="privacyBtnText">Mask Financials</span>
-        </button>
+
         {% if user|has_perm:"add_invoice" %}
         <button type="button" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5 fw-semibold fs-8" data-bs-toggle="modal" data-bs-target="#createInvoiceModal" data-step="3" data-intro="Create new customer sales invoices and link them to existing transactions.">
             <i class="bi bi-plus-lg"></i> Create Customer Invoice
@@ -390,7 +386,13 @@
                                         </button>
                                         {% endif %}
                                         {% if inv.status != 'paid' %}
-                                        <button type="submit" name="status" value="paid" class="btn btn-sm btn-success touch-target-action" title="Mark Invoice as Paid">
+                                        <button type="button" class="btn btn-sm btn-outline-success touch-target-action"
+                                                data-bs-toggle="modal" data-bs-target="#confirmMarkPaidModal"
+                                                data-inv-id="{{ inv.pk }}"
+                                                data-inv-ref="{{ inv.invoice_number }}"
+                                                data-inv-amount="₱{{ inv.amount|floatformat:2|intcomma }}"
+                                                data-inv-client="{{ inv.client.name }}"
+                                                title="Record Payment Receipt for this Invoice">
                                             <i class="bi bi-check-circle-fill me-1"></i> Mark Paid
                                         </button>
                                         {% endif %}
@@ -471,13 +473,14 @@
 
                     <div class="d-flex align-items-center gap-2 pt-1 flex-wrap">
                         {% if user|has_perm:"add_invoice" and inv.status != 'paid' %}
-                        <form method="post" action="{% url 'operations:update_invoice_status' inv.pk %}" class="d-inline m-0 flex-grow-1">
-                            {% csrf_token %}
-                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                            <button type="submit" name="status" value="paid" class="btn btn-sm btn-success w-100 touch-target-action">
-                                <i class="bi bi-check-circle-fill me-1"></i> Mark Paid
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-sm btn-outline-success flex-grow-1 touch-target-action"
+                                data-bs-toggle="modal" data-bs-target="#confirmMarkPaidModal"
+                                data-inv-id="{{ inv.pk }}"
+                                data-inv-ref="{{ inv.invoice_number }}"
+                                data-inv-amount="₱{{ inv.amount|floatformat:2|intcomma }}"
+                                data-inv-client="{{ inv.client.name }}">
+                            <i class="bi bi-check-circle-fill me-1"></i> Mark Paid
+                        </button>
                         {% endif %}
                         <a href="{% url 'operations:cluster_detail' inv.cluster.pk %}" class="btn btn-sm btn-outline-secondary flex-grow-1 touch-target-action">
                             <i class="bi bi-eye me-1"></i> View Deal
@@ -779,48 +782,73 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Synchronized Financial Privacy Masking Toggle (Asterisk Masking)
-    function updateInvoicePrivacyBtn() {
-        const isRevealed = document.documentElement.getAttribute('data-reveal-finances') === 'true';
-        const eyeIcon = document.getElementById('privacyEyeIcon');
-        const btnText = document.getElementById('privacyBtnText');
-        if (eyeIcon && btnText) {
-            if (isRevealed) {
-                eyeIcon.className = 'bi bi-eye-slash text-muted';
-                btnText.textContent = 'Mask Financials (***)';
-            } else {
-                eyeIcon.className = 'bi bi-eye text-primary';
-                btnText.textContent = 'Reveal Figures';
-            }
-        }
-    }
-    window.addEventListener('htc:privacy-toggled', updateInvoicePrivacyBtn);
+    // Financial privacy is managed strictly by the global navbar controller
+});
+</script>
 
-    window.toggleFinancialPrivacy = function() {
-        const globalBtn = document.getElementById('toggleFinancialPrivacyBtn');
-        if (globalBtn) {
-            globalBtn.click();
-        } else {
-            const current = document.documentElement.getAttribute('data-reveal-finances') === 'true';
-            const nextState = !current;
-            if (nextState) {
-                document.documentElement.setAttribute('data-reveal-finances', 'true');
-                localStorage.setItem('htc_reveal_finances', 'true');
-            } else {
-                document.documentElement.removeAttribute('data-reveal-finances');
-                localStorage.setItem('htc_reveal_finances', 'false');
-            }
-        }
-        updateInvoicePrivacyBtn();
-    };
+<!-- ENTERPRISE FINANCIAL PROTECTION: CONFIRM MARK PAID MODAL -->
+<div class="modal fade" id="confirmMarkPaidModal" tabindex="-1" aria-labelledby="confirmMarkPaidModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; background: var(--htc-surface); color: var(--htc-text);">
+            <form method="post" id="confirmMarkPaidForm" action="">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="status" value="paid">
+                <div class="modal-header py-3 px-4 bg-body border-bottom">
+                    <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2 mb-0" id="confirmMarkPaidModalLabel">
+                        <i class="bi bi-shield-check text-success fs-5"></i>
+                        <span>Confirm Invoice Payment Receipt</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 fs-8">
+                    <div class="alert alert-warning py-2.5 px-3 mb-3 d-flex align-items-start gap-2">
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-5 flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <strong>High-Impact Financial Action:</strong> You are recording official payment settlement for:
+                            <div class="mt-1 fw-bold fs-7 text-dark" id="modalInvRef">INV-XXXXXXXX</div>
+                            <div class="text-muted">Customer: <span id="modalInvClient" class="fw-semibold text-dark">--</span></div>
+                            <div class="text-success fw-bold font-monospace fs-6 mt-1" id="modalInvAmount">₱0.00</div>
+                        </div>
+                    </div>
+                    <p class="text-muted mb-0">This updates accounting ledgers, marks invoice status as <strong>PAID</strong>, and halts outstanding debtor aging. Proceed only after verifying the bank deposit slip or wire advice.</p>
+                </div>
+                <div class="modal-footer py-2.5 px-4 bg-body border-top d-flex justify-content-between">
+                    <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-success fw-bold px-3 shadow-xs">
+                        <i class="bi bi-check-circle-fill me-1"></i> Confirm Payment Receipt
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-    updateInvoicePrivacyBtn();
-    const globalPrivacyBtn = document.getElementById('toggleFinancialPrivacyBtn');
-    if (globalPrivacyBtn) {
-        globalPrivacyBtn.addEventListener('click', function() {
-            setTimeout(updateInvoicePrivacyBtn, 50);
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmModal = document.getElementById('confirmMarkPaidModal');
+    if (confirmModal) {
+        confirmModal.addEventListener('show.bs.modal', function(event) {
+            const btn = event.relatedTarget;
+            if (!btn) return;
+            const invId = btn.getAttribute('data-inv-id');
+            const invRef = btn.getAttribute('data-inv-ref');
+            const invAmount = btn.getAttribute('data-inv-amount');
+            const invClient = btn.getAttribute('data-inv-client');
+            
+            const form = document.getElementById('confirmMarkPaidForm');
+            if (form && invId) {
+                form.action = '/operations/invoices/' + invId + '/status/';
+            }
+            const refEl = document.getElementById('modalInvRef');
+            const amtEl = document.getElementById('modalInvAmount');
+            const clientEl = document.getElementById('modalInvClient');
+            if (refEl) refEl.textContent = invRef || '--';
+            if (amtEl) amtEl.textContent = invAmount || '₱0.00';
+            if (clientEl) clientEl.textContent = invClient || '--';
         });
     }
 });
 </script>
+
 {% endblock %}

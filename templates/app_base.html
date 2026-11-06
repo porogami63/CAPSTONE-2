@@ -74,7 +74,14 @@
         [data-no-finance-mask="true"].finance-masked .masked-real {
             display: inline !important;
         }
-    </style>
+        /* Enterprise Viewport & Tooltip Refinements */
+    .app-main {
+        padding-bottom: 3.5rem !important;
+    }
+    .tooltip {
+        z-index: 1090 !important;
+    }
+</style>
 </head>
 <body>
     <a href="#mainContent" class="skip-to-content">Skip to main content</a>
@@ -260,25 +267,14 @@
                         </div>
                     </div>
                 </div>
-                <div class="d-flex align-items-center gap-1 gap-sm-2 flex-wrap justify-content-end" data-intro="System Header Toolbar: Access real-time alerts, team chat, tour guide, theme toggle, and active user role badge." data-step="2">
-                    <!-- Financial Privacy Masking Toggle -->
-                    <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 shadow-xs" id="toggleFinancialPrivacyBtn" title="Financial Privacy Mode: Mask sensitive ₱ figures with *** sitewide. Hover to peek, or click to toggle visibility.">
-                        <i class="bi bi-eye-slash-fill text-warning" id="financialPrivacyIcon"></i>
-                        <span class="fs-8 fw-semibold" id="financialPrivacyLabel"><span class="d-none d-sm-inline">₱ Amounts: </span>Masked (***)</span>
-                    </button>
-
-                    <!-- Local ORM AI Copilot Drawer Button -->
-                    <button type="button" class="btn btn-sm btn-outline-primary fw-bold d-flex align-items-center gap-1 py-1 px-2" id="btnCopilotDrawer" title="Open Local ORM AI Assistant">
-                        <i class="bi bi-robot text-primary"></i> <span class="d-none d-sm-inline">Local ORM AI</span>
-                    </button>
-
+                <div class="d-flex align-items-center gap-2 justify-content-end" data-intro="System Header Toolbar: Real-time alerts, team chat, and unified workspace preferences." data-step="2">
                     <!-- Notification Bell Dropdown -->
                     <div class="dropdown">
                         <button class="btn-theme-toggle text-decoration-none position-relative" type="button" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" title="System Alerts & Notifications" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
                             <i class="bi bi-bell-fill"></i>
                             <span id="unreadNotifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;">0</span>
                         </button>
-                        <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg" aria-labelledby="notifDropdownBtn" style="width: 320px; max-width: 90vw; background: var(--htc-surface); color: var(--htc-text); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden;">
+                        <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg" aria-labelledby="notifDropdownBtn" style="width: 320px; max-width: 90vw; background: var(--htc-surface); color: var(--htc-text); border: 1px solid var(--htc-border); border-radius: 12px; overflow: hidden; z-index: 1070;">
                             <div class="p-3 d-flex justify-content-between align-items-center" style="background: var(--htc-sidebar-hover); border-bottom: 1px solid var(--htc-border);">
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="fw-bold fs-7" style="color: var(--htc-text);"><i class="bi bi-bell me-1 text-primary"></i> Notifications</span>
@@ -300,20 +296,108 @@
                         </div>
                     </div>
 
-                    <a href="{% url 'chat:room' %}" class="btn-theme-toggle text-decoration-none position-relative" title="Employee Chat & Collaboration" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem;">
+                    <!-- Team Chat Link -->
+                    <a href="{% url 'chat:room' %}" class="btn-theme-toggle text-decoration-none position-relative me-1" title="Employee Chat & Collaboration" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem;">
                         <i class="bi bi-chat-dots-fill"></i>
                         <span id="unreadChatBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.65rem;">0</span>
                     </a>
-                    <button type="button" class="btn-theme-toggle d-none d-lg-inline-flex" id="helpGuideBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Start Interactive Guided Tour" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
-                        <i class="bi bi-question-circle"></i>
-                    </button>
-                    <button type="button" class="btn-theme-toggle" id="themeToggleBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle Light / Dark Mode" style="background: none; border: none; color: var(--htc-text-muted); font-size: 1.25rem; cursor: pointer;">
-                        <i class="bi bi-moon-stars-fill"></i>
-                    </button>
-                    <button type="button" class="btn-theme-toggle fw-bold d-none d-md-inline-flex" id="legibilityToggleBtn" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle High Legibility Mode (Elderly Usability)" style="background: none; border: 1px solid var(--htc-border); color: var(--htc-text-muted); font-size: 0.85rem; cursor: pointer; padding: 0.15rem 0.45rem; border-radius: 6px;">
-                        A+
-                    </button>
-                    <span class="role-badge role-badge-{{ user_role_code }} text-truncate d-none d-sm-inline-block">{{ user_role }}</span>
+
+                    <!-- Consolidated User Settings & Workspace Profile Dropdown -->
+                    <div class="dropdown" id="userWorkspaceDropdown">
+                        <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 py-1 px-2.5 rounded-pill shadow-xs" data-bs-toggle="dropdown" aria-expanded="false" id="userWorkspaceMenuBtn" title="User Settings & Workspace Preferences">
+                            {% if user.avatar %}
+                            <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="rounded-circle" style="width: 24px; height: 24px; object-fit: cover;">
+                            {% else %}
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 24px; height: 24px; font-size: 0.72rem;">{{ user.username|slice:":1"|upper }}</div>
+                            {% endif %}
+                            <span class="fs-8 fw-bold text-dark d-none d-sm-inline">{{ user.get_full_name|default:user.username }}</span>
+                            <span class="role-badge role-badge-{{ user_role_code }} py-0.5 px-2 fs-9 d-none d-md-inline-block">{{ user_role }}</span>
+                            <i class="bi bi-chevron-down text-muted fs-9 ms-0.5"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-2" style="min-width: 270px; background: var(--htc-surface); border-color: var(--htc-border) !important; border-radius: 12px; z-index: 1070;">
+                            <!-- User Identity Header -->
+                            <li class="px-2 py-2 mb-1.5 border-bottom border-secondary-subtle">
+                                <div class="fw-bold fs-7 text-truncate text-dark">{{ user.get_full_name|default:user.username }}</div>
+                                <div class="d-flex align-items-center gap-1.5 mt-1">
+                                    <span class="role-badge role-badge-{{ user_role_code }} fs-8 py-0.5 px-2">{{ user_role }}</span>
+                                    <span class="fs-9 text-muted font-monospace">@{{ user.username }}</span>
+                                </div>
+                            </li>
+
+                            <!-- Section: Workspace Controls -->
+                            <li class="dropdown-header text-uppercase fs-9 fw-bold text-muted px-2 pt-1 pb-1" style="letter-spacing: 0.5px;">Workspace Controls</li>
+
+                            <!-- Financial Privacy Toggle -->
+                            <li>
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="toggleFinancialPrivacyBtn" title="Mask sensitive ₱ figures sitewide with ***">
+                                    <span class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-eye-slash-fill text-warning fs-7" id="financialPrivacyIcon"></i>
+                                        <span>₱ Amounts Privacy</span>
+                                    </span>
+                                    <span class="badge bg-secondary-subtle text-secondary border fs-9" id="financialPrivacyLabel">Masked (***)</span>
+                                </button>
+                            </li>
+
+                            <!-- Local ORM AI Copilot -->
+                            <li>
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="btnCopilotDrawer" title="Open Local ORM AI Assistant">
+                                    <span class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-robot text-primary fs-7"></i>
+                                        <span>Local ORM AI</span>
+                                    </span>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-9">Assistant</span>
+                                </button>
+                            </li>
+
+                            <!-- Theme Toggle (Dark/Light) -->
+                            <li>
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="themeToggleBtn" title="Toggle Light / Dark Mode">
+                                    <span class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-moon-stars-fill text-info fs-7"></i>
+                                        <span>Theme Mode</span>
+                                    </span>
+                                    <span class="badge bg-body text-muted border fs-9">Toggle</span>
+                                </button>
+                            </li>
+
+                            <!-- High Legibility (A+) -->
+                            <li>
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="legibilityToggleBtn" title="Toggle High Legibility Mode">
+                                    <span class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-fonts text-secondary fs-7"></i>
+                                        <span>Font Legibility (A+)</span>
+                                    </span>
+                                    <span class="badge bg-body text-muted border fs-9">Standard</span>
+                                </button>
+                            </li>
+
+                            <!-- Interactive Guided Tour -->
+                            <li>
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center gap-2" id="helpGuideBtn" title="Start Interactive Guided Tour">
+                                    <i class="bi bi-question-circle text-muted fs-7"></i>
+                                    <span>Interactive Tour Guide</span>
+                                </button>
+                            </li>
+
+                            <li><hr class="dropdown-divider my-1.5"></li>
+
+                            <!-- Account Links -->
+                            <li>
+                                <a class="dropdown-item rounded fs-8 py-2 d-flex align-items-center gap-2" href="{% url 'accounts:profile' %}">
+                                    <i class="bi bi-person-gear text-secondary fs-7"></i>
+                                    <span>Profile &amp; Settings</span>
+                                </a>
+                            </li>
+                            <li>
+                                <form method="post" action="{% url 'accounts:logout' %}" class="m-0">{% csrf_token %}
+                                    <button class="dropdown-item rounded fs-8 py-2 d-flex align-items-center gap-2 text-danger w-100 text-start border-0 bg-transparent" type="submit">
+                                        <i class="bi bi-box-arrow-right fs-7"></i>
+                                        <span>Sign Out</span>
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
 
             </header>
@@ -404,11 +488,14 @@
                 });
             }
 
-            // Initialize Bootstrap tooltips globally across all pages
+            // Initialize Bootstrap tooltips globally across all pages with 300ms hover delay
             document.addEventListener('DOMContentLoaded', function() {
                 const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
                 tooltipTriggerList.map(function (tooltipTriggerEl) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                    return new bootstrap.Tooltip(tooltipTriggerEl, {
+                        delay: { show: 300, hide: 100 },
+                        boundary: 'viewport'
+                    });
                 });
 
                 // Attach topbar help guide button to launch Intro.js Guided Tour for the active page
@@ -881,26 +968,26 @@
                 if (isRevealed) {
                     document.documentElement.setAttribute('data-reveal-finances', 'true');
                     if (toggleBtn) {
-                        toggleBtn.className = 'btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5 py-1 px-2.5 shadow-xs';
                         toggleBtn.setAttribute('title', 'Financial Privacy is OFF: All ₱ amounts are visible sitewide. Click to mask with ***.');
                     }
                     if (icon) {
-                        icon.className = 'bi bi-eye-fill text-primary';
+                        icon.className = 'bi bi-eye-fill text-primary fs-7';
                     }
                     if (label) {
-                        label.innerHTML = '<span class="d-none d-sm-inline">₱ Amounts: </span><span>Visible</span>';
+                        label.textContent = 'Visible';
+                        label.className = 'badge bg-success-subtle text-success border border-success-subtle fs-9';
                     }
                 } else {
                     document.documentElement.removeAttribute('data-reveal-finances');
                     if (toggleBtn) {
-                        toggleBtn.className = 'btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 shadow-xs';
                         toggleBtn.setAttribute('title', 'Financial Privacy is ON: Sensitive ₱ amounts are masked with *** sitewide. Hover to peek, or click to reveal.');
                     }
                     if (icon) {
-                        icon.className = 'bi bi-eye-slash-fill text-warning';
+                        icon.className = 'bi bi-eye-slash-fill text-warning fs-7';
                     }
                     if (label) {
-                        label.innerHTML = '<span class="d-none d-sm-inline">₱ Amounts: </span><span>Masked (***)</span>';
+                        label.textContent = 'Masked (***)';
+                        label.className = 'badge bg-secondary-subtle text-secondary border fs-9';
                     }
                 }
 

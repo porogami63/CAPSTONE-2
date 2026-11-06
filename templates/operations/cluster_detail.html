@@ -1403,36 +1403,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-3.5">
-                <!-- Navigation Tabs: Blockchain Lifecycle vs Activity Audit Trail -->
+                <!-- Navigation Tabs: Simple Log vs Technical Log -->
                 <ul class="nav nav-pills nav-fill p-1 rounded-3 bg-body border mb-3" id="auditBlockchainTabs" role="tablist" style="border-color: var(--htc-border) !important;">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active py-2 fs-7 fw-semibold d-flex align-items-center justify-content-center gap-2" id="tab-blockchain-btn" data-bs-toggle="pill" data-bs-target="#tab-blockchain-pane" type="button" role="tab" aria-controls="tab-blockchain-pane" aria-selected="true">
-                            <i class="bi bi-diagram-3-fill text-primary"></i>
-                            <span>Blockchain Lifecycle</span>
+                            <i class="bi bi-shield-check text-primary"></i>
+                            <span>Cryptographic Ledger (Technical Log)</span>
                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 py-0.5 px-2">{{ ledger_block.sealed_count }}/5</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link py-2 fs-7 fw-semibold d-flex align-items-center justify-content-center gap-2" id="tab-audit-btn" data-bs-toggle="pill" data-bs-target="#tab-audit-pane" type="button" role="tab" aria-controls="tab-audit-pane" aria-selected="false">
-                            <i class="bi bi-clock-history text-secondary"></i>
-                            <span>Activity Audit Trail</span>
+                            <i class="bi bi-journal-text text-secondary"></i>
+                            <span>Activity Audit Trail (Simple Log)</span>
                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fs-8 py-0.5 px-2">{{ audit_events|length }} Events</span>
                         </button>
                     </li>
                 </ul>
 
                 <div class="tab-content" id="auditBlockchainTabContent">
-                    <!-- TAB 1: BLOCKCHAIN LIFECYCLE -->
+                    <!-- TAB 1: TECHNICAL LEDGER LOG -->
                     <div class="tab-pane fade show active" id="tab-blockchain-pane" role="tabpanel" aria-labelledby="tab-blockchain-btn">
-                        <!-- Dynamic Blockchain Update Alert (In Blockchain Tab Only) -->
+                        <!-- Dynamic Verification Status Alert -->
                         <div id="blockchainTabUpdateAlert" class="alert alert-info border border-info-subtle d-flex align-items-center justify-content-between flex-wrap gap-2 p-2.5 rounded-3 mb-3" style="background: rgba(37, 99, 235, 0.08);">
                             <div class="d-flex align-items-center gap-2">
-                                <i class="bi bi-bell-fill text-primary fs-6"></i>
+                                <i class="bi bi-shield-lock-fill text-primary fs-6"></i>
                                 <div class="text-xs">
-                                    <strong id="blockchainAlertHeading">Blockchain Ledger Update Notice:</strong>
-                                    <span id="blockchainAlertText">Stage {{ ledger_block.sealed_count }} of {{ ledger_block.total_stages }} (<strong>{{ ledger_block.current_stage }}</strong>) is cryptographically sealed and chained.</span>
+                                    <strong id="blockchainAlertHeading">Ledger Verification Notice:</strong>
+                                    <span id="blockchainAlertText">Stage {{ ledger_block.sealed_count }} of {{ ledger_block.total_stages }} (<strong>{{ ledger_block.current_stage }}</strong>) is sealed and verified.</span>
                                     <div class="text-muted mt-0.5">
-                                        Latest Sealed Timestamp: <span class="font-monospace text-dark fw-semibold" id="blockchainAlertTimestamp">{{ ledger_block.latest_timestamp }}</span>
+                                        Last Verified Date/Time: <span class="font-monospace text-dark fw-semibold" id="blockchainAlertTimestamp">{{ ledger_block.latest_timestamp }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1443,7 +1443,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div id="ledgerVerifyingState" class="text-center py-4">
                             <div class="spinner-border text-primary mb-3" role="status"></div>
                             <div class="fw-semibold">Verifying Purchase Order Lifecycle...</div>
-                            <div class="text-xs text-muted mt-1">Recalculating SHA-256 block chain for this order...</div>
+                            <div class="text-xs text-muted mt-1">Verifying cryptographic hash sequence for this order...</div>
                         </div>
 
                         <!-- Verified State -->
@@ -1453,35 +1453,35 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <i class="bi bi-check-circle-fill text-success fs-4 flex-shrink-0"></i>
                                 <div>
                                     <strong class="text-success d-block fs-7" id="poVerifiedTitle">Order Lifecycle Verified</strong>
-                                    <div class="text-xs text-muted" id="poVerifiedMessage">Zero unauthorized alterations detected. Every operational stage is cryptographically linked to an immutable chain.</div>
+                                    <div class="text-xs text-muted" id="poVerifiedMessage">Zero unauthorized alterations detected. Every operational stage is timestamped and secured with immutable record seals.</div>
                                 </div>
                             </div>
 
-                            <!-- Top Summary Metrics Strip -->
+                            <!-- Top Summary Metrics Strip (Operational Metrics) -->
                             <div class="row g-2 mb-3">
                                 <div class="col-6 col-sm-4">
                                     <div class="p-2.5 rounded border bg-body text-center" style="border-color: var(--htc-border) !important;">
                                         <div class="text-xs text-muted fw-semibold">SEALED STAGES</div>
-                                        <div class="fw-bold fs-7 text-primary mt-0.5" id="poSealedStages">-- of 5</div>
+                                        <div class="fw-bold fs-7 text-primary mt-0.5" id="poSealedStages">{{ ledger_block.sealed_count }} of 5</div>
                                     </div>
                                 </div>
                                 <div class="col-6 col-sm-4">
                                     <div class="p-2.5 rounded border bg-body text-center" style="border-color: var(--htc-border) !important;">
-                                        <div class="text-xs text-muted fw-semibold">LATEST STATUS</div>
-                                        <div class="fw-bold fs-7 text-success mt-0.5 text-truncate" id="poCurrentStage">--</div>
+                                        <div class="text-xs text-muted fw-semibold">LAST VERIFIED</div>
+                                        <div class="fw-bold fs-7 text-dark mt-0.5 text-truncate" id="poLastVerifiedTime">{{ ledger_block.latest_timestamp|default:"Live Synced" }}</div>
                                     </div>
                                 </div>
                                 <div class="col-12 col-sm-4">
                                     <div class="p-2.5 rounded border bg-body text-center" style="border-color: var(--htc-border) !important;">
-                                        <div class="text-xs text-muted fw-semibold">VERIFICATION TIME</div>
-                                        <div class="fw-bold fs-7 text-dark mt-0.5" id="poLatency">-- ms</div>
+                                        <div class="text-xs text-muted fw-semibold">LEDGER INTEGRITY</div>
+                                        <div class="fw-bold fs-7 text-success mt-0.5" id="poLatency"><i class="bi bi-check-circle-fill me-1"></i>Sealed &amp; Verified</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Visual Blockchain Lifecycle Stepper -->
+                            <!-- Visual Sequential Audit History Stepper -->
                             <div class="mb-2">
-                                <div class="text-xs text-muted fw-bold text-uppercase mb-2">Sequential Block History</div>
+                                <div class="text-xs text-muted fw-bold text-uppercase mb-2">Sequential Audit History</div>
                                 <div class="d-flex flex-column gap-2" id="poLifecycleChainContainer">
                                     <!-- Populated dynamically via JS -->
                                 </div>
@@ -1650,15 +1650,16 @@ function triggerLedgerVerification() {
                 document.getElementById('poVerifiedTitle').textContent = `${data.po_reference} Lifecycle Verified`;
                 document.getElementById('poVerifiedMessage').textContent = data.message;
                 document.getElementById('poSealedStages').textContent = `${data.sealed_stages} of ${data.total_stages} Stages`;
-                document.getElementById('poCurrentStage').textContent = data.current_stage;
-                document.getElementById('poLatency').textContent = `${data.verification_time_ms} ms (Real-time)`;
+                const lastVerEl = document.getElementById('poLastVerifiedTime');
+                if (lastVerEl) lastVerEl.textContent = data.latest_timestamp || data.verified_at_pst;
+                document.getElementById('poLatency').innerHTML = '<i class="bi bi-shield-check me-1"></i>Sealed &amp; Verified';
 
                 // Update Alert in Blockchain tab
                 const alertHeading = document.getElementById('blockchainAlertHeading');
                 const alertText = document.getElementById('blockchainAlertText');
                 const alertTs = document.getElementById('blockchainAlertTimestamp');
                 if (alertHeading && alertText && alertTs) {
-                    alertHeading.textContent = "Blockchain Ledger Verified & Chained:";
+                    alertHeading.textContent = "Ledger Verified & Secured:";
                     alertText.innerHTML = `Stage ${data.sealed_stages} of ${data.total_stages} (<strong>${data.current_stage}</strong>) verified with zero discrepancies.`;
                     alertTs.textContent = data.latest_timestamp || data.verified_at_pst;
                 }
@@ -1676,7 +1677,7 @@ function triggerLedgerVerification() {
                         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1.5">
                             <div class="d-flex align-items-center gap-2">
                                 <i class="bi ${iconClass} fs-6"></i>
-                                <strong class="fs-7" style="color: var(--htc-text);">Block #${block.block_index}: ${block.stage_title}</strong>
+                                <strong class="fs-7" style="color: var(--htc-text);">Stage #${block.block_index}: ${block.stage_title}</strong>
                             </div>
                             <div class="d-flex align-items-center gap-1.5">
                                 <span class="badge ${badgeClass} border fs-8 py-0.5 px-2">${block.badge_label}</span>
@@ -1702,12 +1703,12 @@ function triggerLedgerVerification() {
                         </div>
                         <div class="p-2 rounded bg-body font-monospace text-xs" style="border: 1px solid var(--htc-border); font-size: 0.72rem;">
                             <div class="d-flex justify-content-between flex-wrap gap-1">
-                                <span class="text-muted">Current Hash:</span>
-                                <span class="${isSealed ? 'text-primary' : 'text-muted'} fw-semibold text-truncate" title="${block.block_hash}">${block.block_hash_short}</span>
+                                <span class="text-muted">Record Hash:</span>
+                                <span class="text-secondary fw-semibold text-truncate font-monospace" title="${block.block_hash}">${block.block_hash_short}</span>
                             </div>
                             <div class="d-flex justify-content-between flex-wrap gap-1 mt-1 text-muted" style="font-size: 0.68rem;">
-                                <span>Chained From:</span>
-                                <span class="text-truncate" title="${block.prev_hash}">${block.prev_hash_short}</span>
+                                <span>Parent Hash:</span>
+                                <span class="text-truncate text-secondary font-monospace" title="${block.prev_hash}">${block.prev_hash_short}</span>
                             </div>
                         </div>
                     </div>`;

@@ -326,8 +326,8 @@
                                 <div class="fs-8 text-muted" id="inspectorProofMessage">All 5 active stages verified. Zero tampering detected.</div>
                             </div>
                             <div class="text-end">
-                                <span class="fs-8 text-muted d-block">Verification Time</span>
-                                <span class="fw-bold text-dark fs-7" id="inspectorProofLatency">0.45 ms</span>
+                                <span class="fs-8 text-muted d-block">Ledger Integrity</span>
+                                <span class="fw-bold text-success fs-7" id="inspectorProofLatency"><i class="bi bi-shield-check me-1"></i>Verified</span>
                             </div>
                         </div>
                     </div>
@@ -414,7 +414,7 @@ function openChainInspector(clusterPk, poRef, chainType) {
             document.getElementById("inspectorContent").classList.remove("d-none");
 
             document.getElementById("inspectorProofMessage").textContent = data.message || "All cryptographic blocks verified. Zero ledger tampering detected.";
-            document.getElementById("inspectorProofLatency").textContent = (data.verification_time_ms || "0.45") + " ms";
+            document.getElementById("inspectorProofLatency").innerHTML = '<i class="bi bi-shield-check me-1"></i>Verified';
             document.getElementById("inspectorVerifiedTimestamp").textContent = `Verified: ${data.verified_at_pst || 'Just now'}`;
 
             const container = document.getElementById("inspectorBlocksList");

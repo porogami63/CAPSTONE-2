@@ -671,7 +671,7 @@
                             <div class="text-xs text-muted">{{ item.mill_name }}</div>
                         </td>
                         <td class="py-4 px-3">
-                            <div class="fw-bold text-dark">{{ item.volume_mt|floatformat:3|intcomma }} <span
+                            <div class="fw-bold text-dark">{{ item.volume_mt|floatformat:2|intcomma }} <span
                                     class="fs-8 fw-normal text-muted">MT</span></div>
                             <div class="text-xs text-muted">Cost: ₱{{ item.buying_total|floatformat:2|intcomma }}</div>
                             <div class="text-xs text-success">Income: ₱{{ item.selling_total|floatformat:2|intcomma }}
@@ -761,13 +761,12 @@
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <span class="card-code">FACILITY #{{ loan.pk }}</span>
                     {% if loan.is_archived %}
-                    <span
-                        class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 fs-8">
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 fs-8">
                         <i class="bi bi-archive me-1"></i> Archived in Vault
                     </span>
                     {% elif loan.status == 'closed' %}
                     <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 fs-8">
-                        <i class="bi bi-check-circle-fill me-1"></i> Settled &amp; Closed
+                        <i class="bi bi-check-circle-fill me-1"></i> Settled &amp; Closed{% if loan.settlement_receipt_number %} · Receipt #{{ loan.settlement_receipt_number }}{% endif %}
                     </span>
                     {% elif loan.status == 'pending_settlement' %}
                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2.5 py-1 fs-8">
@@ -787,40 +786,23 @@
                     </span>
                     {% endif %}
                 </div>
-                <div class="card-bank">{{ loan.bank_name }}</div>
+                <div class="card-bank text-uppercase">{{ loan.bank_name }}</div>
                 <div class="card-subtext mb-2 d-flex align-items-center gap-2 flex-wrap">
                     <span>PO #: <a href="{% url 'operations:cluster_detail' loan.cluster.pk %}"
                             class="fw-bold text-decoration-none">{{ loan.cluster.reference_code }}</a></span>
                     <a href="{% url 'finance:po_workspace' loan.cluster.pk %}?loan={{ loan.pk }}"
-                        class="btn btn-sm btn-outline-secondary py-0.5 px-2 fs-8 text-nowrap">Open Workspace &rarr;</a>
-                </div>
-                <div class="card-subtext">
-                    {% if loan.status == 'pending_creation' %}
-                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-0.5 fs-8">
-                        <i class="bi bi-clock-history me-1"></i> Pending Manager Approval
-                    </span>
-                    {% elif loan.status == 'pending_settlement' %}
-                    <span class="badge bg-info-subtle text-info border border-info px-2 py-0.5 fs-8">
-                        <i class="bi bi-hourglass-split me-1"></i> Pending Payoff Approval
-                    </span>
-                    {% elif loan.status == 'closed' %}
-                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-8">
-                        <i class="bi bi-shield-check me-1"></i> Settled &amp; Closed
-                        {% if loan.settlement_receipt_number %}
-                        · Receipt #{{ loan.settlement_receipt_number }}
-                        {% endif %}
-                    </span>
-                    {% if loan.settlement_document %}
+                        class="text-xs text-primary text-decoration-none fw-semibold">Open Workspace &rarr;</a>
+                    {% if loan.status == 'closed' and loan.settlement_document %}
                     <a href="{{ loan.settlement_document.url }}" target="_blank"
                         class="btn btn-sm btn-outline-success py-0 px-2 ms-1 fs-8"
                         title="View Bank Release Soft Copy">
                         <i class="bi bi-file-earmark-pdf"></i> View Release PDF
                     </a>
                     {% endif %}
-                    {% elif loan.status == 'rejected' %}
-                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-0.5 fs-8">
-                        <i class="bi bi-x-circle-fill me-1"></i> Verification Rejected
-                    </span>
+                </div>
+                <div class="card-subtext">
+                    {% if loan.status == 'closed' %}
+                    <span class="text-muted small"><i class="bi bi-calendar-check me-1"></i> Settled: <strong>{{ loan.settlement_date|date:"M d, Y"|default:loan.due_date|date:"M d, Y" }}</strong></span>
                     {% elif loan.is_overdue or loan.status == 'overdue' %}
                     <span class="text-danger fw-semibold small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Due Date: {{ loan.due_date|date:"M d, Y" }} (Overdue)</span>
                     {% else %}
@@ -829,8 +811,7 @@
                 </div>
                 {% if loan.verified_by %}
                 <div class="card-subtext mt-1 text-muted" style="font-size: 0.73rem;">
-                    <i class="bi bi-shield-check text-success me-1"></i> Verified by <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username  }}</strong> on {{ loan.verified_at|date:"M d, Y H:i:s"  }} PST
-                    {% if loan.verification_notes %}<span class="fst-italic">("{{ loan.verification_notes }}")</span>{% endif %}
+                    <i class="bi bi-shield-check text-success me-1"></i> Verified by <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y" }} PST
                 </div>
                 {% endif %}
             </div>
@@ -908,48 +889,47 @@
                     {% if loan.bank_account_number %}
                     <span class="cheque-badge font-monospace"><i class="bi bi-bank"></i> Acct: {{ loan.bank_account_number  }}</span>
                     {% else %}
-                    <span class="cheque-badge text-muted font-monospace"><i class="bi bi-bank"></i> Acct: Pending
-                        Assignment</span>
+                    <span class="cheque-badge text-muted font-monospace"><i class="bi bi-bank"></i> Acct: Pending Assignment</span>
                     {% endif %}
+                </div>
 
-                    <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
-                        <!-- Inspect Details Action -->
-                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8"
-                            data-bs-toggle="modal" data-bs-target="#inspectLoanModal{{ loan.pk }}"
-                            title="Inspect transaction details and outlays without leaving page">
-                            <i class="bi bi-eye"></i> Details
-                        </button>
+                <div class="d-flex align-items-center justify-content-end gap-2 pt-2 border-top mt-2.5 flex-wrap">
+                    <!-- Inspect Details Action -->
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8"
+                        data-bs-toggle="modal" data-bs-target="#inspectLoanModal{{ loan.pk }}"
+                        title="Inspect transaction details and outlays without leaving page">
+                        <i class="bi bi-eye me-1"></i> Details
+                    </button>
 
-                        {% if not loan.is_archived and loan.status != "closed" %}
-                        <!-- Action: Direct Close Settled Loan -->
-                        <button type="button" class="btn btn-sm btn-outline-success py-1 px-2.5 fs-8 fw-semibold"
-                            data-bs-toggle="modal" data-bs-target="#closeLoanModal{{ loan.pk }}">
-                            <i class="bi bi-check-circle"></i> Close Loan
-                        </button>
+                    {% if not loan.is_archived and loan.status != "closed" %}
+                    <!-- Action: Direct Close Settled Loan -->
+                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-2.5 fs-8 fw-semibold"
+                        data-bs-toggle="modal" data-bs-target="#closeLoanModal{{ loan.pk }}">
+                        <i class="bi bi-check-circle me-1"></i> Close Loan
+                    </button>
 
-                        <!-- Action: Submit Settlement Advice -->
-                        {% if user|has_perm:"reconcile_payments" %}
-                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 fs-8"
-                            data-bs-toggle="modal" data-bs-target="#settleLoanModal{{ loan.pk }}">
-                            <i class="bi bi-file-earmark-arrow-up"></i> Upload Advice
-                        </button>
-                        {% endif %}
-                        {% elif loan.status == "closed" and not loan.is_archived %}
-                        <!-- Action: Archive Loan to Historical Vault -->
-                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8"
-                            data-bs-toggle="modal" data-bs-target="#archiveLoanModal{{ loan.pk }}"
-                            title="Archive settled loan to historical vault">
-                            <i class="bi bi-archive text-secondary"></i> Archive
-                        </button>
-                        {% elif loan.is_archived %}
-                        <!-- Action: Restore Loan to Active -->
-                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 fs-8"
-                            data-bs-toggle="modal" data-bs-target="#unarchiveLoanModal{{ loan.pk }}"
-                            title="Restore loan to active ledger view">
-                            <i class="bi bi-arrow-counterclockwise"></i> Restore
-                        </button>
-                        {% endif %}
-                    </div>
+                    <!-- Action: Submit Settlement Advice -->
+                    {% if user|has_perm:"reconcile_payments" %}
+                    <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 fs-8"
+                        data-bs-toggle="modal" data-bs-target="#settleLoanModal{{ loan.pk }}">
+                        <i class="bi bi-file-earmark-arrow-up me-1"></i> Upload Advice
+                    </button>
+                    {% endif %}
+                    {% elif loan.status == "closed" and not loan.is_archived %}
+                    <!-- Action: Archive Loan to Historical Vault -->
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8"
+                        data-bs-toggle="modal" data-bs-target="#archiveLoanModal{{ loan.pk }}"
+                        title="Archive settled loan to historical vault">
+                        <i class="bi bi-archive text-secondary me-1"></i> Archive
+                    </button>
+                    {% elif loan.is_archived %}
+                    <!-- Action: Restore Loan to Active -->
+                    <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 fs-8"
+                        data-bs-toggle="modal" data-bs-target="#unarchiveLoanModal{{ loan.pk }}"
+                        title="Restore loan to active ledger view">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Restore
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>

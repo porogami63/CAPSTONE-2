@@ -141,15 +141,9 @@
                 <h4 class="mb-0 fw-bold">Welcome back, {{ user.get_full_name|default:user.username }}</h4>
                 <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 text-uppercase fs-8">{{ user_role }}</span>
             </div>
-            <div class="d-flex align-items-center gap-3 text-muted fs-8">
-                <div>
-                    Date: <span id="liveDashboardDate" class="fw-semibold text-dark">--</span>
-                    <span class="mx-1">·</span>
-                    Time: <span id="liveDashboardTime" class="fw-semibold text-dark font-monospace">--:--:--</span>
-                </div>
-                {% if last_sync %}
-                <span class="d-none d-md-inline">· Last update: {{ last_sync|date:"M d, Y h:i A" }}</span>
-                {% endif %}
+            <div class="d-flex align-items-center gap-2 text-muted fs-8">
+                <span><i class="bi bi-clock-history me-1 text-primary"></i>Last updated: <strong class="text-dark">{{ last_sync|default:now|date:"M d, Y h:i A" }}</strong></span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-9">Live Data Synced</span>
             </div>
         </div>
 
@@ -476,20 +470,7 @@
 <script id="volume-chart-data" type="application/json">{{ volume_chart_data_json|safe }}</script>
 
 <script>
-    // Live Real-Time Clock & Calendar Ticker
-    function updateDashboardClock() {
-        const now = new Date();
-        const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-        const dateStr = now.toLocaleDateString('en-US', dateOptions);
-        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-
-        const dateEl = document.getElementById('liveDashboardDate');
-        const timeEl = document.getElementById('liveDashboardTime');
-        if (dateEl) dateEl.textContent = dateStr;
-        if (timeEl) timeEl.textContent = timeStr;
-    }
-    updateDashboardClock();
-    setInterval(updateDashboardClock, 1000);
+// Live ticker removed to prevent visual layout shifts
 
     // 1. Operational Volume Fulfillment Chart & Table (Weekly / Monthly / Yearly)
     const volumeDataEl = document.getElementById('volume-chart-data');

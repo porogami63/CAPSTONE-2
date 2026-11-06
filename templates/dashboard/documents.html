@@ -56,25 +56,10 @@
                        oninput="handleLiveSearch()">
             </div>
 
-            <!-- View Switcher (Grid View vs Unified Table View) -->
-            <div class="btn-group btn-group-sm" role="group" id="viewSwitcherGroup">
-                <button type="button" 
-                        class="btn btn-primary active d-inline-flex align-items-center gap-1.5 fw-semibold px-2.5 py-1.5 shadow-xs" 
-                        id="btnViewGrid" 
-                        onclick="switchDocumentView('grid', this)" 
-                        title="Switch to Category-Grouped Grid View">
-                    <i class="bi bi-grid-fill"></i>
-                    <span class="d-none d-sm-inline">Grid</span>
-                </button>
-                <button type="button" 
-                        class="btn btn-outline-primary d-inline-flex align-items-center gap-1.5 fw-semibold px-2.5 py-1.5 shadow-xs" 
-                        id="btnViewTable" 
-                        onclick="switchDocumentView('table', this)" 
-                        title="Switch to Unified Sortable Table View">
-                    <i class="bi bi-table"></i>
-                    <span class="d-none d-sm-inline">Table View</span>
-                </button>
-            </div>
+            <!-- View Indicator: Unified Full-Width Table -->
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 fs-8 fw-semibold d-inline-flex align-items-center gap-1">
+                <i class="bi bi-table"></i> Unified Full-Width Directory
+            </span>
         </div>
     </div>
 </div>
@@ -107,7 +92,7 @@
 <!-- ======================================================================== -->
 <!-- 1. GRID VIEW: CATEGORY-GROUPED EQUALIZED CARDS                           -->
 <!-- ======================================================================== -->
-<div class="row g-4 mb-4" id="documentsGrid" data-step="3" data-intro="Document cards grid. Distinguishes official system-generated files from user-uploaded scanned documents with instant in-app modal preview.">
+<div class="row g-4 mb-4 d-none" id="documentsGrid" class="row g-4 mb-4 d-none" class="row g-4 mb-4 d-none" data-step="3" data-intro="Document cards grid. Distinguishes official system-generated files from user-uploaded scanned documents with instant in-app modal preview.">
     {% for key, cat in categories.items %}
     <div class="col-lg-6 doc-category-col" data-cat="{{ key }}" data-origin="{{ cat.origin }}">
         <div class="card border shadow-sm doc-equalized-card">
@@ -288,7 +273,7 @@
 <script>
 // Central Selection State Store
 const selectedDocumentsStore = new Map();
-let currentViewMode = 'grid'; // 'grid' | 'table'
+let currentViewMode = 'table'; // 'grid' | 'table'
 let currentCategory = 'all';
 let currentOrigin = 'all';
 let currentSearchTerm = '';
@@ -809,12 +794,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // 7. INITIALIZATION ON DOM READY
 // --------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', function() {
-    try {
-        const savedView = localStorage.getItem('htc-doc-view-mode');
-        if (savedView === 'table') {
-            switchDocumentView('table', document.getElementById('btnViewTable'));
-        }
-    } catch(e) {}
+    switchDocumentView('table', document.getElementById('btnViewTable'));
     
     // Apply live search if initial query exists
     if (document.getElementById('documentSearchInput').value) {

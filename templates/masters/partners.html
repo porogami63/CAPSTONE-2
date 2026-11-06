@@ -85,14 +85,14 @@
                    data-type="supplier" 
                    data-volume="{{ s.total_volume }}"
                    data-completed="{{ s.txn_count }}"
-                   style="color: inherit; cursor: pointer;">
+                   style="color: inherit; cursor: pointer; {% if s.total_volume == 0 %}opacity: 0.65; background-color: var(--htc-surface-subtle);{% endif %}">
                     {% if s.avatar_url %}
                     <img src="{{ s.avatar_url }}" alt="{{ s.name }}" class="rounded-circle border flex-shrink-0" style="width: 44px; height: 44px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div class="partner-icon rounded-circle bg-success text-white fw-bold align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; display: none;">
+                    <div class="partner-icon rounded-circle fw-bold align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; display: none; background-color: #7c3aed; color: #ffffff;">
                         {{ s.name|slice:":2"|upper }}
                     </div>
                     {% else %}
-                    <div class="partner-icon rounded-circle bg-success text-white fw-bold flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                    <div class="partner-icon rounded-circle bg-primary text-white fw-bold flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
                         {{ s.name|slice:":2"|upper }}
                     </div>
                     {% endif %}
@@ -116,7 +116,7 @@
                         </div>
                     </div>
                     <div class="partner-stats text-end flex-shrink-0 ms-3">
-                        <strong class="d-block text-dark" style="font-size: 1.05rem;">{{ s.total_volume|floatformat:3|intcomma }} MT</strong>
+                        <strong class="d-block text-dark" style="font-size: 1.05rem;">{{ s.total_volume|floatformat:2|intcomma }} MT</strong>
                         <span class="text-muted small">{{ s.txn_count }} transactions</span>
                     </div>
                 </a>
@@ -161,14 +161,14 @@
                    data-type="customer" 
                    data-volume="{{ c.total_volume }}"
                    data-completed="{{ c.txn_count }}"
-                   style="color: inherit; cursor: pointer;">
+                   style="color: inherit; cursor: pointer; {% if c.total_volume == 0 %}opacity: 0.65; background-color: var(--htc-surface-subtle);{% endif %}">
                     {% if c.avatar_url %}
                     <img src="{{ c.avatar_url }}" alt="{{ c.name }}" class="rounded-circle border flex-shrink-0" style="width: 44px; height: 44px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div class="partner-icon rounded-circle bg-primary text-white fw-bold align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; display: none;">
+                    <div class="partner-icon rounded-circle fw-bold align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; display: none; background-color: #7c3aed; color: #ffffff;">
                         {{ c.name|slice:":2"|upper }}
                     </div>
                     {% else %}
-                    <div class="partner-icon rounded-circle bg-primary text-white flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 44px; height: 44px;">
+                    <div class="partner-icon rounded-circle flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 44px; height: 44px; background-color: #7c3aed; color: #ffffff;">
                         {{ c.name|slice:":2"|upper }}
                     </div>
                     {% endif %}
@@ -192,7 +192,7 @@
                         </div>
                     </div>
                     <div class="partner-stats text-end flex-shrink-0 ms-3">
-                        <strong class="d-block text-dark" style="font-size: 1.05rem;">{{ c.total_volume|floatformat:3|intcomma }} MT</strong>
+                        <strong class="d-block text-dark" style="font-size: 1.05rem;">{{ c.total_volume|floatformat:2|intcomma }} MT</strong>
                         <span class="text-muted small">{{ c.txn_count }} transactions</span>
                     </div>
                 </a>
