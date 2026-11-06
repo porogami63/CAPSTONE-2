@@ -1997,7 +1997,7 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
         self.assertEqual(len(chain), 5)
         self.assertEqual(chain[0]["stage_key"], "creation")
         self.assertEqual(chain[0]["block_index"], 1)
-        self.assertEqual(chain[0]["prev_hash_short"], "00000000...000000 (Genesis)")
+        self.assertEqual(chain[0]["prev_hash_short"], "00000000...000000 (Initial Anchor)")
         
         # Test individual block retrieval
         block_info = get_cluster_block_info(self.cluster)

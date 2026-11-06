@@ -552,7 +552,7 @@
                             </td>
                             <td class="text-end text-nowrap">
                                 {% if not d.received_at %}
-                                <a href="{% url 'operations:deliveries_list' %}?po={% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code }}{% endif %}&confirm_arrival={{ d.delivery_id }}" class="btn btn-warning btn-sm py-0.5 px-2 fs-8 fw-bold text-dark shadow-xs me-1" title="Confirm arrival date and delivered volume">
+                                <a href="{% url 'operations:deliveries_list' %}?po={% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code }}{% endif %}&confirm_arrival={{ d.delivery_id }}" class="btn btn-primary btn-sm py-0.5 px-2 fs-8 fw-medium shadow-xs me-1" title="Confirm arrival date and delivered volume">
                                     <i class="bi bi-calendar-check me-1"></i>Confirm Arrival
                                 </a>
                                 {% endif %}

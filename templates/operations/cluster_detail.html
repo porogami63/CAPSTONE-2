@@ -200,7 +200,7 @@
     </div>
     {% if user|has_perm:"edit_logistics" %}
     <div class="d-flex align-items-center gap-2">
-        <a href="{% url 'operations:resolve_weight_difference' cluster.pk %}" class="btn btn-warning btn-sm px-3 py-1.5 fw-bold text-dark shadow-xs" style="text-decoration: none;">
+        <a href="{% url 'operations:resolve_weight_difference' cluster.pk %}" class="btn btn-primary btn-sm px-3 py-1.5 fw-semibold shadow-xs" style="text-decoration: none;">
             Resolve Weight Difference &rarr;
         </a>
     </div>
@@ -213,7 +213,7 @@
     </div>
     {% if user|has_perm:"edit_logistics" %}
     <div class="d-flex align-items-center gap-2">
-        <a href="{% url 'operations:resolve_weight_difference' cluster.pk %}" class="btn btn-danger btn-sm px-3 py-1.5 fw-bold text-white shadow-xs" style="text-decoration: none;">
+        <a href="{% url 'operations:resolve_weight_difference' cluster.pk %}" class="btn btn-primary btn-sm px-3 py-1.5 fw-semibold shadow-xs" style="text-decoration: none;">
             Resolve Weight Difference &rarr;
         </a>
         <button type="button" class="btn-htc-outline btn-sm py-1 px-2.5 fs-8" data-bs-toggle="modal" data-bs-target="#resolveDisputeModal">
@@ -815,7 +815,7 @@
                                     </td>
                                     <td class="text-end text-nowrap">
                                         {% if not d.received_at %}
-                                        <button type="button" class="btn btn-warning btn-sm py-1 px-2.5 fs-8 fw-bold text-dark shadow-xs d-inline-flex align-items-center gap-1"
+                                        <button type="button" class="btn btn-primary btn-sm py-1 px-2.5 fs-8 fw-semibold shadow-xs d-inline-flex align-items-center gap-1"
                                             onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if po.po_reference_number %}{{ po.po_reference_number|escapejs }}{% else %}{{ cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')"
                                             title="Confirm destination arrival date and verify delivered volume">
                                             <i class="bi bi-calendar-check me-1"></i>Confirm Arrival

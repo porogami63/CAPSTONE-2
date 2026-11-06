@@ -360,7 +360,7 @@
         </div>
     </div>
     <div>
-        <a href="?status=in_transit{% if current_po %}&po={{ current_po }}{% endif %}" class="btn btn-warning btn-sm fw-bold text-dark px-3 py-1.5 shadow-xs">
+        <a href="?status=in_transit{% if current_po %}&po={{ current_po }}{% endif %}" class="btn btn-primary btn-sm fw-semibold px-3 py-1.5 shadow-xs">
             Show In-Transit Batches &rarr;
         </a>
     </div>
@@ -463,10 +463,10 @@
                         <div class="fs-8 text-success fw-medium"><i class="bi bi-check-circle-fill me-1"></i>Arr: {{ d.received_at|date:"M d, Y H:i" }} PST</div>
                         {% else %}
                         <div class="mt-1">
-                            <button type="button" class="btn btn-warning btn-sm py-0.5 px-2 fs-8 fw-bold text-dark shadow-xs d-inline-flex align-items-center gap-1"
+                            <button type="button" class="btn btn-primary btn-sm py-0.5 px-2 fs-8 fw-medium shadow-xs d-inline-flex align-items-center gap-1"
                                 onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')"
                                 title="Click to confirm destination arrival and enter delivered volume">
-                                <i class="bi bi-truck me-0.5"></i>In Transit &bull; Confirm Arrival
+                                <i class="bi bi-calendar-check me-0.5"></i>Confirm Arrival
                             </button>
                         </div>
                         {% endif %}
@@ -513,7 +513,7 @@
                                     <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ d.volume_discrepancy_mt|floatformat:3 }} MT ({{ d.variance_percent|floatformat:2 }}%)
                                 </span>
                                 {% if d.purchase_order.cluster %}
-                                <a href="{% url 'operations:resolve_weight_difference' d.purchase_order.cluster.pk %}" class="badge bg-danger text-white text-decoration-none fs-8 fw-bold" title="Resolve Weight Difference">
+                                <a href="{% url 'operations:resolve_weight_difference' d.purchase_order.cluster.pk %}" class="badge bg-danger-subtle text-danger border border-danger-subtle text-decoration-none fs-8 fw-semibold" title="Resolve Weight Difference">
                                     Resolve &rarr;
                                 </a>
                                 {% endif %}
@@ -601,7 +601,7 @@
                         <div class="d-inline-flex align-items-center gap-1.5">
                             {% if user|has_perm:"edit_logistics" %}
                                 {% if not d.received_at %}
-                                <button type="button" class="btn btn-warning btn-sm py-1 px-3 fs-8 fw-bold text-dark shadow-xs d-inline-flex align-items-center gap-1" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Confirm destination arrival date &amp; delivered volume">
+                                <button type="button" class="btn btn-primary btn-sm py-1 px-3 fs-8 fw-medium shadow-xs d-inline-flex align-items-center gap-1" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Confirm destination arrival date &amp; delivered volume">
                                     <i class="bi bi-calendar-check me-1"></i>Confirm Arrival
                                 </button>
                                 {% else %}
