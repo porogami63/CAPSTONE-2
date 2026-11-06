@@ -207,50 +207,6 @@
                     {% endfor %}
                 {% endif %}
             </nav>
-
-
-            <!-- User Profile Dropdown Card -->
-            <div class="user-block p-2 border-top border-secondary-subtle position-relative">
-                <div class="dropdown dropup w-100 position-relative">
-                    <button class="user-card-btn btn w-100 border border-secondary-subtle text-start p-2 rounded d-flex align-items-center justify-content-between" type="button" id="userCardDropdown" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" title="User Profile Menu" style="background: var(--htc-sidebar-hover); transition: background-color 0.2s ease;">
-                        <div class="d-flex align-items-center gap-2 overflow-hidden" style="min-width: 0; flex: 1;">
-                            {% if user.avatar %}
-                            <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="rounded-circle flex-shrink-0" style="width: 32px; height: 32px; object-fit: cover; border: 2px solid var(--htc-primary-light);">
-                            {% else %}
-                            <div class="user-avatar flex-shrink-0" style="width: 32px; height: 32px; font-size: 0.85rem; font-weight: 700; background: var(--htc-primary-light); color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ user.username|slice:":1"|upper }}</div>
-                            {% endif %}
-                            <div class="user-card-info" style="min-width: 0; flex: 1; overflow: hidden;">
-                                <div class="user-name fw-bold text-truncate" style="font-size: 0.82rem; color: var(--htc-text); line-height: 1.2;">{{ user.get_full_name|default:user.username }}</div>
-                                <div class="role-badge-wrapper" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.1rem;">
-                                    <span class="role-badge role-badge-{{ user_role_code }}" style="font-size: 0.58rem; padding: 0.1rem 0.35rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle;">{{ user_role }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <i class="bi bi-three-dots-vertical text-muted fs-7 ms-1 user-card-dots flex-shrink-0"></i>
-                    </button>
-                    <ul class="dropdown-menu shadow-lg border border-secondary-subtle p-2 w-100 mb-2" aria-labelledby="userCardDropdown" style="background: var(--htc-surface); color: var(--htc-text); z-index: 1060;">
-                        <li>
-                            <div class="px-2 py-1.5 mb-1 border-bottom border-secondary-subtle">
-                                <div class="fw-bold fs-7 text-truncate" style="color: var(--htc-text);">{{ user.get_full_name|default:user.username }}</div>
-                                <div class="fs-8 text-muted text-truncate">Role: {{ user_role }}</div>
-                            </div>
-                        </li>
-                        <li>
-                            <a class="dropdown-item rounded fs-7 py-1.5 d-flex align-items-center gap-2" href="{% url 'accounts:profile' %}" style="color: var(--htc-text);">
-                                <i class="bi bi-person-gear text-primary"></i> Profile & Settings
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider my-1"></li>
-                        <li>
-                            <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
-                                <button class="dropdown-item rounded fs-7 py-1.5 d-flex align-items-center gap-2 text-danger w-100 text-start border-0 bg-transparent" type="submit">
-                                    <i class="bi bi-box-arrow-right"></i> Sign Out
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
         </aside>
         <div class="sidebar-backdrop" data-sidebar-backdrop></div>
         <div class="app-main-wrap">
@@ -311,7 +267,7 @@
                             <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 24px; height: 24px; font-size: 0.72rem;">{{ user.username|slice:":1"|upper }}</div>
                             {% endif %}
                             <span class="fs-8 fw-bold text-dark d-none d-sm-inline">{{ user.get_full_name|default:user.username }}</span>
-                            <span class="role-badge role-badge-{{ user_role_code }} py-0.5 px-2 fs-9 d-none d-md-inline-block">{{ user_role }}</span>
+                            <span class="role-badge role-badge-{{ user_role_code }} py-0.5 px-2 fs-9 d-none d-md-inline-block">{{ user_role|role_display }}</span>
                             <i class="bi bi-chevron-down text-muted fs-9 ms-0.5"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-2" style="min-width: 270px; background: var(--htc-surface); border-color: var(--htc-border) !important; border-radius: 12px; z-index: 1070;">
@@ -319,7 +275,7 @@
                             <li class="px-2 py-2 mb-1.5 border-bottom border-secondary-subtle">
                                 <div class="fw-bold fs-7 text-truncate text-dark">{{ user.get_full_name|default:user.username }}</div>
                                 <div class="d-flex align-items-center gap-1.5 mt-1">
-                                    <span class="role-badge role-badge-{{ user_role_code }} fs-8 py-0.5 px-2">{{ user_role }}</span>
+                                    <span class="role-badge role-badge-{{ user_role_code }} fs-8 py-0.5 px-2">{{ user_role|role_display }}</span>
                                     <span class="fs-9 text-muted font-monospace">@{{ user.username }}</span>
                                 </div>
                             </li>
@@ -798,7 +754,7 @@
                 <div class="copilot-avatar"><i class="bi bi-robot"></i></div>
                 <div>
                     <h6 class="mb-0 fw-bold">Local ORM AI Assistant</h6>
-                    <div class="fs-8 text-muted"><span class="badge bg-success-subtle text-success py-0 px-1 fs-8">100% On-Premise · Air-Gapped</span> · Role: {{ user_role }}</div>
+                    <div class="fs-8 text-muted"><span class="badge bg-success-subtle text-success py-0 px-1 fs-8">100% On-Premise · Air-Gapped</span> · Role: {{ user_role|role_display }}</div>
                 </div>
             </div>
             <button type="button" class="btn-close text-reset" id="closeCopilotDrawer" aria-label="Close"></button>

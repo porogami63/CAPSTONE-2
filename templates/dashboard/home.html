@@ -1,6 +1,7 @@
 {% extends "app_base.html" %}
 {% load static %}
 {% load humanize %}
+{% load role_tags %}
 {% block title %}Dashboard · HTC Core{% endblock %}
 {% block topbar_title %}Dashboard{% endblock %}
 {% block topbar_subtitle %}Operational Overview & Decision Center{% endblock %}
@@ -113,24 +114,6 @@
         padding: 1.25rem 1.5rem;
         height: auto;
     }
-    .recent-orders-scroll {
-        max-height: 480px;
-        overflow-y: scroll;
-    }
-    .recent-orders-scroll::-webkit-scrollbar {
-        width: 8px;
-    }
-    .recent-orders-scroll::-webkit-scrollbar-track {
-        background: var(--htc-surface-subtle, #f8fafc);
-        border-radius: 4px;
-    }
-    .recent-orders-scroll::-webkit-scrollbar-thumb {
-        background-color: var(--htc-border, #cbd5e1);
-        border-radius: 4px;
-    }
-    .recent-orders-scroll::-webkit-scrollbar-thumb:hover {
-        background-color: var(--htc-primary, #0c385c);
-    }
 </style>
 
 <!-- Dashboard Hero Header -->
@@ -139,7 +122,7 @@
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <h4 class="mb-0 fw-bold">Welcome back, {{ user.get_full_name|default:user.username }}</h4>
-                <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 text-uppercase fs-8">{{ user_role }}</span>
+                <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fs-8">{{ user_role|role_display }}</span>
             </div>
             <div class="d-flex align-items-center gap-2 text-muted fs-8">
                 <span><i class="bi bi-clock-history me-1 text-primary"></i>Last updated: <strong class="text-dark">{% if last_sync %}{{ last_sync|date:"M d, Y h:i A" }}{% else %}{% now "M d, Y h:i A" %}{% endif %}</strong></span>
@@ -225,7 +208,7 @@
                     <div class="text-muted fs-8">{{ item.hint }}</div>
                 </div>
             </div>
-            <a href="{{ item.url }}" class="btn btn-sm {% if item.tone == 'red' %}btn-danger{% elif item.tone == 'amber' %}btn-primary{% else %}btn-outline-primary{% endif %} mt-2 mt-sm-0 text-nowrap px-3 py-1 fs-8">
+            <a href="{{ item.url }}" class="btn btn-sm btn-primary mt-2 mt-sm-0 text-nowrap px-3 py-1.5 fs-8 fw-semibold shadow-xs">
                 {{ item.action_label }} &rarr;
             </a>
         </div>
@@ -410,7 +393,7 @@
         <div class="d-flex align-items-center gap-2">
             <div>
                 <h6 class="fw-bold mb-0">Recent Orders</h6>
-                <span class="fs-8 text-muted">Latest operational transactions and movement &middot; Scroll to view all</span>
+                <span class="fs-8 text-muted">Latest operational transactions and movement</span>
             </div>
             <span class="badge bg-secondary-subtle text-secondary border fs-8 ms-1">{{ recent_clusters|length }} Orders</span>
         </div>
@@ -419,7 +402,7 @@
         </a>
     </div>
 
-    <div class="table-responsive recent-orders-scroll border rounded">
+    <div class="table-responsive border rounded">
         <table class="table table-hover align-middle mb-0 fs-8">
             <thead class="sticky-top bg-body">
                 <tr class="text-uppercase text-muted border-bottom">
