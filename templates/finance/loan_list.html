@@ -297,8 +297,8 @@
     </div>
     <div class="metric-box">
         <div class="label">Interest Incurred (To Date)</div>
-        <div class="value text-urgent-red">₱{{ accrued_interest|floatformat:2|intcomma }}</div>
-        <div class="subtext danger">Daily interest clock — all loans</div>
+        <div class="value text-dark font-monospace">₱{{ accrued_interest|floatformat:2|intcomma }}</div>
+        <div class="subtext">Daily interest clock across active facilities</div>
     </div>
     <div class="metric-box">
         <div class="label">Delivery Deposits (50%)</div>
@@ -318,7 +318,7 @@
 <div class="card mb-4 border shadow-sm bg-white" style="border-radius: 10px;">
     <div class="card-body p-3">
         <form method="get" class="row g-2 align-items-center m-0" data-no-cache="true">
-            <div class="col-lg-3 col-md-6">
+            <div class="col-lg-4 col-md-6">
                 <div class="search-input-wrap">
                     <i class="bi bi-search search-icon"></i>
                     <input type="text" name="q" value="{{ q }}" class="form-control-htc search-field"
@@ -326,17 +326,6 @@
                 </div>
             </div>
             <div class="col-lg-3 col-md-6">
-                <select name="po" class="form-select-htc filter-control" data-no-cache="true"
-                    onchange="if(this.value && (!window.event || window.event.isTrusted)){ window.location.href=this.value; }">
-                    <option value="">-- All Deals (Select PO to Open Dedicated Workspace) --</option>
-                    {% for p in all_open_pos %}
-                    <option value="{% url 'finance:po_workspace' p.cluster.pk %}">
-                        {{ p.po_ref }} — {{ p.client_name }} [{{ p.mill_name }}]
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-lg-2 col-md-4">
                 <select name="status" class="form-select-htc filter-control" onchange="this.form.submit()">
                     <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Records</option>
                     <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Facilities ({{ active_loans_count }})</option>
@@ -346,7 +335,7 @@
                     <option value="unfunded" {% if status_filter == 'unfunded' %}selected{% endif %}>Unfunded Deals</option>
                 </select>
             </div>
-            <div class="col-lg-2 col-md-4">
+            <div class="col-lg-3 col-md-6">
                 <div class="input-group input-group-sm">
                     <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm"
                         title="Start date from">
@@ -354,7 +343,7 @@
                         title="Start date to">
                 </div>
             </div>
-            <div class="col-lg-2 col-md-4 d-flex gap-2">
+            <div class="col-lg-2 col-md-6 d-flex gap-2">
                 <button type="submit" class="btn-htc filter-btn flex-grow-1">Filter</button>
                 {% if q or status_filter != 'all' or po_ref or date_from or date_to or manager_filter %}
                 <a href="{% url 'finance:loan_list' %}" class="btn-htc-outline filter-btn px-2.5"
@@ -706,58 +695,39 @@
                             </span>
                             {% endif %}
                         </td>
-                        <td class="py-4 px-3" style="min-width: 250px;">
-                            <!-- Progress Bar Label Top Row: Matched Amount & Right-Aligned Percentage Pill -->
-                            <div class="d-flex justify-content-between align-items-center mb-1.5">
-                                <span class="text-xs font-medium text-slate-600" style="color: #475569;">
-                                    Matched: <strong
-                                        class="{% if item.is_over_target %}text-danger{% else %}text-dark{% endif %} font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma  }}</strong>
+                        <td class="py-4 px-3" style="min-width: 240px;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-xs text-muted">
+                                    Matched: <strong class="{% if item.is_over_target %}text-danger{% else %}text-dark{% endif %} font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma }}</strong>
+                                    <span class="text-muted">/ ₱{{ item.target_amount|floatformat:2|intcomma }}</span>
                                 </span>
-                                {% if item.is_over_target %}
-                                <span
-                                    class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 fw-bold px-2 py-0.5">
+                                <span class="badge {% if item.is_over_target %}bg-danger-subtle text-danger border border-danger-subtle{% elif item.match_pct >= 100 %}bg-success-subtle text-success border border-success-subtle{% elif item.match_pct > 0 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8 fw-semibold px-2 py-0.5">
                                     {{ item.match_pct }}%
                                 </span>
-                                {% else %}
-                                <span
-                                    class="badge {% if item.match_pct >= 100 %}bg-success-subtle text-success border border-success-subtle{% elif item.match_pct > 0 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8 fw-semibold px-2 py-0.5">
-                                    {{ item.match_pct }}%
-                                </span>
-                                {% endif %}
                             </div>
-
-                            <!-- Progress Track -->
-                            <div class="progress my-1.5"
-                                style="height: 7px; border-radius: 9999px; background-color: #e2e8f0; overflow: hidden;">
+                            <div class="progress" style="height: 6px; border-radius: 9999px; background-color: #e2e8f0; overflow: hidden;">
                                 <div class="progress-bar {% if item.is_over_target %}bg-danger{% elif item.match_pct >= 100 %}bg-success{% else %}bg-primary{% endif %}"
                                     role="progressbar"
                                     style="width: {% if item.match_pct > 100 %}100{% else %}{{ item.match_pct }}{% endif %}%;">
                                 </div>
                             </div>
-
-                            <!-- Progress Bar Label Bottom Row: Target Amount & Over-target Hazard Delta Badge -->
-                            <div class="d-flex justify-content-between align-items-center mt-1.5">
-                                <span class="text-xs font-medium text-slate-600" style="color: #475569;">
-                                    Target: ₱{{ item.target_amount|floatformat:2|intcomma }}
+                            {% if item.is_over_target %}
+                            <div class="mt-1 text-end">
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 fw-bold px-2 py-0.5">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>+₱{{ item.excess_amount|floatformat:2|intcomma }} Over Limit
                                 </span>
-                                {% if item.is_over_target %}
-                                <span
-                                    class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 fw-bold px-2.5 py-1 d-inline-flex align-items-center gap-1 shadow-2xs"
-                                    title="Expenses exceed target credit limit by ₱{{ item.excess_amount|floatformat:2|intcomma }}">
-                                    <i class="bi bi-exclamation-triangle-fill text-danger"></i> +₱{{ item.excess_amount|floatformat:2|intcomma  }} Over
-                                </span>
-                                {% endif %}
                             </div>
+                            {% endif %}
                         </td>
                         <td class="text-end py-4 ps-3 pe-4">
                             <div class="d-flex gap-2 align-items-center justify-content-end">
                                 <a href="{% url 'finance:po_workspace' item.cluster.pk %}"
-                                    class="btn btn-sm btn-primary fw-bold py-1.5 px-3 fs-8 shadow-xs text-nowrap"
+                                    class="btn btn-sm btn-outline-primary fw-semibold py-1 px-2.5 fs-8 text-nowrap"
                                     title="Open Dedicated PO Finance Workspace">
                                     Focus Workspace &rarr;
                                 </a>
                                 <a href="{% url 'operations:cluster_detail' item.cluster.pk %}"
-                                    class="btn btn-sm btn-outline-secondary py-1.5 px-3 fs-8 text-nowrap"
+                                    class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8 text-nowrap"
                                     title="View Full Purchase Order in Operations" target="_blank">
                                     Operations PO
                                 </a>
@@ -779,13 +749,7 @@
     </div>
 </div>
 
-<!-- Timeline Info Banner -->
-<div class="info-bar" data-step="3"
-    data-intro="Each bank facility card displays real-time interest accrual, maturity timeline bars, paper cheque numbers, and settlement authorization controls.">
-    <i class="bi bi-info-circle-fill"></i>
-    <span>Daily interest liabilities accrue in real time. Marking a facility as settled requires uploading official bank
-        payoff documentation for verification.</span>
-</div>
+
 
 <!-- TAB 2: LOAN REGISTRY STACK -->
 <div id="tabLoanRegistry" class="loan-list-stack" style="display: none;">
@@ -832,15 +796,15 @@
                 </div>
                 <div class="card-subtext">
                     {% if loan.status == 'pending_creation' %}
-                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1">
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-0.5 fs-8">
                         <i class="bi bi-clock-history me-1"></i> Pending Manager Approval
                     </span>
                     {% elif loan.status == 'pending_settlement' %}
-                    <span class="badge bg-info-subtle text-info border border-info px-2 py-1">
+                    <span class="badge bg-info-subtle text-info border border-info px-2 py-0.5 fs-8">
                         <i class="bi bi-hourglass-split me-1"></i> Pending Payoff Approval
                     </span>
                     {% elif loan.status == 'closed' %}
-                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-8">
                         <i class="bi bi-shield-check me-1"></i> Settled &amp; Closed
                         {% if loan.settlement_receipt_number %}
                         · Receipt #{{ loan.settlement_receipt_number }}
@@ -848,22 +812,19 @@
                     </span>
                     {% if loan.settlement_document %}
                     <a href="{{ loan.settlement_document.url }}" target="_blank"
-                        class="btn btn-sm btn-outline-success py-0 px-2 ms-1" style="font-size: 0.75rem;"
+                        class="btn btn-sm btn-outline-success py-0 px-2 ms-1 fs-8"
                         title="View Bank Release Soft Copy">
                         <i class="bi bi-file-earmark-pdf"></i> View Release PDF
                     </a>
                     {% endif %}
                     {% elif loan.status == 'rejected' %}
-                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1">
+                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-0.5 fs-8">
                         <i class="bi bi-x-circle-fill me-1"></i> Verification Rejected
                     </span>
                     {% elif loan.is_overdue or loan.status == 'overdue' %}
-                    <span class="text-urgent-red"><i class="bi bi-exclamation-triangle-fill"></i> Due Date: {{ loan.due_date|date:"M d, Y"  }} (Overdue)</span>
+                    <span class="text-danger fw-semibold small"><i class="bi bi-exclamation-triangle-fill me-1"></i> Due Date: {{ loan.due_date|date:"M d, Y" }} (Overdue)</span>
                     {% else %}
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                        <i class="bi bi-check-circle-fill me-1"></i> Active Loan
-                    </span>
-                    <span class="ms-1 text-muted small"><i class="bi bi-calendar-event"></i> Due: <strong>{{ loan.due_date|date:"M d, Y"  }}</strong> ({{ loan.days_remaining }} days left)</span>
+                    <span class="text-muted small"><i class="bi bi-calendar-event me-1"></i> Due: <strong>{{ loan.due_date|date:"M d, Y" }}</strong> ({{ loan.days_remaining }} days left)</span>
                     {% endif %}
                 </div>
                 {% if loan.verified_by %}
@@ -895,9 +856,9 @@
 
             <div class="stat-metric">
                 <span>Yearly Interest Rate</span>
-                <div class="rate-input-wrap">
-                    <input type="text" value="{{ loan.interest_rate_annual }}" disabled>
-                    <span>% p.a.</span>
+                <div class="d-flex align-items-baseline gap-1 mt-0.5">
+                    <span class="fs-6 fw-bold text-dark font-monospace">{{ loan.interest_rate_annual }}%</span>
+                    <span class="text-muted fs-8">p.a.</span>
                 </div>
             </div>
 
@@ -911,15 +872,16 @@
                 <span class="text-primary fw-bold">₱{{ loan.logistics_deposit|floatformat:2|intcomma }}</span>
             </div>
 
-            <!-- VIVID URGENT RED ACCRUED INTEREST -->
+            <!-- Accrued Interest -->
             <div class="stat-metric">
                 <span class="d-inline-flex align-items-center gap-1">
-                    Interest Incurred (₱{{ loan.daily_interest|intcomma }}/day)
-                    <i class="bi bi-question-circle text-danger cursor-pointer" data-bs-toggle="tooltip"
+                    Interest Incurred
+                    <span class="text-muted fs-8 font-monospace">(₱{{ loan.daily_interest|intcomma }}/day)</span>
+                    <i class="bi bi-question-circle text-secondary cursor-pointer" data-bs-toggle="tooltip"
                         data-bs-placement="top"
                         title="Formula: Principal × (Annual Interest Rate % / 365) × Days Outstanding"></i>
                 </span>
-                <span class="text-urgent-red fs-6">₱{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
+                <span class="{% if loan.accrued_interest > 0 %}text-dark{% else %}text-muted{% endif %} fs-6 fw-bold font-monospace">₱{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
             </div>
 
             <div class="stat-metric cheque-binder" style="grid-column: 1 / -1;">
@@ -987,8 +949,13 @@
                             <i class="bi bi-arrow-counterclockwise"></i> Restore
                         </button>
                         {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                        <!-- MODAL 1: DUAL-STEP CLOSE SETTLED LOAN -->
+    <!-- MODAL 1: DUAL-STEP CLOSE SETTLED LOAN -->
                         <div class="modal fade" id="closeLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
@@ -1304,10 +1271,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
         {% empty %}
         <div
             style="padding: 4rem 2rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius);">
