@@ -38,21 +38,11 @@
         margin: 0.15rem 0 0.35rem 0;
         line-height: 1.3;
         font-variant-numeric: tabular-nums;
-        transition: filter 0.2s ease;
     }
     .metric-box .subtext {
         font-size: 0.72rem;
         color: var(--htc-text-muted);
         font-weight: 500;
-    }
-    /* Subtle Sensitive Financials Masking */
-    body.financial-masked .sensitive-financial-val {
-        filter: blur(5px);
-        user-select: none;
-        cursor: pointer;
-    }
-    body.financial-masked .sensitive-financial-val:hover {
-        filter: blur(0px);
     }
 
     /* Tab navigation pills */
@@ -740,33 +730,46 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Subtle Executive Privacy Toggle for Sensitive Financial Figures
-    window.toggleFinancialPrivacy = function() {
-        const isMasked = document.body.classList.toggle('financial-masked');
+    // Synchronized Financial Privacy Masking Toggle (Asterisk Masking)
+    function updateInvoicePrivacyBtn() {
+        const isRevealed = document.documentElement.getAttribute('data-reveal-finances') === 'true';
         const eyeIcon = document.getElementById('privacyEyeIcon');
         const btnText = document.getElementById('privacyBtnText');
         if (eyeIcon && btnText) {
-            if (isMasked) {
-                eyeIcon.className = 'bi bi-eye';
-                btnText.textContent = 'Reveal Figures';
-                localStorage.setItem('htc_financial_privacy', 'masked');
-            } else {
-                eyeIcon.className = 'bi bi-eye-slash';
+            if (isRevealed) {
+                eyeIcon.className = 'bi bi-eye-slash text-muted';
                 btnText.textContent = 'Mask Financials';
-                localStorage.removeItem('htc_financial_privacy');
+            } else {
+                eyeIcon.className = 'bi bi-eye text-primary';
+                btnText.textContent = 'Reveal Figures';
             }
         }
+    }
+
+    window.toggleFinancialPrivacy = function() {
+        const globalBtn = document.getElementById('toggleFinancialPrivacyBtn');
+        if (globalBtn) {
+            globalBtn.click();
+        } else {
+            const current = document.documentElement.getAttribute('data-reveal-finances') === 'true';
+            const nextState = !current;
+            if (nextState) {
+                document.documentElement.setAttribute('data-reveal-finances', 'true');
+                localStorage.setItem('htc_reveal_finances', 'true');
+            } else {
+                document.documentElement.removeAttribute('data-reveal-finances');
+                localStorage.setItem('htc_reveal_finances', 'false');
+            }
+        }
+        updateInvoicePrivacyBtn();
     };
 
-    // Restore saved privacy state
-    if (localStorage.getItem('htc_financial_privacy') === 'masked') {
-        document.body.classList.add('financial-masked');
-        const eyeIcon = document.getElementById('privacyEyeIcon');
-        const btnText = document.getElementById('privacyBtnText');
-        if (eyeIcon && btnText) {
-            eyeIcon.className = 'bi bi-eye';
-            btnText.textContent = 'Reveal Figures';
-        }
+    updateInvoicePrivacyBtn();
+    const globalPrivacyBtn = document.getElementById('toggleFinancialPrivacyBtn');
+    if (globalPrivacyBtn) {
+        globalPrivacyBtn.addEventListener('click', function() {
+            setTimeout(updateInvoicePrivacyBtn, 50);
+        });
     }
 });
 </script>
