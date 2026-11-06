@@ -65,17 +65,14 @@
             display: inline !important;
         }
 
-        /* Explicit opt-outs for inputs or unmaskable admin controls */
-        .no-finance-mask .finance-masked .masked-stars {
+        /* Explicit opt-outs for unmaskable admin controls */
+        .no-finance-mask.finance-masked .masked-stars,
+        [data-no-finance-mask="true"].finance-masked .masked-stars {
             display: none !important;
         }
-        .no-finance-mask .finance-masked .masked-real {
+        .no-finance-mask.finance-masked .masked-real,
+        [data-no-finance-mask="true"].finance-masked .masked-real {
             display: inline !important;
-        }
-        .no-finance-mask .finance-masked {
-            cursor: inherit !important;
-            border-bottom: none !important;
-            background: transparent !important;
         }
     </style>
 </head>
@@ -795,7 +792,7 @@
 
             function isMaskingExempt(el) {
                 if (!el) return false;
-                if (el.closest && (el.closest('.no-finance-mask') || el.closest('[data-no-finance-mask="true"]') || el.closest('.no-privacy-mask'))) {
+                if (el.classList && (el.classList.contains('no-finance-mask') || el.classList.contains('no-privacy-mask'))) {
                     return true;
                 }
                 return false;
@@ -945,7 +942,7 @@
                             const val = m.target.nodeValue;
                             if (val && (val.includes('\u20B1') || val.includes('PHP'))) {
                                 const p = m.target.parentElement;
-                                if (!p || (!p.closest('.finance-masked') && !p.closest('.no-finance-mask') && p.tagName !== 'BUTTON')) {
+                                if (!p || (!p.closest('.finance-masked') && !p.classList.contains('no-finance-mask') && p.tagName !== 'BUTTON')) {
                                     needsMask = true;
                                     break;
                                 }

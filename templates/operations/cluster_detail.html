@@ -4,7 +4,6 @@
 {% block topbar_title %}Order Details · {{ cluster.reference_code }}{% endblock %}
 {% block topbar_subtitle %}{{ cluster.client.name }} · {{ cluster.sugar_mill.name }} · Status: {{ cluster.get_status_display }}{% endblock %}
 {% block content %}
-<div class="no-finance-mask" data-no-finance-mask="true">
 
 {% with wf=cluster.get_workflow_steps_info %}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3" data-step="2" data-intro="Action panel for editing contract parameters, uploading scanned MRO release orders, or opening payment matching reconciliation.">
@@ -1734,5 +1733,4 @@ function triggerLedgerVerification() {
 </script>
 
 {% include "operations/includes/record_arrival_modal.html" %}
-</div>
 {% endblock %}
