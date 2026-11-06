@@ -142,7 +142,7 @@
                 <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 text-uppercase fs-8">{{ user_role }}</span>
             </div>
             <div class="d-flex align-items-center gap-2 text-muted fs-8">
-                <span><i class="bi bi-clock-history me-1 text-primary"></i>Last updated: <strong class="text-dark">{{ last_sync|default:now|date:"M d, Y h:i A" }}</strong></span>
+                <span><i class="bi bi-clock-history me-1 text-primary"></i>Last updated: <strong class="text-dark">{% if last_sync %}{{ last_sync|date:"M d, Y h:i A" }}{% else %}{% now "M d, Y h:i A" %}{% endif %}</strong></span>
                 <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-9">Live Data Synced</span>
             </div>
         </div>

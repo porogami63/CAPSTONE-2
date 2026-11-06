@@ -329,10 +329,10 @@
 
                             <!-- Financial Privacy Toggle -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="toggleFinancialPrivacyBtn" title="Mask sensitive ₱ figures sitewide with ***">
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="toggleFinancialPrivacyBtn" title="Mask sensitive financial amounts sitewide with ***">
                                     <span class="d-flex align-items-center gap-2">
                                         <i class="bi bi-eye-slash-fill text-warning fs-7" id="financialPrivacyIcon"></i>
-                                        <span>₱ Amounts Privacy</span>
+                                        <span>Financial Privacy</span>
                                     </span>
                                     <span class="badge bg-secondary-subtle text-secondary border fs-9" id="financialPrivacyLabel">Masked (***)</span>
                                 </button>
@@ -968,7 +968,7 @@
                 if (isRevealed) {
                     document.documentElement.setAttribute('data-reveal-finances', 'true');
                     if (toggleBtn) {
-                        toggleBtn.setAttribute('title', 'Financial Privacy is OFF: All ₱ amounts are visible sitewide. Click to mask with ***.');
+                        toggleBtn.setAttribute('title', 'Financial Privacy is OFF: All currency amounts are visible sitewide. Click to mask with ***.');
                     }
                     if (icon) {
                         icon.className = 'bi bi-eye-fill text-primary fs-7';
@@ -980,7 +980,7 @@
                 } else {
                     document.documentElement.removeAttribute('data-reveal-finances');
                     if (toggleBtn) {
-                        toggleBtn.setAttribute('title', 'Financial Privacy is ON: Sensitive ₱ amounts are masked with *** sitewide. Hover to peek, or click to reveal.');
+                        toggleBtn.setAttribute('title', 'Financial Privacy is ON: Sensitive amounts are masked with *** sitewide. Hover to peek, or click to reveal.');
                     }
                     if (icon) {
                         icon.className = 'bi bi-eye-slash-fill text-warning fs-7';
