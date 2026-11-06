@@ -595,7 +595,7 @@ class POFocusedFinanceWorkspaceTests(TestCase):
 		self.assertEqual(res.status_code, 200)
 		self.assertContains(res, reverse("finance:po_workspace", args=[self.cluster.pk]))
 		self.assertNotContains(res, 'id="clusterDetailLoanForm"')
-		self.assertContains(res, "Open Financial Operations &amp; Cheque Ledger")
+		self.assertContains(res, "Open Financing &rarr;")
 
 
 class DeliveryExpenseMatchingLinkTests(TestCase):
@@ -714,7 +714,7 @@ class DeliveryExpenseMatchingLinkTests(TestCase):
 		self.assertNotContains(res, "Min Capital Required")
 		self.assertNotContains(res, "Funded Loan Principal")
 		self.assertContains(res, "Finance is currently pending for this PO.")
-		self.assertContains(res, "Open Financial Operations &amp; Cheque Ledger")
+		self.assertContains(res, "Open Financing &rarr;")
 		self.assertContains(res, 'id="ledgerVerifyModal"')
 		self.assertContains(res, 'id="tab-audit-pane"')
 		self.assertContains(res, "Activity Audit Trail")
@@ -1351,12 +1351,12 @@ class FinancialOperationsWorkflowAndBlockchainTests(TestCase):
 		)
 
 	def test_screen_naming_standardisation(self):
-		"""Asserts exact string match for 'Financial Operations & Cheque Ledger'."""
+		"""Asserts exact string match for 'Financing'."""
 		self.client.login(username="master_admin", password="password123")
 		url = reverse("finance:loan_list")
 		res = self.client.get(url)
 		self.assertEqual(res.status_code, 200)
-		self.assertContains(res, "Financial Operations &amp; Cheque Ledger")
+		self.assertContains(res, "Financing")
 		self.assertNotContains(res, "Bank Loans Registry")
 
 	def test_loan_settlement_and_archival_workflow(self):

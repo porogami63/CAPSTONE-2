@@ -120,7 +120,7 @@ def build_document():
         ("Compensating Correction Pattern", "An enterprise accounting and software design pattern wherein erroneous data entries are never directly overwritten or deleted via SQL; rather, the original record is permanently retained as an indelible historical artifact while a linked, offsetting transaction is created with mandatory justification and dual-authorization sign-off."),
         ("Creditable Expanded Withholding Tax (EWT)", "A localized Philippine tax deduction (1% or 2%) applied programmatically during sales invoicing and supplier payment reconciliations in compliance with Bureau of Internal Revenue (BIR) regulations."),
         ("Dynamic Interest Accrual Engine", "A specialized accounting calculation module that dynamically computes daily interest liabilities on active commercial bank loans using exact day-count conventions and arbitrary-precision decimal mathematics."),
-        ("Financial Operations & Cheque Ledger", "The unified core financial module of HTC Core that consolidates commercial credit facilities, interest aging clocks, physical cheque disbursements, 50% upfront logistics deposits, and loan settlement lifecycles into a single operational ledger."),
+        ("Financing Module", "The core financial and treasury module of HTC Core (labeled 'Financing' in the interface) that consolidates commercial credit facilities, interest aging clocks, physical cheque disbursements, 50% upfront logistics deposits, and loan settlement lifecycles into a single operational ledger."),
         ("Gunicorn (Green Unicorn)", "A Python WSGI HTTP application server that translates web requests forwarded from NGINX into dynamic application worker processes executing Django business logic."),
         ("High-Legibility Mode (WCAG 2.1 AA Compliance)", "A dedicated user interface accessibility mode engineered to comply with Web Content Accessibility Guidelines Level AA standards by dynamically elevating contrast ratios above 7:1, increasing typography sizing to 1.15rem, expanding line height to 1.6, and eliminating color-only information cues for elderly or field-based personnel."),
         ("Immutable System Audit Trail", "An unalterable, append-only security ledger within the database architecture that permanently timestamps and records user identities, IP addresses, pre-change/post-change state snapshots, and financial modifications to prevent high-value fraud."),
@@ -192,7 +192,7 @@ def build_document():
     # ----------------------------------------------------------------------
     add_h2("Objective 2: To automate the management of bank loans, cheque transactions, and 50% upfront logistics deposits, including interest computation and repayment notifications.")
 
-    add_p("The second objective was realized through the development of the Financial Operations & Cheque Ledger module within the application's finance engine. This module interconnects commercial bank credit facilities, physical cheque disbursements, upfront logistics payables, and client billing into an automated transactional state machine. To guarantee absolute financial precision and eliminate the computational rounding drift inherent in standard IEEE 754 floating-point arithmetic, all monetary amounts, interest rates, and localized tax figures are strictly governed by Python's arbitrary-precision Decimal library (from decimal import Decimal, ROUND_HALF_UP) and stored using models.DecimalField(max_digits=14, decimal_places=2). When a shipment dispatch is initiated, the system enforces HTC's contractual logistics policy: it automatically computes the required 50% upfront logistics deposit based on allocated metric tonnage and contracted hauler freight rates, binds the disbursement commitment to an internal Cash Voucher record, and maps it directly to physical bank cheque serials, reserving the remaining 50% balance for post-delivery reconciliation upon weighbridge validation.")
+    add_p("The second objective was realized through the development of the Financing module (Financial Operations & Cheque Ledger) within the application's finance engine. This module interconnects commercial bank credit facilities, physical cheque disbursements, upfront logistics payables, and client billing into an automated transactional state machine. To guarantee absolute financial precision and eliminate the computational rounding drift inherent in standard IEEE 754 floating-point arithmetic, all monetary amounts, interest rates, and localized tax figures are strictly governed by Python's arbitrary-precision Decimal library (from decimal import Decimal, ROUND_HALF_UP) and stored using models.DecimalField(max_digits=14, decimal_places=2). When a shipment dispatch is initiated, the system enforces HTC's contractual logistics policy: it automatically computes the required 50% upfront logistics deposit based on allocated metric tonnage and contracted hauler freight rates, binds the disbursement commitment to an internal Cash Voucher record, and maps it directly to physical bank cheque serials, reserving the remaining 50% balance for post-delivery reconciliation upon weighbridge validation.")
 
     add_p("For short-term capital financing secured from commercial banking partners to fund bulk commodity purchases, the engine maintains dynamic, automated daily interest accrual clocks. The system calculates ongoing debt obligations dynamically using the banking standard day-count convention:")
 
@@ -269,9 +269,14 @@ def build_document():
         doc.save(output_docx)
         print(f"Successfully generated Word document at: {output_docx}")
     except PermissionError:
-        fallback_docx = r"C:\Users\Gigabyte\CAPSTONE-2\HTC_Core_Manuscript_Revisions_Chapter1_and_Chapter4_Updated.docx"
-        doc.save(fallback_docx)
-        print(f"Note: Main file was locked. Successfully generated Word document at: {fallback_docx}")
+        try:
+            fallback_docx = r"C:\Users\Gigabyte\CAPSTONE-2\HTC_Core_Manuscript_Revisions_Chapter1_and_Chapter4_Updated.docx"
+            doc.save(fallback_docx)
+            print(f"Note: Main file was locked. Successfully generated Word document at: {fallback_docx}")
+        except PermissionError:
+            v_docx = r"C:\Users\Gigabyte\CAPSTONE-2\HTC_Core_Manuscript_Revisions_Chapter1_and_Chapter4_Final.docx"
+            doc.save(v_docx)
+            print(f"Note: Previous files locked in Word. Successfully generated Word document at: {v_docx}")
 
 if __name__ == '__main__':
     build_document()

@@ -1,21 +1,21 @@
 {% extends "app_base.html" %}
 {% load role_tags humanize %}
-{% block title %}Financial Operations & Cheque Ledger · HTC Core{% endblock %}
-{% block topbar_title %}Financial Operations & Cheque Ledger{% endblock %}
-{% block topbar_subtitle %}Multi-tiered financial lifecycle engine — loans, paper cheques, 50% deposits & settlement{% endblock %}
+{% block title %}Financing · HTC Core{% endblock %}
+{% block topbar_title %}Financing{% endblock %}
+{% block topbar_subtitle %}Multi-tiered financial lifecycle engine — loans, 50% deposits & settlement{% endblock %}
 
 {% block content %}
 <script>
-(function() {
-    try {
-        for (var i = localStorage.length - 1; i >= 0; i--) {
-            var k = localStorage.key(i);
-            if (k && (k.indexOf('htc_form_draft_v1:/finance/loans') !== -1 || k.indexOf('htc_form_draft_v1') !== -1 && k.indexOf('/loans') !== -1)) {
-                localStorage.removeItem(k);
+    (function () {
+        try {
+            for (var i = localStorage.length - 1; i >= 0; i--) {
+                var k = localStorage.key(i);
+                if (k && (k.indexOf('htc_form_draft_v1:/finance/loans') !== -1 || k.indexOf('htc_form_draft_v1') !== -1 && k.indexOf('/loans') !== -1)) {
+                    localStorage.removeItem(k);
+                }
             }
-        }
-    } catch (e) {}
-})();
+        } catch (e) { }
+    })();
 </script>
 <style>
     /* Info Bar */
@@ -32,6 +32,7 @@
         gap: 0.6rem;
         margin-bottom: 1.5rem;
     }
+
     .info-bar i {
         font-size: 1.15rem;
         color: var(--htc-warning);
@@ -43,6 +44,7 @@
         flex-direction: column;
         gap: 1.25rem;
     }
+
     .loan-card-horizontal {
         background: var(--htc-surface);
         border: 1px solid var(--htc-border);
@@ -52,11 +54,13 @@
         grid-template-columns: 1.1fr 1.3fr;
         overflow: hidden;
     }
+
     @media (max-width: 992px) {
         .loan-card-horizontal {
             grid-template-columns: 1fr;
         }
     }
+
     .loan-left-timeline {
         padding: 1.25rem 1.35rem;
         border-right: 1px solid var(--htc-border);
@@ -65,12 +69,14 @@
         justify-content: space-between;
         background: var(--htc-surface);
     }
+
     @media (max-width: 992px) {
         .loan-left-timeline {
             border-right: none;
             border-bottom: 1px solid var(--htc-border);
         }
     }
+
     .loan-right-stats {
         padding: 1.25rem 1.35rem;
         background-color: rgba(148, 163, 184, 0.08);
@@ -89,22 +95,25 @@
         border-radius: 6px;
         text-transform: uppercase;
     }
+
     .card-bank {
         font-size: 1.15rem;
         font-weight: 800;
         color: var(--htc-primary);
         margin: 0.35rem 0 0.15rem 0;
     }
+
     .card-subtext {
         font-size: 0.825rem;
         color: var(--htc-text-muted);
         font-weight: 500;
     }
-    
+
     /* Timeline track */
     .timeline-track-wrap {
         margin-top: 1.25rem;
     }
+
     .timeline-track-bar {
         background-color: var(--htc-border);
         height: 8px;
@@ -112,14 +121,24 @@
         overflow: hidden;
         margin-bottom: 0.4rem;
     }
+
     .timeline-track-fill {
         height: 100%;
         border-radius: inherit;
     }
-    .timeline-track-fill.blue { background-color: #3b82f6; }
-    .timeline-track-fill.red { background-color: #ef4444; }
-    .timeline-track-fill.green { background-color: #10b981; }
-    
+
+    .timeline-track-fill.blue {
+        background-color: #3b82f6;
+    }
+
+    .timeline-track-fill.red {
+        background-color: #ef4444;
+    }
+
+    .timeline-track-fill.green {
+        background-color: #10b981;
+    }
+
     .timeline-dates-row {
         display: flex;
         justify-content: space-between;
@@ -134,6 +153,7 @@
         flex-direction: column;
         gap: 0.2rem;
     }
+
     .stat-metric span:first-child {
         font-size: 0.725rem;
         color: var(--htc-text-muted);
@@ -147,6 +167,7 @@
         align-items: center;
         gap: 0.35rem;
     }
+
     .rate-input-wrap input {
         width: 60px;
         padding: 0.15rem 0.4rem;
@@ -165,6 +186,7 @@
         gap: 0.4rem;
         flex-wrap: wrap;
     }
+
     .cheque-badge {
         background-color: var(--htc-surface);
         border: 1px solid var(--htc-border);
@@ -185,9 +207,21 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
     }
-    .status-badge.active { background-color: rgba(59, 130, 246, 0.16); color: var(--htc-primary-light); }
-    .status-badge.settled { background-color: var(--htc-success-bg); color: var(--htc-success); }
-    .status-badge.overdue { background-color: var(--htc-danger-bg); color: var(--htc-accent); }
+
+    .status-badge.active {
+        background-color: rgba(59, 130, 246, 0.16);
+        color: var(--htc-primary-light);
+    }
+
+    .status-badge.settled {
+        background-color: var(--htc-success-bg);
+        color: var(--htc-success);
+    }
+
+    .status-badge.overdue {
+        background-color: var(--htc-danger-bg);
+        color: var(--htc-accent);
+    }
 
     /* Red urgency text */
     .text-urgent-red {
@@ -200,6 +234,7 @@
         position: relative;
         width: 100%;
     }
+
     .search-input-wrap .search-icon {
         position: absolute;
         left: 0.95rem;
@@ -210,15 +245,18 @@
         pointer-events: none;
         z-index: 2;
     }
+
     .search-input-wrap .search-field {
         height: 40px !important;
         padding-left: 2.45rem !important;
         border-radius: 8px !important;
     }
+
     .filter-control {
         height: 40px !important;
         border-radius: 8px !important;
     }
+
     .filter-btn {
         height: 40px !important;
         border-radius: 8px !important;
@@ -226,11 +264,13 @@
         align-items: center !important;
         justify-content: center !important;
     }
+
     .btn-xs {
         padding: 0.2rem 0.5rem;
         font-size: 0.72rem;
         border-radius: 4px;
     }
+
     .table-portfolio th {
         font-size: 0.75rem;
         font-weight: 700;
@@ -240,6 +280,7 @@
         background: #f8fafc;
         padding: 0.95rem 1rem;
     }
+
     .table-portfolio td {
         padding: 1.15rem 1rem;
         vertical-align: middle;
@@ -247,7 +288,8 @@
 </style>
 
 <!-- TOP KPI CARDS (DIRECTLY BENEATH TITLE BAR) -->
-<div class="metric-grid mb-4" data-step="1" data-intro="Financial KPI summary showing total Active Loans, real-time Incurred Interest liabilities, 50% Delivery Deposits, and Overdue Loans.">
+<div class="metric-grid mb-4" data-step="1"
+    data-intro="Financial KPI summary showing total Active Loans, real-time Incurred Interest liabilities, 50% Delivery Deposits, and Overdue Loans.">
     <div class="metric-box">
         <div class="label">Total Active Loans</div>
         <div class="value">₱{{ active_exposure_m|floatformat:2 }}M</div>
@@ -279,11 +321,13 @@
             <div class="col-lg-3 col-md-6">
                 <div class="search-input-wrap">
                     <i class="bi bi-search search-icon"></i>
-                    <input type="text" name="q" value="{{ q }}" class="form-control-htc search-field" placeholder="Search PO #, client, bank, cheque #, advice #..." data-no-cache="true">
+                    <input type="text" name="q" value="{{ q }}" class="form-control-htc search-field"
+                        placeholder="Search PO #, client, bank, cheque #, advice #..." data-no-cache="true">
                 </div>
             </div>
             <div class="col-lg-3 col-md-6">
-                <select name="po" class="form-select-htc filter-control" data-no-cache="true" onchange="if(this.value && (!window.event || window.event.isTrusted)){ window.location.href=this.value; }">
+                <select name="po" class="form-select-htc filter-control" data-no-cache="true"
+                    onchange="if(this.value && (!window.event || window.event.isTrusted)){ window.location.href=this.value; }">
                     <option value="">-- All Deals (Select PO to Open Dedicated Workspace) --</option>
                     {% for p in all_open_pos %}
                     <option value="{% url 'finance:po_workspace' p.cluster.pk %}">
@@ -304,14 +348,17 @@
             </div>
             <div class="col-lg-2 col-md-4">
                 <div class="input-group input-group-sm">
-                    <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" title="Start date from">
-                    <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" title="Start date to">
+                    <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm"
+                        title="Start date from">
+                    <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm"
+                        title="Start date to">
                 </div>
             </div>
             <div class="col-lg-2 col-md-4 d-flex gap-2">
                 <button type="submit" class="btn-htc filter-btn flex-grow-1">Filter</button>
                 {% if q or status_filter != 'all' or po_ref or date_from or date_to or manager_filter %}
-                <a href="{% url 'finance:loan_list' %}" class="btn-htc-outline filter-btn px-2.5" title="Clear all filters"><i class="bi bi-x-lg"></i></a>
+                <a href="{% url 'finance:loan_list' %}" class="btn-htc-outline filter-btn px-2.5"
+                    title="Clear all filters"><i class="bi bi-x-lg"></i></a>
                 {% endif %}
             </div>
         </form>
@@ -319,7 +366,8 @@
 </div>
 
 <!-- TABS ROW WITH HEADER ACTION -->
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2.5 mb-4" data-step="2" data-intro="Switch between the PO-Sorted Portfolio, individual Capital Facilities view, and the Physical Paper Cheque Register.">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2.5 mb-4" data-step="2"
+    data-intro="Switch between the PO-Sorted Portfolio, individual Capital Facilities view, and the Physical Paper Cheque Register.">
     <div class="tabs-row m-0" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
         <button type="button" class="tab-btn active" onclick="switchFinanceTab('portfolio', this)">
             <i class="bi bi-view-list me-1"></i> PO Financial Portfolio ({{ po_portfolio|length }})
@@ -333,7 +381,9 @@
     </div>
     <div class="d-flex align-items-center gap-2">
         {% if user|has_perm:"add_loan" %}
-        <button type="button" class="btn btn-primary btn-sm rounded-pill font-bold px-3.5 py-1.5 shadow-sm d-inline-flex align-items-center gap-1.5" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+        <button type="button"
+            class="btn btn-primary btn-sm rounded-pill font-bold px-3.5 py-1.5 shadow-sm d-inline-flex align-items-center gap-1.5"
+            data-bs-toggle="modal" data-bs-target="#newLoanModal">
             <i class="bi bi-plus-lg"></i> Add Loan Facility
         </button>
         {% endif %}
@@ -346,7 +396,8 @@
     <div class="card-header bg-warning-subtle py-2.5 px-4 d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
             <i class="bi bi-shield-exclamation text-warning-emphasis fs-5"></i>
-            <span class="fw-bold text-warning-emphasis fs-7 text-uppercase tracking-wider">Loan Approval Queue · Manager Sign-off</span>
+            <span class="fw-bold text-warning-emphasis fs-7 text-uppercase tracking-wider">Loan Approval Queue · Manager
+                Sign-off</span>
         </div>
         <span class="badge bg-warning text-dark fw-bold px-2.5 py-1 fs-8 rounded-pill shadow-xs">
             {{ pending_verification_count }} Action Pending
@@ -391,36 +442,51 @@
                         </td>
                         <td class="text-end pe-4">
                             {% if user|has_perm:"verify_loan" %}
-                            <button type="button" class="btn btn-sm btn-success fw-bold px-3 py-1.5 shadow-xs d-inline-flex align-items-center gap-1.5" data-bs-toggle="modal" data-bs-target="#verifyCreationModal{{ p_loan.pk }}">
+                            <button type="button"
+                                class="btn btn-sm btn-success fw-bold px-3 py-1.5 shadow-xs d-inline-flex align-items-center gap-1.5"
+                                data-bs-toggle="modal" data-bs-target="#verifyCreationModal{{ p_loan.pk }}">
                                 <i class="bi bi-check-circle-fill"></i> Review &amp; Approve
                             </button>
                             {% else %}
-                            <span class="badge bg-secondary-subtle text-secondary border fs-8 py-1 px-2.5 d-inline-flex align-items-center gap-1">
+                            <span
+                                class="badge bg-secondary-subtle text-secondary border fs-8 py-1 px-2.5 d-inline-flex align-items-center gap-1">
                                 <i class="bi bi-lock-fill"></i> Awaiting Ops Mgmt / Admin Approval
                             </span>
                             {% endif %}
 
                             <!-- VERIFY CREATION MODAL -->
-                            <div class="modal fade" id="verifyCreationModal{{ p_loan.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal fade" id="verifyCreationModal{{ p_loan.pk }}" tabindex="-1"
+                                aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content text-start">
-                                        <form method="post" action="{% url 'finance:verify_loan_creation' p_loan.pk %}">{% csrf_token %}
+                                        <form method="post" action="{% url 'finance:verify_loan_creation' p_loan.pk %}">
+                                            {% csrf_token %}
                                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                             <div class="modal-header">
-                                                <h6 class="modal-title font-weight-bold"><i class="bi bi-shield-check text-primary me-2"></i>Verify Loan Facility — {{ p_loan.bank_name }}</h6>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                <h6 class="modal-title font-weight-bold"><i
+                                                        class="bi bi-shield-check text-primary me-2"></i>Verify Loan
+                                                    Facility — {{ p_loan.bank_name }}</h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                    aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body">
                                                 <div class="alert alert-info py-2 px-3 fs-7 mb-3">
                                                     <strong>Loan Audit Review:</strong> Contract: <strong>{{ p_loan.cluster.reference_code }}</strong> (Customer: {{ p_loan.cluster.client.name }}). Principal: <strong>₱{{ p_loan.principal|floatformat:2|intcomma }}</strong> @ {{ p_loan.interest_rate_annual }}% p.a.
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label class="form-label font-weight-bold fs-7">Verification Notes / Audit Remarks</label>
-                                                    <textarea name="verification_notes" class="form-control" rows="2" placeholder="e.g. Verified contract PO terms and bank account, approval confirmed."></textarea>
+                                                    <label class="form-label font-weight-bold fs-7">Verification Notes /
+                                                        Audit Remarks</label>
+                                                    <textarea name="verification_notes" class="form-control" rows="2"
+                                                        placeholder="e.g. Verified contract PO terms and bank account, approval confirmed."></textarea>
                                                 </div>
                                                 <div class="d-flex gap-2">
-                                                    <button type="submit" name="action" value="approve" class="btn btn-success flex-grow-1"><i class="bi bi-check-lg me-1"></i> Approve & Activate Loan</button>
-                                                    <button type="submit" name="action" value="reject" class="btn btn-outline-danger"><i class="bi bi-x-lg me-1"></i> Reject</button>
+                                                    <button type="submit" name="action" value="approve"
+                                                        class="btn btn-success flex-grow-1"><i
+                                                            class="bi bi-check-lg me-1"></i> Approve & Activate
+                                                        Loan</button>
+                                                    <button type="submit" name="action" value="reject"
+                                                        class="btn btn-outline-danger"><i class="bi bi-x-lg me-1"></i>
+                                                        Reject</button>
                                                 </div>
                                             </div>
                                         </form>
@@ -456,31 +522,44 @@
                     <tbody>
                         {% for s_loan in pending_settlement_loans %}
                         <tr>
-                            <td class="ps-3"><strong class="text-primary">{{ s_loan.cluster.reference_code }}</strong></td>
-                            <td><strong class="text-dark">{{ s_loan.settlement_receipt_number|default:"—" }}</strong> <small class="text-muted d-block">{{ s_loan.settlement_date|date:"M d, Y" }}</small></td>
+                            <td class="ps-3"><strong class="text-primary">{{ s_loan.cluster.reference_code }}</strong>
+                            </td>
+                            <td><strong class="text-dark">{{ s_loan.settlement_receipt_number|default:"—" }}</strong>
+                                <small class="text-muted d-block">{{ s_loan.settlement_date|date:"M d, Y" }}</small>
+                            </td>
                             <td>₱{{ s_loan.principal|floatformat:2|intcomma }} + <span class="text-danger">₱{{ s_loan.accrued_interest|floatformat:2|intcomma }}</span></td>
                             <td>
                                 {% if s_loan.settlement_document %}
-                                <button type="button" class="btn btn-sm btn-outline-info py-0 px-2 fs-7" data-bs-toggle="modal" data-bs-target="#previewDocModal{{ s_loan.pk }}">
+                                <button type="button" class="btn btn-sm btn-outline-info py-0 px-2 fs-7"
+                                    data-bs-toggle="modal" data-bs-target="#previewDocModal{{ s_loan.pk }}">
                                     <i class="bi bi-file-earmark-pdf me-1"></i> Preview PDF
                                 </button>
 
                                 <!-- DOCUMENT PREVIEW MODAL -->
-                                <div class="modal fade" id="previewDocModal{{ s_loan.pk }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal fade" id="previewDocModal{{ s_loan.pk }}" tabindex="-1"
+                                    aria-hidden="true">
                                     <div class="modal-dialog modal-lg modal-dialog-centered">
                                         <div class="modal-content text-start">
                                             <div class="modal-header">
-                                                <h6 class="modal-title font-weight-bold"><i class="bi bi-file-earmark-pdf text-info me-2"></i>Bank Release Clearance Advice — Receipt #{{ s_loan.settlement_receipt_number }}</h6>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                <h6 class="modal-title font-weight-bold"><i
+                                                        class="bi bi-file-earmark-pdf text-info me-2"></i>Bank Release
+                                                    Clearance Advice — Receipt #{{ s_loan.settlement_receipt_number }}
+                                                </h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                    aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body p-0" style="height: 520px; background: #525659;">
-                                                <iframe src="{{ s_loan.settlement_document.url }}" style="width: 100%; height: 100%; border: none;"></iframe>
+                                                <iframe src="{{ s_loan.settlement_document.url }}"
+                                                    style="width: 100%; height: 100%; border: none;"></iframe>
                                             </div>
                                             <div class="modal-footer py-2 flex-between">
                                                 <small class="text-muted">Linked Contract: {{ s_loan.cluster.reference_code }}</small>
                                                 <div>
-                                                    <a href="{{ s_loan.settlement_document.url }}" target="_blank" download class="btn btn-sm btn-outline-primary"><i class="bi bi-download me-1"></i> Download PDF</a>
-                                                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                    <a href="{{ s_loan.settlement_document.url }}" target="_blank"
+                                                        download class="btn btn-sm btn-outline-primary"><i
+                                                            class="bi bi-download me-1"></i> Download PDF</a>
+                                                    <button type="button" class="btn btn-sm btn-secondary"
+                                                        data-bs-dismiss="modal">Close</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -492,36 +571,55 @@
                             </td>
                             <td class="text-end pe-3">
                                 {% if user|has_perm:"verify_loan" %}
-                                <button type="button" class="btn btn-sm btn-info text-white fw-bold px-3 py-1.5 shadow-xs d-inline-flex align-items-center gap-1.5" data-bs-toggle="modal" data-bs-target="#verifySettlementModal{{ s_loan.pk }}">
+                                <button type="button"
+                                    class="btn btn-sm btn-info text-white fw-bold px-3 py-1.5 shadow-xs d-inline-flex align-items-center gap-1.5"
+                                    data-bs-toggle="modal" data-bs-target="#verifySettlementModal{{ s_loan.pk }}">
                                     <i class="bi bi-shield-check"></i> Review &amp; Close
                                 </button>
                                 {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary border fs-8 py-1 px-2.5 d-inline-flex align-items-center gap-1">
+                                <span
+                                    class="badge bg-secondary-subtle text-secondary border fs-8 py-1 px-2.5 d-inline-flex align-items-center gap-1">
                                     <i class="bi bi-lock-fill"></i> Awaiting Verification
                                 </span>
                                 {% endif %}
 
                                 <!-- VERIFY SETTLEMENT MODAL -->
-                                <div class="modal fade" id="verifySettlementModal{{ s_loan.pk }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal fade" id="verifySettlementModal{{ s_loan.pk }}" tabindex="-1"
+                                    aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered">
                                         <div class="modal-content text-start">
-                                            <form method="post" action="{% url 'finance:verify_loan_settlement' s_loan.pk %}">{% csrf_token %}
+                                            <form method="post"
+                                                action="{% url 'finance:verify_loan_settlement' s_loan.pk %}">{% csrf_token %}
                                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                                 <div class="modal-header">
-                                                    <h6 class="modal-title font-weight-bold"><i class="bi bi-shield-check text-info me-2"></i>Verify Loan Settlement — {{ s_loan.cluster.reference_code }}</h6>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    <h6 class="modal-title font-weight-bold"><i
+                                                            class="bi bi-shield-check text-info me-2"></i>Verify Loan
+                                                        Settlement — {{ s_loan.cluster.reference_code }}</h6>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
                                                 </div>
                                                 <div class="modal-body">
                                                     <div class="alert alert-success py-2 px-3 fs-7 mb-3">
-                                                        <strong>Bank Clearance Verification:</strong> Advice Receipt #: <strong>{{ s_loan.settlement_receipt_number }}</strong>. Confirming that bank facility has been fully paid off and settled.
+                                                        <strong>Bank Clearance Verification:</strong> Advice Receipt #:
+                                                        <strong>{{ s_loan.settlement_receipt_number }}</strong>.
+                                                        Confirming that bank facility has been fully paid off and
+                                                        settled.
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label font-weight-bold fs-7">Verification Audit Notes</label>
-                                                        <textarea name="verification_notes" class="form-control" rows="2" placeholder="e.g. Verified clearance receipt and bank deposit slip. Loan officially closed."></textarea>
+                                                        <label class="form-label font-weight-bold fs-7">Verification
+                                                            Audit Notes</label>
+                                                        <textarea name="verification_notes" class="form-control"
+                                                            rows="2"
+                                                            placeholder="e.g. Verified clearance receipt and bank deposit slip. Loan officially closed."></textarea>
                                                     </div>
                                                     <div class="d-flex gap-2">
-                                                        <button type="submit" name="action" value="approve" class="btn btn-success flex-grow-1"><i class="bi bi-check-lg me-1"></i> Approve & Close Facility</button>
-                                                        <button type="submit" name="action" value="reject" class="btn btn-outline-danger"><i class="bi bi-x-lg me-1"></i> Reject Settlement</button>
+                                                        <button type="submit" name="action" value="approve"
+                                                            class="btn btn-success flex-grow-1"><i
+                                                                class="bi bi-check-lg me-1"></i> Approve & Close
+                                                            Facility</button>
+                                                        <button type="submit" name="action" value="reject"
+                                                            class="btn btn-outline-danger"><i
+                                                                class="bi bi-x-lg me-1"></i> Reject Settlement</button>
                                                     </div>
                                                 </div>
                                             </form>
@@ -547,7 +645,8 @@
             <h5 class="mb-0 fs-6 fw-bold text-dark">
                 <i class="bi bi-view-list text-primary me-2"></i> PO Financial &amp; Expense Matchmaking Portfolio
             </h5>
-            <div class="text-xs text-muted mt-0.5">All purchase orders sorted with linked credit facilities, loan principals, and outlay matchmaking reconciliation.</div>
+            <div class="text-xs text-muted mt-0.5">All purchase orders sorted with linked credit facilities, loan
+                principals, and outlay matchmaking reconciliation.</div>
         </div>
         <span class="badge bg-secondary rounded-pill">{{ po_portfolio|length }} Contracts Listed</span>
     </div>
@@ -568,59 +667,72 @@
                     {% for item in po_portfolio %}
                     <tr class="{% if item.is_focused %}table-primary-subtle{% endif %}">
                         <td class="py-4 ps-4 pe-3">
-                            <a href="{% url 'finance:po_workspace' item.cluster.pk %}" class="fw-bold text-primary text-decoration-none fs-7">
+                            <a href="{% url 'finance:po_workspace' item.cluster.pk %}"
+                                class="fw-bold text-primary text-decoration-none fs-7">
                                 {{ item.po_ref }}
                             </a>
                             {% if item.cluster.reference_code != item.po_ref %}
                             <div class="text-xs text-muted font-monospace">{{ item.cluster.reference_code }}</div>
                             {% endif %}
-                            <div class="text-xs text-muted mt-0.5">{{ item.cluster.created_at|date:"M d, Y H:i:s" }} PST</div>
+                            <div class="text-xs text-muted mt-0.5">{{ item.cluster.created_at|date:"M d, Y H:i:s" }} PST
+                            </div>
                         </td>
                         <td class="py-4 px-3">
                             <strong class="text-dark">{{ item.client_name }}</strong>
                             <div class="text-xs text-muted">{{ item.mill_name }}</div>
                         </td>
                         <td class="py-4 px-3">
-                            <div class="fw-bold text-dark">{{ item.volume_mt|floatformat:3|intcomma }} <span class="fs-8 fw-normal text-muted">MT</span></div>
+                            <div class="fw-bold text-dark">{{ item.volume_mt|floatformat:3|intcomma }} <span
+                                    class="fs-8 fw-normal text-muted">MT</span></div>
                             <div class="text-xs text-muted">Cost: ₱{{ item.buying_total|floatformat:2|intcomma }}</div>
-                            <div class="text-xs text-success">Income: ₱{{ item.selling_total|floatformat:2|intcomma }}</div>
+                            <div class="text-xs text-success">Income: ₱{{ item.selling_total|floatformat:2|intcomma }}
+                            </div>
                         </td>
                         <td class="py-4 px-3">
                             {% if item.loans %}
-                                <div class="fw-bold text-dark font-monospace">₱{{ item.principal_total|floatformat:2|intcomma }}</div>
-                                <div class="d-flex gap-1 flex-wrap mt-1">
-                                    {% for l in item.loans %}
-                                    <span class="badge {% if l.status == 'active' %}bg-primary-subtle text-primary border border-primary-subtle{% elif l.status == 'closed' %}bg-success-subtle text-success border border-success-subtle{% elif l.status == 'pending_creation' %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8" title="Rate: {{ l.interest_rate_annual }}% · Due: {{ l.due_date|date:'M d, Y' }}">
-                                        {{ l.bank_name }}: {{ l.get_status_display }}
-                                    </span>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary border fs-8">
-                                    No Loan Facility
+                            <div class="fw-bold text-dark font-monospace">₱{{ item.principal_total|floatformat:2|intcomma }}</div>
+                            <div class="d-flex gap-1 flex-wrap mt-1">
+                                {% for l in item.loans %}
+                                <span
+                                    class="badge {% if l.status == 'active' %}bg-primary-subtle text-primary border border-primary-subtle{% elif l.status == 'closed' %}bg-success-subtle text-success border border-success-subtle{% elif l.status == 'pending_creation' %}bg-warning-subtle text-warning-emphasis border border-warning{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8"
+                                    title="Rate: {{ l.interest_rate_annual }}% · Due: {{ l.due_date|date:'M d, Y' }}">
+                                    {{ l.bank_name }}: {{ l.get_status_display }}
                                 </span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border fs-8">
+                                No Loan Facility
+                            </span>
                             {% endif %}
                         </td>
                         <td class="py-4 px-3" style="min-width: 250px;">
                             <!-- Progress Bar Label Top Row: Matched Amount & Right-Aligned Percentage Pill -->
                             <div class="d-flex justify-content-between align-items-center mb-1.5">
                                 <span class="text-xs font-medium text-slate-600" style="color: #475569;">
-                                    Matched: <strong class="{% if item.is_over_target %}text-danger{% else %}text-dark{% endif %} font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma }}</strong>
+                                    Matched: <strong
+                                        class="{% if item.is_over_target %}text-danger{% else %}text-dark{% endif %} font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma }}</strong>
                                 </span>
                                 {% if item.is_over_target %}
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 fw-bold px-2 py-0.5">
+                                <span
+                                    class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 fw-bold px-2 py-0.5">
                                     {{ item.match_pct }}%
                                 </span>
                                 {% else %}
-                                <span class="badge {% if item.match_pct >= 100 %}bg-success-subtle text-success border border-success-subtle{% elif item.match_pct > 0 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8 fw-semibold px-2 py-0.5">
+                                <span
+                                    class="badge {% if item.match_pct >= 100 %}bg-success-subtle text-success border border-success-subtle{% elif item.match_pct > 0 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-secondary-subtle text-secondary border{% endif %} fs-8 fw-semibold px-2 py-0.5">
                                     {{ item.match_pct }}%
                                 </span>
                                 {% endif %}
                             </div>
 
                             <!-- Progress Track -->
-                            <div class="progress my-1.5" style="height: 7px; border-radius: 9999px; background-color: #e2e8f0; overflow: hidden;">
-                                <div class="progress-bar {% if item.is_over_target %}bg-danger{% elif item.match_pct >= 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {% if item.match_pct > 100 %}100{% else %}{{ item.match_pct }}{% endif %}%;"></div>
+                            <div class="progress my-1.5"
+                                style="height: 7px; border-radius: 9999px; background-color: #e2e8f0; overflow: hidden;">
+                                <div class="progress-bar {% if item.is_over_target %}bg-danger{% elif item.match_pct >= 100 %}bg-success{% else %}bg-primary{% endif %}"
+                                    role="progressbar"
+                                    style="width: {% if item.match_pct > 100 %}100{% else %}{{ item.match_pct }}{% endif %}%;">
+                                </div>
                             </div>
 
                             <!-- Progress Bar Label Bottom Row: Target Amount & Over-target Hazard Delta Badge -->
@@ -629,7 +741,9 @@
                                     Target: ₱{{ item.target_amount|floatformat:2|intcomma }}
                                 </span>
                                 {% if item.is_over_target %}
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 fw-bold px-2.5 py-1 d-inline-flex align-items-center gap-1 shadow-2xs" title="Expenses exceed target credit limit by ₱{{ item.excess_amount|floatformat:2|intcomma }}">
+                                <span
+                                    class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 fw-bold px-2.5 py-1 d-inline-flex align-items-center gap-1 shadow-2xs"
+                                    title="Expenses exceed target credit limit by ₱{{ item.excess_amount|floatformat:2|intcomma }}">
                                     <i class="bi bi-exclamation-triangle-fill text-danger"></i> +₱{{ item.excess_amount|floatformat:2|intcomma }} Over
                                 </span>
                                 {% endif %}
@@ -637,10 +751,14 @@
                         </td>
                         <td class="text-end py-4 ps-3 pe-4">
                             <div class="d-flex gap-2 align-items-center justify-content-end">
-                                <a href="{% url 'finance:po_workspace' item.cluster.pk %}" class="btn btn-sm btn-primary fw-bold py-1.5 px-3 fs-8 shadow-xs text-nowrap" title="Open Dedicated PO Finance Workspace">
+                                <a href="{% url 'finance:po_workspace' item.cluster.pk %}"
+                                    class="btn btn-sm btn-primary fw-bold py-1.5 px-3 fs-8 shadow-xs text-nowrap"
+                                    title="Open Dedicated PO Finance Workspace">
                                     Focus Workspace &rarr;
                                 </a>
-                                <a href="{% url 'operations:cluster_detail' item.cluster.pk %}" class="btn btn-sm btn-outline-secondary py-1.5 px-3 fs-8 text-nowrap" title="View Full Purchase Order in Operations" target="_blank">
+                                <a href="{% url 'operations:cluster_detail' item.cluster.pk %}"
+                                    class="btn btn-sm btn-outline-secondary py-1.5 px-3 fs-8 text-nowrap"
+                                    title="View Full Purchase Order in Operations" target="_blank">
                                     Operations PO
                                 </a>
                             </div>
@@ -662,9 +780,11 @@
 </div>
 
 <!-- Timeline Info Banner -->
-<div class="info-bar" data-step="3" data-intro="Each bank facility card displays real-time interest accrual, maturity timeline bars, paper cheque numbers, and settlement authorization controls.">
+<div class="info-bar" data-step="3"
+    data-intro="Each bank facility card displays real-time interest accrual, maturity timeline bars, paper cheque numbers, and settlement authorization controls.">
     <i class="bi bi-info-circle-fill"></i>
-    <span>Daily interest liabilities accrue in real time. Marking a facility as settled requires uploading official bank payoff documentation for verification.</span>
+    <span>Daily interest liabilities accrue in real time. Marking a facility as settled requires uploading official bank
+        payoff documentation for verification.</span>
 </div>
 
 <!-- TAB 2: LOAN REGISTRY STACK -->
@@ -677,68 +797,73 @@
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <span class="card-code">FACILITY #{{ loan.pk }}</span>
                     {% if loan.is_archived %}
-                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 fs-8">
-                            <i class="bi bi-archive me-1"></i> Archived in Vault
-                        </span>
+                    <span
+                        class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 fs-8">
+                        <i class="bi bi-archive me-1"></i> Archived in Vault
+                    </span>
                     {% elif loan.status == 'closed' %}
-                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 fs-8">
-                            <i class="bi bi-check-circle-fill me-1"></i> Settled &amp; Closed
-                        </span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 fs-8">
+                        <i class="bi bi-check-circle-fill me-1"></i> Settled &amp; Closed
+                    </span>
                     {% elif loan.status == 'pending_settlement' %}
-                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2.5 py-1 fs-8">
-                            <i class="bi bi-hourglass-split me-1"></i> Pending Settlement Approval
-                        </span>
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2.5 py-1 fs-8">
+                        <i class="bi bi-hourglass-split me-1"></i> Pending Settlement Approval
+                    </span>
                     {% elif loan.status == 'pending_creation' %}
-                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2.5 py-1 fs-8">
-                            <i class="bi bi-clock-history me-1"></i> Pending Creation Approval
-                        </span>
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2.5 py-1 fs-8">
+                        <i class="bi bi-clock-history me-1"></i> Pending Creation Approval
+                    </span>
                     {% elif loan.is_overdue or loan.status == 'overdue' %}
-                        <span class="badge bg-danger-subtle text-danger border border-danger px-2.5 py-1 fs-8">
-                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Overdue
-                        </span>
+                    <span class="badge bg-danger-subtle text-danger border border-danger px-2.5 py-1 fs-8">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Overdue
+                    </span>
                     {% else %}
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fs-8">
-                            <i class="bi bi-shield-check me-1"></i> Active Facility
-                        </span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fs-8">
+                        <i class="bi bi-shield-check me-1"></i> Active Facility
+                    </span>
                     {% endif %}
                 </div>
                 <div class="card-bank">{{ loan.bank_name }}</div>
                 <div class="card-subtext mb-2 d-flex align-items-center gap-2 flex-wrap">
-                    <span>PO #: <a href="{% url 'operations:cluster_detail' loan.cluster.pk %}" class="fw-bold text-decoration-none">{{ loan.cluster.reference_code }}</a></span>
-                    <a href="{% url 'finance:po_workspace' loan.cluster.pk %}?loan={{ loan.pk }}" class="btn btn-sm btn-outline-secondary py-0.5 px-2 fs-8 text-nowrap">Open Workspace &rarr;</a>
+                    <span>PO #: <a href="{% url 'operations:cluster_detail' loan.cluster.pk %}"
+                            class="fw-bold text-decoration-none">{{ loan.cluster.reference_code }}</a></span>
+                    <a href="{% url 'finance:po_workspace' loan.cluster.pk %}?loan={{ loan.pk }}"
+                        class="btn btn-sm btn-outline-secondary py-0.5 px-2 fs-8 text-nowrap">Open Workspace &rarr;</a>
                 </div>
                 <div class="card-subtext">
                     {% if loan.status == 'pending_creation' %}
-                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1">
-                            <i class="bi bi-clock-history me-1"></i> Pending Manager Approval
-                        </span>
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1">
+                        <i class="bi bi-clock-history me-1"></i> Pending Manager Approval
+                    </span>
                     {% elif loan.status == 'pending_settlement' %}
-                        <span class="badge bg-info-subtle text-info border border-info px-2 py-1">
-                            <i class="bi bi-hourglass-split me-1"></i> Pending Payoff Approval
-                        </span>
+                    <span class="badge bg-info-subtle text-info border border-info px-2 py-1">
+                        <i class="bi bi-hourglass-split me-1"></i> Pending Payoff Approval
+                    </span>
                     {% elif loan.status == 'closed' %}
-                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                            <i class="bi bi-shield-check me-1"></i> Settled &amp; Closed
-                            {% if loan.settlement_receipt_number %}
-                                · Receipt #{{ loan.settlement_receipt_number }}
-                            {% endif %}
-                        </span>
-                        {% if loan.settlement_document %}
-                            <a href="{{ loan.settlement_document.url }}" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 ms-1" style="font-size: 0.75rem;" title="View Bank Release Soft Copy">
-                                <i class="bi bi-file-earmark-pdf"></i> View Release PDF
-                            </a>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                        <i class="bi bi-shield-check me-1"></i> Settled &amp; Closed
+                        {% if loan.settlement_receipt_number %}
+                        · Receipt #{{ loan.settlement_receipt_number }}
                         {% endif %}
+                    </span>
+                    {% if loan.settlement_document %}
+                    <a href="{{ loan.settlement_document.url }}" target="_blank"
+                        class="btn btn-sm btn-outline-success py-0 px-2 ms-1" style="font-size: 0.75rem;"
+                        title="View Bank Release Soft Copy">
+                        <i class="bi bi-file-earmark-pdf"></i> View Release PDF
+                    </a>
+                    {% endif %}
                     {% elif loan.status == 'rejected' %}
-                        <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1">
-                            <i class="bi bi-x-circle-fill me-1"></i> Verification Rejected
-                        </span>
+                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1">
+                        <i class="bi bi-x-circle-fill me-1"></i> Verification Rejected
+                    </span>
                     {% elif loan.is_overdue or loan.status == 'overdue' %}
-                        <span class="text-urgent-red"><i class="bi bi-exclamation-triangle-fill"></i> Due Date: {{ loan.due_date|date:"M d, Y" }} (Overdue)</span>
+                    <span class="text-urgent-red"><i class="bi bi-exclamation-triangle-fill"></i> Due Date: {{ loan.due_date|date:"M d, Y" }} (Overdue)</span>
                     {% else %}
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                            <i class="bi bi-check-circle-fill me-1"></i> Active Loan
-                        </span>
-                        <span class="ms-1 text-muted small"><i class="bi bi-calendar-event"></i> Due: <strong>{{ loan.due_date|date:"M d, Y" }}</strong> ({{ loan.days_remaining }} days left)</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                        <i class="bi bi-check-circle-fill me-1"></i> Active Loan
+                    </span>
+                    <span class="ms-1 text-muted small"><i class="bi bi-calendar-event"></i> Due: <strong>{{ loan.due_date|date:"M d, Y" }}</strong> ({{ loan.days_remaining }} days left)</span>
                     {% endif %}
                 </div>
                 {% if loan.verified_by %}
@@ -751,7 +876,8 @@
 
             <div class="timeline-track-wrap">
                 <div class="timeline-track-bar">
-                    <div class="timeline-track-fill {{ loan.timeline_color_class }}" style="width: {{ loan.timeline_percent }}%;"></div>
+                    <div class="timeline-track-fill {{ loan.timeline_color_class }}"
+                        style="width: {{ loan.timeline_percent }}%;"></div>
                 </div>
                 <div class="timeline-dates-row">
                     <span>Start: {{ loan.start_date|date:"M d, Y" }}</span>
@@ -766,7 +892,7 @@
                 <span>Loan Amount</span>
                 <span class="fs-6 fw-bold text-dark">₱{{ loan.principal|floatformat:2|intcomma }}</span>
             </div>
-            
+
             <div class="stat-metric">
                 <span>Yearly Interest Rate</span>
                 <div class="rate-input-wrap">
@@ -778,7 +904,9 @@
             <div class="stat-metric">
                 <span class="d-inline-flex align-items-center gap-1">
                     Delivery Deposit (50%)
-                    <i class="bi bi-question-circle text-primary cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: 50% Deposit = (Volume MT × ₱450.00/MT Freight Rate) × 50% Upfront Obligation"></i>
+                    <i class="bi bi-question-circle text-primary cursor-pointer" data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Formula: 50% Deposit = (Volume MT × ₱450.00/MT Freight Rate) × 50% Upfront Obligation"></i>
                 </span>
                 <span class="text-primary fw-bold">₱{{ loan.logistics_deposit|floatformat:2|intcomma }}</span>
             </div>
@@ -787,848 +915,1031 @@
             <div class="stat-metric">
                 <span class="d-inline-flex align-items-center gap-1">
                     Interest Incurred (₱{{ loan.daily_interest|intcomma }}/day)
-                    <i class="bi bi-question-circle text-danger cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: Principal × (Annual Interest Rate % / 365) × Days Outstanding"></i>
+                    <i class="bi bi-question-circle text-danger cursor-pointer" data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Formula: Principal × (Annual Interest Rate % / 365) × Days Outstanding"></i>
                 </span>
                 <span class="text-urgent-red fs-6">₱{{ loan.accrued_interest|floatformat:2|intcomma }}</span>
             </div>
 
             <div class="stat-metric cheque-binder" style="grid-column: 1 / -1;">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-uppercase fw-bold text-secondary small"><i class="bi bi-card-checklist text-primary me-1"></i> Cheques &amp; Bank Account</span>
+                    <span class="text-uppercase fw-bold text-secondary small"><i
+                            class="bi bi-card-checklist text-primary me-1"></i> Cheques &amp; Bank Account</span>
                     <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1">
                         Total to Repay: <strong class="text-dark">₱{{ loan.total_liability|floatformat:2|intcomma }}</strong>
-                        <i class="bi bi-question-circle text-secondary cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="top" title="Formula: Principal + Interest Incurred"></i>
+                        <i class="bi bi-question-circle text-secondary cursor-pointer" data-bs-toggle="tooltip"
+                            data-bs-placement="top" title="Formula: Principal + Interest Incurred"></i>
                     </span>
                 </div>
                 <div class="cheque-badge-list align-items-center">
                     {% if loan.cheque_number %}
-                        <span class="cheque-badge border-primary text-primary"><i class="bi bi-file-earmark-text"></i> {{ loan.cheque_number }}</span>
+                    <span class="cheque-badge border-primary text-primary"><i class="bi bi-file-earmark-text"></i> {{ loan.cheque_number }}</span>
                     {% else %}
-                        <span class="cheque-badge"><i class="bi bi-file-earmark-text"></i> CHQ-8849{{ forloop.counter }}</span>
+                    <span class="cheque-badge"><i class="bi bi-file-earmark-text"></i> CHQ-8849{{ forloop.counter }}</span>
                     {% endif %}
-                    
+
                     {% if loan.cheque_date %}
-                        <span class="cheque-badge"><i class="bi bi-calendar-event"></i> Issue Date: {{ loan.cheque_date|date:"M d, Y" }}</span>
+                    <span class="cheque-badge"><i class="bi bi-calendar-event"></i> Issue Date: {{ loan.cheque_date|date:"M d, Y" }}</span>
                     {% endif %}
-                    
+
                     {% if loan.bank_account_number %}
-                        <span class="cheque-badge font-monospace"><i class="bi bi-bank"></i> Acct: {{ loan.bank_account_number }}</span>
+                    <span class="cheque-badge font-monospace"><i class="bi bi-bank"></i> Acct: {{ loan.bank_account_number }}</span>
                     {% else %}
-                        <span class="cheque-badge text-muted font-monospace"><i class="bi bi-bank"></i> Acct: Pending Assignment</span>
+                    <span class="cheque-badge text-muted font-monospace"><i class="bi bi-bank"></i> Acct: Pending
+                        Assignment</span>
                     {% endif %}
 
                     <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
                         <!-- Inspect Details Action -->
-                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8" data-bs-toggle="modal" data-bs-target="#inspectLoanModal{{ loan.pk }}" title="Inspect transaction details and outlays without leaving page">
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8"
+                            data-bs-toggle="modal" data-bs-target="#inspectLoanModal{{ loan.pk }}"
+                            title="Inspect transaction details and outlays without leaving page">
                             <i class="bi bi-eye"></i> Details
                         </button>
 
                         {% if not loan.is_archived and loan.status != "closed" %}
-                            <!-- Action: Direct Close Settled Loan -->
-                            <button type="button" class="btn btn-sm btn-outline-success py-1 px-2.5 fs-8 fw-semibold" data-bs-toggle="modal" data-bs-target="#closeLoanModal{{ loan.pk }}">
-                                <i class="bi bi-check-circle"></i> Close Loan
-                            </button>
+                        <!-- Action: Direct Close Settled Loan -->
+                        <button type="button" class="btn btn-sm btn-outline-success py-1 px-2.5 fs-8 fw-semibold"
+                            data-bs-toggle="modal" data-bs-target="#closeLoanModal{{ loan.pk }}">
+                            <i class="bi bi-check-circle"></i> Close Loan
+                        </button>
 
-                            <!-- Action: Submit Settlement Advice -->
-                            {% if user|has_perm:"reconcile_payments" %}
-                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 fs-8" data-bs-toggle="modal" data-bs-target="#settleLoanModal{{ loan.pk }}">
-                                <i class="bi bi-file-earmark-arrow-up"></i> Upload Advice
-                            </button>
-                            {% endif %}
+                        <!-- Action: Submit Settlement Advice -->
+                        {% if user|has_perm:"reconcile_payments" %}
+                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 fs-8"
+                            data-bs-toggle="modal" data-bs-target="#settleLoanModal{{ loan.pk }}">
+                            <i class="bi bi-file-earmark-arrow-up"></i> Upload Advice
+                        </button>
+                        {% endif %}
                         {% elif loan.status == "closed" and not loan.is_archived %}
-                            <!-- Action: Archive Loan to Historical Vault -->
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8" data-bs-toggle="modal" data-bs-target="#archiveLoanModal{{ loan.pk }}" title="Archive settled loan to historical vault">
-                                <i class="bi bi-archive text-secondary"></i> Archive
-                            </button>
+                        <!-- Action: Archive Loan to Historical Vault -->
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 fs-8"
+                            data-bs-toggle="modal" data-bs-target="#archiveLoanModal{{ loan.pk }}"
+                            title="Archive settled loan to historical vault">
+                            <i class="bi bi-archive text-secondary"></i> Archive
+                        </button>
                         {% elif loan.is_archived %}
-                            <!-- Action: Restore Loan to Active -->
-                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 fs-8" data-bs-toggle="modal" data-bs-target="#unarchiveLoanModal{{ loan.pk }}" title="Restore loan to active ledger view">
-                                <i class="bi bi-arrow-counterclockwise"></i> Restore
-                            </button>
+                        <!-- Action: Restore Loan to Active -->
+                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 fs-8"
+                            data-bs-toggle="modal" data-bs-target="#unarchiveLoanModal{{ loan.pk }}"
+                            title="Restore loan to active ledger view">
+                            <i class="bi bi-arrow-counterclockwise"></i> Restore
+                        </button>
                         {% endif %}
 
                         <!-- MODAL 1: DUAL-STEP CLOSE SETTLED LOAN -->
-                    <div class="modal fade" id="closeLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
-                                <form method="post" action="{% url 'finance:close_loan' loan.pk %}">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                    <div class="modal-header bg-body border-bottom py-3 px-4">
-                                        <h5 class="modal-title fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                            <i class="bi bi-check2-circle text-success fs-5"></i>
-                                            <span>Close Settled Facility — {{ loan.bank_name }}</span>
-                                        </h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body p-4 text-start fs-8">
-                                        <div class="alert alert-warning py-2.5 px-3 mb-3 d-flex align-items-start gap-2">
-                                            <i class="bi bi-exclamation-triangle-fill text-warning fs-5 flex-shrink-0 mt-0.5"></i>
-                                            <div>
-                                                <strong>Confirm Account Settlement:</strong> Are you sure you want to transition Facility <strong>#{{ loan.pk }}</strong> (Principal: ₱{{ loan.principal|floatformat:2|intcomma }}) to a <strong>Closed</strong> state?
-                                                <div class="mt-1 text-muted">This action confirms all disbursements and balances are settled and halts daily interest accrual.</div>
+                        <div class="modal fade" id="closeLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
+                                    <form method="post" action="{% url 'finance:close_loan' loan.pk %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <div class="modal-header bg-body border-bottom py-3 px-4">
+                                            <h5
+                                                class="modal-title fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                                <i class="bi bi-check2-circle text-success fs-5"></i>
+                                                <span>Close Settled Facility — {{ loan.bank_name }}</span>
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body p-4 text-start fs-8">
+                                            <div
+                                                class="alert alert-warning py-2.5 px-3 mb-3 d-flex align-items-start gap-2">
+                                                <i
+                                                    class="bi bi-exclamation-triangle-fill text-warning fs-5 flex-shrink-0 mt-0.5"></i>
+                                                <div>
+                                                    <strong>Confirm Account Settlement:</strong> Are you sure you want
+                                                    to transition Facility <strong>#{{ loan.pk }}</strong> (Principal:
+                                                    ₱{{ loan.principal|floatformat:2|intcomma }}) to a
+                                                    <strong>Closed</strong> state?
+                                                    <div class="mt-1 text-muted">This action confirms all disbursements
+                                                        and balances are settled and halts daily interest accrual.</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label
+                                                    class="form-label font-bold text-muted text-uppercase fs-8">Settlement
+                                                    Advice / Receipt Reference #</label>
+                                                <input type="text" name="settlement_receipt_number"
+                                                    value="{{ loan.settlement_receipt_number }}"
+                                                    class="form-control form-control-sm"
+                                                    placeholder="e.g. BRA-2026-0041 / Payoff Clearance">
+                                            </div>
+
+                                            <div class="mb-2">
+                                                <label
+                                                    class="form-label font-bold text-muted text-uppercase fs-8">Settlement
+                                                    Closure Notes</label>
+                                                <textarea name="settlement_notes" class="form-control form-control-sm"
+                                                    rows="2"
+                                                    placeholder="e.g. Full payoff confirmed via bank statement. Zero liability remaining.">{{ loan.settlement_notes }}</textarea>
                                             </div>
                                         </div>
-
-                                        <div class="mb-3">
-                                            <label class="form-label font-bold text-muted text-uppercase fs-8">Settlement Advice / Receipt Reference #</label>
-                                            <input type="text" name="settlement_receipt_number" value="{{ loan.settlement_receipt_number }}" class="form-control form-control-sm" placeholder="e.g. BRA-2026-0041 / Payoff Clearance">
+                                        <div
+                                            class="modal-footer bg-body border-top py-2.5 px-4 d-flex justify-content-between">
+                                            <button type="button" class="btn btn-secondary btn-sm px-3 fs-8"
+                                                data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit"
+                                                class="btn btn-success btn-sm px-3.5 fs-8 fw-semibold">
+                                                <i class="bi bi-check-circle-fill me-1"></i> Confirm Settlement &amp;
+                                                Close Facility
+                                            </button>
                                         </div>
-
-                                        <div class="mb-2">
-                                            <label class="form-label font-bold text-muted text-uppercase fs-8">Settlement Closure Notes</label>
-                                            <textarea name="settlement_notes" class="form-control form-control-sm" rows="2" placeholder="e.g. Full payoff confirmed via bank statement. Zero liability remaining.">{{ loan.settlement_notes }}</textarea>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer bg-body border-top py-2.5 px-4 d-flex justify-content-between">
-                                        <button type="button" class="btn btn-secondary btn-sm px-3 fs-8" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-success btn-sm px-3.5 fs-8 fw-semibold">
-                                            <i class="bi bi-check-circle-fill me-1"></i> Confirm Settlement &amp; Close Facility
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- MODAL 2: DUAL-STEP ARCHIVE LOAN -->
-                    <div class="modal fade" id="archiveLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
-                                <form method="post" action="{% url 'finance:archive_loan' loan.pk %}">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                    <div class="modal-header bg-body border-bottom py-3 px-4">
-                                        <h5 class="modal-title fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                            <i class="bi bi-archive-fill text-secondary fs-5"></i>
-                                            <span>Archive Loan #{{ loan.pk }} to Historical Vault</span>
-                                        </h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body p-4 text-start fs-8">
-                                        <div class="alert alert-secondary py-3 px-3 mb-3 d-flex align-items-start gap-2">
-                                            <i class="bi bi-archive text-secondary fs-5 flex-shrink-0 mt-0.5"></i>
-                                            <div>
-                                                <strong>Archive Confirmation:</strong> Are you sure you want to archive Loan <strong>#{{ loan.pk }}</strong> ({{ loan.bank_name }} · ₱{{ loan.principal|floatformat:2|intcomma }})?
-                                                <div class="mt-1 text-muted">This will move the record out of the active operational table into the historical archive vault. You can review or restore it at any time using the "Archived Loans" filter.</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer bg-body border-top py-2.5 px-4 d-flex justify-content-between">
-                                        <button type="button" class="btn btn-secondary btn-sm px-3 fs-8" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-outline-secondary btn-sm px-3.5 fs-8 fw-semibold">
-                                            <i class="bi bi-archive-fill me-1"></i> Move to Historical Vault
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- MODAL 3: RESTORE LOAN FROM ARCHIVE -->
-                    <div class="modal fade" id="unarchiveLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
-                                <form method="post" action="{% url 'finance:unarchive_loan' loan.pk %}">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                    <div class="modal-header bg-body border-bottom py-3 px-4">
-                                        <h5 class="modal-title fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                            <i class="bi bi-arrow-counterclockwise text-primary fs-5"></i>
-                                            <span>Restore Loan #{{ loan.pk }} from Archive</span>
-                                        </h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body p-4 text-start fs-8">
-                                        <div class="alert alert-info py-3 px-3 mb-2 d-flex align-items-start gap-2">
-                                            <i class="bi bi-info-circle-fill text-primary fs-5 flex-shrink-0 mt-0.5"></i>
-                                            <div>
-                                                <strong>Restore Record:</strong> Restore Loan <strong>#{{ loan.pk }}</strong> back into the active ledger table?
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer bg-body border-top py-2.5 px-4 d-flex justify-content-between">
-                                        <button type="button" class="btn btn-secondary btn-sm px-3 fs-8" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-primary btn-sm px-3.5 fs-8 fw-semibold">
-                                            <i class="bi bi-arrow-counterclockwise me-1"></i> Restore to Active Table
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- MODAL 4: INSPECT DETAILS DRAWER/MODAL -->
-                    <div class="modal fade" id="inspectLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-                            <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
-                                <div class="modal-header bg-body border-bottom py-3 px-4">
-                                    <div>
-                                        <h5 class="modal-title fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                            <i class="bi bi-card-checklist text-primary fs-5"></i>
-                                            <span>Loan Facility Details &amp; Lifecycle Audit — #{{ loan.pk }}</span>
-                                        </h5>
-                                        <span class="fs-8 text-muted">{{ loan.bank_name }} · PO {{ loan.cluster.reference_code }}</span>
-                                    </div>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body p-4 text-start fs-8">
-                                    <div class="row g-3 mb-3">
-                                        <div class="col-6 col-md-3">
-                                            <span class="text-muted d-block fs-8">Principal Amount</span>
-                                            <strong class="text-dark fs-7">₱{{ loan.principal|floatformat:2|intcomma }}</strong>
-                                        </div>
-                                        <div class="col-6 col-md-3">
-                                            <span class="text-muted d-block fs-8">Annual Interest Rate</span>
-                                            <strong class="text-dark fs-7">{{ loan.interest_rate_annual }}% p.a.</strong>
-                                        </div>
-                                        <div class="col-6 col-md-3">
-                                            <span class="text-muted d-block fs-8">Accrued Interest</span>
-                                            <strong class="text-danger fs-7">₱{{ loan.accrued_interest|floatformat:2|intcomma }}</strong>
-                                        </div>
-                                        <div class="col-6 col-md-3">
-                                            <span class="text-muted d-block fs-8">Total Liability</span>
-                                            <strong class="text-dark fs-7">₱{{ loan.total_liability|floatformat:2|intcomma }}</strong>
-                                        </div>
-                                    </div>
-
-                                    <div class="row g-3 mb-3 pt-2 border-top">
-                                        <div class="col-6 col-md-3">
-                                            <span class="text-muted d-block fs-8">Facility Issue Date</span>
-                                            <span class="text-dark">{{ loan.start_date|date:"M d, Y" }}</span>
-                                        </div>
-                                        <div class="col-6 col-md-3">
-                                            <span class="text-muted d-block fs-8">Maturity Due Date</span>
-                                            <span class="text-dark">{{ loan.due_date|date:"M d, Y" }}</span>
-                                        </div>
-                                        <div class="col-6 col-md-3">
-                                            <span class="text-muted d-block fs-8">Cheque Reference</span>
-                                            <span class="font-monospace text-dark">{{ loan.cheque_number|default:"Pending" }}</span>
-                                        </div>
-                                        <div class="col-6 col-md-3">
-                                            <span class="text-muted d-block fs-8">Originating Bank Account</span>
-                                            <span class="font-monospace text-dark">{{ loan.bank_account_number|default:"Pending" }}</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="pt-2 border-top">
-                                        <h6 class="fw-bold text-dark fs-8 mb-2 text-uppercase tracking-wider">Lifecycle Audit Trail</h6>
-                                        <div class="p-3 bg-body-tertiary rounded border fs-8">
-                                            <div class="mb-1.5"><span class="text-muted">Created By:</span> <strong>{% if loan.created_by %}{{ loan.created_by.get_full_name|default:loan.created_by.username }}{% else %}System{% endif %}</strong> on {{ loan.created_at|date:"M d, Y H:i:s" }} PST</div>
-                                            {% if loan.verified_by %}
-                                            <div class="mb-1.5"><span class="text-muted">Verified &amp; Approved By:</span> <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y H:i:s" }} PST</div>
-                                            {% endif %}
-                                            {% if loan.settlement_date %}
-                                            <div class="mb-1.5"><span class="text-muted">Settlement Date:</span> <strong>{{ loan.settlement_date|date:"M d, Y" }}</strong> (Receipt #{{ loan.settlement_receipt_number|default:"Recorded" }})</div>
-                                            {% endif %}
-                                            {% if loan.settlement_notes %}
-                                            <div class="mb-1.5"><span class="text-muted">Settlement Notes:</span> <em>{{ loan.settlement_notes }}</em></div>
-                                            {% endif %}
-                                            {% if loan.is_archived and loan.archived_by %}
-                                            <div><span class="text-muted">Archived By:</span> <strong>{{ loan.archived_by.get_full_name|default:loan.archived_by.username }}</strong> on {{ loan.archived_at|date:"M d, Y H:i:s" }} PST</div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="modal-footer bg-body border-top py-2.5 px-4 d-flex justify-content-between">
-                                    <a href="{% url 'finance:po_workspace' loan.cluster.pk %}?loan={{ loan.pk }}" class="btn btn-outline-primary btn-sm px-3 fs-8">
-                                        Open Full PO Workspace &rarr;
-                                    </a>
-                                    <button type="button" class="btn btn-secondary btn-sm px-3 fs-8" data-bs-dismiss="modal">Close</button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- MODAL 5: SETTLEMENT DOCUMENTATION MODAL -->
-                    <div class="modal fade" id="settleLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <form method="post" action="{% url 'finance:settle_loan' loan.pk %}" enctype="multipart/form-data">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-bank text-success me-1"></i> Settle Bank Facility — {{ loan.bank_name }}</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <!-- MODAL 2: DUAL-STEP ARCHIVE LOAN -->
+                        <div class="modal fade" id="archiveLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
+                                    <form method="post" action="{% url 'finance:archive_loan' loan.pk %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <div class="modal-header bg-body border-bottom py-3 px-4">
+                                            <h5
+                                                class="modal-title fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                                <i class="bi bi-archive-fill text-secondary fs-5"></i>
+                                                <span>Archive Loan #{{ loan.pk }} to Historical Vault</span>
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body p-4 text-start fs-8">
+                                            <div
+                                                class="alert alert-secondary py-3 px-3 mb-3 d-flex align-items-start gap-2">
+                                                <i class="bi bi-archive text-secondary fs-5 flex-shrink-0 mt-0.5"></i>
+                                                <div>
+                                                    <strong>Archive Confirmation:</strong> Are you sure you want to
+                                                    archive Loan <strong>#{{ loan.pk }}</strong> ({{ loan.bank_name }} ·
+                                                    ₱{{ loan.principal|floatformat:2|intcomma }})?
+                                                    <div class="mt-1 text-muted">This will move the record out of the
+                                                        active operational table into the historical archive vault. You
+                                                        can review or restore it at any time using the "Archived Loans"
+                                                        filter.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="modal-footer bg-body border-top py-2.5 px-4 d-flex justify-content-between">
+                                            <button type="button" class="btn btn-secondary btn-sm px-3 fs-8"
+                                                data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit"
+                                                class="btn btn-outline-secondary btn-sm px-3.5 fs-8 fw-semibold">
+                                                <i class="bi bi-archive-fill me-1"></i> Move to Historical Vault
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MODAL 3: RESTORE LOAN FROM ARCHIVE -->
+                        <div class="modal fade" id="unarchiveLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
+                                    <form method="post" action="{% url 'finance:unarchive_loan' loan.pk %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <div class="modal-header bg-body border-bottom py-3 px-4">
+                                            <h5
+                                                class="modal-title fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                                <i class="bi bi-arrow-counterclockwise text-primary fs-5"></i>
+                                                <span>Restore Loan #{{ loan.pk }} from Archive</span>
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body p-4 text-start fs-8">
+                                            <div class="alert alert-info py-3 px-3 mb-2 d-flex align-items-start gap-2">
+                                                <i
+                                                    class="bi bi-info-circle-fill text-primary fs-5 flex-shrink-0 mt-0.5"></i>
+                                                <div>
+                                                    <strong>Restore Record:</strong> Restore Loan <strong>#{{ loan.pk }}</strong> back into the active ledger table?
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="modal-footer bg-body border-top py-2.5 px-4 d-flex justify-content-between">
+                                            <button type="button" class="btn btn-secondary btn-sm px-3 fs-8"
+                                                data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit"
+                                                class="btn btn-primary btn-sm px-3.5 fs-8 fw-semibold">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i> Restore to Active
+                                                Table
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MODAL 4: INSPECT DETAILS DRAWER/MODAL -->
+                        <div class="modal fade" id="inspectLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                                <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
+                                    <div class="modal-header bg-body border-bottom py-3 px-4">
+                                        <div>
+                                            <h5
+                                                class="modal-title fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                                <i class="bi bi-card-checklist text-primary fs-5"></i>
+                                                <span>Loan Facility Details &amp; Lifecycle Audit — #{{ loan.pk }}</span>
+                                            </h5>
+                                            <span class="fs-8 text-muted">{{ loan.bank_name }} · PO {{ loan.cluster.reference_code }}</span>
+                                        </div>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
                                     </div>
-                                    <div class="modal-body text-start">
-                                        <div class="alert alert-info py-2 px-3 mb-3 small">
-                                            <i class="bi bi-info-circle-fill me-1"></i> You are marking loan <strong>{{ loan.cluster.reference_code }}</strong> (Principal ₱{{ loan.principal|floatformat:2|intcomma }} + Accrued Interest ₱{{ loan.accrued_interest|floatformat:2|intcomma }}) as fully settled. Please provide official bank settlement documentation.
+                                    <div class="modal-body p-4 text-start fs-8">
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-6 col-md-3">
+                                                <span class="text-muted d-block fs-8">Principal Amount</span>
+                                                <strong class="text-dark fs-7">₱{{ loan.principal|floatformat:2|intcomma }}</strong>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <span class="text-muted d-block fs-8">Annual Interest Rate</span>
+                                                <strong class="text-dark fs-7">{{ loan.interest_rate_annual }}%
+                                                    p.a.</strong>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <span class="text-muted d-block fs-8">Accrued Interest</span>
+                                                <strong class="text-danger fs-7">₱{{ loan.accrued_interest|floatformat:2|intcomma }}</strong>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <span class="text-muted d-block fs-8">Total Liability</span>
+                                                <strong class="text-dark fs-7">₱{{ loan.total_liability|floatformat:2|intcomma }}</strong>
+                                            </div>
                                         </div>
 
-                                        <div class="mb-3">
-                                            <label class="form-label font-weight-bold text-xs uppercase text-muted">Bank Release Advice / Official Receipt # <span class="text-danger">*</span></label>
-                                            <input type="text" name="settlement_receipt_number" class="form-control" placeholder="e.g. BRA-2026-9901 / OR-88412" required>
+                                        <div class="row g-3 mb-3 pt-2 border-top">
+                                            <div class="col-6 col-md-3">
+                                                <span class="text-muted d-block fs-8">Facility Issue Date</span>
+                                                <span class="text-dark">{{ loan.start_date|date:"M d, Y" }}</span>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <span class="text-muted d-block fs-8">Maturity Due Date</span>
+                                                <span class="text-dark">{{ loan.due_date|date:"M d, Y" }}</span>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <span class="text-muted d-block fs-8">Cheque Reference</span>
+                                                <span class="font-monospace text-dark">{{ loan.cheque_number|default:"Pending" }}</span>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <span class="text-muted d-block fs-8">Originating Bank Account</span>
+                                                <span class="font-monospace text-dark">{{ loan.bank_account_number|default:"Pending" }}</span>
+                                            </div>
                                         </div>
 
-                                        <div class="mb-3">
-                                            <label class="form-label font-weight-bold text-xs uppercase text-muted">Settlement Date</label>
-                                            <input type="date" name="settlement_date" class="form-control" value="{% now 'Y-m-d' %}" required>
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label class="form-label font-weight-bold text-xs uppercase text-muted">Proof of Settlement / Bank Release Soft Copy (PDF/Image)</label>
-                                            <input type="file" name="settlement_document" class="form-control" accept="application/pdf,image/*">
-                                            <div class="form-text text-muted small">Upload scanned soft copy of Bank Clearance Advice or Deposit Slip.</div>
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label class="form-label font-weight-bold text-xs uppercase text-muted">Settlement Audit Notes</label>
-                                            <textarea name="settlement_notes" class="form-control" rows="2" placeholder="e.g. Full principal and accrued interest settled via bank wire transfer..."></textarea>
+                                        <div class="pt-2 border-top">
+                                            <h6 class="fw-bold text-dark fs-8 mb-2 text-uppercase tracking-wider">
+                                                Lifecycle Audit Trail</h6>
+                                            <div class="p-3 bg-body-tertiary rounded border fs-8">
+                                                <div class="mb-1.5"><span class="text-muted">Created By:</span>
+                                                    <strong>{% if loan.created_by %}{{ loan.created_by.get_full_name|default:loan.created_by.username }}{% else %}System{% endif %}</strong> on {{ loan.created_at|date:"M d, Y H:i:s" }} PST</div>
+                                                {% if loan.verified_by %}
+                                                <div class="mb-1.5"><span class="text-muted">Verified &amp; Approved
+                                                        By:</span> <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y H:i:s" }} PST
+                                                </div>
+                                                {% endif %}
+                                                {% if loan.settlement_date %}
+                                                <div class="mb-1.5"><span class="text-muted">Settlement Date:</span>
+                                                    <strong>{{ loan.settlement_date|date:"M d, Y" }}</strong> (Receipt
+                                                    #{{ loan.settlement_receipt_number|default:"Recorded" }})</div>
+                                                {% endif %}
+                                                {% if loan.settlement_notes %}
+                                                <div class="mb-1.5"><span class="text-muted">Settlement Notes:</span>
+                                                    <em>{{ loan.settlement_notes }}</em></div>
+                                                {% endif %}
+                                                {% if loan.is_archived and loan.archived_by %}
+                                                <div><span class="text-muted">Archived By:</span> <strong>{{ loan.archived_by.get_full_name|default:loan.archived_by.username }}</strong> on {{ loan.archived_at|date:"M d, Y H:i:s" }} PST
+                                                </div>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn-htc"><i class="bi bi-check-circle-fill"></i> Confirm Facility Settlement</button>
+                                    <div
+                                        class="modal-footer bg-body border-top py-2.5 px-4 d-flex justify-content-between">
+                                        <a href="{% url 'finance:po_workspace' loan.cluster.pk %}?loan={{ loan.pk }}"
+                                            class="btn btn-outline-primary btn-sm px-3 fs-8">
+                                            Open Full PO Workspace &rarr;
+                                        </a>
+                                        <button type="button" class="btn btn-secondary btn-sm px-3 fs-8"
+                                            data-bs-dismiss="modal">Close</button>
                                     </div>
-                                </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MODAL 5: SETTLEMENT DOCUMENTATION MODAL -->
+                        <div class="modal fade" id="settleLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'finance:settle_loan' loan.pk %}"
+                                        enctype="multipart/form-data">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title fs-6 fw-bold"><i
+                                                    class="bi bi-bank text-success me-1"></i> Settle Bank Facility — {{ loan.bank_name }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <div class="alert alert-info py-2 px-3 mb-3 small">
+                                                <i class="bi bi-info-circle-fill me-1"></i> You are marking loan
+                                                <strong>{{ loan.cluster.reference_code }}</strong> (Principal ₱{{ loan.principal|floatformat:2|intcomma }} + Accrued Interest ₱{{ loan.accrued_interest|floatformat:2|intcomma }}) as fully settled.
+                                                Please provide official bank settlement documentation.
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label
+                                                    class="form-label font-weight-bold text-xs uppercase text-muted">Bank
+                                                    Release Advice / Official Receipt # <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="text" name="settlement_receipt_number" class="form-control"
+                                                    placeholder="e.g. BRA-2026-9901 / OR-88412" required>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label
+                                                    class="form-label font-weight-bold text-xs uppercase text-muted">Settlement
+                                                    Date</label>
+                                                <input type="date" name="settlement_date" class="form-control"
+                                                    value="{% now 'Y-m-d' %}" required>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label
+                                                    class="form-label font-weight-bold text-xs uppercase text-muted">Proof
+                                                    of Settlement / Bank Release Soft Copy (PDF/Image)</label>
+                                                <input type="file" name="settlement_document" class="form-control"
+                                                    accept="application/pdf,image/*">
+                                                <div class="form-text text-muted small">Upload scanned soft copy of Bank
+                                                    Clearance Advice or Deposit Slip.</div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label
+                                                    class="form-label font-weight-bold text-xs uppercase text-muted">Settlement
+                                                    Audit Notes</label>
+                                                <textarea name="settlement_notes" class="form-control" rows="2"
+                                                    placeholder="e.g. Full principal and accrued interest settled via bank wire transfer..."></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-light"
+                                                data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn-htc"><i
+                                                    class="bi bi-check-circle-fill"></i> Confirm Facility
+                                                Settlement</button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        {% empty %}
+        <div
+            style="padding: 4rem 2rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius);">
+            <i class="bi bi-bank"
+                style="font-size: 2.5rem; color: var(--htc-border); margin-bottom: 1rem; display: inline-block;"></i>
+            <h5 class="fw-bold text-dark mb-2">No Active Loans</h5>
+            <p class="mb-3">There are no active or recorded loan facilities in the registry.</p>
+            <button type="button" class="btn btn-primary fw-bold px-4 rounded-pill" data-bs-toggle="modal"
+                data-bs-target="#newLoanModal">
+                <i class="bi bi-plus-lg me-1"></i> Record New Loan Facility
+            </button>
+        </div>
+        {% endfor %}
     </div>
-    {% empty %}
-    <div style="padding: 4rem 2rem; text-align: center; color: var(--htc-text-muted); background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: var(--htc-radius);">
-        <i class="bi bi-bank" style="font-size: 2.5rem; color: var(--htc-border); margin-bottom: 1rem; display: inline-block;"></i>
-        <h5 class="fw-bold text-dark mb-2">No Active Loans</h5>
-        <p class="mb-3">There are no active or recorded loan facilities in the registry.</p>
-        <button type="button" class="btn btn-primary fw-bold px-4 rounded-pill" data-bs-toggle="modal" data-bs-target="#newLoanModal">
-            <i class="bi bi-plus-lg me-1"></i> Record New Loan Facility
-        </button>
-    </div>
-    {% endfor %}
-</div>
 
-<!-- TAB 2: CHEQUE LEDGER TABLE -->
-<div id="tabChequeLedger" class="card border shadow-sm" style="display: none;">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center py-3 px-4">
-        <h5 class="mb-0 fs-6 fw-bold text-dark"><i class="bi bi-wallet2 text-primary me-2"></i> Physical Paper Cheque Register</h5>
-        <span class="badge bg-secondary rounded-pill">{{ cheques|length }} Cheques Logged</span>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
-                <thead class="table-light">
-                    <tr>
-                        <th>Cheque #</th>
-                        <th>Issue Date</th>
-                        <th>Originating Bank</th>
-                        <th>Bank Account #</th>
-                        <th>Linked Purpose / Trade</th>
-                        <th>Facility Type</th>
-                        <th class="text-end">Amount (₱)</th>
-                        <th class="text-center">Status</th>
-                        <th class="text-center">Audit Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for chq in cheques %}
-                    <tr>
-                        <td>
-                            <strong class="font-monospace text-primary"><i class="bi bi-file-earmark-text"></i> {{ chq.cheque_number }}</strong>
-                            {% if "CV-DEL-" in chq.cheque_number or "CV-DEL-" in chq.voucher_number|default:"" %}
-                            <span class="badge bg-info-subtle text-info border border-info-subtle fs-8 d-block mt-0.5" style="width: fit-content;">
-                                <i class="bi bi-truck me-1"></i>Delivery Auto-Voucher
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td>{{ chq.issue_date|date:"M d, Y" }}</td>
-                        <td><strong>{{ chq.bank_name }}</strong></td>
-                        <td class="font-monospace text-muted">{{ chq.bank_account }}</td>
-                        <td>
-                            <a href="{% url 'operations:cluster_detail' chq.cluster_pk %}" class="fw-bold text-decoration-none">
-                                {{ chq.cluster_ref }}
-                            </a>
-                            <div class="text-muted small">{{ chq.purpose }}</div>
-                        </td>
-                        <td><span class="badge bg-secondary-subtle text-secondary border">{{ chq.type }}</span></td>
-                        <td class="text-end font-monospace fw-bold fs-6">₱{{ chq.amount|floatformat:2|intcomma }}</td>
-                        <td class="text-center">
-                            {% if chq.is_superseded %}
-                            <span class="badge bg-secondary-subtle text-muted border px-2 py-1"><i class="bi bi-clock-history me-1"></i> Superseded</span>
-                            {% elif chq.status == "Issued" or chq.status == "Active Facility" or chq.status == "Settled & Closed" %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle me-1"></i> {{ chq.status }}</span>
-                            {% else %}
-                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1"><i class="bi bi-hourglass-split me-1"></i> {{ chq.status }}</span>
-                            {% endif %}
-                            {% if chq.report %}
-                            <div class="mt-1">
-                                <span class="badge {% if chq.report.status == 'pending' %}bg-warning text-dark{% elif chq.report.status == 'approved' %}bg-success{% else %}bg-secondary{% endif %} py-0.5 px-1.5 fs-8" title="{{ chq.report.error_summary }}">
-                                    <i class="bi bi-flag-fill me-0.5"></i>{{ chq.report.get_status_display }}
+    <!-- TAB 2: CHEQUE LEDGER TABLE -->
+    <div id="tabChequeLedger" class="card border shadow-sm" style="display: none;">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center py-3 px-4">
+            <h5 class="mb-0 fs-6 fw-bold text-dark"><i class="bi bi-wallet2 text-primary me-2"></i> Physical Paper
+                Cheque Register</h5>
+            <span class="badge bg-secondary rounded-pill">{{ cheques|length }} Cheques Logged</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Cheque #</th>
+                            <th>Issue Date</th>
+                            <th>Originating Bank</th>
+                            <th>Bank Account #</th>
+                            <th>Linked Purpose / Trade</th>
+                            <th>Facility Type</th>
+                            <th class="text-end">Amount (₱)</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Audit Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for chq in cheques %}
+                        <tr>
+                            <td>
+                                <strong class="font-monospace text-primary"><i class="bi bi-file-earmark-text"></i> {{ chq.cheque_number }}</strong>
+                                {% if "CV-DEL-" in chq.cheque_number or "CV-DEL-" in chq.voucher_number|default:"" %}
+                                <span
+                                    class="badge bg-info-subtle text-info border border-info-subtle fs-8 d-block mt-0.5"
+                                    style="width: fit-content;">
+                                    <i class="bi bi-truck me-1"></i>Delivery Auto-Voucher
                                 </span>
-                            </div>
-                            {% endif %}
-                        </td>
-                        <td class="text-center text-nowrap">
-                            <div class="d-inline-flex align-items-center gap-1">
-                                {% if chq.report and chq.report.status == 'pending' and user_role_code == 'administrator' or chq.report and chq.report.status == 'pending' and user_role_code == 'operations_management' %}
-                                <button type="button" class="btn btn-warning btn-xs py-1 px-2 fs-8 fw-bold text-dark shadow-xs d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#reviewReportModal{{ chq.report.report_id|stringformat:'s'|slice:':8'|upper }}" title="Review what went wrong and authorize compensating entry">
-                                    <i class="bi bi-clipboard-check"></i>Review Report
-                                </button>
-                                {% elif chq.report %}
-                                <button type="button" class="btn btn-outline-secondary btn-xs py-1 px-2 fs-8 text-dark d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#reviewReportModal{{ chq.report.report_id|stringformat:'s'|slice:':8'|upper }}">
-                                    <i class="bi bi-eye"></i>View Report
-                                </button>
                                 {% endif %}
-
+                            </td>
+                            <td>{{ chq.issue_date|date:"M d, Y" }}</td>
+                            <td><strong>{{ chq.bank_name }}</strong></td>
+                            <td class="font-monospace text-muted">{{ chq.bank_account }}</td>
+                            <td>
+                                <a href="{% url 'operations:cluster_detail' chq.cluster_pk %}"
+                                    class="fw-bold text-decoration-none">
+                                    {{ chq.cluster_ref }}
+                                </a>
+                                <div class="text-muted small">{{ chq.purpose }}</div>
+                            </td>
+                            <td><span class="badge bg-secondary-subtle text-secondary border">{{ chq.type }}</span></td>
+                            <td class="text-end font-monospace fw-bold fs-6">₱{{ chq.amount|floatformat:2|intcomma }}
+                            </td>
+                            <td class="text-center">
                                 {% if chq.is_superseded %}
-                                <span class="badge bg-secondary-subtle text-muted border px-2 py-1 fs-8" title="{{ chq.correction_reason }}">
-                                    <i class="bi bi-arrow-return-right me-1"></i>REV #{{ chq.superseded_by_voucher }}
-                                </span>
-                                {% elif chq.voucher_pk and chq.can_correct %}
+                                <span class="badge bg-secondary-subtle text-muted border px-2 py-1"><i
+                                        class="bi bi-clock-history me-1"></i> Superseded</span>
+                                {% elif chq.status == "Issued" or chq.status == "Active Facility" or chq.status == "Settled & Closed" %}
+                                <span
+                                    class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i
+                                        class="bi bi-check-circle me-1"></i> {{ chq.status }}</span>
+                                {% else %}
+                                <span
+                                    class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1"><i
+                                        class="bi bi-hourglass-split me-1"></i> {{ chq.status }}</span>
+                                {% endif %}
+                                {% if chq.report %}
+                                <div class="mt-1">
+                                    <span
+                                        class="badge {% if chq.report.status == 'pending' %}bg-warning text-dark{% elif chq.report.status == 'approved' %}bg-success{% else %}bg-secondary{% endif %} py-0.5 px-1.5 fs-8"
+                                        title="{{ chq.report.error_summary }}">
+                                        <i class="bi bi-flag-fill me-0.5"></i>{{ chq.report.get_status_display }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td class="text-center text-nowrap">
+                                <div class="d-inline-flex align-items-center gap-1">
+                                    {% if chq.report and chq.report.status == 'pending' and user_role_code == 'administrator' or chq.report and chq.report.status == 'pending' and user_role_code == 'operations_management' %}
+                                    <button type="button"
+                                        class="btn btn-warning btn-xs py-1 px-2 fs-8 fw-bold text-dark shadow-xs d-inline-flex align-items-center gap-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#reviewReportModal{{ chq.report.report_id|stringformat:'s'|slice:':8'|upper }}"
+                                        title="Review what went wrong and authorize compensating entry">
+                                        <i class="bi bi-clipboard-check"></i>Review Report
+                                    </button>
+                                    {% elif chq.report %}
+                                    <button type="button"
+                                        class="btn btn-outline-secondary btn-xs py-1 px-2 fs-8 text-dark d-inline-flex align-items-center gap-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#reviewReportModal{{ chq.report.report_id|stringformat:'s'|slice:':8'|upper }}">
+                                        <i class="bi bi-eye"></i>View Report
+                                    </button>
+                                    {% endif %}
+
+                                    {% if chq.is_superseded %}
+                                    <span class="badge bg-secondary-subtle text-muted border px-2 py-1 fs-8"
+                                        title="{{ chq.correction_reason }}">
+                                        <i class="bi bi-arrow-return-right me-1"></i>REV #{{ chq.superseded_by_voucher }}
+                                    </span>
+                                    {% elif chq.voucher_pk and chq.can_correct %}
                                     {% if user_role_code == 'administrator' or user_role_code == 'operations_management' or user_role_code == 'finance' %}
-                                    <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 py-1 px-2.5 fs-8 fw-semibold" data-bs-toggle="modal" data-bs-target="#correctChequeModal{{ chq.voucher_pk }}" title="Execute compensating correction (Void & Reissue) without breaking ledger continuity">
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 py-1 px-2.5 fs-8 fw-semibold"
+                                        data-bs-toggle="modal" data-bs-target="#correctChequeModal{{ chq.voucher_pk }}"
+                                        title="Execute compensating correction (Void & Reissue) without breaking ledger continuity">
                                         <i class="bi bi-arrow-repeat"></i> Void &amp; Reissue
                                     </button>
                                     {% else %}
                                     <span class="badge bg-light text-muted border fs-8">Finalized</span>
                                     {% endif %}
-                                {% else %}
-                                <span class="text-muted fs-8">—</span>
-                                {% endif %}
+                                    {% else %}
+                                    <span class="text-muted fs-8">—</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">No paper cheques recorded in ledger.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% for chq in cheques %}
+    {% if chq.voucher_pk and chq.can_correct %}
+    <!-- COMPENSATING CORRECTION MODAL FOR CASH VOUCHER -->
+    <div class="modal fade" id="correctChequeModal{{ chq.voucher_pk }}" tabindex="-1"
+        aria-labelledby="correctChequeModalLabel{{ chq.voucher_pk }}" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header bg-dark text-white py-3 px-4">
+                    <div>
+                        <h6 class="modal-title fw-bold mb-0 text-white"
+                            id="correctChequeModalLabel{{ chq.voucher_pk }}">
+                            <i class="bi bi-arrow-repeat text-warning me-2"></i>Compensating Entry Correction
+                        </h6>
+                        <div class="fs-8 text-white-75 mt-0.5">Voucher #{{ chq.voucher_number }} · Cheque #{{ chq.cheque_number }}</div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <form method="post" action="{% url 'finance:compensating_correction_voucher' chq.voucher_pk %}">
+                    {% csrf_token %}
+                    <div class="modal-body p-4">
+                        <div class="alert alert-warning py-2.5 px-3 text-xs mb-3 border-warning">
+                            <i class="bi bi-shield-exclamation text-warning me-1"></i>
+                            <strong>Compensating Correction Standard:</strong> The original entry will <strong>never be
+                                deleted or overwritten</strong>. It will be preserved as an indelible historical
+                            artifact with status <em>Superseded</em>, while a linked compensating transaction is
+                            recorded.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-semibold text-sm">Error Classification <span
+                                    class="text-danger">*</span></label>
+                            <select name="error_type" class="form-select form-select-sm" required>
+                                <option value="Typo in Encoded Amount (Adjustment)">Typo in Encoded Amount (Adjustment)
+                                </option>
+                                <option value="Wrong Cheque Number Assigned">Wrong Cheque Number Assigned</option>
+                                <option value="Duplicate Disbursement Entry (Reversal)">Duplicate Disbursement Entry
+                                    (Reversal)</option>
+                                <option value="Date / Account Transposition Error">Date / Account Transposition Error
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label font-semibold text-xs text-muted">Original Amount</label>
+                                <input type="text" class="form-control form-control-sm bg-light"
+                                    value="₱{{ chq.amount|floatformat:2|intcomma }}" readonly>
                             </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="9" class="text-center text-muted py-4">No paper cheques recorded in ledger.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-{% for chq in cheques %}
-{% if chq.voucher_pk and chq.can_correct %}
-<!-- COMPENSATING CORRECTION MODAL FOR CASH VOUCHER -->
-<div class="modal fade" id="correctChequeModal{{ chq.voucher_pk }}" tabindex="-1" aria-labelledby="correctChequeModalLabel{{ chq.voucher_pk }}" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
-            <div class="modal-header bg-dark text-white py-3 px-4">
-                <div>
-                    <h6 class="modal-title fw-bold mb-0 text-white" id="correctChequeModalLabel{{ chq.voucher_pk }}">
-                        <i class="bi bi-arrow-repeat text-warning me-2"></i>Compensating Entry Correction
-                    </h6>
-                    <div class="fs-8 text-white-75 mt-0.5">Voucher #{{ chq.voucher_number }} · Cheque #{{ chq.cheque_number }}</div>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="post" action="{% url 'finance:compensating_correction_voucher' chq.voucher_pk %}">
-                {% csrf_token %}
-                <div class="modal-body p-4">
-                    <div class="alert alert-warning py-2.5 px-3 text-xs mb-3 border-warning">
-                        <i class="bi bi-shield-exclamation text-warning me-1"></i>
-                        <strong>Compensating Correction Standard:</strong> The original entry will <strong>never be deleted or overwritten</strong>. It will be preserved as an indelible historical artifact with status <em>Superseded</em>, while a linked compensating transaction is recorded.
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label font-semibold text-sm">Error Classification <span class="text-danger">*</span></label>
-                        <select name="error_type" class="form-select form-select-sm" required>
-                            <option value="Typo in Encoded Amount (Adjustment)">Typo in Encoded Amount (Adjustment)</option>
-                            <option value="Wrong Cheque Number Assigned">Wrong Cheque Number Assigned</option>
-                            <option value="Duplicate Disbursement Entry (Reversal)">Duplicate Disbursement Entry (Reversal)</option>
-                            <option value="Date / Account Transposition Error">Date / Account Transposition Error</option>
-                        </select>
-                    </div>
-
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label font-semibold text-xs text-muted">Original Amount</label>
-                            <input type="text" class="form-control form-control-sm bg-light" value="₱{{ chq.amount|floatformat:2|intcomma }}" readonly>
+                            <div class="col-6">
+                                <label class="form-label font-semibold text-xs">Corrected Amount (₱) <span
+                                        class="text-danger">*</span></label>
+                                <input type="number" step="0.01" name="new_amount" class="form-control form-control-sm"
+                                    value="{{ chq.amount|stringformat:'.2f' }}" required>
+                            </div>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label font-semibold text-xs">Corrected Amount (₱) <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" name="new_amount" class="form-control form-control-sm" value="{{ chq.amount|stringformat:'.2f' }}" required>
+
+                        <div class="mb-3">
+                            <label class="form-label font-semibold text-xs">Corrected Cheque # / Reference</label>
+                            <input type="text" name="new_cheque_number" class="form-control form-control-sm"
+                                value="{{ chq.cheque_number }}" placeholder="Leave unchanged or enter correct cheque #">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-semibold text-sm">Mandatory Managerial Justification <span
+                                    class="text-danger">*</span></label>
+                            <textarea name="correction_reason" class="form-control form-control-sm" rows="3"
+                                minlength="10"
+                                placeholder="e.g. Encoded typo in disbursement amount: ₱500,000 entered instead of ₱50,000 per signed bank cheque stub #..."
+                                required></textarea>
+                            <div class="form-text text-xs">Minimum 10 characters required for ISO/IEC financial audit
+                                log compliance.</div>
                         </div>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label font-semibold text-xs">Corrected Cheque # / Reference</label>
-                        <input type="text" name="new_cheque_number" class="form-control form-control-sm" value="{{ chq.cheque_number }}" placeholder="Leave unchanged or enter correct cheque #">
+                    <div class="modal-footer bg-light py-2 px-4 d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                            data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning btn-sm fw-bold px-3">
+                            <i class="bi bi-check2-circle me-1"></i>Record Compensating Entry
+                        </button>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label font-semibold text-sm">Mandatory Managerial Justification <span class="text-danger">*</span></label>
-                        <textarea name="correction_reason" class="form-control form-control-sm" rows="3" minlength="10" placeholder="e.g. Encoded typo in disbursement amount: ₱500,000 entered instead of ₱50,000 per signed bank cheque stub #..." required></textarea>
-                        <div class="form-text text-xs">Minimum 10 characters required for ISO/IEC financial audit log compliance.</div>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light py-2 px-4 d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-warning btn-sm fw-bold px-3">
-                        <i class="bi bi-check2-circle me-1"></i>Record Compensating Entry
-                    </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
-</div>
-{% endif %}
-{% endfor %}
+    {% endif %}
+    {% endfor %}
 
-<script>
-function switchFinanceTab(tabKey, btn) {
-    document.querySelectorAll('.tabs-row .tab-btn').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
+    <script>
+        function switchFinanceTab(tabKey, btn) {
+            document.querySelectorAll('.tabs-row .tab-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
 
-    const portfolioTab = document.getElementById('tabPortfolio');
-    const loansTab = document.getElementById('tabLoanRegistry');
-    const chequesTab = document.getElementById('tabChequeLedger');
+            const portfolioTab = document.getElementById('tabPortfolio');
+            const loansTab = document.getElementById('tabLoanRegistry');
+            const chequesTab = document.getElementById('tabChequeLedger');
 
-    if (portfolioTab) portfolioTab.style.display = (tabKey === 'portfolio') ? 'block' : 'none';
-    if (loansTab) loansTab.style.display = (tabKey === 'loans') ? 'flex' : 'none';
-    if (chequesTab) chequesTab.style.display = (tabKey === 'cheques') ? 'block' : 'none';
-}
+            if (portfolioTab) portfolioTab.style.display = (tabKey === 'portfolio') ? 'block' : 'none';
+            if (loansTab) loansTab.style.display = (tabKey === 'loans') ? 'flex' : 'none';
+            if (chequesTab) chequesTab.style.display = (tabKey === 'cheques') ? 'block' : 'none';
+        }
 
-// Auto-switch to tab from URL param if present
-document.addEventListener('DOMContentLoaded', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabParam = urlParams.get('tab');
-    if (tabParam) {
-        const matchingBtn = document.querySelector(`.tabs-row .tab-btn[onclick*="${tabParam}"]`);
-        if (matchingBtn) switchFinanceTab(tabParam, matchingBtn);
-    }
-});
+        // Auto-switch to tab from URL param if present
+        document.addEventListener('DOMContentLoaded', function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabParam = urlParams.get('tab');
+            if (tabParam) {
+                const matchingBtn = document.querySelector(`.tabs-row .tab-btn[onclick*="${tabParam}"]`);
+                if (matchingBtn) switchFinanceTab(tabParam, matchingBtn);
+            }
+        });
 
-function quickFillMatch(expenseType, amount, notes) {
-    var modalEl = document.getElementById('matchExpenseModal');
-    if (!modalEl) return;
-    var typeSelect = document.getElementById('id_match_type');
-    var amountInput = document.getElementById('id_match_amount');
-    var notesInput = document.getElementById('id_match_notes');
-    var refInput = document.getElementById('id_match_ref');
+        function quickFillMatch(expenseType, amount, notes) {
+            var modalEl = document.getElementById('matchExpenseModal');
+            if (!modalEl) return;
+            var typeSelect = document.getElementById('id_match_type');
+            var amountInput = document.getElementById('id_match_amount');
+            var notesInput = document.getElementById('id_match_notes');
+            var refInput = document.getElementById('id_match_ref');
 
-    if (typeSelect) typeSelect.value = expenseType;
-    if (amountInput) amountInput.value = parseFloat(amount || 0).toFixed(2);
-    if (notesInput) notesInput.value = notes || '';
-    if (refInput && !refInput.value) {
-        var today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        refInput.value = 'PM-' + today + '-' + Math.floor(1000 + Math.random() * 9000);
-    }
+            if (typeSelect) typeSelect.value = expenseType;
+            if (amountInput) amountInput.value = parseFloat(amount || 0).toFixed(2);
+            if (notesInput) notesInput.value = notes || '';
+            if (refInput && !refInput.value) {
+                var today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                refInput.value = 'PM-' + today + '-' + Math.floor(1000 + Math.random() * 9000);
+            }
 
-    var bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    bsModal.show();
-}
-</script>
+            var bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            bsModal.show();
+        }
+    </script>
 
-{% if focused_cluster and user|has_perm:"add_match" or focused_cluster and user|has_perm:"reconcile_payments" %}
-<!-- MATCH EXPENSE & ISSUE CASH VOUCHER MODAL -->
-<div class="modal fade" id="matchExpenseModal" tabindex="-1" aria-labelledby="matchExpenseModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title fw-bold" id="matchExpenseModalLabel">
-                    <i class="bi bi-wallet2 text-warning me-2"></i>Match Outlay &amp; Issue Cash Voucher
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    {% if focused_cluster and user|has_perm:"add_match" or focused_cluster and user|has_perm:"reconcile_payments" %}
+    <!-- MATCH EXPENSE & ISSUE CASH VOUCHER MODAL -->
+    <div class="modal fade" id="matchExpenseModal" tabindex="-1" aria-labelledby="matchExpenseModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold" id="matchExpenseModalLabel">
+                        <i class="bi bi-wallet2 text-warning me-2"></i>Match Outlay &amp; Issue Cash Voucher
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <form method="post" action="{% url 'finance:add_match' focused_cluster.pk %}" id="matchExpenseForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <div class="modal-body p-4">
+                        <div class="alert alert-info py-2 px-3 text-xs mb-3">
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            Recording an expense match for <strong>{{ focused_po.po_reference_number|default:focused_cluster.reference_code }}</strong> will
+                            update reconciliation balances and automatically issue a numbered <strong>Cash
+                                Voucher</strong>.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-semibold text-sm">Receipt / Voucher Reference # <span
+                                    class="text-danger">*</span></label>
+                            <input type="text" name="payment_reference" id="id_match_ref" class="form-control-htc"
+                                placeholder="e.g. OR-99482 / DEP-2026-001" required>
+                            <div class="form-text text-xs text-muted">Official receipt, payment voucher, or bank
+                                transaction reference.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-semibold text-sm">Expense Category <span
+                                    class="text-danger">*</span></label>
+                            <select name="expense_type" id="id_match_type" class="form-select-htc" required>
+                                <option value="sourcing">Supplier Purchase Cost (Sugar Mill)</option>
+                                <option value="trucking">Truck Delivery &amp; Hauling</option>
+                                <option value="barge">Boat / Barge Shipping</option>
+                                <option value="logistics_deposit">50% Delivery Advance Deposit</option>
+                                <option value="other">Other Operational Expense</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-semibold text-sm">Payment Amount (₱) <span
+                                    class="text-danger">*</span></label>
+                            <input type="number" step="0.01" name="amount" id="id_match_amount" class="form-control-htc"
+                                placeholder="e.g. 500000.00" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label font-semibold text-sm">Notes / Description (Optional)</label>
+                            <input type="text" name="notes" id="id_match_notes" class="form-control-htc"
+                                placeholder="e.g. 50% trucking advance to Batangas Port">
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light px-4">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">
+                            <i class="bi bi-check-circle me-1"></i> Save Match &amp; Issue Cash Voucher
+                        </button>
+                    </div>
+                </form>
             </div>
-            <form method="post" action="{% url 'finance:add_match' focused_cluster.pk %}" id="matchExpenseForm">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <div class="modal-body p-4">
-                    <div class="alert alert-info py-2 px-3 text-xs mb-3">
-                        <i class="bi bi-info-circle-fill me-1"></i>
-                        Recording an expense match for <strong>{{ focused_po.po_reference_number|default:focused_cluster.reference_code }}</strong> will update reconciliation balances and automatically issue a numbered <strong>Cash Voucher</strong>.
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label font-semibold text-sm">Receipt / Voucher Reference # <span class="text-danger">*</span></label>
-                        <input type="text" name="payment_reference" id="id_match_ref" class="form-control-htc" placeholder="e.g. OR-99482 / DEP-2026-001" required>
-                        <div class="form-text text-xs text-muted">Official receipt, payment voucher, or bank transaction reference.</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label font-semibold text-sm">Expense Category <span class="text-danger">*</span></label>
-                        <select name="expense_type" id="id_match_type" class="form-select-htc" required>
-                            <option value="sourcing">Supplier Purchase Cost (Sugar Mill)</option>
-                            <option value="trucking">Truck Delivery &amp; Hauling</option>
-                            <option value="barge">Boat / Barge Shipping</option>
-                            <option value="logistics_deposit">50% Delivery Advance Deposit</option>
-                            <option value="other">Other Operational Expense</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label font-semibold text-sm">Payment Amount (₱) <span class="text-danger">*</span></label>
-                        <input type="number" step="0.01" name="amount" id="id_match_amount" class="form-control-htc" placeholder="e.g. 500000.00" required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label font-semibold text-sm">Notes / Description (Optional)</label>
-                        <input type="text" name="notes" id="id_match_notes" class="form-control-htc" placeholder="e.g. 50% trucking advance to Batangas Port">
-                    </div>
-                </div>
-                <div class="modal-footer bg-light px-4">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary fw-bold px-4">
-                        <i class="bi bi-check-circle me-1"></i> Save Match &amp; Issue Cash Voucher
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
-</div>
-{% endif %}
+    {% endif %}
 
-{% if user|has_perm:"add_loan" %}
-<!-- CREATE NEW LOAN MODAL -->
-<div class="modal fade" id="newLoanModal" tabindex="-1" aria-labelledby="newLoanModalLabel" aria-hidden="true" {% if reopen_loan_modal %}data-auto-open="true"{% endif %}>
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title fw-bold" id="newLoanModalLabel"><i class="bi bi-bank me-2"></i>Add Loan Facility</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="post" action="{% url 'finance:loan_list' %}" id="newLoanForm">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <div class="modal-body p-4">
-                    {% if loan_form.errors %}
-                    <div class="alert alert-danger mb-3 py-2 px-3 text-xs shadow-sm">
-                        <strong class="d-block mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Facility Validation Error:</strong>
-                        <ul class="mb-0 ps-3">
-                            {% for field, errors in loan_form.errors.items %}
+    {% if user|has_perm:"add_loan" %}
+    <!-- CREATE NEW LOAN MODAL -->
+    <div class="modal fade" id="newLoanModal" tabindex="-1" aria-labelledby="newLoanModalLabel" aria-hidden="true" {% if reopen_loan_modal %}data-auto-open="true" {% endif %}>
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold" id="newLoanModalLabel"><i class="bi bi-bank me-2"></i>Add Loan
+                        Facility</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <form method="post" action="{% url 'finance:loan_list' %}" id="newLoanForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <div class="modal-body p-4">
+                        {% if loan_form.errors %}
+                        <div class="alert alert-danger mb-3 py-2 px-3 text-xs shadow-sm">
+                            <strong class="d-block mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Facility
+                                Validation Error:</strong>
+                            <ul class="mb-0 ps-3">
+                                {% for field, errors in loan_form.errors.items %}
                                 {% for error in errors %}
                                 <li><strong>{{ field|title }}:</strong> {{ error }}</li>
                                 {% endfor %}
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
 
-                    <div class="alert alert-info py-2 px-3 text-xs mb-3">
-                        <i class="bi bi-info-circle-fill me-1"></i> Record a capital credit facility and link it directly to an existing purchase order.
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label font-semibold text-sm">Purchase Order / Deal (PO #) <span class="text-danger">*</span></label>
-                            {{ loan_form.cluster }}
-                            <div class="form-text text-xs text-muted">Select the purchase order linked to this facility.</div>
+                        <div class="alert alert-info py-2 px-3 text-xs mb-3">
+                            <i class="bi bi-info-circle-fill me-1"></i> Record a capital credit facility and link it
+                            directly to an existing purchase order.
                         </div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label font-semibold text-sm">Purchase Order / Deal (PO #) <span
+                                        class="text-danger">*</span></label>
+                                {{ loan_form.cluster }}
+                                <div class="form-text text-xs text-muted">Select the purchase order linked to this
+                                    facility.</div>
+                            </div>
 
-                        <!-- LIVE SUGGESTIVE CALCULATION CARD -->
-                        <div class="col-12" id="suggestiveLoanCard" style="display: none;">
-                            <div class="p-3 border rounded-3 bg-primary-subtle border-primary-subtle">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold text-primary text-uppercase fs-7"><i class="bi bi-lightbulb-fill text-warning me-1"></i> Suggested Facility Amount</span>
-                                    <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-7 font-bold" id="btnApplyLoanSuggestion">
-                                        <i class="bi bi-magic me-1"></i> Apply Suggested Amount &amp; Dates
-                                    </button>
+                            <!-- LIVE SUGGESTIVE CALCULATION CARD -->
+                            <div class="col-12" id="suggestiveLoanCard" style="display: none;">
+                                <div class="p-3 border rounded-3 bg-primary-subtle border-primary-subtle">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold text-primary text-uppercase fs-7"><i
+                                                class="bi bi-lightbulb-fill text-warning me-1"></i> Suggested Facility
+                                            Amount</span>
+                                        <button type="button" class="btn btn-sm btn-primary py-0 px-2 fs-7 font-bold"
+                                            id="btnApplyLoanSuggestion">
+                                            <i class="bi bi-magic me-1"></i> Apply Suggested Amount &amp; Dates
+                                        </button>
+                                    </div>
+                                    <div class="row g-2 fs-7 text-dark mb-2">
+                                        <div class="col-md-3">Supplier Cost (100%): <strong
+                                                id="suggSourcing">₱0.00</strong></div>
+                                        <div class="col-md-3">Truck Delivery (100%): <strong
+                                                id="suggTrucking">₱0.00</strong></div>
+                                        <div class="col-md-3">Barge Delivery (100%): <strong
+                                                id="suggFreight">₱0.00</strong></div>
+                                        <div class="col-md-3 text-md-end">Suggested Loan: <strong
+                                                class="text-success fs-6" id="suggRequired">₱0.00</strong></div>
+                                    </div>
+                                    <div class="text-xs text-primary-emphasis mb-2"><i
+                                            class="bi bi-info-circle me-1"></i> Suggested Loan Amount = 100% Sourcing +
+                                        100% Logistics (Logistics milestone: 50% upfront down payment, 50% post-delivery
+                                        balance pool).</div>
+                                    <div id="suggPartialRow"
+                                        class="row g-2 fs-7 text-dark mb-2 pt-1 border-top border-primary-subtle"
+                                        style="display: none;">
+                                        <div class="col-md-6">Already Loaned: <strong class="text-success"
+                                                id="suggAlreadyLoaned">₱0.00</strong> (<span
+                                                id="suggPctFunded">0</span>%)</div>
+                                        <div class="col-md-6 text-md-end">Remaining Needed: <strong
+                                                class="text-primary fs-6" id="suggRemainingRequired">₱0.00</strong>
+                                            (<span id="suggPctRemaining">0</span>%)</div>
+                                    </div>
+                                    <div class="text-muted text-xs fst-italic" id="suggFormula">Select a purchase order
+                                        to compute suggested loan coverage.</div>
                                 </div>
-                                <div class="row g-2 fs-7 text-dark mb-2">
-                                    <div class="col-md-3">Supplier Cost (100%): <strong id="suggSourcing">₱0.00</strong></div>
-                                    <div class="col-md-3">Truck Delivery (100%): <strong id="suggTrucking">₱0.00</strong></div>
-                                    <div class="col-md-3">Barge Delivery (100%): <strong id="suggFreight">₱0.00</strong></div>
-                                    <div class="col-md-3 text-md-end">Suggested Loan: <strong class="text-success fs-6" id="suggRequired">₱0.00</strong></div>
-                                </div>
-                                <div class="text-xs text-primary-emphasis mb-2"><i class="bi bi-info-circle me-1"></i> Suggested Loan Amount = 100% Sourcing + 100% Logistics (Logistics milestone: 50% upfront down payment, 50% post-delivery balance pool).</div>
-                                <div id="suggPartialRow" class="row g-2 fs-7 text-dark mb-2 pt-1 border-top border-primary-subtle" style="display: none;">
-                                    <div class="col-md-6">Already Loaned: <strong class="text-success" id="suggAlreadyLoaned">₱0.00</strong> (<span id="suggPctFunded">0</span>%)</div>
-                                    <div class="col-md-6 text-md-end">Remaining Needed: <strong class="text-primary fs-6" id="suggRemainingRequired">₱0.00</strong> (<span id="suggPctRemaining">0</span>%)</div>
-                                </div>
-                                <div class="text-muted text-xs fst-italic" id="suggFormula">Select a purchase order to compute suggested loan coverage.</div>
                             </div>
-                        </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label font-semibold text-sm">Bank / Lender Name <span class="text-danger">*</span></label>
-                            {{ loan_form.bank_name }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label font-semibold text-sm">Loan Amount (₱) <span class="text-danger">*</span></label>
-                            <div id="standaloneLoanPrincipalWrap" data-bs-toggle="tooltip" data-bs-placement="top" title="Select a purchase order to view suggested loan amount">
-                                {{ loan_form.principal }}
+                            <div class="col-md-6">
+                                <label class="form-label font-semibold text-sm">Bank / Lender Name <span
+                                        class="text-danger">*</span></label>
+                                {{ loan_form.bank_name }}
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label font-semibold text-sm">Yearly Interest Rate (%) <span class="text-danger">*</span></label>
-                            {{ loan_form.interest_rate_annual }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label font-semibold text-sm">Loan Start Date <span class="text-danger">*</span></label>
-                            {{ loan_form.start_date }}
-                        </div>
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label font-semibold text-sm mb-0">Loan Due Date <span class="text-danger">*</span></label>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setPresetTenor(30)">+30d</button>
-                                    <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setPresetTenor(60)">+60d</button>
-                                    <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8" onclick="setPresetTenor(90)">+90d</button>
+                            <div class="col-md-6">
+                                <label class="form-label font-semibold text-sm">Loan Amount (₱) <span
+                                        class="text-danger">*</span></label>
+                                <div id="standaloneLoanPrincipalWrap" data-bs-toggle="tooltip" data-bs-placement="top"
+                                    title="Select a purchase order to view suggested loan amount">
+                                    {{ loan_form.principal }}
                                 </div>
                             </div>
-                            {{ loan_form.due_date }}
-                        </div>
-                        <details class="col-12 mt-3 mb-2" style="border: 1px solid var(--htc-border); padding: 1rem; border-radius: 8px; background: var(--htc-surface);">
-                            <summary style="cursor: pointer; font-weight: 600; color: var(--htc-primary-light);">Show Additional &amp; Optional Fields</summary>
-                            <div class="row g-3 mt-1">
-                                <div class="col-md-6">
-                                    <label class="form-label font-semibold text-sm">50% Deposit Funding (%)</label>
-                                    {{ loan_form.logistics_deposit_percentage }}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label font-semibold text-sm">Cheque Reference # (Optional)</label>
-                                    {{ loan_form.cheque_number }}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label font-semibold text-sm">Cheque Issue Date (Optional)</label>
-                                    {{ loan_form.cheque_date }}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label font-semibold text-sm">Bank Account # (Optional)</label>
-                                    {{ loan_form.bank_account_number }}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label font-semibold text-sm">Approval Status Workflow</label>
-                                    {{ loan_form.status }}
-                                </div>
+                            <div class="col-md-6">
+                                <label class="form-label font-semibold text-sm">Yearly Interest Rate (%) <span
+                                        class="text-danger">*</span></label>
+                                {{ loan_form.interest_rate_annual }}
                             </div>
-                        </details>
+                            <div class="col-md-6">
+                                <label class="form-label font-semibold text-sm">Loan Start Date <span
+                                        class="text-danger">*</span></label>
+                                {{ loan_form.start_date }}
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label font-semibold text-sm mb-0">Loan Due Date <span
+                                            class="text-danger">*</span></label>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8"
+                                            onclick="setPresetTenor(30)">+30d</button>
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8"
+                                            onclick="setPresetTenor(60)">+60d</button>
+                                        <button type="button" class="btn btn-outline-secondary py-0 px-1.5 fs-8"
+                                            onclick="setPresetTenor(90)">+90d</button>
+                                    </div>
+                                </div>
+                                {{ loan_form.due_date }}
+                            </div>
+                            <details class="col-12 mt-3 mb-2"
+                                style="border: 1px solid var(--htc-border); padding: 1rem; border-radius: 8px; background: var(--htc-surface);">
+                                <summary style="cursor: pointer; font-weight: 600; color: var(--htc-primary-light);">
+                                    Show Additional &amp; Optional Fields</summary>
+                                <div class="row g-3 mt-1">
+                                    <div class="col-md-6">
+                                        <label class="form-label font-semibold text-sm">50% Deposit Funding (%)</label>
+                                        {{ loan_form.logistics_deposit_percentage }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label font-semibold text-sm">Cheque Reference #
+                                            (Optional)</label>
+                                        {{ loan_form.cheque_number }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label font-semibold text-sm">Cheque Issue Date
+                                            (Optional)</label>
+                                        {{ loan_form.cheque_date }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label font-semibold text-sm">Bank Account #
+                                            (Optional)</label>
+                                        {{ loan_form.bank_account_number }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label font-semibold text-sm">Approval Status Workflow</label>
+                                        {{ loan_form.status }}
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
                     </div>
-                </div>
-                <div class="modal-footer bg-light px-4">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary fw-bold px-4"><i class="bi bi-check-circle me-1"></i> Save Loan Facility</button>
-                </div>
-            </form>
+                    <div class="modal-footer bg-light px-4">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4"><i
+                                class="bi bi-check-circle me-1"></i> Save Loan Facility</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var loanModalEl = document.getElementById('newLoanModal');
-    if (loanModalEl && loanModalEl.dataset.autoOpen === 'true') {
-        var modal = new bootstrap.Modal(loanModalEl);
-        modal.show();
-    }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var loanModalEl = document.getElementById('newLoanModal');
+            if (loanModalEl && loanModalEl.dataset.autoOpen === 'true') {
+                var modal = new bootstrap.Modal(loanModalEl);
+                modal.show();
+            }
 
-    var clusterSelect = document.getElementById('id_standalone_loan_cluster');
-    var suggCard = document.getElementById('suggestiveLoanCard');
-    var principalInput = document.getElementById('id_principal');
-    if (principalInput) { principalInput.addEventListener('input', function() { this.dataset.manualEdit = 'true'; }); }
-    var startDateInput = document.getElementById('id_start_date');
-    var dueDateInput = document.getElementById('id_due_date');
-    var chequeDateInput = document.getElementById('id_cheque_date');
-    var applyBtn = document.getElementById('btnApplyLoanSuggestion');
+            var clusterSelect = document.getElementById('id_standalone_loan_cluster');
+            var suggCard = document.getElementById('suggestiveLoanCard');
+            var principalInput = document.getElementById('id_principal');
+            if (principalInput) { principalInput.addEventListener('input', function () { this.dataset.manualEdit = 'true'; }); }
+            var startDateInput = document.getElementById('id_start_date');
+            var dueDateInput = document.getElementById('id_due_date');
+            var chequeDateInput = document.getElementById('id_cheque_date');
+            var applyBtn = document.getElementById('btnApplyLoanSuggestion');
 
-    var currentSuggestion = null;
+            var currentSuggestion = null;
 
-    function formatMoney(val) {
-        return '₱' + Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
+            function formatMoney(val) {
+                return '₱' + Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
 
-    function fetchLoanRequirement(clusterId) {
-        if (!clusterId) {
-            suggCard.style.display = 'none';
-            currentSuggestion = null;
-            return;
-        }
-        fetch('/finance/loans/requirement/' + clusterId + '/')
-            .then(res => res.json())
-            .then(data => {
-                currentSuggestion = data;
-                document.getElementById('suggSourcing').textContent = formatMoney(data.sourcing);
-                document.getElementById('suggTrucking').textContent = formatMoney(data.trucking);
-                document.getElementById('suggFreight').textContent = formatMoney(data.freight);
-                document.getElementById('suggRequired').textContent = formatMoney(data.required);
-                document.getElementById('suggFormula').textContent = data.formula;
-
-                var partialRow = document.getElementById('suggPartialRow');
-                var principalWrap = document.getElementById('standaloneLoanPrincipalWrap');
-                var defaultLoanAmt = (data.remaining_required > 0) ? data.remaining_required : data.required;
-
-                if (data.already_loaned > 0) {
-                    if (partialRow) {
-                        partialRow.style.display = 'flex';
-                        document.getElementById('suggAlreadyLoaned').textContent = formatMoney(data.already_loaned);
-                        document.getElementById('suggPctFunded').textContent = data.completion_pct;
-                        document.getElementById('suggRemainingRequired').textContent = formatMoney(data.remaining_required);
-                        document.getElementById('suggPctRemaining').textContent = data.remaining_pct;
-                    }
-                    var tip = 'Suggested Loan (100% Sourcing + 100% Logistics): ' + formatMoney(data.required) + ' (Remaining: ' + formatMoney(defaultLoanAmt) + ')';
-                    if (principalWrap) {
-                        principalWrap.setAttribute('title', tip);
-                        principalWrap.setAttribute('data-bs-original-title', tip);
-                    }
-                    if (principalInput) {
-                        principalInput.setAttribute('title', tip);
-                        principalInput.setAttribute('placeholder', 'Remaining: ' + formatMoney(defaultLoanAmt));
-                    }
-                } else {
-                    if (partialRow) partialRow.style.display = 'none';
-                    var tip = 'Suggested Loan (100% Sourcing + 100% Logistics): ' + formatMoney(data.required);
-                    if (principalWrap) {
-                        principalWrap.setAttribute('title', tip);
-                        principalWrap.setAttribute('data-bs-original-title', tip);
-                    }
-                    if (principalInput) {
-                        principalInput.setAttribute('title', tip);
-                        principalInput.setAttribute('placeholder', 'Suggested Loan: ' + formatMoney(defaultLoanAmt));
-                    }
+            function fetchLoanRequirement(clusterId) {
+                if (!clusterId) {
+                    suggCard.style.display = 'none';
+                    currentSuggestion = null;
+                    return;
                 }
+                fetch('/finance/loans/requirement/' + clusterId + '/')
+                    .then(res => res.json())
+                    .then(data => {
+                        currentSuggestion = data;
+                        document.getElementById('suggSourcing').textContent = formatMoney(data.sourcing);
+                        document.getElementById('suggTrucking').textContent = formatMoney(data.trucking);
+                        document.getElementById('suggFreight').textContent = formatMoney(data.freight);
+                        document.getElementById('suggRequired').textContent = formatMoney(data.required);
+                        document.getElementById('suggFormula').textContent = data.formula;
 
-                suggCard.style.display = 'block';
+                        var partialRow = document.getElementById('suggPartialRow');
+                        var principalWrap = document.getElementById('standaloneLoanPrincipalWrap');
+                        var defaultLoanAmt = (data.remaining_required > 0) ? data.remaining_required : data.required;
 
-                if (!principalInput.value || parseFloat(principalInput.value) <= 0 || !principalInput.dataset.manualEdit) {
-                    principalInput.value = defaultLoanAmt.toFixed(2);
+                        if (data.already_loaned > 0) {
+                            if (partialRow) {
+                                partialRow.style.display = 'flex';
+                                document.getElementById('suggAlreadyLoaned').textContent = formatMoney(data.already_loaned);
+                                document.getElementById('suggPctFunded').textContent = data.completion_pct;
+                                document.getElementById('suggRemainingRequired').textContent = formatMoney(data.remaining_required);
+                                document.getElementById('suggPctRemaining').textContent = data.remaining_pct;
+                            }
+                            var tip = 'Suggested Loan (100% Sourcing + 100% Logistics): ' + formatMoney(data.required) + ' (Remaining: ' + formatMoney(defaultLoanAmt) + ')';
+                            if (principalWrap) {
+                                principalWrap.setAttribute('title', tip);
+                                principalWrap.setAttribute('data-bs-original-title', tip);
+                            }
+                            if (principalInput) {
+                                principalInput.setAttribute('title', tip);
+                                principalInput.setAttribute('placeholder', 'Remaining: ' + formatMoney(defaultLoanAmt));
+                            }
+                        } else {
+                            if (partialRow) partialRow.style.display = 'none';
+                            var tip = 'Suggested Loan (100% Sourcing + 100% Logistics): ' + formatMoney(data.required);
+                            if (principalWrap) {
+                                principalWrap.setAttribute('title', tip);
+                                principalWrap.setAttribute('data-bs-original-title', tip);
+                            }
+                            if (principalInput) {
+                                principalInput.setAttribute('title', tip);
+                                principalInput.setAttribute('placeholder', 'Suggested Loan: ' + formatMoney(defaultLoanAmt));
+                            }
+                        }
+
+                        suggCard.style.display = 'block';
+
+                        if (!principalInput.value || parseFloat(principalInput.value) <= 0 || !principalInput.dataset.manualEdit) {
+                            principalInput.value = defaultLoanAmt.toFixed(2);
+                        }
+                    })
+                    .catch(err => console.error(err));
+            }
+
+            if (clusterSelect) {
+                clusterSelect.addEventListener('change', function () {
+                    fetchLoanRequirement(this.value);
+                });
+                if (clusterSelect.value) {
+                    fetchLoanRequirement(clusterSelect.value);
                 }
-            })
-            .catch(err => console.error(err));
-    }
+            }
 
-    if (clusterSelect) {
-        clusterSelect.addEventListener('change', function() {
-            fetchLoanRequirement(this.value);
-        });
-        if (clusterSelect.value) {
-            fetchLoanRequirement(clusterSelect.value);
-        }
-    }
+            if (applyBtn) {
+                applyBtn.addEventListener('click', function () {
+                    if (currentSuggestion) {
+                        var amtToApply = (currentSuggestion.remaining_required > 0) ? currentSuggestion.remaining_required : currentSuggestion.required;
+                        if (amtToApply) {
+                            principalInput.value = Number(amtToApply).toFixed(2);
+                        }
+                        var today = new Date();
+                        var todayStr = today.toISOString().split('T')[0];
+                        if (!startDateInput.value) startDateInput.value = todayStr;
+                        if (!chequeDateInput.value) chequeDateInput.value = startDateInput.value || todayStr;
 
-    if (applyBtn) {
-        applyBtn.addEventListener('click', function() {
-            if (currentSuggestion) {
-                var amtToApply = (currentSuggestion.remaining_required > 0) ? currentSuggestion.remaining_required : currentSuggestion.required;
-                if (amtToApply) {
-                    principalInput.value = Number(amtToApply).toFixed(2);
-                }
-                var today = new Date();
-                var todayStr = today.toISOString().split('T')[0];
-                if (!startDateInput.value) startDateInput.value = todayStr;
-                if (!chequeDateInput.value) chequeDateInput.value = startDateInput.value || todayStr;
-
-                var baseDate = new Date(startDateInput.value || todayStr);
-                baseDate.setDate(baseDate.getDate() + 60);
-                dueDateInput.value = baseDate.toISOString().split('T')[0];
+                        var baseDate = new Date(startDateInput.value || todayStr);
+                        baseDate.setDate(baseDate.getDate() + 60);
+                        dueDateInput.value = baseDate.toISOString().split('T')[0];
+                    }
+                });
             }
         });
-    }
-});
 
-function setPresetTenor(days) {
-    var startDateInput = document.getElementById('id_start_date');
-    var dueDateInput = document.getElementById('id_due_date');
-    var baseStr = startDateInput ? startDateInput.value : '';
-    var baseDate = baseStr ? new Date(baseStr) : new Date();
-    baseDate.setDate(baseDate.getDate() + days);
-    if (dueDateInput) {
-        dueDateInput.value = baseDate.toISOString().split('T')[0];
-    }
-}
+        function setPresetTenor(days) {
+            var startDateInput = document.getElementById('id_start_date');
+            var dueDateInput = document.getElementById('id_due_date');
+            var baseStr = startDateInput ? startDateInput.value : '';
+            var baseDate = baseStr ? new Date(baseStr) : new Date();
+            baseDate.setDate(baseDate.getDate() + days);
+            if (dueDateInput) {
+                dueDateInput.value = baseDate.toISOString().split('T')[0];
+            }
+        }
 
-document.addEventListener('DOMContentLoaded', function() {
-    try {
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        [...tooltipTriggerList].map(el => new bootstrap.Tooltip(el));
-    } catch(e) {}
-});
-</script>
-{% endif %}
+        document.addEventListener('DOMContentLoaded', function () {
+            try {
+                const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+                [...tooltipTriggerList].map(el => new bootstrap.Tooltip(el));
+            } catch (e) { }
+        });
+    </script>
+    {% endif %}
 
-{% endblock %}
-
+    {% endblock %}
