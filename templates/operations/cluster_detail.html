@@ -12,6 +12,7 @@
         <span class="badge bg-body border text-dark fs-7 px-3 py-1.5 shadow-2xs font-monospace" style="border-color: var(--htc-border) !important;">
             {{ cluster.reference_code }}
         </span>
+        {% if user.role == 'operations_management' or user.is_superuser %}
         <button type="button" id="blockchainPillBtn" class="btn btn-sm btn-outline-primary fw-semibold px-3 py-1.5 shadow-2xs d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#ledgerVerifyModal" onclick="triggerLedgerVerification()" title="Open Immutable Blockchain Lifecycle &amp; Audit Trail">
             <i class="bi bi-shield-check text-primary fs-6"></i>
             <span>Audit Trail &amp; Blockchain</span>
@@ -22,6 +23,7 @@
                 <i class="bi bi-bell-fill me-0.5"></i> Update
             </span>
         </button>
+        {% endif %}
     </div>
 
     <!-- Right: Workflow Actions & More Actions Dropdown -->

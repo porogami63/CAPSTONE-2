@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}HTC Core · Heindrich Trading Corporation{% endblock %}</title>
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/htc-logo.png' %}">
     <link rel="icon" type="image/png" sizes="16x16" href="{% static 'img/htc-logo.png' %}">
@@ -15,6 +16,48 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
     <link href="{% static 'css/htc-theme.css' %}?v=12" rel="stylesheet">
+    <style>
+        /* Financial Privacy Masking - Hidden by default with asterisks, revealed on hover */
+        .finance-masked {
+            cursor: pointer;
+            font-family: inherit;
+            position: relative;
+            display: inline-block;
+            vertical-align: baseline;
+            transition: color 0.15s ease-in-out;
+            border-bottom: 1px dotted rgba(100, 116, 139, 0.4);
+            padding: 0 1px;
+            border-radius: 3px;
+        }
+        .finance-masked:hover, .finance-masked:focus {
+            background: rgba(59, 130, 246, 0.08);
+            border-bottom-color: var(--htc-primary, #0c385c);
+        }
+        .finance-masked .masked-stars {
+            letter-spacing: 2px;
+            font-weight: 700;
+            display: inline;
+        }
+        .finance-masked .masked-real {
+            display: none;
+        }
+        .finance-masked:hover .masked-stars,
+        .finance-masked:focus .masked-stars {
+            display: none !important;
+        }
+        .finance-masked:hover .masked-real,
+        .finance-masked:focus .masked-real {
+            display: inline !important;
+        }
+
+        /* Override when user toggles show-all */
+        html[data-reveal-finances="true"] .finance-masked .masked-stars {
+            display: none !important;
+        }
+        html[data-reveal-finances="true"] .finance-masked .masked-real {
+            display: inline !important;
+        }
+    </style>
 </head>
 <body>
     <a href="#mainContent" class="skip-to-content">Skip to main content</a>
@@ -201,9 +244,15 @@
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-1 gap-sm-2 flex-wrap justify-content-end" data-intro="System Header Toolbar: Access real-time alerts, team chat, tour guide, theme toggle, and active user role badge." data-step="2">
-                    <!-- HTC Copilot Drawer Button -->
-                    <button type="button" class="btn btn-sm btn-outline-primary fw-bold d-flex align-items-center gap-1 py-1 px-2" id="btnCopilotDrawer" title="Open HTC Copilot Assistant">
-                        <i class="bi bi-robot text-primary"></i> <span class="d-none d-sm-inline">HTC Copilot</span>
+                    <!-- Financial Privacy Masking Toggle -->
+                    <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 py-1 px-2" id="toggleFinancialPrivacyBtn" title="Finances are masked with asterisks by default. Hover over any amount to reveal. Click to toggle.">
+                        <i class="bi bi-eye-slash-fill text-muted" id="financialPrivacyIcon"></i>
+                        <span class="d-none d-md-inline fs-8" id="financialPrivacyLabel">Masked</span>
+                    </button>
+
+                    <!-- Local ORM AI Copilot Drawer Button -->
+                    <button type="button" class="btn btn-sm btn-outline-primary fw-bold d-flex align-items-center gap-1 py-1 px-2" id="btnCopilotDrawer" title="Open Local ORM AI Assistant">
+                        <i class="bi bi-robot text-primary"></i> <span class="d-none d-sm-inline">Local ORM AI</span>
                     </button>
 
                     <!-- Notification Bell Dropdown -->
@@ -644,8 +693,8 @@
             <div class="d-flex align-items-center gap-2">
                 <div class="copilot-avatar"><i class="bi bi-robot"></i></div>
                 <div>
-                    <h6 class="mb-0 fw-bold">HTC Copilot</h6>
-                    <div class="fs-8 text-muted"><span class="badge bg-success-subtle text-success py-0 px-1 fs-8">Local ORM AI</span> · Role: {{ user_role }}</div>
+                    <h6 class="mb-0 fw-bold">Local ORM AI Assistant</h6>
+                    <div class="fs-8 text-muted"><span class="badge bg-success-subtle text-success py-0 px-1 fs-8">100% On-Premise · Air-Gapped</span> · Role: {{ user_role }}</div>
                 </div>
             </div>
             <button type="button" class="btn-close text-reset" id="closeCopilotDrawer" aria-label="Close"></button>
@@ -655,7 +704,12 @@
             <div class="copilot-msg bot-msg">
                 <div class="copilot-bubble">
                     <p class="mb-1"><strong>Hello {{ user.get_short_name|default:user.username }}!</strong> 👋</p>
-                    <p class="mb-2 fs-7">I am your HTC Copilot. Ask me about operational metrics, high variance alerts, loan balances, or MRO permits!</p>
+                    <p class="mb-2 fs-7">I am your Local ORM AI Assistant. I instruct Operations, Finance, and Invoicing teams step by step on system workflows and verify database integrity:</p>
+                    <div class="prompt-pills mb-2">
+                        <button class="copilot-pill text-primary fw-semibold" data-prompt="Operations Step-by-Step Guide"><i class="bi bi-truck text-primary me-1"></i> Operations Guide</button>
+                        <button class="copilot-pill text-success fw-semibold" data-prompt="Finance Step-by-Step Guide"><i class="bi bi-bank text-success me-1"></i> Finance Guide</button>
+                        <button class="copilot-pill text-purple fw-semibold" data-prompt="Invoicing Step-by-Step Guide"><i class="bi bi-file-earmark-spreadsheet text-info me-1"></i> Invoicing Guide</button>
+                    </div>
                     <div class="prompt-pills">
                         <button class="copilot-pill" data-prompt="Show high variance clusters"><i class="bi bi-exclamation-triangle text-danger me-1"></i> High Variances</button>
                         <button class="copilot-pill" data-prompt="Unassigned MRO permits"><i class="bi bi-file-earmark-spreadsheet text-primary me-1"></i> MRO Balances</button>
@@ -707,6 +761,126 @@
             });
 
             window.addEventListener('pageshow', finishLoading);
+        })();
+    </script>
+    <script>
+        // Global Financial Privacy Masking & CSRF Engine
+        (function() {
+            window.getCsrfToken = function() {
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                if (meta && meta.content) return meta.content;
+                const match = document.cookie.match(/csrftoken=([^;]+)/);
+                return match ? match[1] : '';
+            };
+
+            function maskFinancialFigures(root) {
+                root = root || document.body;
+                if (!root) return;
+                const walker = document.createTreeWalker(
+                    root,
+                    NodeFilter.SHOW_TEXT,
+                    {
+                        acceptNode: function(node) {
+                            const parent = node.parentElement;
+                            if (!parent) return NodeFilter.FILTER_REJECT;
+                            const tag = parent.tagName.toLowerCase();
+                            if (['script', 'style', 'input', 'textarea', 'select', 'option'].includes(tag)) {
+                                return NodeFilter.FILTER_REJECT;
+                            }
+                            if (parent.closest('.finance-masked') || parent.classList.contains('finance-masked')) {
+                                return NodeFilter.FILTER_REJECT;
+                            }
+                            if (node.nodeValue && node.nodeValue.includes('\u20B1')) {
+                                return NodeFilter.FILTER_ACCEPT;
+                            }
+                            return NodeFilter.FILTER_SKIP;
+                        }
+                    }
+                );
+
+                const nodes = [];
+                while (walker.nextNode()) {
+                    nodes.push(walker.currentNode);
+                }
+
+                const pesoRegex = /(\u20B1\s*[\d,]+(?:\.\d+)?(?:\s*[MKBmkb])?)/g;
+                nodes.forEach(node => {
+                    const text = node.nodeValue;
+                    if (!text || !pesoRegex.test(text)) return;
+                    pesoRegex.lastIndex = 0;
+
+                    const frag = document.createDocumentFragment();
+                    let lastIdx = 0;
+                    let m;
+                    while ((m = pesoRegex.exec(text)) !== null) {
+                        if (m.index > lastIdx) {
+                            frag.appendChild(document.createTextNode(text.substring(lastIdx, m.index)));
+                        }
+                        const span = document.createElement('span');
+                        span.className = 'finance-masked';
+                        span.setAttribute('tabindex', '0');
+                        span.title = 'Hover to reveal amount';
+
+                        const stars = document.createElement('span');
+                        stars.className = 'masked-stars';
+                        stars.textContent = '\u20B1******';
+
+                        const real = document.createElement('span');
+                        real.className = 'masked-real';
+                        real.textContent = m[0];
+
+                        span.appendChild(stars);
+                        span.appendChild(real);
+                        frag.appendChild(span);
+                        lastIdx = m.index + m[0].length;
+                    }
+                    if (lastIdx < text.length) {
+                        frag.appendChild(document.createTextNode(text.substring(lastIdx)));
+                    }
+                    if (node.parentNode) {
+                        node.parentNode.replaceChild(frag, node);
+                    }
+                });
+            }
+            window.maskFinancialFigures = maskFinancialFigures;
+
+            document.addEventListener('DOMContentLoaded', function() {
+                maskFinancialFigures(document.body);
+
+                // Privacy toggle button
+                const toggleBtn = document.getElementById('toggleFinancialPrivacyBtn');
+                const icon = document.getElementById('financialPrivacyIcon');
+                const label = document.getElementById('financialPrivacyLabel');
+
+                const savedPref = localStorage.getItem('htc_reveal_finances');
+                if (savedPref === 'true') {
+                    document.documentElement.setAttribute('data-reveal-finances', 'true');
+                    if (icon) { icon.className = 'bi bi-eye-fill text-primary'; }
+                    if (label) { label.textContent = 'Visible'; }
+                }
+
+                if (toggleBtn) {
+                    toggleBtn.addEventListener('click', function() {
+                        const current = document.documentElement.getAttribute('data-reveal-finances') === 'true';
+                        const nextState = !current;
+                        if (nextState) {
+                            document.documentElement.setAttribute('data-reveal-finances', 'true');
+                            localStorage.setItem('htc_reveal_finances', 'true');
+                            if (icon) { icon.className = 'bi bi-eye-fill text-primary'; }
+                            if (label) { label.textContent = 'Visible'; }
+                        } else {
+                            document.documentElement.removeAttribute('data-reveal-finances');
+                            localStorage.setItem('htc_reveal_finances', 'false');
+                            if (icon) { icon.className = 'bi bi-eye-slash-fill text-muted'; }
+                            if (label) { label.textContent = 'Masked'; }
+                        }
+                    });
+                }
+            });
+
+            document.addEventListener('shown.bs.modal', function(e) {
+                if (e.target) maskFinancialFigures(e.target);
+            });
         })();
     </script>
     <script src="{% static 'js/form_draft_cache.js' %}?v=2"></script>

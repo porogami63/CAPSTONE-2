@@ -11,6 +11,82 @@ from finance.models import CapitalLoan, Invoice, CashVoucher, FinancialReconcili
 from masters.models import Client, SugarMill, LogisticsPartner
 
 
+def _build_step_card(number, title, desc, link_url, link_text, badge_color="primary", rules=""):
+    return f"""
+    <div class='p-2 mb-2 rounded border bg-body-tertiary'>
+        <div class='d-flex align-items-center justify-content-between mb-1'>
+            <div class='d-flex align-items-center gap-1.5'>
+                <span class='badge bg-{badge_color} text-white fw-bold'>Step {number}</span>
+                <span class='fw-bold fs-7 text-dark'>{escape(title)}</span>
+            </div>
+            <a href='{link_url}' class='btn btn-xs btn-outline-{badge_color} py-0 px-2 fs-8 text-decoration-none'>{escape(link_text)} &rarr;</a>
+        </div>
+        <p class='mb-1 fs-8 text-muted'>{desc}</p>
+        {f"<div class='fs-8 text-secondary border-top pt-1 mt-1'><i class='bi bi-shield-check me-1 text-primary'></i><strong>ORM Rule:</strong> {rules}</div>" if rules else ""}
+    </div>
+    """
+
+
+def _build_operations_guide():
+    steps = [
+        _build_step_card(1, "Register PO Contract", "Enter buyer client, supplier sugar mill, contracted volume (MT), and procurement/selling rates. System checks margins.", "/operations/create/", "Create PO", "primary", "System auto-computes required financing credit line and locks reference code."),
+        _build_step_card(2, "Upload & Attach MRO Loading Permits", "Upload molasses release orders. Local OCR extracts planter name, crop year, and tonnage.", "/operations/mro/", "MRO Permits", "info", "Total attached MRO tonnage must match or cover PO volume before carrier dispatch."),
+        _build_step_card(3, "Assign Logistics Carrier & Dispatch", "Assign trucker/barge carrier, enter origin loaded volume (MT), bill of lading, and freight rates.", "/operations/deliveries/", "Deliveries & Trucking", "warning", "Logistics deposit vouchers (50%) require active carrier assignment."),
+        _build_step_card(4, "Record Weighbridge Destination Receipt", "Log destination weighbridge ticket and verified scale delivered MT. In-transit shrinkage calculated.", "/operations/deliveries/", "Log Weighbridge", "danger", "Shrinkage tolerance is capped at ±1.00%. Exceeding tolerance flags automated operational dispute."),
+        _build_step_card(5, "Order Fulfillment & Billing Handover", "Confirm receipt of all scheduled delivery batches. Cluster transitions to DELIVERED, unlocking customer sales invoicing.", "/operations/", "Orders & Deals", "success", "Seals operations hash block and triggers Invoicing notification.")
+    ]
+    return f"""
+    <div class='copilot-card p-3 rounded bg-body border'>
+        <div class='d-flex align-items-center justify-content-between mb-2'>
+            <div class='fw-bold text-primary fs-7'><i class='bi bi-truck me-1'></i> Operations: Step-by-Step Execution Guide</div>
+            <span class='badge bg-primary-subtle text-primary border border-primary-subtle'>5 Core Steps</span>
+        </div>
+        <p class='fs-8 text-muted mb-2'>Standard operating procedure for procurement, logistics dispatch, and weighbridge verification:</p>
+        {''.join(steps)}
+    </div>
+    """
+
+
+def _build_finance_guide():
+    steps = [
+        _build_step_card(1, "Formulate Capital Financing", "Review cluster sourcing budget and link an available commercial bank credit facility (e.g. BDO, Land Bank).", "/finance/loans/", "Loans & Financing", "primary", "Credit limit must cover procurement outlay plus 50% upfront carrier logistics deposit."),
+        _build_step_card(2, "Dual Authorization & Loan Drawdown", "Finance Manager conducts dual-authorization to verify and approve loan disbursement for sugar mill sourcing.", "/finance/loans/", "Verify Facility", "info", "Dual verification timestamp and approver ID are permanently sealed in SHA-256 Block 2."),
+        _build_step_card(3, "Issue Cash Disbursement Vouchers", "Generate sourcing payment cheques for the mill and 50% mobilization downpayment for the carrier.", "/finance/po-workspace/", "Issue Vouchers", "warning", "Any cheque correction must follow Compensating Void & Reissue with formal managerial reason."),
+        _build_step_card(4, "Expense Matching & Reconciler", "Match bank transactions, issued cheques, and carrier freight receipts against weighbridge deliveries.", "/finance/reconciliation/", "Zero-Discrepancy Reconciler", "danger", "Zero monetary discrepancy allowed (₱0.00 variance). Any discrepancy requires compensating voucher."),
+        _build_step_card(5, "Bank Facility Clearance & Archival", "Record bank Official Receipt (OR), interest breakdown, and mark loan facility as CLOSED and archived.", "/finance/loans/", "Settle Loan", "success", "Closes financial lifecycle block and seals financial hash chain.")
+    ]
+    return f"""
+    <div class='copilot-card p-3 rounded bg-body border'>
+        <div class='d-flex align-items-center justify-content-between mb-2'>
+            <div class='fw-bold text-success fs-7'><i class='bi bi-bank me-1'></i> Finance: Step-by-Step Execution Guide</div>
+            <span class='badge bg-success-subtle text-success border border-success-subtle'>5 Core Steps</span>
+        </div>
+        <p class='fs-8 text-muted mb-2'>Standard operating procedure for capital loans, disbursement cheques, and zero-tolerance reconciliation:</p>
+        {''.join(steps)}
+    </div>
+    """
+
+
+def _build_invoicing_guide():
+    steps = [
+        _build_step_card(1, "Monitor Delivered Orders", "Identify transaction clusters with confirmed destination weighbridge receiving tickets in DELIVERED status.", "/finance/invoices/", "Customer Invoices", "primary", "Invoice generation is unlocked only after physical delivery and weighbridge scale verification."),
+        _build_step_card(2, "Generate BIR-Compliant Sales Invoice", "Create official customer sales invoice using verified delivered volume (or contract volume) × selling price.", "/finance/invoices/", "Generate Invoice", "info", "System auto-generates sequential BIR-formatted tax invoice reference numbers."),
+        _build_step_card(3, "Apply 1% BIR Expanded Withholding Tax", "System computes 1% BIR Form 2307 EWT deduction from the gross billable amount to calculate Net Receivable.", "/finance/invoices/", "Tax Deductions", "warning", "1% EWT deduction is strictly enforced per BIR non-food agricultural trade regulations."),
+        _build_step_card(4, "Record Customer Payment Collection", "Encode customer bank deposit, telegraphic transfer, or cheque receipt with Official Receipt (OR) number.", "/finance/invoices/", "Record Payment", "primary", "Payments are matched directly against outstanding invoices to mark them PAID."),
+        _build_step_card(5, "Final Deal Closure & Blockchain Seal", "Confirm all revenues collected, loans settled, and vouchers cleared. Order marked CLOSED in ledger.", "/finance/invoices/", "Deal Closure", "success", "Seals final Block 5 of the cryptographic blockchain ledger.")
+    ]
+    return f"""
+    <div class='copilot-card p-3 rounded bg-body border'>
+        <div class='d-flex align-items-center justify-content-between mb-2'>
+            <div class='fw-bold text-purple fs-7' style='color: #6f42c1;'><i class='bi bi-file-earmark-spreadsheet me-1'></i> Invoicing: Step-by-Step Execution Guide</div>
+            <span class='badge bg-primary-subtle text-primary border border-primary-subtle'>5 Core Steps</span>
+        </div>
+        <p class='fs-8 text-muted mb-2'>Standard operating procedure for sales billing, 1% BIR EWT tax deductions, and payment collections:</p>
+        {''.join(steps)}
+    </div>
+    """
+
+
 def evaluate_copilot_query(user, query_text):
     """
     Evaluates natural language operational queries locally using Django ORM aggregations.
@@ -21,13 +97,42 @@ def evaluate_copilot_query(user, query_text):
     is_admin_or_mgmt = role in (User.Role.ADMINISTRATOR, User.Role.MANAGEMENT, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS_MANAGER, "administrator", "operations_management") or user.is_superuser
     is_finance = role in (User.Role.FINANCE, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.MANAGEMENT, User.Role.ADMINISTRATOR, "finance", "operations_management") or user.is_superuser
     is_ops = role in (User.Role.OPERATIONS, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.MANAGEMENT, User.Role.ADMINISTRATOR, "operations", "operations_management") or user.is_superuser
+    is_inv = role in (User.Role.INVOICING, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS_MANAGER, User.Role.MANAGEMENT, User.Role.ADMINISTRATOR, "invoicing", "operations_management") or user.is_superuser
 
     suggestions = [
+        "Operations Step-by-Step Guide",
+        "Finance Step-by-Step Guide",
+        "Invoicing Step-by-Step Guide",
         "Show high variance clusters",
         "Check overdue loans",
-        "Unassigned MRO permits",
-        "System overview summary"
     ]
+
+    # --- Intent 0: Step-by-Step Procedural Guidance (Operations, Finance, Invoicing) ---
+    is_guide_query = any(k in q for k in ["step", "guide", "how to", "instruction", "workflow", "process", "tutorial", "how do", "how can", "what do i"])
+    
+    if is_guide_query or "operations guide" in q or "ops guide" in q or "delivery guide" in q:
+        if "ops" in q or "operation" in q or "delivery" in q or "truck" in q or "mro" in q or role in (User.Role.OPERATIONS, "operations"):
+            if not ("finance" in q or "loan" in q or "voucher" in q or "invoice" in q):
+                return {"answer_html": _build_operations_guide(), "suggestions": ["Finance Step-by-Step Guide", "Invoicing Step-by-Step Guide", "Show high variance clusters"]}
+
+    if is_guide_query or "finance guide" in q or "loan guide" in q or "voucher guide" in q:
+        if "fin" in q or "loan" in q or "voucher" in q or "cheque" in q or "reconcil" in q or role in (User.Role.FINANCE, "finance"):
+            if not ("operation" in q or "delivery" in q or "invoice" in q):
+                return {"answer_html": _build_finance_guide(), "suggestions": ["Operations Step-by-Step Guide", "Invoicing Step-by-Step Guide", "Check overdue loans"]}
+
+    if is_guide_query or "invoice guide" in q or "invoicing guide" in q or "tax guide" in q or "ewt" in q:
+        if "inv" in q or "bill" in q or "tax" in q or "ewt" in q or role in (User.Role.INVOICING, "invoicing"):
+            if not ("operation" in q or "delivery" in q or "loan" in q):
+                return {"answer_html": _build_invoicing_guide(), "suggestions": ["Operations Step-by-Step Guide", "Finance Step-by-Step Guide", "System overview summary"]}
+
+    # If general "how to" or "guide" or "step by step" with no specific role singled out, show the guide for the user's role:
+    if is_guide_query:
+        if role in (User.Role.FINANCE, "finance"):
+            return {"answer_html": _build_finance_guide(), "suggestions": ["Operations Step-by-Step Guide", "Invoicing Step-by-Step Guide", "Check overdue loans"]}
+        elif role in (User.Role.INVOICING, "invoicing"):
+            return {"answer_html": _build_invoicing_guide(), "suggestions": ["Operations Step-by-Step Guide", "Finance Step-by-Step Guide", "System overview summary"]}
+        else:
+            return {"answer_html": _build_operations_guide(), "suggestions": ["Finance Step-by-Step Guide", "Invoicing Step-by-Step Guide", "Show high variance clusters"]}
 
     # --- Intent 1: High Variance / Disputes / Shrinkage ---
     if any(k in q for k in ["variance", "dispute", "shrinkage", "loss", "exceed"]):

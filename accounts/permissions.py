@@ -7,7 +7,6 @@ Role = User.Role
 ADMIN_PRIMARY_NAV = [
     ("admin_hub:dashboard", "Dashboard", "bi-grid-1x2-fill", ("admin_hub:",)),
     ("accounts:user_list", "User Management", "bi-people-fill", ("accounts:user",)),
-    ("operations:blockchain_ledger", "Blockchain Ledger", "bi-link-45deg", ("operations:blockchain",)),
     ("chat:room", "Team Chat", "bi-chat-dots-fill", ("chat:",)),
 ]
 
@@ -21,6 +20,7 @@ ADMIN_OPERATIONAL_NAV = [
     ("dashboard:analytics", "Analytics", "bi-graph-up-arrow", ("dashboard:analytics",)),
     ("masters:partners", "Partners & Directory", "bi-building", ("masters:",)),
     ("dashboard:documents", "Documents", "bi-folder2-open", ("dashboard:documents",)),
+    ("operations:blockchain_ledger", "Blockchain Ledger", "bi-link-45deg", ("operations:blockchain",)),
 ]
 
 CORE_NAV_ITEMS = [
@@ -82,7 +82,7 @@ PERMISSIONS = {
     "reconcile_payments": FINANCE_ADMIN,
     "add_match": FINANCE_ADMIN,
     "view_reconciliation": FINANCE_ADMIN,
-    "view_audit": OPS_ROLES,
+    "view_audit": {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT},
     "view_blockchain": {Role.ADMINISTRATOR, Role.OPERATIONS_MANAGEMENT},
     "view_masters": ALL_ROLES,
     "view_financial_summary": FINANCE_ADMIN,

@@ -41,9 +41,14 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.htccore.tech",
     "http://htccore.tech",
     "http://www.htccore.tech",
+    "https://18.140.166.84",
     "http://18.140.166.84",
+    "http://18.140.166.84:8000",
     "http://localhost",
     "http://127.0.0.1",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://testserver",
 ]
 
 csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
@@ -206,7 +211,7 @@ VARIANCE_TOLERANCE_PERCENT = 1.0
 
 # Security & Hardening Controls
 SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False  # Allows client-side JavaScript AJAX/fetch to read the csrftoken cookie
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 SECURE_CONTENT_TYPE_NOSNIFF = True

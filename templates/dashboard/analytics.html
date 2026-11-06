@@ -104,24 +104,182 @@
         font-size: 0.72rem;
         font-weight: 600;
     }
+
+    @media print {
+        .app-sidebar, .app-topbar, .analytics-action-buttons, .period-filter-bar, .btn, .skip-to-content, #copilotSlideDrawer, .footer, .navbar {
+            display: none !important;
+        }
+        .app-main-wrap {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .analytics-hero-card, .analytics-metric-card, .analytics-panel {
+            box-shadow: none !important;
+            border: 1px solid #cbd5e1 !important;
+            break-inside: avoid;
+        }
+        .print-only-header {
+            display: block !important;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #0c385c;
+            padding-bottom: 10px;
+        }
+    }
+    .print-only-header {
+        display: none;
+    }
 </style>
+
+<!-- Print Only Header -->
+<div class="print-only-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h3 class="fw-bold mb-0" style="color: #0c385c;">HEINDRICH TRADING CORPORATION</h3>
+            <div class="fs-6 text-muted fw-semibold">Operations Performance &amp; Sourcing Overview Report</div>
+        </div>
+        <div class="text-end fs-8 text-muted">
+            <div><strong>Report Period:</strong> {{ period_title }}</div>
+            <div><strong>Printed At:</strong> {% now "M d, Y h:i A" %} PST</div>
+        </div>
+    </div>
+</div>
 
 <!-- Header & Context Banner -->
 <div class="analytics-hero-card">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-            <h5 class="fw-bold mb-1 text-dark">Company Operations &amp; Performance Overview</h5>
-            <div class="fs-8 text-muted">
+            <div class="d-flex align-items-center gap-2">
+                <h5 class="fw-bold mb-0 text-dark">Company Operations &amp; Performance Overview</h5>
+                <span class="badge bg-primary text-white fs-8">{{ period_badge }}</span>
+            </div>
+            <div class="fs-8 text-muted mt-1">
                 Operational insights on customer volume demand, sugar mill sourcing distribution, and transit delivery health.
             </div>
         </div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 analytics-action-buttons">
+            <!-- Export & Print Options -->
+            <div class="dropdown">
+                <button class="btn btn-primary btn-sm dropdown-toggle px-3 py-1.5 fs-8 fw-semibold shadow-xs" type="button" id="exportReportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-file-earmark-arrow-down-fill me-1"></i> Printable Report &amp; Exports
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border border-secondary-subtle fs-8 p-1.5" aria-labelledby="exportReportDropdown">
+                    <li>
+                        <button type="button" class="dropdown-item py-1.5 rounded d-flex align-items-center gap-2 text-dark" onclick="window.print()">
+                            <i class="bi bi-printer-fill text-primary"></i> <span>Print Report (Printable View)</span>
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li>
+                        <a class="dropdown-item py-1.5 rounded d-flex align-items-center gap-2 text-dark" href="{% url 'dashboard:analytics_export_pdf' %}?period={{ period }}&year={{ selected_year }}&month={{ selected_month }}&week={{ selected_week }}">
+                            <i class="bi bi-file-earmark-pdf-fill text-danger"></i> <span>Download PDF (.pdf)</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item py-1.5 rounded d-flex align-items-center gap-2 text-dark" href="{% url 'dashboard:analytics_export_xlsx' %}?period={{ period }}&year={{ selected_year }}&month={{ selected_month }}&week={{ selected_week }}">
+                            <i class="bi bi-file-earmark-excel-fill text-success"></i> <span>Download Spreadsheet (.xlsx)</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item py-1.5 rounded d-flex align-items-center gap-2 text-dark" href="{% url 'dashboard:analytics_export_csv' %}?period={{ period }}&year={{ selected_year }}&month={{ selected_month }}&week={{ selected_week }}">
+                            <i class="bi bi-file-earmark-text-fill text-info"></i> <span>Download CSV (.csv)</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
             <a href="{% url 'operations:cluster_list' %}" class="btn btn-outline-secondary btn-sm px-3 py-1.5 fs-8">
-                <i class="bi bi-receipt me-1"></i> View All Orders
+                <i class="bi bi-receipt me-1"></i> Orders
             </a>
-            <a href="{% url 'dashboard:home' %}" class="btn btn-primary btn-sm px-3 py-1.5 fs-8">
-                <i class="bi bi-speedometer2 me-1"></i> Main Dashboard
+            <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary btn-sm px-3 py-1.5 fs-8">
+                <i class="bi bi-speedometer2 me-1"></i> Dashboard
             </a>
+        </div>
+    </div>
+
+    <!-- Period Filter Bar: Weekly, Monthly, and Yearly (Singular Year 2024, 2025, 2026) -->
+    <div class="period-filter-bar pt-2.5 border-top border-secondary-subtle">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2.5">
+            <!-- Left: Cadence Toggles -->
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="fs-8 fw-bold text-muted text-uppercase me-1"><i class="bi bi-calendar3 me-1"></i>Cadence:</span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Cadence Selector">
+                    <a href="?period=yearly&year={{ selected_year }}" class="btn {% if period == 'yearly' %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %} px-3 py-1 fs-8">
+                        Yearly
+                    </a>
+                    <a href="?period=monthly&year={{ selected_year }}&month={{ selected_month }}" class="btn {% if period == 'monthly' %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %} px-3 py-1 fs-8">
+                        Monthly
+                    </a>
+                    <a href="?period=weekly&year={{ selected_year }}&month={{ selected_month }}&week={{ selected_week }}" class="btn {% if period == 'weekly' %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %} px-3 py-1 fs-8">
+                        Weekly
+                    </a>
+                </div>
+
+                <!-- Right / Contextual Sub-Filters -->
+                {% if period == 'yearly' %}
+                <div class="d-flex align-items-center gap-1.5 ms-2">
+                    <span class="fs-8 text-muted fw-semibold">Singular Year:</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        {% for yr in available_years %}
+                        <a href="?period=yearly&year={{ yr }}" class="btn {% if selected_year == yr %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %} px-2.5 py-1 fs-8">
+                            {{ yr }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% elif period == 'monthly' %}
+                <div class="d-flex align-items-center gap-1.5 ms-2 flex-wrap">
+                    <span class="fs-8 text-muted fw-semibold">Year:</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        {% for yr in available_years %}
+                        <a href="?period=monthly&year={{ yr }}&month={{ selected_month }}" class="btn {% if selected_year == yr %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %} px-2 py-1 fs-8">
+                            {{ yr }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <span class="fs-8 text-muted fw-semibold ms-2">Month:</span>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle fs-8 py-1 px-2.5" type="button" data-bs-toggle="dropdown">
+                            {% for m_num, m_name in month_names %}
+                                {% if selected_month == m_num %}{{ m_name }}{% endif %}
+                            {% endfor %}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-sm shadow fs-8" style="max-height: 250px; overflow-y: auto;">
+                            {% for m_num, m_name in month_names %}
+                            <li>
+                                <a class="dropdown-item {% if selected_month == m_num %}active fw-bold{% endif %}" href="?period=monthly&year={{ selected_year }}&month={{ m_num }}">
+                                    {{ m_name }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% elif period == 'weekly' %}
+                <div class="d-flex align-items-center gap-1.5 ms-2 flex-wrap">
+                    <span class="fs-8 text-muted fw-semibold">Year:</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        {% for yr in available_years %}
+                        <a href="?period=weekly&year={{ yr }}&month={{ selected_month }}&week={{ selected_week }}" class="btn {% if selected_year == yr %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %} px-2 py-1 fs-8">
+                            {{ yr }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <span class="fs-8 text-muted fw-semibold ms-2">Week:</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <a href="?period=weekly&year={{ selected_year }}&month={{ selected_month }}&week=1" class="btn {% if selected_week == 1 %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %} px-2 py-1 fs-8">W1 (Days 1–7)</a>
+                        <a href="?period=weekly&year={{ selected_year }}&month={{ selected_month }}&week=2" class="btn {% if selected_week == 2 %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %} px-2 py-1 fs-8">W2 (Days 8–14)</a>
+                        <a href="?period=weekly&year={{ selected_year }}&month={{ selected_month }}&week=3" class="btn {% if selected_week == 3 %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %} px-2 py-1 fs-8">W3 (Days 15–21)</a>
+                        <a href="?period=weekly&year={{ selected_year }}&month={{ selected_month }}&week=4" class="btn {% if selected_week == 4 %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %} px-2 py-1 fs-8">W4+ (Days 22+)</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Active Filter Badge -->
+            <div class="fs-8 text-muted d-flex align-items-center gap-1.5">
+                <i class="bi bi-funnel-fill text-primary"></i>
+                <span>Active Scope: <strong class="text-dark">{{ period_title }}</strong></span>
+            </div>
         </div>
     </div>
 </div>

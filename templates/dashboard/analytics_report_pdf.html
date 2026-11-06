@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>HTC Core Analytics Report</title>
+<style>
+    @page {
+        size: A4 portrait;
+        margin: 1.5cm;
+    }
+    body {
+        font-family: Helvetica, Arial, sans-serif;
+        color: #1e293b;
+        font-size: 10pt;
+        line-height: 1.4;
+    }
+    .header-table {
+        width: 100%;
+        border-bottom: 2px solid #0c385c;
+        padding-bottom: 8px;
+        margin-bottom: 16px;
+    }
+    .company-title {
+        font-size: 16pt;
+        font-weight: bold;
+        color: #0c385c;
+    }
+    .report-subtitle {
+        font-size: 11pt;
+        color: #475569;
+        font-weight: bold;
+    }
+    .meta-text {
+        font-size: 8pt;
+        color: #64748b;
+        text-align: right;
+    }
+    .section-title {
+        font-size: 11pt;
+        font-weight: bold;
+        color: #0c385c;
+        border-bottom: 1px solid #cbd5e1;
+        padding-bottom: 4px;
+        margin-top: 14px;
+        margin-bottom: 8px;
+    }
+    .kpi-table {
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    .kpi-box {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 8px;
+        text-align: center;
+    }
+    .kpi-label {
+        font-size: 7.5pt;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: bold;
+    }
+    .kpi-value {
+        font-size: 13pt;
+        font-weight: bold;
+        color: #0c385c;
+        margin-top: 2px;
+    }
+    .kpi-hint {
+        font-size: 7.5pt;
+        color: #10b981;
+    }
+    table.data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 12px;
+        font-size: 8.5pt;
+    }
+    table.data-table th {
+        background-color: #0c385c;
+        color: #ffffff;
+        font-weight: bold;
+        padding: 6px 8px;
+        text-align: left;
+    }
+    table.data-table td {
+        padding: 5px 8px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    table.data-table tr:nth-child(even) td {
+        background-color: #f8fafc;
+    }
+    .text-end { text-align: right; }
+    .text-center { text-align: center; }
+    .badge-safe {
+        color: #065f46;
+        font-weight: bold;
+    }
+    .badge-review {
+        color: #991b1b;
+        font-weight: bold;
+    }
+    .footer {
+        border-top: 1px solid #cbd5e1;
+        padding-top: 8px;
+        margin-top: 16px;
+        font-size: 7.5pt;
+        color: #64748b;
+        text-align: center;
+    }
+</style>
+</head>
+<body>
+
+<table class="header-table">
+    <tr>
+        <td>
+            <div class="company-title">HEINDRICH TRADING CORPORATION</div>
+            <div class="report-subtitle">Operations Performance &amp; Sourcing Overview</div>
+        </td>
+        <td class="meta-text">
+            <strong>Period:</strong> {{ data.period_title }}<br>
+            <strong>Generated:</strong> {{ now|date:"M d, Y h:i A" }} PST<br>
+            <strong>Status:</strong> Cryptographically Verified
+        </td>
+    </tr>
+</table>
+
+<div class="section-title">EXECUTIVE PERFORMANCE INDICATORS</div>
+<table class="kpi-table">
+    <tr>
+        <td class="kpi-box" style="width: 25%;">
+            <div class="kpi-label">Contracted Volume</div>
+            <div class="kpi-value">{{ data.total_contracted|floatformat:0 }} MT</div>
+            <div class="kpi-hint">Purchase Contracts</div>
+        </td>
+        <td class="kpi-box" style="width: 25%;">
+            <div class="kpi-label">Delivered Volume</div>
+            <div class="kpi-value" style="color: #2563eb;">{{ data.total_delivered|floatformat:0 }} MT</div>
+            <div class="kpi-hint">{{ data.fulfillment_rate }}% Completion</div>
+        </td>
+        <td class="kpi-box" style="width: 25%;">
+            <div class="kpi-label">Avg Weight Loss</div>
+            <div class="kpi-value">{{ data.avg_variance }}%</div>
+            <div class="kpi-hint">Limit: &plusmn;1.00%</div>
+        </td>
+        <td class="kpi-box" style="width: 25%;">
+            <div class="kpi-label">Active Trade Network</div>
+            <div class="kpi-value">{{ data.total_partners }} Partners</div>
+            <div class="kpi-hint">{{ data.client_data|length }} Buyers &middot; {{ data.mill_data|length }} Mills</div>
+        </td>
+    </tr>
+</table>
+
+<div class="section-title">TOP ENTERPRISE BUYERS (CUSTOMER DEMAND)</div>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width: 8%;">Rank</th>
+            <th style="width: 47%;">Enterprise Client</th>
+            <th class="text-center" style="width: 15%;">Orders</th>
+            <th class="text-end" style="width: 15%;">Volume (MT)</th>
+            <th class="text-end" style="width: 15%;">Share (%)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in data.client_data %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td><strong>{{ c.name }}</strong></td>
+            <td class="text-center">{{ c.orders_count }}</td>
+            <td class="text-end">{{ c.volume_mt|floatformat:0 }} MT</td>
+            <td class="text-end">{{ c.volume_pct }}%</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="text-center">No customer purchase contracts recorded for this period.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="section-title">SUGAR MILL SOURCING DISTRIBUTION &amp; ROUTE HEALTH</div>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width: 8%;">Rank</th>
+            <th style="width: 42%;">Sugar Mill Source</th>
+            <th class="text-center" style="width: 12%;">Orders</th>
+            <th class="text-end" style="width: 15%;">Sourced (MT)</th>
+            <th class="text-end" style="width: 11%;">Share (%)</th>
+            <th class="text-end" style="width: 12%;">Weight Loss</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in data.mill_data %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td><strong>{{ m.name }}</strong></td>
+            <td class="text-center">{{ m.orders_count }}</td>
+            <td class="text-end">{{ m.volume_mt|floatformat:0 }} MT</td>
+            <td class="text-end">{{ m.volume_pct }}%</td>
+            <td class="text-end {% if m.is_safe %}badge-safe{% else %}badge-review{% endif %}">
+                {{ m.avg_variance }}%
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-center">No sugar mill sourcing records for this period.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="footer">
+    HTC Core Unified Platform &bull; Automated ORM Audit &amp; Reporting Engine &bull; Confidential Internal Report
+</div>
+
+</body>
+</html>
+

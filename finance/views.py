@@ -1597,7 +1597,7 @@ def download_voucher_pdf(request, pk):
     return response
 
 
-@role_required(User.Role.ADMINISTRATOR, User.Role.FINANCE, User.Role.OPERATIONS, User.Role.MANAGEMENT)
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT)
 def verify_finance_integrity_view(request, pk):
     """
     Cryptographic verification endpoint for a Purchase Order's financial records.

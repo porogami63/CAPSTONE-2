@@ -443,7 +443,7 @@ def home(request):
         or request.user.is_superuser
     )
     is_ops_manager = (
-        user_role in [User.Role.OPERATIONS_MANAGEMENT, User.Role.ADMINISTRATOR, "operations_management", "administrator"]
+        user_role in [User.Role.OPERATIONS_MANAGEMENT, "operations_management"]
         or request.user.is_superuser
     )
 
@@ -523,28 +523,109 @@ def home(request):
     )
 
 
-@role_required(
-    User.Role.MANAGEMENT,
-    User.Role.FINANCE,
-    User.Role.OPERATIONS,
-)
-def analytics(request):
-    """Executive Performance Analytics: Real-time operational intelligence on customer demand, sourcing, and delivery fulfillment."""
+def _get_analytics_data(period="yearly", year="2026", month=None, week=None):
     from operations.models import DeliveryLedger, LogisticsLedger, PurchaseOrder, TransactionCluster
     from masters.models import Client, SugarMill
 
-    # 1. High-Level Performance Aggregates
-    total_contracted = float(PurchaseOrder.objects.aggregate(s=Sum("volume_mt"))["s"] or 0)
-    total_delivered = float(DeliveryLedger.objects.filter(received_at__isnull=False).aggregate(s=Sum("delivered_mt"))["s"] or 0)
-    total_loaded = float(LogisticsLedger.objects.aggregate(s=Sum("loaded_volume_mt"))["s"] or 0)
-    avg_variance = float(LogisticsLedger.objects.filter(variance_percent__isnull=False).aggregate(a=Avg("variance_percent"))["a"] or 0)
+    now = timezone.now()
+    available_years = sorted(list(set(
+        PurchaseOrder.objects.values_list("cluster__created_at__year", flat=True).distinct()
+    ) | {2024, 2025, 2026}))
+
+    try:
+        selected_year = int(year) if year else (available_years[-1] if available_years else now.year)
+    except (ValueError, TypeError):
+        selected_year = available_years[-1] if available_years else now.year
+
+    try:
+        selected_month = int(month) if month else now.month
+    except (ValueError, TypeError):
+        selected_month = now.month
+    if selected_month < 1 or selected_month > 12:
+        selected_month = now.month
+
+    try:
+        selected_week = int(week) if week else 1
+    except (ValueError, TypeError):
+        selected_week = 1
+    if selected_week < 1 or selected_week > 4:
+        selected_week = 1
+
+    month_names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    cur_month_name = month_names[selected_month - 1]
+
+    if period == "weekly":
+        start_day = (selected_week - 1) * 7 + 1
+        end_day = 31 if selected_week == 4 else selected_week * 7
+        po_qs = PurchaseOrder.objects.filter(
+            cluster__created_at__year=selected_year,
+            cluster__created_at__month=selected_month,
+            cluster__created_at__day__gte=start_day,
+            cluster__created_at__day__lte=end_day
+        )
+        delivery_qs = DeliveryLedger.objects.filter(
+            delivery_date__year=selected_year,
+            delivery_date__month=selected_month,
+            delivery_date__day__gte=start_day,
+            delivery_date__day__lte=end_day,
+            received_at__isnull=False
+        )
+        logistics_qs = LogisticsLedger.objects.filter(
+            cluster__created_at__year=selected_year,
+            cluster__created_at__month=selected_month,
+            cluster__created_at__day__gte=start_day,
+            cluster__created_at__day__lte=end_day
+        )
+        cluster_qs = TransactionCluster.objects.filter(
+            created_at__year=selected_year,
+            created_at__month=selected_month,
+            created_at__day__gte=start_day,
+            created_at__day__lte=end_day
+        )
+        period_title = f"Week {selected_week} ({cur_month_name} {selected_year})"
+        period_badge = f"W{selected_week} {cur_month_name[:3]} {selected_year}"
+
+    elif period == "monthly":
+        po_qs = PurchaseOrder.objects.filter(
+            cluster__created_at__year=selected_year,
+            cluster__created_at__month=selected_month
+        )
+        delivery_qs = DeliveryLedger.objects.filter(
+            delivery_date__year=selected_year,
+            delivery_date__month=selected_month,
+            received_at__isnull=False
+        )
+        logistics_qs = LogisticsLedger.objects.filter(
+            cluster__created_at__year=selected_year,
+            cluster__created_at__month=selected_month
+        )
+        cluster_qs = TransactionCluster.objects.filter(
+            created_at__year=selected_year,
+            created_at__month=selected_month
+        )
+        period_title = f"{cur_month_name} {selected_year}"
+        period_badge = f"{cur_month_name[:3]} {selected_year}"
+
+    else: # yearly - singular year (2024, 2025, 2026)
+        period = "yearly"
+        po_qs = PurchaseOrder.objects.filter(cluster__created_at__year=selected_year)
+        delivery_qs = DeliveryLedger.objects.filter(delivery_date__year=selected_year, received_at__isnull=False)
+        logistics_qs = LogisticsLedger.objects.filter(cluster__created_at__year=selected_year)
+        cluster_qs = TransactionCluster.objects.filter(created_at__year=selected_year)
+        period_title = f"Year {selected_year}"
+        period_badge = f"FY {selected_year}"
+
+    total_contracted = float(po_qs.aggregate(s=Sum("volume_mt"))["s"] or 0)
+    total_delivered = float(delivery_qs.aggregate(s=Sum("delivered_mt"))["s"] or 0)
+    total_loaded = float(logistics_qs.aggregate(s=Sum("loaded_volume_mt"))["s"] or 0)
+    avg_variance = float(logistics_qs.filter(variance_percent__isnull=False).aggregate(a=Avg("variance_percent"))["a"] or 0)
     fulfillment_rate = round((total_delivered / total_contracted * 100), 1) if total_contracted > 0 else 0.0
 
-    # 2. Customer Demand & Volume Share
+    # Customer Demand & Volume Share
     client_data = []
     for c in Client.objects.filter(is_active=True).order_by("name"):
-        vol = float(PurchaseOrder.objects.filter(cluster__client=c).aggregate(s=Sum("volume_mt"))["s"] or 0)
-        orders_count = TransactionCluster.objects.filter(client=c).count()
+        vol = float(po_qs.filter(cluster__client=c).aggregate(s=Sum("volume_mt"))["s"] or 0)
+        orders_count = cluster_qs.filter(client=c).count()
         if vol > 0 or orders_count > 0:
             pct = round((vol / total_contracted * 100), 1) if total_contracted > 0 else 0.0
             client_data.append({
@@ -556,13 +637,13 @@ def analytics(request):
             })
     client_data.sort(key=lambda x: x["volume_mt"], reverse=True)
 
-    # 3. Sugar Mill Sourcing Distribution & Route Health
+    # Sugar Mill Sourcing Distribution & Route Health
     mill_data = []
     for m in SugarMill.objects.filter(is_active=True).order_by("name"):
-        vol = float(PurchaseOrder.objects.filter(cluster__sugar_mill=m).aggregate(s=Sum("volume_mt"))["s"] or 0)
-        orders_count = TransactionCluster.objects.filter(sugar_mill=m).count()
-        var = float(LogisticsLedger.objects.filter(cluster__sugar_mill=m).aggregate(a=Avg("variance_percent"))["a"] or 0)
-        disputed = LogisticsLedger.objects.filter(cluster__sugar_mill=m, variance_exceeds_tolerance=True).count()
+        vol = float(po_qs.filter(cluster__sugar_mill=m).aggregate(s=Sum("volume_mt"))["s"] or 0)
+        orders_count = cluster_qs.filter(sugar_mill=m).count()
+        var = float(logistics_qs.filter(cluster__sugar_mill=m).aggregate(a=Avg("variance_percent"))["a"] or 0)
+        disputed = logistics_qs.filter(cluster__sugar_mill=m, variance_exceeds_tolerance=True).count()
         if vol > 0 or orders_count > 0:
             pct = round((vol / total_contracted * 100), 1) if total_contracted > 0 else 0.0
             mill_data.append({
@@ -578,14 +659,20 @@ def analytics(request):
     mill_data.sort(key=lambda x: x["volume_mt"], reverse=True)
 
     total_partners = len(client_data) + len(mill_data)
-
     client_chart_labels = [c["name"] for c in client_data]
     client_chart_volumes = [c["volume_mt"] for c in client_data]
-
     mill_chart_labels = [m["name"] for m in mill_data]
     mill_chart_volumes = [m["volume_mt"] for m in mill_data]
 
-    context = {
+    return {
+        "period": period,
+        "selected_year": selected_year,
+        "selected_month": selected_month,
+        "selected_week": selected_week,
+        "available_years": available_years,
+        "period_title": period_title,
+        "period_badge": period_badge,
+        "month_names": [(i+1, name) for i, name in enumerate(month_names)],
         "total_contracted": total_contracted,
         "total_delivered": total_delivered,
         "total_loaded": total_loaded,
@@ -597,7 +684,192 @@ def analytics(request):
         "client_chart_json": json.dumps({"labels": client_chart_labels, "data": client_chart_volumes}),
         "mill_chart_json": json.dumps({"labels": mill_chart_labels, "data": mill_chart_volumes}),
     }
+
+
+@role_required(
+    User.Role.MANAGEMENT,
+    User.Role.FINANCE,
+    User.Role.OPERATIONS,
+)
+def analytics(request):
+    """Executive Performance Analytics: Real-time operational intelligence sorted by Weekly, Monthly, and Yearly (singular year)."""
+    period = request.GET.get("period", "yearly").strip().lower()
+    year = request.GET.get("year", "2026").strip()
+    month = request.GET.get("month", "").strip()
+    week = request.GET.get("week", "").strip()
+
+    context = _get_analytics_data(period=period, year=year, month=month, week=week)
     return render(request, "dashboard/analytics.html", context)
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.FINANCE, User.Role.OPERATIONS)
+def export_analytics_pdf(request):
+    """Generate printable PDF report for Analytics with KPIs, customer demand, and sugar mill distribution."""
+    period = request.GET.get("period", "yearly").strip().lower()
+    year = request.GET.get("year", "2026").strip()
+    month = request.GET.get("month", "").strip()
+    week = request.GET.get("week", "").strip()
+    data = _get_analytics_data(period=period, year=year, month=month, week=week)
+
+    template = get_template("dashboard/analytics_report_pdf.html")
+    html = template.render({"data": data, "now": timezone.now()})
+
+    response = HttpResponse(content_type="application/pdf")
+    disposition = "inline" if (request.GET.get("inline") == "1" or request.GET.get("preview") == "1") else "attachment"
+    filename = f"HTC_Analytics_{data['period_badge'].replace(' ', '_')}.pdf"
+    response["Content-Disposition"] = f'{disposition}; filename="{filename}"'
+
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    if pisa_status.err:
+        return HttpResponse("Error generating Analytics PDF report.", status=500, content_type="text/plain")
+    return response
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.FINANCE, User.Role.OPERATIONS)
+def export_analytics_xlsx(request):
+    """Generate professional Excel spreadsheet (.xlsx) for Analytics report."""
+    period = request.GET.get("period", "yearly").strip().lower()
+    year = request.GET.get("year", "2026").strip()
+    month = request.GET.get("month", "").strip()
+    week = request.GET.get("week", "").strip()
+    data = _get_analytics_data(period=period, year=year, month=month, week=week)
+
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Performance Analytics"
+
+    title_font = Font(name="Calibri", size=15, bold=True, color="0C385C")
+    sub_font = Font(name="Calibri", size=10, italic=True, color="555555")
+    section_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+
+    section_fill = PatternFill(start_color="0C385C", end_color="0C385C", fill_type="solid")
+    header_fill = PatternFill(start_color="1E40AF", end_color="1E40AF", fill_type="solid")
+
+    ws.append(["HEINDRICH TRADING CORPORATION"])
+    ws.append(["Company Operations & Performance Overview Report"])
+    ws.append([f"Period: {data['period_title']} | Exported: {timezone.now().strftime('%b %d, %Y %I:%M %p PST')}"])
+    ws.append([])
+
+    ws["A1"].font = title_font
+    ws["A2"].font = Font(name="Calibri", size=12, bold=True, color="333333")
+    ws["A3"].font = sub_font
+
+    # KPI Block
+    ws.append(["EXECUTIVE KEY PERFORMANCE INDICATORS", "", ""])
+    ws.merge_cells("A5:C5")
+    ws["A5"].font = section_font
+    ws["A5"].fill = section_fill
+
+    ws.append(["Metric", "Value", "Notes"])
+    for col in ["A", "B", "C"]:
+        ws[f"{col}6"].font = header_font
+        ws[f"{col}6"].fill = header_fill
+
+    kpis = [
+        ("Contracted Molasses Volume", f"{data['total_contracted']:,.2f} MT", "Across recorded purchase orders"),
+        ("Confirmed Delivered Volume", f"{data['total_delivered']:,.2f} MT", f"{data['fulfillment_rate']:.1f}% overall fulfillment rate"),
+        ("Average In-Transit Weight Loss", f"{data['avg_variance']:.2f}%", "Tolerance threshold: +/-1.00%"),
+        ("Active Trade Network", f"{data['total_partners']} Partners", f"{len(data['client_data'])} Buyers, {len(data['mill_data'])} Mills"),
+    ]
+    for row in kpis:
+        ws.append(list(row))
+
+    ws.append([])
+    curr_row = ws.max_row + 1
+    ws.append(["CUSTOMER DEMAND & VOLUME SHARE (TOP ENTERPRISE BUYERS)", "", "", "", ""])
+    ws.merge_cells(f"A{curr_row}:E{curr_row}")
+    ws[f"A{curr_row}"].font = section_font
+    ws[f"A{curr_row}"].fill = section_fill
+
+    ws.append(["Rank", "Enterprise Client", "Orders Count", "Contracted Volume (MT)", "Share of Volume (%)"])
+    hdr_row = ws.max_row
+    for col in ["A", "B", "C", "D", "E"]:
+        ws[f"{col}{hdr_row}"].font = header_font
+        ws[f"{col}{hdr_row}"].fill = header_fill
+
+    for idx, c in enumerate(data["client_data"], start=1):
+        ws.append([idx, c["name"], c["orders_count"], c["volume_mt"], f"{c['volume_pct']:.1f}%"])
+
+    ws.append([])
+    curr_row = ws.max_row + 1
+    ws.append(["SUGAR MILL SOURCING DISTRIBUTION & ROUTE HEALTH", "", "", "", "", ""])
+    ws.merge_cells(f"A{curr_row}:F{curr_row}")
+    ws[f"A{curr_row}"].font = section_font
+    ws[f"A{curr_row}"].fill = section_fill
+
+    ws.append(["Rank", "Sugar Mill", "Orders", "Sourced Volume (MT)", "Share (%)", "Route Status"])
+    hdr_row = ws.max_row
+    for col in ["A", "B", "C", "D", "E", "F"]:
+        ws[f"{col}{hdr_row}"].font = header_font
+        ws[f"{col}{hdr_row}"].fill = header_fill
+
+    for idx, m in enumerate(data["mill_data"], start=1):
+        status = "Safe (<1%)" if m["is_safe"] else "Review Required"
+        ws.append([idx, m["name"], m["orders_count"], m["volume_mt"], f"{m['volume_pct']:.1f}%", status])
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 14)
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"HTC_Analytics_{data['period_badge'].replace(' ', '_')}.xlsx"
+    response = HttpResponse(
+        output.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@role_required(User.Role.MANAGEMENT, User.Role.FINANCE, User.Role.OPERATIONS)
+def export_analytics_csv(request):
+    """Generate CSV file (.csv) for Analytics report."""
+    period = request.GET.get("period", "yearly").strip().lower()
+    year = request.GET.get("year", "2026").strip()
+    month = request.GET.get("month", "").strip()
+    week = request.GET.get("week", "").strip()
+    data = _get_analytics_data(period=period, year=year, month=month, week=week)
+
+    import csv
+
+    response = HttpResponse(content_type="text/csv")
+    filename = f"HTC_Analytics_{data['period_badge'].replace(' ', '_')}.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow(["HEINDRICH TRADING CORPORATION - PERFORMANCE ANALYTICS REPORT"])
+    writer.writerow(["Report Period", data["period_title"]])
+    writer.writerow(["Generated At", timezone.now().strftime("%Y-%m-%d %H:%M:%S PST")])
+    writer.writerow([])
+    writer.writerow(["EXECUTIVE PERFORMANCE INDICATORS"])
+    writer.writerow(["Metric", "Value", "Unit / Notes"])
+    writer.writerow(["Contracted Molasses Volume", f"{data['total_contracted']:,.2f}", "MT"])
+    writer.writerow(["Confirmed Delivered Volume", f"{data['total_delivered']:,.2f}", "MT"])
+    writer.writerow(["Fulfillment Completion Rate", f"{data['fulfillment_rate']:.1f}%", "Delivered / Contracted"])
+    writer.writerow(["Average In-Transit Weight Loss", f"{data['avg_variance']:.2f}%", "Target <= 1.00%"])
+    writer.writerow(["Active Trade Network Partners", data["total_partners"], f"{len(data['client_data'])} Buyers, {len(data['mill_data'])} Mills"])
+    writer.writerow([])
+    writer.writerow(["CUSTOMER DEMAND & VOLUME SHARE (TOP ENTERPRISE BUYERS)"])
+    writer.writerow(["Rank", "Client Name", "Orders Count", "Volume (MT)", "Volume Share (%)"])
+    for idx, c in enumerate(data["client_data"], start=1):
+        writer.writerow([idx, c["name"], c["orders_count"], f"{c['volume_mt']:,.2f}", f"{c['volume_pct']:.1f}%"])
+    writer.writerow([])
+    writer.writerow(["SUGAR MILL SOURCING DISTRIBUTION & ROUTE HEALTH"])
+    writer.writerow(["Rank", "Sugar Mill", "Orders Sourced", "Volume (MT)", "Volume Share (%)", "Avg Variance (%)", "Route Status"])
+    for idx, m in enumerate(data["mill_data"], start=1):
+        status = "Safe (<1%)" if m["is_safe"] else "Review Required"
+        writer.writerow([idx, m["name"], m["orders_count"], f"{m['volume_mt']:,.2f}", f"{m['volume_pct']:.1f}%", f"{m['avg_variance']:.2f}%", status])
+
+    return response
 
 
 @role_required(

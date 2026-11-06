@@ -897,7 +897,7 @@ def verify_ledger_integrity_json(request):
 def blockchain_ledger_view(request):
     """
     Unified Cryptographic Blockchain Ledger for Operations & Finance.
-    Accessible exclusively to Administrator and Operations Management roles.
+    Accessible exclusively to the Operations Manager role.
     Presents SHA-256 block status, root hashes, lifecycle milestones, and real-time verification.
     """
     from operations.services.hash_chain import get_cluster_block_info, verify_po_integrity

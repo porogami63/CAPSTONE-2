@@ -10,7 +10,7 @@ from .models import SystemAuditTrail
 def audit_list(request):
     """
     Deprecated Activity History route. Redirects seamlessly to the unified Blockchain Ledger.
-    Access restricted exclusively to Administrator and Operations Management roles.
+    Access restricted exclusively to Operations Management role.
     """
     from django.shortcuts import redirect
     return redirect("operations:blockchain_ledger")

@@ -80,12 +80,14 @@
             </div>
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
+            {% if user.role == 'operations_management' or user.role == 'administrator' or user.is_superuser %}
             <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 px-3 shadow-xs" data-bs-toggle="modal" data-bs-target="#financeBlockchainModal" id="financeBlockchainBtn" title="View Cryptographic Financial Blockchain Record & Lifecycle Stages">
                 <i class="bi bi-shield-check text-primary"></i>
                 <span>Financial Blockchain</span>
                 <span class="badge bg-success-subtle text-success border border-success-subtle ms-1 font-monospace" style="font-size: 0.7rem;">{{ finance_block_info.sealed_count }}/5</span>
                 <span class="badge bg-danger rounded-pill ms-1 d-none" id="financeBlockchainUpdateDot" style="font-size: 0.65rem;">New</span>
             </button>
+            {% endif %}
             <a href="{% url 'finance:po_workspace' cluster.pk %}" class="btn btn-sm btn-outline-secondary px-3">
                 <i class="bi bi-bank me-1"></i> Finance Workspace
             </a>
@@ -692,5 +694,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+{% if user.role == 'operations_management' or user.role == 'administrator' or user.is_superuser %}
 {% include "finance/includes/finance_blockchain_modal.html" %}
+{% endif %}
 {% endblock %}

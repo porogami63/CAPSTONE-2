@@ -307,7 +307,7 @@
     </div>
     <div class="metric-box">
         <div class="label">Overdue Loans</div>
-        <div class="value {% if overdue_facilities > 0 %}text-urgent-red{% else %}text-success{% endif %}">{{ overdue_facilities }}</div>
+        <div class="value {% if overdue_facilities > 0 %}text-urgent-red{% else %}text-success{% endif %}">{{ overdue_facilities  }}</div>
         <div class="subtext {% if overdue_facilities > 0 %}danger{% endif %}">
             {% if overdue_facilities > 0 %}Immediate payment needed{% else %}All loans on track{% endif %}
         </div>
@@ -426,7 +426,7 @@
                         <td>
                             <div class="fw-semibold text-dark">{{ p_loan.bank_name }}</div>
                             {% if p_loan.bank_account_number %}
-                            <small class="text-muted d-block font-monospace">Acct: {{ p_loan.bank_account_number }}</small>
+                            <small class="text-muted d-block font-monospace">Acct: {{  p_loan.bank_account_number }}</small>
                             {% else %}
                             <small class="text-muted d-block font-monospace fst-italic">Acct: Pending Assignment</small>
                             {% endif %}
@@ -434,7 +434,7 @@
                         <td class="fw-bold text-dark font-monospace">₱{{ p_loan.principal|floatformat:2|intcomma }}</td>
                         <td>
                             <span class="fw-semibold">{{ p_loan.logistics_deposit_percentage }}%</span>
-                            <small class="text-muted d-block font-monospace">(₱{{ p_loan.funded_logistics_deposit|floatformat:2|intcomma }})</small>
+                            <small class="text-muted d-block font-monospace">(₱{{ p_loan.funded_logistics_deposit|floatformat:2|intcomma  }})</small>
                         </td>
                         <td>
                             <div class="text-dark fs-8">{% if p_loan.created_by %}{{ p_loan.created_by.get_full_name|default:p_loan.created_by.username }}{% else %}Operations Team{% endif %}</div>
@@ -471,7 +471,7 @@
                                             </div>
                                             <div class="modal-body">
                                                 <div class="alert alert-info py-2 px-3 fs-7 mb-3">
-                                                    <strong>Loan Audit Review:</strong> Contract: <strong>{{ p_loan.cluster.reference_code }}</strong> (Customer: {{ p_loan.cluster.client.name }}). Principal: <strong>₱{{ p_loan.principal|floatformat:2|intcomma }}</strong> @ {{ p_loan.interest_rate_annual }}% p.a.
+                                                    <strong>Loan Audit Review:</strong> Contract: <strong>{{ p_loan.cluster.reference_code  }}</strong> (Customer: {{ p_loan.cluster.client.name  }}). Principal: <strong>₱{{ p_loan.principal|floatformat:2|intcomma  }}</strong> @ {{ p_loan.interest_rate_annual  }}% p.a.
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label font-weight-bold fs-7">Verification Notes /
@@ -505,7 +505,7 @@
         <div class="border-top p-3 bg-light-subtle">
             <div class="d-flex align-items-center justify-content-between mb-2">
                 <span class="text-uppercase text-muted fs-8 fw-bold">
-                    <i class="bi bi-file-earmark-check-fill text-info me-1"></i> Loans Awaiting Payoff Verification ({{ pending_settlement_loans|length }})
+                    <i class="bi bi-file-earmark-check-fill text-info me-1"></i> Loans Awaiting Payoff Verification ({{ pending_settlement_loans|length  }})
                 </span>
             </div>
             <div class="table-responsive bg-white rounded border">
@@ -527,7 +527,7 @@
                             <td><strong class="text-dark">{{ s_loan.settlement_receipt_number|default:"—" }}</strong>
                                 <small class="text-muted d-block">{{ s_loan.settlement_date|date:"M d, Y" }}</small>
                             </td>
-                            <td>₱{{ s_loan.principal|floatformat:2|intcomma }} + <span class="text-danger">₱{{ s_loan.accrued_interest|floatformat:2|intcomma }}</span></td>
+                            <td>₱{{ s_loan.principal|floatformat:2|intcomma }} + <span class="text-danger">₱{{ s_loan.accrued_interest|floatformat:2|intcomma  }}</span></td>
                             <td>
                                 {% if s_loan.settlement_document %}
                                 <button type="button" class="btn btn-sm btn-outline-info py-0 px-2 fs-7"
@@ -553,7 +553,7 @@
                                                     style="width: 100%; height: 100%; border: none;"></iframe>
                                             </div>
                                             <div class="modal-footer py-2 flex-between">
-                                                <small class="text-muted">Linked Contract: {{ s_loan.cluster.reference_code }}</small>
+                                                <small class="text-muted">Linked Contract: {{ s_loan.cluster.reference_code  }}</small>
                                                 <div>
                                                     <a href="{{ s_loan.settlement_document.url }}" target="_blank"
                                                         download class="btn btn-sm btn-outline-primary"><i
@@ -589,7 +589,7 @@
                                     <div class="modal-dialog modal-dialog-centered">
                                         <div class="modal-content text-start">
                                             <form method="post"
-                                                action="{% url 'finance:verify_loan_settlement' s_loan.pk %}">{% csrf_token %}
+                                                action="{% url 'finance:verify_loan_settlement' s_loan.pk %}">{% csrf_token  %}
                                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                                 <div class="modal-header">
                                                     <h6 class="modal-title font-weight-bold"><i
@@ -690,7 +690,7 @@
                         </td>
                         <td class="py-4 px-3">
                             {% if item.loans %}
-                            <div class="fw-bold text-dark font-monospace">₱{{ item.principal_total|floatformat:2|intcomma }}</div>
+                            <div class="fw-bold text-dark font-monospace">₱{{ item.principal_total|floatformat:2|intcomma  }}</div>
                             <div class="d-flex gap-1 flex-wrap mt-1">
                                 {% for l in item.loans %}
                                 <span
@@ -711,7 +711,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-1.5">
                                 <span class="text-xs font-medium text-slate-600" style="color: #475569;">
                                     Matched: <strong
-                                        class="{% if item.is_over_target %}text-danger{% else %}text-dark{% endif %} font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma }}</strong>
+                                        class="{% if item.is_over_target %}text-danger{% else %}text-dark{% endif %} font-monospace">₱{{ item.matched_amount|floatformat:2|intcomma  }}</strong>
                                 </span>
                                 {% if item.is_over_target %}
                                 <span
@@ -744,7 +744,7 @@
                                 <span
                                     class="badge bg-danger-subtle text-danger border border-danger-subtle fs-8 fw-bold px-2.5 py-1 d-inline-flex align-items-center gap-1 shadow-2xs"
                                     title="Expenses exceed target credit limit by ₱{{ item.excess_amount|floatformat:2|intcomma }}">
-                                    <i class="bi bi-exclamation-triangle-fill text-danger"></i> +₱{{ item.excess_amount|floatformat:2|intcomma }} Over
+                                    <i class="bi bi-exclamation-triangle-fill text-danger"></i> +₱{{ item.excess_amount|floatformat:2|intcomma  }} Over
                                 </span>
                                 {% endif %}
                             </div>
@@ -858,17 +858,17 @@
                         <i class="bi bi-x-circle-fill me-1"></i> Verification Rejected
                     </span>
                     {% elif loan.is_overdue or loan.status == 'overdue' %}
-                    <span class="text-urgent-red"><i class="bi bi-exclamation-triangle-fill"></i> Due Date: {{ loan.due_date|date:"M d, Y" }} (Overdue)</span>
+                    <span class="text-urgent-red"><i class="bi bi-exclamation-triangle-fill"></i> Due Date: {{ loan.due_date|date:"M d, Y"  }} (Overdue)</span>
                     {% else %}
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
                         <i class="bi bi-check-circle-fill me-1"></i> Active Loan
                     </span>
-                    <span class="ms-1 text-muted small"><i class="bi bi-calendar-event"></i> Due: <strong>{{ loan.due_date|date:"M d, Y" }}</strong> ({{ loan.days_remaining }} days left)</span>
+                    <span class="ms-1 text-muted small"><i class="bi bi-calendar-event"></i> Due: <strong>{{ loan.due_date|date:"M d, Y"  }}</strong> ({{ loan.days_remaining }} days left)</span>
                     {% endif %}
                 </div>
                 {% if loan.verified_by %}
                 <div class="card-subtext mt-1 text-muted" style="font-size: 0.73rem;">
-                    <i class="bi bi-shield-check text-success me-1"></i> Verified by <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y H:i:s" }} PST
+                    <i class="bi bi-shield-check text-success me-1"></i> Verified by <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username  }}</strong> on {{ loan.verified_at|date:"M d, Y H:i:s"  }} PST
                     {% if loan.verification_notes %}<span class="fst-italic">("{{ loan.verification_notes }}")</span>{% endif %}
                 </div>
                 {% endif %}
@@ -927,24 +927,24 @@
                     <span class="text-uppercase fw-bold text-secondary small"><i
                             class="bi bi-card-checklist text-primary me-1"></i> Cheques &amp; Bank Account</span>
                     <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1">
-                        Total to Repay: <strong class="text-dark">₱{{ loan.total_liability|floatformat:2|intcomma }}</strong>
+                        Total to Repay: <strong class="text-dark">₱{{  loan.total_liability|floatformat:2|intcomma }}</strong>
                         <i class="bi bi-question-circle text-secondary cursor-pointer" data-bs-toggle="tooltip"
                             data-bs-placement="top" title="Formula: Principal + Interest Incurred"></i>
                     </span>
                 </div>
                 <div class="cheque-badge-list align-items-center">
                     {% if loan.cheque_number %}
-                    <span class="cheque-badge border-primary text-primary"><i class="bi bi-file-earmark-text"></i> {{ loan.cheque_number }}</span>
+                    <span class="cheque-badge border-primary text-primary"><i class="bi bi-file-earmark-text"></i> {{ loan.cheque_number  }}</span>
                     {% else %}
-                    <span class="cheque-badge"><i class="bi bi-file-earmark-text"></i> CHQ-8849{{ forloop.counter }}</span>
+                    <span class="cheque-badge"><i class="bi bi-file-earmark-text"></i> CHQ-8849{{  forloop.counter }}</span>
                     {% endif %}
 
                     {% if loan.cheque_date %}
-                    <span class="cheque-badge"><i class="bi bi-calendar-event"></i> Issue Date: {{ loan.cheque_date|date:"M d, Y" }}</span>
+                    <span class="cheque-badge"><i class="bi bi-calendar-event"></i> Issue Date: {{ loan.cheque_date|date:"M d, Y"  }}</span>
                     {% endif %}
 
                     {% if loan.bank_account_number %}
-                    <span class="cheque-badge font-monospace"><i class="bi bi-bank"></i> Acct: {{ loan.bank_account_number }}</span>
+                    <span class="cheque-badge font-monospace"><i class="bi bi-bank"></i> Acct: {{ loan.bank_account_number  }}</span>
                     {% else %}
                     <span class="cheque-badge text-muted font-monospace"><i class="bi bi-bank"></i> Acct: Pending
                         Assignment</span>
@@ -1119,7 +1119,7 @@
                                                 <i
                                                     class="bi bi-info-circle-fill text-primary fs-5 flex-shrink-0 mt-0.5"></i>
                                                 <div>
-                                                    <strong>Restore Record:</strong> Restore Loan <strong>#{{ loan.pk }}</strong> back into the active ledger table?
+                                                    <strong>Restore Record:</strong> Restore Loan <strong>#{{  loan.pk }}</strong> back into the active ledger table?
                                                 </div>
                                             </div>
                                         </div>
@@ -1147,9 +1147,9 @@
                                             <h5
                                                 class="modal-title fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                                                 <i class="bi bi-card-checklist text-primary fs-5"></i>
-                                                <span>Loan Facility Details &amp; Lifecycle Audit — #{{ loan.pk }}</span>
+                                                <span>Loan Facility Details &amp; Lifecycle Audit — #{{  loan.pk }}</span>
                                             </h5>
-                                            <span class="fs-8 text-muted">{{ loan.bank_name }} · PO {{ loan.cluster.reference_code }}</span>
+                                            <span class="fs-8 text-muted">{{ loan.bank_name }} · PO {{ loan.cluster.reference_code  }}</span>
                                         </div>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"
                                             aria-label="Close"></button>
@@ -1158,7 +1158,7 @@
                                         <div class="row g-3 mb-3">
                                             <div class="col-6 col-md-3">
                                                 <span class="text-muted d-block fs-8">Principal Amount</span>
-                                                <strong class="text-dark fs-7">₱{{ loan.principal|floatformat:2|intcomma }}</strong>
+                                                <strong class="text-dark fs-7">₱{{  loan.principal|floatformat:2|intcomma }}</strong>
                                             </div>
                                             <div class="col-6 col-md-3">
                                                 <span class="text-muted d-block fs-8">Annual Interest Rate</span>
@@ -1167,11 +1167,11 @@
                                             </div>
                                             <div class="col-6 col-md-3">
                                                 <span class="text-muted d-block fs-8">Accrued Interest</span>
-                                                <strong class="text-danger fs-7">₱{{ loan.accrued_interest|floatformat:2|intcomma }}</strong>
+                                                <strong class="text-danger fs-7">₱{{ loan.accrued_interest|floatformat:2|intcomma  }}</strong>
                                             </div>
                                             <div class="col-6 col-md-3">
                                                 <span class="text-muted d-block fs-8">Total Liability</span>
-                                                <strong class="text-dark fs-7">₱{{ loan.total_liability|floatformat:2|intcomma }}</strong>
+                                                <strong class="text-dark fs-7">₱{{ loan.total_liability|floatformat:2|intcomma  }}</strong>
                                             </div>
                                         </div>
 
@@ -1186,11 +1186,11 @@
                                             </div>
                                             <div class="col-6 col-md-3">
                                                 <span class="text-muted d-block fs-8">Cheque Reference</span>
-                                                <span class="font-monospace text-dark">{{ loan.cheque_number|default:"Pending" }}</span>
+                                                <span class="font-monospace text-dark">{{ loan.cheque_number|default:"Pending"  }}</span>
                                             </div>
                                             <div class="col-6 col-md-3">
                                                 <span class="text-muted d-block fs-8">Originating Bank Account</span>
-                                                <span class="font-monospace text-dark">{{ loan.bank_account_number|default:"Pending" }}</span>
+                                                <span class="font-monospace text-dark">{{ loan.bank_account_number|default:"Pending"  }}</span>
                                             </div>
                                         </div>
 
@@ -1199,23 +1199,26 @@
                                                 Lifecycle Audit Trail</h6>
                                             <div class="p-3 bg-body-tertiary rounded border fs-8">
                                                 <div class="mb-1.5"><span class="text-muted">Created By:</span>
-                                                    <strong>{% if loan.created_by %}{{ loan.created_by.get_full_name|default:loan.created_by.username }}{% else %}System{% endif %}</strong> on {{ loan.created_at|date:"M d, Y H:i:s" }} PST</div>
+                                                    <strong>{% if loan.created_by %}{{  loan.created_by.get_full_name|default:loan.created_by.username }}{% else %}System{% endif %}</strong> on {{ loan.created_at|date:"M d, Y H:i:s"  }} PST
+                                                </div>
                                                 {% if loan.verified_by %}
                                                 <div class="mb-1.5"><span class="text-muted">Verified &amp; Approved
-                                                        By:</span> <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y H:i:s" }} PST
+                                                        By:</span> <strong>{{  loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y H:i:s" }} PST
                                                 </div>
                                                 {% endif %}
                                                 {% if loan.settlement_date %}
                                                 <div class="mb-1.5"><span class="text-muted">Settlement Date:</span>
                                                     <strong>{{ loan.settlement_date|date:"M d, Y" }}</strong> (Receipt
-                                                    #{{ loan.settlement_receipt_number|default:"Recorded" }})</div>
+                                                    #{{ loan.settlement_receipt_number|default:"Recorded" }})
+                                                </div>
                                                 {% endif %}
                                                 {% if loan.settlement_notes %}
                                                 <div class="mb-1.5"><span class="text-muted">Settlement Notes:</span>
-                                                    <em>{{ loan.settlement_notes }}</em></div>
+                                                    <em>{{ loan.settlement_notes }}</em>
+                                                </div>
                                                 {% endif %}
                                                 {% if loan.is_archived and loan.archived_by %}
-                                                <div><span class="text-muted">Archived By:</span> <strong>{{ loan.archived_by.get_full_name|default:loan.archived_by.username }}</strong> on {{ loan.archived_at|date:"M d, Y H:i:s" }} PST
+                                                <div><span class="text-muted">Archived By:</span> <strong>{{  loan.archived_by.get_full_name|default:loan.archived_by.username }}</strong> on {{ loan.archived_at|date:"M d, Y H:i:s" }} PST
                                                 </div>
                                                 {% endif %}
                                             </div>
@@ -1244,14 +1247,14 @@
                                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                         <div class="modal-header">
                                             <h5 class="modal-title fs-6 fw-bold"><i
-                                                    class="bi bi-bank text-success me-1"></i> Settle Bank Facility — {{ loan.bank_name }}</h5>
+                                                    class="bi bi-bank text-success me-1"></i> Settle Bank Facility — {{ loan.bank_name  }}</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"
                                                 aria-label="Close"></button>
                                         </div>
                                         <div class="modal-body text-start">
                                             <div class="alert alert-info py-2 px-3 mb-3 small">
                                                 <i class="bi bi-info-circle-fill me-1"></i> You are marking loan
-                                                <strong>{{ loan.cluster.reference_code }}</strong> (Principal ₱{{ loan.principal|floatformat:2|intcomma }} + Accrued Interest ₱{{ loan.accrued_interest|floatformat:2|intcomma }}) as fully settled.
+                                                <strong>{{ loan.cluster.reference_code }}</strong> (Principal ₱{{ loan.principal|floatformat:2|intcomma  }} + Accrued Interest ₱{{ loan.accrued_interest|floatformat:2|intcomma  }}) as fully settled.
                                                 Please provide official bank settlement documentation.
                                             </div>
 
@@ -1347,7 +1350,7 @@
                         {% for chq in cheques %}
                         <tr>
                             <td>
-                                <strong class="font-monospace text-primary"><i class="bi bi-file-earmark-text"></i> {{ chq.cheque_number }}</strong>
+                                <strong class="font-monospace text-primary"><i class="bi bi-file-earmark-text"></i> {{ chq.cheque_number  }}</strong>
                                 {% if "CV-DEL-" in chq.cheque_number or "CV-DEL-" in chq.voucher_number|default:"" %}
                                 <span
                                     class="badge bg-info-subtle text-info border border-info-subtle fs-8 d-block mt-0.5"
@@ -1414,7 +1417,7 @@
                                     {% if chq.is_superseded %}
                                     <span class="badge bg-secondary-subtle text-muted border px-2 py-1 fs-8"
                                         title="{{ chq.correction_reason }}">
-                                        <i class="bi bi-arrow-return-right me-1"></i>REV #{{ chq.superseded_by_voucher }}
+                                        <i class="bi bi-arrow-return-right me-1"></i>REV #{{  chq.superseded_by_voucher }}
                                     </span>
                                     {% elif chq.voucher_pk and chq.can_correct %}
                                     {% if user_role_code == 'administrator' or user_role_code == 'operations_management' or user_role_code == 'finance' %}
@@ -1458,7 +1461,7 @@
                             id="correctChequeModalLabel{{ chq.voucher_pk }}">
                             <i class="bi bi-arrow-repeat text-warning me-2"></i>Compensating Entry Correction
                         </h6>
-                        <div class="fs-8 text-white-75 mt-0.5">Voucher #{{ chq.voucher_number }} · Cheque #{{ chq.cheque_number }}</div>
+                        <div class="fs-8 text-white-75 mt-0.5">Voucher #{{ chq.voucher_number }} · Cheque #{{ chq.cheque_number  }}</div>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
@@ -1597,7 +1600,7 @@
                     <div class="modal-body p-4">
                         <div class="alert alert-info py-2 px-3 text-xs mb-3">
                             <i class="bi bi-info-circle-fill me-1"></i>
-                            Recording an expense match for <strong>{{ focused_po.po_reference_number|default:focused_cluster.reference_code }}</strong> will
+                            Recording an expense match for <strong>{{ focused_po.po_reference_number|default:focused_cluster.reference_code  }}</strong> will
                             update reconciliation balances and automatically issue a numbered <strong>Cash
                                 Voucher</strong>.
                         </div>
@@ -1650,7 +1653,7 @@
 
     {% if user|has_perm:"add_loan" %}
     <!-- CREATE NEW LOAN MODAL -->
-    <div class="modal fade" id="newLoanModal" tabindex="-1" aria-labelledby="newLoanModalLabel" aria-hidden="true" {% if reopen_loan_modal %}data-auto-open="true" {% endif %}>
+    <div class="modal fade" id="newLoanModal" tabindex="-1" aria-labelledby="newLoanModalLabel" aria-hidden="true" {% if reopen_loan_modal %}data-auto-open="true"{% endif %}>
         <div class="modal-dialog modal-lg">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-dark text-white">
