@@ -364,8 +364,8 @@ class DeliveryLedgerForm(forms.ModelForm):
             "purchase_order": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_po", "autocomplete": "off"}),
             "supplier": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_supplier", "autocomplete": "off"}),
             "mro_permit": forms.Select(attrs={"class": "form-select-htc", "id": "id_delivery_mro", "autocomplete": "off"}),
-            "dispatched_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "e.g. 2000.000", "id": "id_dispatched_mt_vol", "autocomplete": "off"}),
-            "delivered_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "e.g. 2000.000", "id": "id_delivery_mt", "autocomplete": "off"}),
+            "dispatched_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "Volume in MT (e.g. 30.000)", "id": "id_dispatched_mt_vol", "autocomplete": "off"}),
+            "delivered_mt": forms.NumberInput(attrs={"class": "form-control-htc", "step": "0.001", "placeholder": "Volume in MT (e.g. 30.000)", "id": "id_delivery_mt", "autocomplete": "off"}),
             "receiving_location": forms.TextInput(attrs={"class": "form-control-htc", "placeholder": "e.g. Main Plant, Warehouse 2, Silo A", "id": "id_delivery_location", "autocomplete": "off"}),
             "delivery_date": forms.DateInput(attrs={"type": "date", "class": "form-control-htc", "id": "id_delivery_date"}),
             "dispatched_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control-htc", "id": "id_dispatched_at"}),
@@ -657,6 +657,23 @@ class DeliveryLedgerForm(forms.ModelForm):
                     "delivered_mt",
                     f"Delivered quantity ({delivered_mt:,.3f} MT) exceeds the remaining available balance ({available:,.3f} MT) for PO {po_ref}."
                 )
+
+        # Statistical Irregular Mean Check (comparing against past transactions)
+        check_mt = delivered_mt or dispatched_mt
+        if check_mt and check_mt > 0:
+            from operations.models import DeliveryLedger
+            past_qs = DeliveryLedger.objects.all()
+            if self.instance and self.instance.pk:
+                past_qs = past_qs.exclude(pk=self.instance.pk)
+            past_mt_list = [float(v) for v in past_qs.values_list("delivered_mt", flat=True)[:50] if v and float(v) > 0]
+            if len(past_mt_list) >= 3:
+                import statistics
+                historical_mean = statistics.mean(past_mt_list)
+                if float(check_mt) > (historical_mean * 3.5):
+                    self.irregular_mean_anomaly = {
+                        "entered": float(check_mt),
+                        "historical_mean": round(historical_mean, 2),
+                    }
 
         # 5. Date & Timestamp Validation (Future arrival dates / ETAs explicitly supported)
         if delivery_date:

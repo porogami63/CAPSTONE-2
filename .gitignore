@@ -15,3 +15,7 @@ htmlcov/
 media/
 *.pem
 backups/
+
+# Word temporary lock files
+~$*
+

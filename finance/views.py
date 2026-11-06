@@ -1072,6 +1072,31 @@ def loan_list(request):
     recompensation_reports = list(RecompensationReport.objects.select_related("reported_by", "reviewed_by", "cluster").order_by("-created_at"))
     pending_recompensation_count = sum(1 for r in recompensation_reports if r.status == "pending")
 
+    finance_reports_map = {}
+    for r in recompensation_reports:
+        if r.item_id:
+            finance_reports_map[str(r.item_id)] = r
+        if r.target_reference:
+            clean_ref = r.target_reference.replace("#", "").strip().upper()
+            finance_reports_map[clean_ref] = r
+
+    for l in loans:
+        l.report = (
+            finance_reports_map.get(str(l.pk)) or
+            (finance_reports_map.get(l.cheque_number.upper()) if l.cheque_number else None) or
+            finance_reports_map.get(f"LOAN-{l.pk}")
+        )
+
+    for chq in cheques:
+        v_num = chq.get("voucher_number") or ""
+        c_num = chq.get("cheque_number") or ""
+        v_pk = str(chq.get("voucher_pk") or "")
+        chq["report"] = (
+            finance_reports_map.get(v_pk) or
+            finance_reports_map.get(v_num.upper()) or
+            (finance_reports_map.get(c_num.upper()) if c_num else None)
+        )
+
     loan_form = bound_loan_form or StandaloneLoanForm(user=request.user)
 
     return render(
@@ -1799,6 +1824,14 @@ def submit_recompensation_report(request):
         status=RecompensationReport.Status.PENDING,
     )
 
+    # Determine intelligent redirect link and notification target based on category
+    if report.category == RecompensationReport.Category.PO and cluster:
+        target_link = reverse("operations:cluster_detail", args=[cluster.pk])
+    elif report.category == RecompensationReport.Category.DELIVERY:
+        target_link = reverse("operations:deliveries_list")
+    else:
+        target_link = reverse("finance:loan_list")
+
     # Notify all Operations Managers and Administrators
     mgrs = User.objects.filter(role__in=[User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT])
     sender_name = request.user.get_full_name() or request.user.username
@@ -1809,7 +1842,7 @@ def submit_recompensation_report(request):
             message=f"{sender_name} submitted a discrepancy report ({report.get_category_display()}): '{report.error_summary}'. Please review the overview of what went wrong to authorize the compensating entry.",
             level=Notification.Level.WARNING,
             category=Notification.Category.APPROVAL,
-            link=f"/finance/loans/?tab=recompensation",
+            link=target_link,
         )
 
     try:
@@ -1835,7 +1868,7 @@ def submit_recompensation_report(request):
         request,
         f"Discrepancy report #{str(report.report_id)[:8].upper()} successfully submitted. The Operations Manager has been notified and will review the overview to execute the compensating adjustment."
     )
-    next_url = request.POST.get("next") or f"{reverse('finance:loan_list')}?tab=recompensation"
+    next_url = request.POST.get("next") or target_link
     return redirect(next_url)
 
 
@@ -1964,6 +1997,14 @@ def review_recompensation_report(request, report_id):
         report.compensating_reference = compensating_ref or f"MGR-AUTH-{str(report.report_id)[:8].upper()}"
         report.save(update_fields=["status", "reviewed_by", "reviewed_at", "manager_notes", "compensating_reference"])
 
+        # Determine intelligent return target
+        if report.category == RecompensationReport.Category.PO and report.cluster:
+            target_link = reverse("operations:cluster_detail", args=[report.cluster.pk])
+        elif report.category == RecompensationReport.Category.DELIVERY:
+            target_link = reverse("operations:deliveries_list")
+        else:
+            target_link = reverse("finance:loan_list")
+
         # Notify requester
         Notification.objects.create(
             recipient=report.reported_by,
@@ -1971,7 +2012,7 @@ def review_recompensation_report(request, report_id):
             message=f"Operations Manager approved discrepancy report #{str(report.report_id)[:8].upper()}. Compensating entry: {report.compensating_reference}.",
             level=Notification.Level.SUCCESS,
             category=Notification.Category.APPROVAL,
-            link="/finance/loans/?tab=recompensation",
+            link=target_link,
         )
 
         try:
@@ -1997,6 +2038,13 @@ def review_recompensation_report(request, report_id):
         )
 
     else:  # reject
+        if report.category == RecompensationReport.Category.PO and report.cluster:
+            target_link = reverse("operations:cluster_detail", args=[report.cluster.pk])
+        elif report.category == RecompensationReport.Category.DELIVERY:
+            target_link = reverse("operations:deliveries_list")
+        else:
+            target_link = reverse("finance:loan_list")
+
         report.status = RecompensationReport.Status.REJECTED
         report.reviewed_by = request.user
         report.reviewed_at = timezone.now()
@@ -2009,7 +2057,7 @@ def review_recompensation_report(request, report_id):
             message=f"Operations Manager dismissed discrepancy report #{str(report.report_id)[:8].upper()}. Manager note: {report.manager_notes}",
             level=Notification.Level.INFO,
             category=Notification.Category.APPROVAL,
-            link="/finance/loans/?tab=recompensation",
+            link=target_link,
         )
 
         messages.info(
@@ -2017,4 +2065,5 @@ def review_recompensation_report(request, report_id):
             f"Discrepancy Report #{str(report.report_id)[:8].upper()} has been dismissed."
         )
 
-    return redirect(f"{reverse('finance:loan_list')}?tab=recompensation")
+    next_url = request.POST.get("next") or target_link
+    return redirect(next_url)
