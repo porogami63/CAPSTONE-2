@@ -69,27 +69,25 @@
     }
 </style>
 
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-    <button type="button" class="btn-htc-outline btn-sm" id="toggleKpiBtn" onclick="toggleKpis()">
+<div class="d-flex justify-content-end align-items-center flex-wrap gap-2 mb-3">
+    <button type="button" class="btn-htc-outline btn-sm" id="toggleKpiBtn" onclick="toggleKpis()" title="Toggle visibility of summary KPI cards">
         <i class="bi bi-bar-chart me-1"></i> Hide KPI Summary
     </button>
 
-    <div class="d-flex align-items-center flex-wrap gap-2">
-        <form method="post" action="{% url 'operations:bulk_archive_completed' %}" style="display:inline;" onsubmit="return confirm('Archive all closed and paid transactions?');">
-            {% csrf_token %}
-            <button type="submit" class="btn-htc-outline btn-sm" title="Clear completed orders to Archive"><i class="bi bi-archive"></i> Archive Completed</button>
-        </form>
-        <a href="{% url 'operations:archive_list' %}" class="btn-htc-outline btn-sm" data-step="4" data-intro="Access historical completed contracts stored in the secure Archive Vault."><i class="bi bi-box-seam"></i> Archive Vault</a>
-        {% if user|has_perm:"create_transaction" %}
-        <a href="{% url 'operations:cluster_create' %}" class="btn-htc btn-sm" data-step="3" data-intro="Create new standalone purchase orders directly in the system."><i class="bi bi-plus-lg"></i> New Purchase Order</a>
-        {% endif %}
-    </div>
+    <form method="post" action="{% url 'operations:bulk_archive_completed' %}" style="display:inline;" onsubmit="return confirm('Archive all closed and paid transactions?');">
+        {% csrf_token %}
+        <button type="submit" class="btn-htc-outline btn-sm" title="Clear completed orders to Archive"><i class="bi bi-archive"></i> Archive Completed</button>
+    </form>
+    <a href="{% url 'operations:archive_list' %}" class="btn-htc-outline btn-sm" data-step="4" data-intro="Access historical completed contracts stored in the secure Archive Vault."><i class="bi bi-box-seam"></i> Archive Vault</a>
+    {% if user|has_perm:"create_transaction" %}
+    <a href="{% url 'operations:cluster_create' %}" class="btn-htc btn-sm" data-step="3" data-intro="Create new standalone purchase orders directly in the system."><i class="bi bi-plus-lg"></i> New Purchase Order</a>
+    {% endif %}
 </div>
 
 <div class="metric-grid" id="metricGrid" data-step="1" data-intro="Overview metrics showing total molasses volume (MT), combined profit, average margin %, and active transaction count.">
     <div class="metric-box">
         <div class="label">Total Volume</div>
-        <div class="value">{{ total_volume|floatformat:3|intcomma }} MT</div>
+        <div class="value">{{ total_volume|floatformat:2|intcomma }} MT</div>
     </div>
     <div class="metric-box">
         <div class="label">Combined Profit</div>
@@ -196,7 +194,7 @@
                         data-customer="{{ c.client.name }}"
                         data-supplier="{{ c.sugar_mill.name }}"
                         data-partner="{{ c.partner_name }}"
-                        data-qty="{{ c.vol_mt|floatformat:3|intcomma }} MT"
+                        data-qty="{{ c.vol_mt|floatformat:2|intcomma }} MT"
                         data-total-value="₱{{ c.order_value|floatformat:2|intcomma }}"
                         data-revenue="₱{{ c.revenue|floatformat:2|intcomma }}"
                         data-created="{{ c.created_at|date:'M d, Y H:i:s' }} PST"
@@ -222,9 +220,12 @@
                         data-invoiced="{{ c.has_invoice|yesno:'true,false' }}"
                         data-url="{% url 'operations:cluster_detail' c.pk %}"
                         data-edit-url="{% url 'operations:cluster_edit' c.pk %}"
+                        data-submit-url="{% url 'operations:submit_cluster' c.pk %}"
                         data-invoice-url="{% url 'operations:add_invoice' c.pk %}"
                         data-pdf-url="{% url 'operations:download_contract_pdf' c.pk %}"
                         data-delete-url="{% url 'operations:delete_cluster' c.pk %}"
+                        data-ledger-url="{% url 'operations:blockchain_ledger' %}?q={{ c.reference_code }}"
+                        data-ledger-hash="{{ c.block_hash_short }}"
                         onclick="selectCluster(this)">
                         <td>
                             <div class="fw-bold text-dark font-monospace fs-8">{{ c.reference_code }}</div>
@@ -235,7 +236,7 @@
                             <div class="text-muted fs-9">{{ c.created_at|date:"M d, Y" }}</div>
                         </td>
                         <td>
-                            <div class="fw-bold text-dark fs-8">{{ c.vol_mt|floatformat:3|intcomma }} <span class="fw-normal text-muted fs-9">MT</span></div>
+                            <div class="fw-bold text-dark fs-8">{{ c.vol_mt|floatformat:2|intcomma }} <span class="fw-normal text-muted fs-9">MT</span></div>
                             <div class="mt-0.5"><span class="badge-status {{ c.status }}">{{ c.get_status_display }}</span></div>
                         </td>
                         <td class="text-end">
@@ -283,15 +284,26 @@
     </div>
 
     <div class="detail-pane" id="detailPane" hidden>
-        <!-- Top Drawer Header with Semantic Status Badge -->
-        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-            <h3 id="panelRef" class="mb-0 fw-bold fs-5 text-dark">—</h3>
+        <!-- Top Drawer Header with Semantic Status Badge & Cryptographic Ledger Entry Point -->
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <h3 id="panelRef" class="mb-0 fw-bold fs-5 text-dark">—</h3>
+                <a href="#" id="panelHeaderLedgerBtn" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none fs-9 py-0.5 px-2 d-inline-flex align-items-center gap-1" title="View Cryptographic Lifecycle & Audit Trail on Ledger">
+                    <i class="bi bi-shield-check"></i> <span id="panelHeaderLedgerHash">Ledger</span>
+                </a>
+            </div>
             <span class="badge-status draft" id="panelStatusChip">—</span>
         </div>
 
         <!-- Persistent Action Bar -->
         <div class="p-2.5 mb-3 rounded-3 bg-light border d-flex flex-wrap align-items-center gap-2" id="panelPersistentActionBar" style="position: sticky; top: 0; z-index: 5; backdrop-filter: blur(4px);">
-            <!-- Primary Actions -->
+            <!-- Primary Actions (Submit for Approval on DRAFT, Edit Deal, Generate Invoice on Approved/Delivered) -->
+            <form id="panelSubmitForm" method="post" action="#" class="d-inline-flex m-0 p-0" onsubmit="return confirm('Submit this Purchase Order for executive approval?');">
+                {% csrf_token %}
+                <button type="submit" id="panelActionSubmit" class="btn btn-sm btn-primary py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-semibold shadow-xs" title="Submit PO for Executive Approval">
+                    <i class="bi bi-send-check"></i> Submit for Approval
+                </button>
+            </form>
             <a href="#" id="panelActionEdit" class="btn btn-sm btn-primary py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-semibold shadow-xs" title="Edit Deal & Commercial Terms">
                 <i class="bi bi-pencil-square"></i> Edit Deal
             </a>
@@ -300,6 +312,9 @@
             </a>
 
             <!-- Secondary Actions -->
+            <a href="#" id="panelActionLedger" class="btn btn-sm btn-outline-secondary py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 shadow-xs" title="View Cryptographic Lifecycle & Audit Trail on Ledger">
+                <i class="bi bi-shield-check text-primary"></i> View Audit Trail
+            </a>
             <a href="#" id="panelActionPdf" target="_blank" class="btn btn-sm btn-outline-secondary py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 shadow-xs" title="Download & Print Legal Contract PDF">
                 <i class="bi bi-printer"></i> Print Contract
             </a>
@@ -320,6 +335,14 @@
             <div class="detail-row"><span>Last Updated</span><span id="panelUpdated">—</span></div>
             <div class="detail-row"><span>Delivery Company</span><span id="panelPartner">—</span></div>
             <div class="detail-row"><span>Invoice #</span><span id="panelInvoice">—</span></div>
+            <div class="detail-row">
+                <span>Audit Trail &amp; Ledger</span>
+                <span>
+                    <a href="#" id="panelLedgerLink" class="font-monospace text-primary text-decoration-none fs-8 fw-semibold d-inline-flex align-items-center gap-1" title="View Cryptographic Audit Trail & Blockchain Ledger">
+                        <i class="bi bi-shield-check"></i> <span id="panelLedgerHashText">Verified on Ledger</span>
+                    </a>
+                </span>
+            </div>
         </div>
 
         <div class="detail-section">
@@ -444,13 +467,62 @@
         if (editBtn) editBtn.href = d.editUrl || d.url;
 
         const invBtn = document.getElementById('panelActionInvoice');
-        if (invBtn) invBtn.href = d.invoiceUrl || '#';
+        const submitForm = document.getElementById('panelSubmitForm');
+        if (submitForm) submitForm.action = d.submitUrl || '#';
 
         const pdfBtn = document.getElementById('panelActionPdf');
         if (pdfBtn) pdfBtn.href = d.pdfUrl || '#';
 
         const cancelForm = document.getElementById('panelCancelForm');
         if (cancelForm) cancelForm.action = d.deleteUrl || '#';
+
+        // 1. Business Logic Mismatch Fix: Invoicing a Draft
+        // Invoicing is disabled/hidden until order moves from DRAFT -> APPROVED/DELIVERED.
+        // For DRAFT, primary action is Submit for Approval.
+        if (d.status === 'draft') {
+            if (submitForm) submitForm.classList.remove('d-none');
+            if (invBtn) invBtn.classList.add('d-none');
+            if (editBtn) editBtn.className = 'btn btn-sm btn-outline-primary py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-semibold shadow-xs';
+        } else if (d.status === 'pending_approval') {
+            if (submitForm) submitForm.classList.add('d-none');
+            if (invBtn) invBtn.classList.add('d-none');
+            if (editBtn) editBtn.className = 'btn btn-sm btn-outline-primary py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-semibold shadow-xs';
+        } else {
+            // Approved, Active, Delivered, Closed
+            if (submitForm) submitForm.classList.add('d-none');
+            if (invBtn) {
+                invBtn.classList.remove('d-none');
+                if (d.invoiced === 'true') {
+                    invBtn.className = 'btn btn-sm btn-outline-success py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-semibold shadow-xs';
+                    invBtn.innerHTML = '<i class="bi bi-check-circle"></i> Invoiced (' + (d.invoice && d.invoice !== '—' ? d.invoice : 'View') + ')';
+                    invBtn.href = d.url + '#invoice';
+                    invBtn.title = 'View Invoiced Sales Details';
+                } else {
+                    invBtn.className = 'btn btn-sm btn-success py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-semibold shadow-xs';
+                    invBtn.innerHTML = '<i class="bi bi-receipt"></i> Generate Invoice';
+                    invBtn.href = d.invoiceUrl || '#';
+                    invBtn.title = 'Generate Sales Invoice';
+                }
+            }
+            if (editBtn) editBtn.className = 'btn btn-sm btn-primary py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5 fs-8 fw-semibold shadow-xs';
+        }
+
+        // 2. Wire Entry Points for Local Audit Trail & Blockchain Ledger
+        const ledgerUrl = d.ledgerUrl || ('/operations/blockchain/?q=' + encodeURIComponent(d.ref));
+        const hashDisplay = d.ledgerHash || ('#0x' + (d.ref ? d.ref.replace(/[^a-zA-Z0-9]/g, '').slice(-6) : '4f'));
+
+        const actionLedger = document.getElementById('panelActionLedger');
+        if (actionLedger) actionLedger.href = ledgerUrl;
+
+        const headerLedger = document.getElementById('panelHeaderLedgerBtn');
+        const headerLedgerHash = document.getElementById('panelHeaderLedgerHash');
+        if (headerLedger) headerLedger.href = ledgerUrl;
+        if (headerLedgerHash) headerLedgerHash.textContent = 'Ledger ' + hashDisplay;
+
+        const summaryLedgerLink = document.getElementById('panelLedgerLink');
+        const summaryLedgerHashText = document.getElementById('panelLedgerHashText');
+        if (summaryLedgerLink) summaryLedgerLink.href = ledgerUrl;
+        if (summaryLedgerHashText) summaryLedgerHashText.textContent = 'Verified on Ledger (' + hashDisplay + ')';
 
         // Standardized Semantic Status Chip
         const statusChip = document.getElementById('panelStatusChip');

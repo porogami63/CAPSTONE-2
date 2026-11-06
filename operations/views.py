@@ -122,6 +122,12 @@ def cluster_list(request):
         c.has_received = bool(c.logistics_record and c.logistics_record.received_volume_mt is not None)
         c.has_invoice = bool(invs)
 
+        try:
+            b_info = get_cluster_block_info(c)
+            c.block_hash_short = f"#0x{b_info['block_hash'][:6]}"
+        except Exception:
+            c.block_hash_short = f"#0x{c.pk.hex[:6]}"
+
         fin = cluster_financials(c)
         c.vol_mt = fin["volume_mt"]
         c.purchase_price = fin["purchase_price"]
