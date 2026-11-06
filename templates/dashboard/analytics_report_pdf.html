@@ -212,6 +212,38 @@
     </tbody>
 </table>
 
+{% if data.financial_intervals %}
+<div class="section-title">EXECUTIVE FINANCIALS &amp; PERFORMANCE LEDGER ({{ data.financial_intervals.monthly.title }})</div>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th style="width: 16%;">Period</th>
+            <th class="text-end" style="width: 18%;">Money In (Revenue)</th>
+            <th class="text-end" style="width: 18%;">Money Out (Costs)</th>
+            <th class="text-end" style="width: 18%;">Net Profit</th>
+            <th class="text-end" style="width: 12%;">Margin (%)</th>
+            <th class="text-end" style="width: 18%;">Volume (MT)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in data.financial_intervals.monthly.table %}
+        <tr>
+            <td><strong>{{ row.period }}</strong></td>
+            <td class="text-end">&#8369;{{ row.revenue|floatformat:2 }}</td>
+            <td class="text-end">&#8369;{{ row.expenses|floatformat:2 }}</td>
+            <td class="text-end"><strong>&#8369;{{ row.profit|floatformat:2 }}</strong></td>
+            <td class="text-end">{{ row.margin|floatformat:1 }}%</td>
+            <td class="text-end">{{ row.volume_mt|floatformat:0 }} MT</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-center">No financial intervals recorded.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
 <div class="footer">
     HTC Core Unified Platform &bull; Automated ORM Audit &amp; Reporting Engine &bull; Confidential Internal Report
 </div>

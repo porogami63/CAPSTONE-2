@@ -5,6 +5,7 @@
 {% block topbar_subtitle %}Operational intelligence on customer demand, sourcing &amp; fulfillment{% endblock %}
 
 {% block content %}
+<div class="no-finance-mask" data-no-finance-mask="true">
 <style>
     /* Executive Analytics Styles (Clean, Friendly & Legible) */
     .analytics-hero-card {
@@ -103,6 +104,61 @@
         border-radius: 9999px;
         font-size: 0.72rem;
         font-weight: 600;
+    }
+
+    /* Carousel Navigation & Indicators */
+    .carousel-nav-bar {
+        background-color: var(--htc-surface-subtle, #f8fafc);
+    }
+    .carousel-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: var(--htc-border, #cbd5e1);
+        display: inline-block;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    .carousel-dot.active {
+        width: 22px;
+        border-radius: 4px;
+        background-color: var(--htc-primary, #0c385c);
+    }
+
+    /* Non-Color Markers for Accessible Legends */
+    .legend-symbol {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        vertical-align: middle;
+    }
+    .symbol-circle {
+        border-radius: 50%;
+        background-color: #0c385c;
+    }
+    .symbol-dash {
+        border-top: 3px dashed #d9381e;
+        width: 14px;
+        height: 0;
+    }
+    .symbol-triangle {
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-bottom: 10px solid #10b981;
+    }
+    .symbol-square {
+        background-color: #8b5cf6;
+        border-radius: 2px;
+    }
+
+    .touch-target-min {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     @media print {
@@ -308,7 +364,143 @@
     </div>
 </div>
 
-<!-- Section 1: Customer Volume Share (Where Our Molasses Goes) -->
+{% if financial_intervals %}
+<!-- Financials & Analytics Report Section (Executive Cadence & Multi-Chart Carousel) -->
+<div class="analytics-hero-card mb-4" id="financialsReportCard">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 pb-2 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+            <span class="p-1.5 rounded bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                <i class="bi bi-graph-up-arrow fs-6"></i>
+            </span>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">Financials &amp; Analytics Report</h5>
+                <span class="fs-8 text-muted d-block" id="cadenceSubtitle">{{ financial_intervals.monthly.title }} (Values in Millions PHP)</span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-dark d-inline-flex align-items-center gap-1.5 px-3" onclick="window.print()" title="Print Financials & Analytics (Paper/PDF)" aria-label="Print Financials">
+                <i class="bi bi-printer"></i>
+                <span class="d-none d-sm-inline fw-semibold fs-8">Print Financials</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Toolbar: Time Period Granularity & Display Mode Selector -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 pb-2 border-bottom">
+        <!-- 1. Timeframe Granularity Selector -->
+        <div class="d-flex align-items-center gap-2">
+            <span class="fs-8 fw-bold text-uppercase text-muted">Time Period:</span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Timeframe Granularity Selector">
+                <button type="button" class="btn btn-outline-primary px-3 py-1.5 active touch-target-min" id="btnInterval_monthly" onclick="updateFinancialCadence('monthly')">
+                    Monthly
+                </button>
+                <button type="button" class="btn btn-outline-primary px-3 py-1.5 touch-target-min" id="btnInterval_yearly" onclick="updateFinancialCadence('yearly')">
+                    Yearly (2024–2026)
+                </button>
+                <button type="button" class="btn btn-outline-primary px-3 py-1.5 touch-target-min" id="btnInterval_weekly" onclick="updateFinancialCadence('weekly')">
+                    Weekly
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. Display Mode Selector (Chart / Table / Split) -->
+        <div class="d-flex align-items-center gap-2">
+            <span class="fs-8 fw-bold text-uppercase text-muted d-none d-md-inline">View Mode:</span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Display View Mode">
+                <button type="button" class="btn btn-secondary active px-3 py-1.5 touch-target-min" id="btnView_chart" onclick="setFinancialMode('chart')">Chart</button>
+                <button type="button" class="btn btn-outline-secondary px-3 py-1.5 touch-target-min" id="btnView_table" onclick="setFinancialMode('table')">Table</button>
+                <button type="button" class="btn btn-outline-secondary px-3 py-1.5 touch-target-min" id="btnView_split" onclick="setFinancialMode('split')">Split</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Multi-Chart Carousel Controls (< > Navigation) -->
+    <div class="carousel-nav-bar d-flex justify-content-between align-items-center p-2 mb-3 rounded border" id="carouselNavControls">
+        <!-- Previous Button -->
+        <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center justify-content-center touch-target-min" id="btnPrevChart" onclick="cycleChart(-1)" aria-label="Previous graph" title="Previous graph">
+            <i class="bi bi-chevron-left fs-6"></i>
+        </button>
+
+        <!-- Visual Indicator & Title (Simple Language) -->
+        <div class="text-center px-2 flex-grow-1" id="carouselIndicatorBox">
+            <div class="fw-bold fs-7 text-dark" id="carouselTitleText">Graph 1 of 4: Money In vs. Money Out (Sales &amp; Expenses)</div>
+            <div class="fs-8 text-muted" id="carouselSubtitleText">Compares customer payments received against procurement and delivery expenses.</div>
+            
+            <!-- Pagination Dots -->
+            <div class="d-flex justify-content-center align-items-center gap-1.5 mt-1" id="carouselDots">
+                <span class="carousel-dot active" data-index="0" onclick="goToChart(0)" title="1. Money In vs. Money Out"></span>
+                <span class="carousel-dot" data-index="1" onclick="goToChart(1)" title="2. Profit Margins"></span>
+                <span class="carousel-dot" data-index="2" onclick="goToChart(2)" title="3. Cash Flow Spread"></span>
+                <span class="carousel-dot" data-index="3" onclick="goToChart(3)" title="4. Delivered Volume &amp; Sales"></span>
+            </div>
+        </div>
+
+        <!-- Next Button -->
+        <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center justify-content-center touch-target-min" id="btnNextChart" onclick="cycleChart(1)" aria-label="Next graph" title="Next graph">
+            <i class="bi bi-chevron-right fs-6"></i>
+        </button>
+    </div>
+
+    <!-- Screen reader live announcement for chart updates -->
+    <div id="carouselSrAnnouncement" class="visually-hidden" aria-live="polite">Showing Graph 1 of 4: Money In vs. Money Out (Sales &amp; Expenses)</div>
+
+    <!-- Chart Container -->
+    <div id="financialChartBox" style="min-height: 280px; height: 320px; position: relative;">
+        <canvas id="financialChartCanvas" aria-label="Financials and Analytics Interactive Graph" role="img"></canvas>
+    </div>
+
+    <!-- Accessible Legend & Non-Color Indicator Explanation -->
+    <div class="mt-2 text-center fs-8 text-muted d-flex justify-content-center align-items-center gap-3 flex-wrap" id="chartAccessibleLegend">
+        <span class="d-inline-flex align-items-center gap-1"><span class="legend-symbol symbol-circle"></span> Solid Dot: Money In (Revenue)</span>
+        <span class="d-inline-flex align-items-center gap-1"><span class="legend-symbol symbol-dash"></span> Dashed Square: Money Out (Expenses)</span>
+        <span class="d-inline-flex align-items-center gap-1"><span class="legend-symbol symbol-triangle"></span> Solid Triangle: Net Profit</span>
+    </div>
+
+    <!-- Table View Container -->
+    <div id="financialTableBox" class="d-none mt-3">
+        <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+            <table class="table table-sm table-hover align-middle mb-0 fs-8">
+                <thead class="sticky-top bg-body">
+                    <tr class="text-uppercase text-muted border-bottom">
+                        <th>Period</th>
+                        <th class="text-end">Money In (Revenue)</th>
+                        <th class="text-end">Money Out (Costs)</th>
+                        <th class="text-end">Net Profit</th>
+                        <th class="text-end">Profit Share %</th>
+                        <th class="text-end">Volume Delivered</th>
+                        <th class="text-center">Orders</th>
+                    </tr>
+                </thead>
+                <tbody id="financialTableBody">
+                    {% for row in financial_intervals.monthly.table %}
+                    <tr>
+                        <td class="fw-semibold">{{ row.period }}</td>
+                        <td class="text-end">₱{{ row.revenue|floatformat:2|intcomma }}</td>
+                        <td class="text-end text-muted">₱{{ row.expenses|floatformat:2|intcomma }}</td>
+                        <td class="text-end fw-bold {% if row.profit > 0 %}text-success{% elif row.profit < 0 %}text-danger{% else %}text-muted{% endif %}">
+                            ₱{{ row.profit|floatformat:2|intcomma }}
+                        </td>
+                        <td class="text-end">
+                            <span class="badge {% if row.margin >= 15 %}bg-success-subtle text-success{% elif row.margin > 0 %}bg-primary-subtle text-primary{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                {{ row.margin|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td class="text-end text-muted">{{ row.volume_mt|floatformat:0|intcomma }} MT</td>
+                        <td class="text-center">{{ row.deals }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Explanatory Footnote in Simple Language -->
+    <div class="mt-3 pt-2 border-top d-flex align-items-center justify-content-between flex-wrap gap-2 text-muted fs-8">
+        <span id="cadenceFootnote">{{ financial_intervals.monthly.copilot_text }}</span>
+        <span class="badge bg-body-tertiary border text-muted">Verified Company Ledger</span>
+    </div>
+</div>
+{% endif %}
 <div class="row g-4 mb-4">
     <!-- Chart Column -->
     <div class="col-12 col-lg-7">
@@ -430,6 +622,7 @@
         </div>
     </div>
 </div>
+</div>
 
 {% endblock %}
 
@@ -437,11 +630,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script id="clientChartData" type="application/json">{{ client_chart_json|safe }}</script>
 <script id="millChartData" type="application/json">{{ mill_chart_json|safe }}</script>
+<script id="financial-intervals-data" type="application/json">{{ financial_intervals_json|safe }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
     [...tooltipTriggerList].forEach(el => new bootstrap.Tooltip(el));
+
     // 1. Customer Volume Horizontal Bar Chart
     const clientDataEl = document.getElementById('clientChartData');
     if (clientDataEl) {
@@ -543,6 +738,436 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+    }
+
+    // 3. Financials & Analytics Multi-Chart Carousel & Cadence Views
+    const finIntervalsEl = document.getElementById('financial-intervals-data');
+    if (finIntervalsEl) {
+        const finIntervals = JSON.parse(finIntervalsEl.textContent || '{}');
+        let finChartInstance = null;
+        let activeCadence = '{{ period|default:"monthly" }}';
+        if (!finIntervals[activeCadence]) activeCadence = 'monthly';
+        let currentFinMode = 'chart';
+        let currentChartIndex = 0;
+
+        // 4 Distinct Financial Chart Views (User-friendly terminology)
+        const chartViews = [
+            {
+                title: "Graph 1 of 4: Money In vs. Money Out (Sales & Expenses)",
+                subtitle: "Compares customer payments received against procurement and delivery expenses.",
+                legend: '<span class="d-inline-flex align-items-center gap-1"><span class="legend-symbol symbol-circle"></span> Solid Dot: Money In (Revenue)</span> <span class="d-inline-flex align-items-center gap-1 ms-3"><span class="legend-symbol symbol-dash"></span> Dashed Square: Money Out (Expenses)</span> <span class="d-inline-flex align-items-center gap-1 ms-3"><span class="legend-symbol symbol-triangle"></span> Solid Triangle: Net Profit</span>',
+                buildConfig: function(data) {
+                    return {
+                        type: 'line',
+                        data: {
+                            labels: data.labels,
+                            datasets: [
+                                {
+                                    label: 'Money In (₱M)',
+                                    data: data.revenue,
+                                    borderColor: '#0c385c',
+                                    backgroundColor: 'rgba(12, 56, 92, 0.08)',
+                                    fill: true,
+                                    tension: 0.35,
+                                    borderWidth: 2.5,
+                                    pointRadius: 5,
+                                    pointStyle: 'circle',
+                                    pointBackgroundColor: '#0c385c'
+                                },
+                                {
+                                    label: 'Money Out (₱M)',
+                                    data: data.expenses,
+                                    borderColor: '#d9381e',
+                                    backgroundColor: 'transparent',
+                                    borderDash: [5, 5],
+                                    tension: 0.35,
+                                    borderWidth: 2,
+                                    pointRadius: 5,
+                                    pointStyle: 'rectRot',
+                                    pointBackgroundColor: '#d9381e'
+                                },
+                                {
+                                    label: 'Net Profit (₱M)',
+                                    data: data.profit,
+                                    borderColor: '#10b981',
+                                    backgroundColor: 'transparent',
+                                    tension: 0.35,
+                                    borderWidth: 2,
+                                    pointRadius: 5,
+                                    pointStyle: 'triangle',
+                                    pointBackgroundColor: '#10b981'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 600 } } },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(c) { return `${c.dataset.label}: ₱${Number(c.raw).toFixed(2)}M`; }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { grid: { display: false }, ticks: { font: { size: 10, weight: 600 } } },
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(0,0,0,0.05)' },
+                                    ticks: {
+                                        font: { size: 10 },
+                                        callback: function(val) { return '₱' + val + 'M'; }
+                                    }
+                                }
+                            }
+                        }
+                    };
+                }
+            },
+            {
+                title: "Graph 2 of 4: Profit Margins & Return Rate (%)",
+                subtitle: "Calculates net profit as a percentage of gross deal value across cycles.",
+                legend: '<span class="d-inline-flex align-items-center gap-1"><span class="legend-symbol symbol-circle" style="background:#059669;"></span> Green Line: Profit Margin (%)</span>',
+                buildConfig: function(data) {
+                    return {
+                        type: 'line',
+                        data: {
+                            labels: data.labels,
+                            datasets: [
+                                {
+                                    label: 'Profit Margin (%)',
+                                    data: data.margins,
+                                    borderColor: '#059669',
+                                    backgroundColor: 'rgba(5, 150, 105, 0.12)',
+                                    fill: true,
+                                    tension: 0.35,
+                                    borderWidth: 2.5,
+                                    pointRadius: 5,
+                                    pointStyle: 'circle',
+                                    pointBackgroundColor: '#059669'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 600 } } },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(c) { return `${c.dataset.label}: ${Number(c.raw).toFixed(1)}%`; }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { grid: { display: false }, ticks: { font: { size: 10, weight: 600 } } },
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(0,0,0,0.05)' },
+                                    ticks: {
+                                        font: { size: 10 },
+                                        callback: function(val) { return val + '%'; }
+                                    }
+                                }
+                            }
+                        }
+                    };
+                }
+            },
+            {
+                title: "Graph 3 of 4: Operating Cash Flow Spread (Inflows vs. Outflows)",
+                subtitle: "Evaluates cash collected versus operational payouts across transaction periods.",
+                legend: '<span class="d-inline-flex align-items-center gap-1"><span class="legend-symbol" style="background:#0284c7; border-radius:2px;"></span> Blue Bar: Money Collected</span> <span class="d-inline-flex align-items-center gap-1 ms-3"><span class="legend-symbol" style="background:#ef4444; border-radius:2px;"></span> Red Bar: Money Paid Out</span> <span class="d-inline-flex align-items-center gap-1 ms-3"><span class="legend-symbol symbol-triangle" style="border-bottom-color:#0f766e;"></span> Dark Green Line: Cash Spread</span>',
+                buildConfig: function(data) {
+                    return {
+                        type: 'bar',
+                        data: {
+                            labels: data.labels,
+                            datasets: [
+                                {
+                                    type: 'bar',
+                                    label: 'Money Collected (₱M)',
+                                    data: data.revenue,
+                                    backgroundColor: 'rgba(2, 132, 199, 0.75)',
+                                    borderColor: '#0284c7',
+                                    borderWidth: 1,
+                                    borderRadius: 4,
+                                    order: 2
+                                },
+                                {
+                                    type: 'bar',
+                                    label: 'Money Paid Out (₱M)',
+                                    data: data.expenses,
+                                    backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                                    borderColor: '#ef4444',
+                                    borderWidth: 1,
+                                    borderRadius: 4,
+                                    order: 3
+                                },
+                                {
+                                    type: 'line',
+                                    label: 'Net Cash Spread (₱M)',
+                                    data: data.profit,
+                                    borderColor: '#0f766e',
+                                    backgroundColor: 'transparent',
+                                    tension: 0.35,
+                                    borderWidth: 3,
+                                    pointRadius: 5,
+                                    pointStyle: 'triangle',
+                                    pointBackgroundColor: '#0f766e',
+                                    order: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 600 } } },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(c) { return `${c.dataset.label}: ₱${Number(c.raw).toFixed(2)}M`; }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { grid: { display: false }, ticks: { font: { size: 10, weight: 600 } } },
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(0,0,0,0.05)' },
+                                    ticks: {
+                                        font: { size: 10 },
+                                        callback: function(val) { return '₱' + val + 'M'; }
+                                    }
+                                }
+                            }
+                        }
+                    };
+                }
+            },
+            {
+                title: "Graph 4 of 4: Delivered Volume & Revenue (MT vs. ₱M)",
+                subtitle: "Compares physical metric tons fulfilled with total sales revenue recognized.",
+                legend: '<span class="d-inline-flex align-items-center gap-1"><span class="legend-symbol" style="background:#8b5cf6; border-radius:2px;"></span> Purple Bar: Volume Delivered (MT)</span> <span class="d-inline-flex align-items-center gap-1 ms-3"><span class="legend-symbol symbol-circle" style="background:#0c385c;"></span> Navy Line: Sales Revenue (₱M)</span>',
+                buildConfig: function(data) {
+                    return {
+                        type: 'bar',
+                        data: {
+                            labels: data.labels,
+                            datasets: [
+                                {
+                                    type: 'bar',
+                                    label: 'Volume Delivered (MT)',
+                                    data: data.volumes || [],
+                                    backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                                    borderColor: '#8b5cf6',
+                                    borderWidth: 1,
+                                    borderRadius: 4,
+                                    yAxisID: 'yVol'
+                                },
+                                {
+                                    type: 'line',
+                                    label: 'Sales Revenue (₱M)',
+                                    data: data.revenue,
+                                    borderColor: '#0c385c',
+                                    backgroundColor: 'transparent',
+                                    tension: 0.35,
+                                    borderWidth: 2.5,
+                                    pointRadius: 5,
+                                    pointStyle: 'circle',
+                                    pointBackgroundColor: '#0c385c',
+                                    yAxisID: 'yRev'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 600 } } },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(c) {
+                                            if (c.dataset.yAxisID === 'yVol') {
+                                                return `${c.dataset.label}: ${Number(c.raw).toLocaleString()} MT`;
+                                            }
+                                            return `${c.dataset.label}: ₱${Number(c.raw).toFixed(2)}M`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { grid: { display: false }, ticks: { font: { size: 10, weight: 600 } } },
+                                yVol: {
+                                    type: 'linear',
+                                    position: 'left',
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(0,0,0,0.05)' },
+                                    ticks: {
+                                        font: { size: 10 },
+                                        callback: function(val) { return Number(val).toLocaleString() + ' MT'; }
+                                    }
+                                },
+                                yRev: {
+                                    type: 'linear',
+                                    position: 'right',
+                                    beginAtZero: true,
+                                    grid: { drawOnChartArea: false },
+                                    ticks: {
+                                        font: { size: 10 },
+                                        callback: function(val) { return '₱' + val + 'M'; }
+                                    }
+                                }
+                            }
+                        }
+                    };
+                }
+            }
+        ];
+
+        function renderCurrentChart() {
+            const data = finIntervals[activeCadence];
+            if (!data) return;
+
+            const viewMeta = chartViews[currentChartIndex];
+            const fCtx = document.getElementById('financialChartCanvas');
+            if (!fCtx) return;
+
+            if (finChartInstance) {
+                finChartInstance.destroy();
+                finChartInstance = null;
+            }
+
+            const config = viewMeta.buildConfig(data);
+            finChartInstance = new Chart(fCtx, config);
+
+            // Update Titles & Subtitles
+            const tEl = document.getElementById('carouselTitleText');
+            const sEl = document.getElementById('carouselSubtitleText');
+            const srEl = document.getElementById('carouselSrAnnouncement');
+            const lEl = document.getElementById('chartAccessibleLegend');
+
+            if (tEl) tEl.textContent = viewMeta.title;
+            if (sEl) sEl.textContent = viewMeta.subtitle;
+            if (srEl) srEl.textContent = `Showing ${viewMeta.title}`;
+            if (lEl) lEl.innerHTML = viewMeta.legend;
+
+            // Update Pagination Dots
+            const dots = document.querySelectorAll('#carouselDots .carousel-dot');
+            dots.forEach((d, idx) => {
+                d.classList.toggle('active', idx === currentChartIndex);
+            });
+        }
+
+        window.cycleChart = function(dir) {
+            currentChartIndex = (currentChartIndex + dir + chartViews.length) % chartViews.length;
+            renderCurrentChart();
+        };
+
+        window.goToChart = function(idx) {
+            if (idx >= 0 && idx < chartViews.length) {
+                currentChartIndex = idx;
+                renderCurrentChart();
+            }
+        };
+
+        window.updateFinancialCadence = function(cadenceKey) {
+            activeCadence = cadenceKey;
+            const data = finIntervals[cadenceKey];
+            if (!data) return;
+
+            ['weekly', 'monthly', 'yearly'].forEach(k => {
+                const btn = document.getElementById(`btnInterval_${k}`);
+                if (btn) btn.classList.toggle('active', k === cadenceKey);
+            });
+
+            const sub = document.getElementById('cadenceSubtitle');
+            if (sub) sub.textContent = `${data.title} (Values in Millions PHP)`;
+
+            const fn = document.getElementById('cadenceFootnote');
+            if (fn) fn.textContent = data.copilot_text;
+
+            const tbody = document.getElementById('financialTableBody');
+            if (tbody && data.table) {
+                tbody.innerHTML = data.table.map(row => {
+                    const profClass = row.profit > 0 ? 'text-success' : (row.profit < 0 ? 'text-danger' : 'text-muted');
+                    const badgeClass = row.margin >= 15 ? 'bg-success-subtle text-success' : (row.margin > 0 ? 'bg-primary-subtle text-primary' : 'bg-secondary-subtle text-secondary');
+                    return `
+                    <tr>
+                        <td class="fw-semibold">${row.period}</td>
+                        <td class="text-end">₱${Number(row.revenue).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="text-end text-muted">₱${Number(row.expenses).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="text-end fw-bold ${profClass}">₱${Number(row.profit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="text-end"><span class="badge ${badgeClass}">${Number(row.margin).toFixed(1)}%</span></td>
+                        <td class="text-end text-muted">${Number(row.volume_mt).toLocaleString('en-US', {minimumFractionDigits: 0})} MT</td>
+                        <td class="text-center">${row.deals}</td>
+                    </tr>
+                    `;
+                }).join('');
+            }
+
+            renderCurrentChart();
+        };
+
+        window.setFinancialMode = function(mode) {
+            currentFinMode = mode;
+            const chartBox = document.getElementById('financialChartBox');
+            const tableBox = document.getElementById('financialTableBox');
+
+            ['chart', 'table', 'split'].forEach(m => {
+                const btn = document.getElementById(`btnView_${m}`);
+                if (btn) {
+                    btn.classList.toggle('active', m === mode);
+                    btn.classList.toggle('btn-secondary', m === mode);
+                    btn.classList.toggle('btn-outline-secondary', m !== mode);
+                }
+            });
+
+            if (mode === 'chart') {
+                if (chartBox) chartBox.classList.remove('d-none');
+                if (tableBox) tableBox.classList.add('d-none');
+            } else if (mode === 'table') {
+                if (chartBox) chartBox.classList.add('d-none');
+                if (tableBox) tableBox.classList.remove('d-none');
+            } else if (mode === 'split') {
+                if (chartBox) chartBox.classList.remove('d-none');
+                if (tableBox) tableBox.classList.remove('d-none');
+            }
+            if (finChartInstance) finChartInstance.resize();
+        };
+
+        // Initialize Financial Cadence
+        updateFinancialCadence(activeCadence);
+
+        // Keyboard arrow navigation on carousel buttons
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') {
+                const active = document.activeElement;
+                if (active && (active.id === 'btnPrevChart' || active.id === 'btnNextChart')) {
+                    e.preventDefault();
+                    cycleChart(-1);
+                }
+            } else if (e.key === 'ArrowRight') {
+                const active = document.activeElement;
+                if (active && (active.id === 'btnPrevChart' || active.id === 'btnNextChart')) {
+                    e.preventDefault();
+                    cycleChart(1);
+                }
+            }
+        });
+
+        // Print listener: show both chart and table when printing
+        window.addEventListener('beforeprint', () => {
+            const chartBox = document.getElementById('financialChartBox');
+            const tableBox = document.getElementById('financialTableBox');
+            if (chartBox) chartBox.classList.remove('d-none');
+            if (tableBox) tableBox.classList.remove('d-none');
+            if (finChartInstance) finChartInstance.resize();
+        });
+        window.addEventListener('afterprint', () => {
+            setFinancialMode(currentFinMode);
+        });
     }
 });
 </script>

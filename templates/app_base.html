@@ -57,6 +57,22 @@
         html[data-reveal-finances="true"] .finance-masked .masked-real {
             display: inline !important;
         }
+
+        /* Exempt sections and pages: Financials & Analytics, Orders & Deals, Deliveries & Trucking, Finance Focus Workspace */
+        [data-no-finance-mask="true"] .finance-masked .masked-stars,
+        .no-finance-mask .finance-masked .masked-stars {
+            display: none !important;
+        }
+        [data-no-finance-mask="true"] .finance-masked .masked-real,
+        .no-finance-mask .finance-masked .masked-real {
+            display: inline !important;
+        }
+        [data-no-finance-mask="true"] .finance-masked,
+        .no-finance-mask .finance-masked {
+            cursor: default !important;
+            border-bottom: none !important;
+            background: transparent !important;
+        }
     </style>
 </head>
 <body>
@@ -773,9 +789,34 @@
                 return match ? match[1] : '';
             };
 
+            function isMaskingExempt(el) {
+                if (el && (el.closest('.no-finance-mask') || el.closest('[data-no-finance-mask="true"]'))) {
+                    return true;
+                }
+                const path = window.location.pathname.toLowerCase();
+                // 1. Financials & Analytics Report: /dashboard/analytics/
+                // 2. Orders & Deals: /operations/clusters/
+                // 3. Deliveries and trucking: /operations/deliveries/
+                // 4. Finance Focus Work Space: /finance/workspace/ or /finance/reconciliation/
+                if (
+                    path.includes('/dashboard/analytics') ||
+                    path.includes('/operations/clusters') ||
+                    path.includes('/operations/deliveries') ||
+                    path.includes('/finance/workspace') ||
+                    path.includes('/finance/reconciliation') ||
+                    document.body.hasAttribute('data-no-finance-mask') ||
+                    document.body.classList.contains('no-finance-mask') ||
+                    document.querySelector('meta[name="no-finance-mask"]')
+                ) {
+                    return true;
+                }
+                return false;
+            }
+
             function maskFinancialFigures(root) {
                 root = root || document.body;
                 if (!root) return;
+                if (isMaskingExempt(root)) return;
                 const walker = document.createTreeWalker(
                     root,
                     NodeFilter.SHOW_TEXT,
@@ -783,6 +824,7 @@
                         acceptNode: function(node) {
                             const parent = node.parentElement;
                             if (!parent) return NodeFilter.FILTER_REJECT;
+                            if (isMaskingExempt(parent)) return NodeFilter.FILTER_REJECT;
                             const tag = parent.tagName.toLowerCase();
                             if (['script', 'style', 'input', 'textarea', 'select', 'option'].includes(tag)) {
                                 return NodeFilter.FILTER_REJECT;

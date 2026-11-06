@@ -5,7 +5,9 @@
 {% block topbar_title %}Deliveries &amp; Trucking{% endblock %}
 {% block topbar_subtitle %}Incremental delivery ledger tracking dynamic mill sourcing, multi-destination fulfillment, and remaining MT balances per PO{% endblock %}
 
-{% block content %}<style>
+{% block content %}
+<div class="no-finance-mask" data-no-finance-mask="true">
+<style>
     .metric-grid-deliv {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -1108,5 +1110,6 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endfor %}
 
 {% include "operations/includes/record_arrival_modal.html" %}
+</div>
 {% endblock %}
 

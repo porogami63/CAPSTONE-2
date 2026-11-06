@@ -6,6 +6,7 @@
 {% block topbar_subtitle %}Capital financing, bank facility matching, and expense outlay reconciliation{% endblock %}
 
 {% block content %}
+<div class="no-finance-mask" data-no-finance-mask="true">
 <style>
     @keyframes pulseDangerGlow {
         0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.35); border-color: #dc3545; }
@@ -1316,4 +1317,5 @@ document.addEventListener('DOMContentLoaded', function() {
 {% if user.role == 'operations_management' or user.role == 'administrator' or user.is_superuser %}
 {% include "finance/includes/finance_blockchain_modal.html" %}
 {% endif %}
+</div>
 {% endblock %}

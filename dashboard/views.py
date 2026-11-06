@@ -20,10 +20,10 @@ from .services.insights import build_dashboard_insights
 from operations.services.pricing import cluster_financials
 
 
-def _build_financial_cadence(clusters_all, now):
+def _build_financial_cadence(clusters_all, now, target_year=None, target_month=None):
     month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    target_year = now.year
-    target_month = now.month
+    target_year = int(target_year) if target_year else now.year
+    target_month = int(target_month) if target_month else now.month
 
     # 1. Weekly buckets (for current target month)
     weekly_buckets = [
@@ -450,14 +450,6 @@ def home(request):
     now = timezone.now()
     financial_intervals = None
     financial_intervals_json = "{}"
-    if is_ops_manager:
-        clusters_all = list(
-            TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics")
-            .prefetch_related("invoices", "purchase_order__deliveries")
-            .all()
-        )
-        financial_intervals = _build_financial_cadence(clusters_all, now)
-        financial_intervals_json = json.dumps(financial_intervals)
 
     volume_chart_data = _build_volume_chart_data(now)
     volume_chart_data_json = json.dumps(volume_chart_data)
@@ -664,6 +656,15 @@ def _get_analytics_data(period="yearly", year="2026", month=None, week=None):
     mill_chart_labels = [m["name"] for m in mill_data]
     mill_chart_volumes = [m["volume_mt"] for m in mill_data]
 
+    # Executive Financials & Analytics Report Cadence
+    clusters_all = list(
+        TransactionCluster.objects.select_related("client", "sugar_mill", "purchase_order", "logistics")
+        .prefetch_related("invoices", "purchase_order__deliveries")
+        .all()
+    )
+    financial_intervals = _build_financial_cadence(clusters_all, now, target_year=selected_year, target_month=selected_month)
+    financial_intervals_json = json.dumps(financial_intervals)
+
     return {
         "period": period,
         "selected_year": selected_year,
@@ -683,6 +684,8 @@ def _get_analytics_data(period="yearly", year="2026", month=None, week=None):
         "mill_data": mill_data,
         "client_chart_json": json.dumps({"labels": client_chart_labels, "data": client_chart_volumes}),
         "mill_chart_json": json.dumps({"labels": mill_chart_labels, "data": mill_chart_volumes}),
+        "financial_intervals": financial_intervals,
+        "financial_intervals_json": financial_intervals_json,
     }
 
 
@@ -812,6 +815,31 @@ def export_analytics_xlsx(request):
         status = "Safe (<1%)" if m["is_safe"] else "Review Required"
         ws.append([idx, m["name"], m["orders_count"], m["volume_mt"], f"{m['volume_pct']:.1f}%", status])
 
+    if data.get("financial_intervals"):
+        ws.append([])
+        curr_row = ws.max_row + 1
+        fin_title = data["financial_intervals"]["monthly"]["title"]
+        ws.append([f"EXECUTIVE FINANCIALS & PERFORMANCE LEDGER ({fin_title})", "", "", "", "", ""])
+        ws.merge_cells(f"A{curr_row}:F{curr_row}")
+        ws[f"A{curr_row}"].font = section_font
+        ws[f"A{curr_row}"].fill = section_fill
+
+        ws.append(["Period", "Money In (PHP)", "Money Out (PHP)", "Net Profit (PHP)", "Margin (%)", "Volume (MT)"])
+        hdr_row = ws.max_row
+        for col in ["A", "B", "C", "D", "E", "F"]:
+            ws[f"{col}{hdr_row}"].font = header_font
+            ws[f"{col}{hdr_row}"].fill = header_fill
+
+        for row in data["financial_intervals"]["monthly"]["table"]:
+            ws.append([
+                row["period"],
+                row["revenue"],
+                row["expenses"],
+                row["profit"],
+                f"{row['margin']:.1f}%",
+                row["volume_mt"],
+            ])
+
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
         col_letter = openpyxl.utils.get_column_letter(col[0].column)
@@ -868,6 +896,21 @@ def export_analytics_csv(request):
     for idx, m in enumerate(data["mill_data"], start=1):
         status = "Safe (<1%)" if m["is_safe"] else "Review Required"
         writer.writerow([idx, m["name"], m["orders_count"], f"{m['volume_mt']:,.2f}", f"{m['volume_pct']:.1f}%", f"{m['avg_variance']:.2f}%", status])
+
+    if data.get("financial_intervals"):
+        writer.writerow([])
+        writer.writerow([f"EXECUTIVE FINANCIALS & PERFORMANCE LEDGER ({data['financial_intervals']['monthly']['title']})"])
+        writer.writerow(["Period", "Money In (PHP)", "Money Out (PHP)", "Net Profit (PHP)", "Margin (%)", "Volume Delivered (MT)", "Orders Count"])
+        for row in data["financial_intervals"]["monthly"]["table"]:
+            writer.writerow([
+                row["period"],
+                f"{row['revenue']:,.2f}",
+                f"{row['expenses']:,.2f}",
+                f"{row['profit']:,.2f}",
+                f"{row['margin']:.1f}%",
+                f"{row['volume_mt']:,.2f}",
+                row["deals"],
+            ])
 
     return response
 

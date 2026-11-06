@@ -92,23 +92,16 @@ class DashboardRoleInterfaceTests(TestCase):
             self.assertNotIn("btnOpenFloatingFinancials", content)
             self.assertNotIn("₱", content, f"Monetary symbol '₱' leaked on dashboard for {user_name}!")
 
-        # Test Operations Manager role: has access to floating financials breakdown
+        # Test Operations Manager role: home dashboard is clean without redundant floating financials modal/button
         self.client.login(username="ops_user", password="password123")
         res = self.client.get("/")
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.context["is_ops_manager"])
-        self.assertIsNotNone(res.context["financial_intervals"])
-        intervals = res.context["financial_intervals"]
-        self.assertIn("weekly", intervals)
-        self.assertIn("monthly", intervals)
-        self.assertIn("yearly", intervals)
-        self.assertIn("margins", intervals["monthly"])
-        self.assertIn("volumes", intervals["monthly"])
+        self.assertIsNone(res.context["financial_intervals"])
 
         content = res.content.decode("utf-8")
-        self.assertIn("floatingFinancialsPanel", content)
-        self.assertIn("btnOpenFloatingFinancials", content)
-        self.assertIn("Financials &amp; Analytics Report", content)
+        self.assertNotIn("floatingFinancialsPanel", content)
+        self.assertNotIn("btnOpenFloatingFinancials", content)
 
         # Verify volume chart data contains weekly, monthly, and yearly cadences
         vol_data = res.context["volume_chart_data"]
@@ -406,6 +399,8 @@ class DocumentStorageAndDistinctionTests(TestCase):
         self.assertContains(res, "Company Operations &amp; Performance Overview")
         self.assertContains(res, "Customer Demand &amp; Volume Share")
         self.assertContains(res, "Sugar Mill Sourcing Distribution")
+        self.assertContains(res, "Financials &amp; Analytics Report")
+        self.assertContains(res, "financialChartCanvas")
         self.assertContains(res, "Emperador Distillers Inc.")
         self.assertContains(res, "BUSCO Sugar Milling Co.")
         self.assertNotContains(res, "Operations Steady")
@@ -413,4 +408,6 @@ class DocumentStorageAndDistinctionTests(TestCase):
         self.assertNotContains(res, "plain language")
         self.assertIn("client_chart_json", res.context)
         self.assertIn("mill_chart_json", res.context)
+        self.assertIsNotNone(res.context["financial_intervals"])
+        self.assertIn("financial_intervals_json", res.context)
 
