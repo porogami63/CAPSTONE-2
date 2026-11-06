@@ -4423,4 +4423,70 @@ textarea:focus-visible,
     border: 1px solid #7dd3fc !important;
 }
 
+/* ==========================================================================
+   User Profile & Workspace Preferences Dropdown Component Layout
+   ========================================================================== */
+#userWorkspaceDropdown .dropdown-menu {
+    min-width: 310px !important;
+    padding: 8px !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--htc-border) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+    background: var(--htc-surface) !important;
+}
+
+#userWorkspaceDropdown .user-menu-header {
+    padding: 14px 14px 8px 14px !important;
+    margin: 0 !important;
+    list-style: none !important;
+}
+
+#userWorkspaceDropdown .user-menu-header .user-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--htc-text);
+    line-height: 1.25;
+}
+
+#userWorkspaceDropdown .user-menu-header .user-handle {
+    font-size: 0.75rem;
+    color: var(--htc-text-muted);
+}
+
+#userWorkspaceDropdown .dropdown-divider {
+    margin: 12px 0 !important; /* my-3 / 12px vertical margin */
+    border-top: 1px solid var(--htc-border) !important;
+    opacity: 0.65 !important;
+}
+
+#userWorkspaceDropdown .dropdown-header {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    color: #64748b !important; /* text-slate-500 */
+    text-transform: uppercase !important;
+    padding: 4px 12px 8px 12px !important; /* pt-1 pb-2 px-3 */
+    margin: 0 !important;
+}
+
+#userWorkspaceDropdown .dropdown-item {
+    padding: 8px 12px !important; /* py-2 px-3 */
+    border-radius: 6px !important; /* rounded-md */
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 2px !important;
+    transform: none !important;
+    color: var(--htc-text) !important;
+}
+
+#userWorkspaceDropdown .dropdown-item:hover,
+#userWorkspaceDropdown .dropdown-item:focus {
+    background-color: var(--htc-sidebar-hover) !important;
+    color: var(--htc-primary-light) !important;
+    transform: none !important;
+}
+
 

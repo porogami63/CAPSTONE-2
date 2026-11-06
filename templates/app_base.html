@@ -278,22 +278,30 @@
                                 <i class="bi bi-chevron-down fs-9"></i>
                             </span>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-2.5" style="min-width: 300px; background: var(--htc-surface); border-color: var(--htc-border) !important; border-radius: 12px; z-index: 1070;">
-                            <!-- User Identity Header Card -->
-                            <li class="px-3 py-2.5 mb-2 rounded-3 border" style="background: var(--htc-surface-subtle, rgba(0,0,0,0.02)); border-color: var(--htc-border) !important;">
-                                <div class="fw-bold fs-7 text-truncate text-dark">{{ user.get_full_name|default:user.username }}</div>
-                                <div class="d-flex align-items-center gap-2 mt-1">
-                                    <span class="role-badge role-badge-{{ user_role_code }} fs-9 py-0.5 px-2">{{ user_role|role_display }}</span>
-                                    <span class="fs-9 text-muted font-monospace">@{{ user.username }}</span>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-2" style="min-width: 310px; background: var(--htc-surface); border-color: var(--htc-border) !important; border-radius: 12px; z-index: 1070;">
+                            <!-- 1. Header Padding & Alignment (16px / p-4 padding, flex-col with gap-1.5) -->
+                            <li class="user-menu-header px-3 pt-3 pb-2">
+                                <div class="d-flex flex-column gap-1.5">
+                                    <div class="user-name fw-bold fs-7 text-truncate text-dark lh-sm">{{ user.get_full_name|default:user.username }}</div>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="role-badge role-badge-{{ user_role_code }} fs-9 py-0.5 px-2">{{ user_role|role_display }}</span>
+                                        <span class="user-handle fs-9 text-muted font-monospace">@{{ user.username }}</span>
+                                    </div>
                                 </div>
                             </li>
 
-                            <!-- Section: Workspace Controls -->
-                            <li class="dropdown-header text-uppercase fs-9 fw-bold text-muted px-2 pt-1 pb-1.5" style="letter-spacing: 0.6px;">Workspace Controls</li>
+                            <!-- 2. Divider Line Spacing (12px / my-3 explicit vertical margins) -->
+                            <li><hr class="dropdown-divider my-3"></li>
 
+                            <!-- 4. Section Label (text-[11px] font-bold tracking-wider text-slate-500 uppercase, pt-1 pb-2) -->
+                            <li class="dropdown-header text-uppercase fw-bold px-3 pt-1 pb-2" style="font-size: 11px; letter-spacing: 0.05em; color: #64748b;">
+                                Workspace Controls
+                            </li>
+
+                            <!-- 3. Standardized Menu Items (py-2 px-3, rounded-md, flex items-center justify-between) -->
                             <!-- Financial Privacy Toggle -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center justify-content-between mb-0.5" id="toggleFinancialPrivacyBtn" title="Mask sensitive financial amounts sitewide with ***">
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="toggleFinancialPrivacyBtn" title="Mask sensitive financial amounts sitewide with ***">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-eye-slash-fill text-warning fs-7" id="financialPrivacyIcon"></i>
                                         <span class="fw-medium">Financial Privacy</span>
@@ -304,7 +312,7 @@
 
                             <!-- Local ORM AI Copilot -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center justify-content-between mb-0.5" id="btnCopilotDrawer" title="Open Local ORM AI Assistant">
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="btnCopilotDrawer" title="Open Local ORM AI Assistant">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-robot text-primary fs-7"></i>
                                         <span class="fw-medium">Local ORM AI</span>
@@ -315,7 +323,7 @@
 
                             <!-- Theme Toggle (Dark/Light) -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center justify-content-between mb-0.5" id="themeToggleBtn" title="Toggle Light / Dark Mode">
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="themeToggleBtn" title="Toggle Light / Dark Mode">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-moon-stars-fill text-info fs-7" id="themeToggleIcon"></i>
                                         <span class="fw-medium">Theme Mode</span>
@@ -326,7 +334,7 @@
 
                             <!-- High Legibility (A+) -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center justify-content-between mb-0.5" id="legibilityToggleBtn" title="Toggle High Legibility Mode">
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="legibilityToggleBtn" title="Toggle High Legibility Mode">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-fonts text-secondary fs-7"></i>
                                         <span class="fw-medium">Font Legibility (A+)</span>
@@ -337,26 +345,33 @@
 
                             <!-- Interactive Guided Tour -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center gap-2.5" id="helpGuideBtn" title="Start Interactive Guided Tour">
-                                    <i class="bi bi-question-circle text-muted fs-7"></i>
-                                    <span class="fw-medium">Interactive Tour Guide</span>
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="helpGuideBtn" title="Start Interactive Guided Tour">
+                                    <span class="d-flex align-items-center gap-2.5">
+                                        <i class="bi bi-question-circle text-muted fs-7"></i>
+                                        <span class="fw-medium">Interactive Tour Guide</span>
+                                    </span>
                                 </button>
                             </li>
 
-                            <li><hr class="dropdown-divider my-2"></li>
+                            <!-- 2. Divider Line Spacing (12px / my-3 explicit vertical margins) -->
+                            <li><hr class="dropdown-divider my-3"></li>
 
                             <!-- Account Links -->
                             <li>
-                                <a class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center gap-2.5 mb-0.5" href="{% url 'accounts:profile' %}">
-                                    <i class="bi bi-person-gear text-secondary fs-7"></i>
-                                    <span class="fw-medium">Profile &amp; Settings</span>
+                                <a class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" href="{% url 'accounts:profile' %}">
+                                    <span class="d-flex align-items-center gap-2.5">
+                                        <i class="bi bi-person-gear text-secondary fs-7"></i>
+                                        <span class="fw-medium">Profile &amp; Settings</span>
+                                    </span>
                                 </a>
                             </li>
                             <li>
                                 <form method="post" action="{% url 'accounts:logout' %}" class="m-0">{% csrf_token %}
-                                    <button class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center gap-2.5 text-danger w-100 text-start border-0 bg-transparent" type="submit">
-                                        <i class="bi bi-box-arrow-right fs-7"></i>
-                                        <span class="fw-medium">Sign Out</span>
+                                    <button class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between text-danger w-100 text-start border-0 bg-transparent" type="submit">
+                                        <span class="d-flex align-items-center gap-2.5">
+                                            <i class="bi bi-box-arrow-right fs-7"></i>
+                                            <span class="fw-medium">Sign Out</span>
+                                        </span>
                                     </button>
                                 </form>
                             </li>
