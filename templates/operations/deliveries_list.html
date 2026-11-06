@@ -157,6 +157,67 @@
         align-items: center !important;
         justify-content: center !important;
     }
+
+    /* Horizontal Scroll Navigation Controls for Mouse Users */
+    .top-scroll-nav-bar {
+        background: var(--htc-surface-subtle, #f8fafc);
+        border-bottom: 1px solid var(--htc-border, #e2e8f0);
+        padding: 0.5rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .top-scroll-track-wrapper {
+        flex: 1;
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 14px;
+        scrollbar-width: auto;
+        scrollbar-color: #94a3b8 #f1f5f9;
+    }
+    .top-scroll-track-wrapper::-webkit-scrollbar,
+    .table-responsive-deliveries::-webkit-scrollbar {
+        height: 12px !important;
+    }
+    .top-scroll-track-wrapper::-webkit-scrollbar-track,
+    .table-responsive-deliveries::-webkit-scrollbar-track {
+        background: #f1f5f9 !important;
+        border-radius: 8px;
+    }
+    [data-theme="dark"] .top-scroll-track-wrapper::-webkit-scrollbar-track,
+    [data-theme="dark"] .table-responsive-deliveries::-webkit-scrollbar-track {
+        background: #1e293b !important;
+    }
+    .top-scroll-track-wrapper::-webkit-scrollbar-thumb,
+    .table-responsive-deliveries::-webkit-scrollbar-thumb {
+        background: #94a3b8 !important;
+        border-radius: 8px;
+        border: 2px solid #f1f5f9 !important;
+    }
+    [data-theme="dark"] .top-scroll-track-wrapper::-webkit-scrollbar-thumb,
+    [data-theme="dark"] .table-responsive-deliveries::-webkit-scrollbar-thumb {
+        background: #475569 !important;
+        border: 2px solid #1e293b !important;
+    }
+    .top-scroll-track-wrapper::-webkit-scrollbar-thumb:hover,
+    .table-responsive-deliveries::-webkit-scrollbar-thumb:hover {
+        background: var(--htc-primary, #0c385c) !important;
+    }
+    .top-scroll-dummy-content {
+        height: 1px;
+    }
+    .table-responsive-deliveries {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: auto;
+        scrollbar-color: #94a3b8 #f1f5f9;
+        cursor: grab;
+    }
+    .table-responsive-deliveries.is-dragging {
+        cursor: grabbing !important;
+        user-select: none;
+    }
 </style>
 
 {% if focused_po %}
@@ -345,7 +406,7 @@
 
 <!-- Main Delivery Ledger Table -->
 <div class="panel">
-    <div class="panel-header d-flex justify-content-between align-items-center">
+    <div class="panel-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div class="d-flex align-items-center gap-2">
             <i class="bi bi-journal-text text-primary"></i>
             <span>Incremental Shipment Delivery Records</span>
@@ -364,8 +425,33 @@
             {% endif %}
         </div>
     </div>
-    <div class="table-responsive">
-        <table class="table-htc fs-7">
+
+    <!-- Top Horizontal Navigation & Scrollbar Helper for Mouse Users -->
+    <div class="top-scroll-nav-bar d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fs-8 fw-bold text-muted text-uppercase d-inline-flex align-items-center gap-1" style="letter-spacing: 0.4px;">
+                <i class="bi bi-arrows-expand-vertical text-primary" style="transform: rotate(90deg); font-size: 0.95rem;"></i>
+                Horizontal Scroll:
+            </span>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary py-1 px-2.5 fs-8 fw-semibold shadow-xs" onclick="scrollDeliveriesTable(-320)" title="Scroll Table Left">
+                    <i class="bi bi-chevron-left me-0.5"></i> Scroll Left
+                </button>
+                <button type="button" class="btn btn-outline-secondary py-1 px-2.5 fs-8 fw-semibold shadow-xs" onclick="scrollDeliveriesTable(320)" title="Scroll Table Right">
+                    Scroll Right <i class="bi bi-chevron-right ms-0.5"></i>
+                </button>
+            </div>
+        </div>
+        <div class="top-scroll-track-wrapper flex-grow-1" id="topScrollTrack" title="Drag horizontal scrollbar to navigate columns">
+            <div class="top-scroll-dummy-content" id="topScrollDummy"></div>
+        </div>
+        <div class="d-none d-md-flex align-items-center text-muted fs-8">
+            <i class="bi bi-mouse me-1 text-primary"></i> Drag scrollbar or use buttons to navigate
+        </div>
+    </div>
+
+    <div class="table-responsive table-responsive-deliveries" id="deliveriesTableContainer">
+        <table class="table-htc fs-7" id="deliveriesTable">
             <thead>
                 <tr>
                     <th style="min-width: 170px;">Delivery Date &amp; Timestamps</th>
@@ -1125,5 +1211,81 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% include "operations/includes/record_arrival_modal.html" %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableContainer = document.getElementById('deliveriesTableContainer');
+    const topScrollTrack = document.getElementById('topScrollTrack');
+    const topScrollDummy = document.getElementById('topScrollDummy');
+
+    function syncDimensions() {
+        if (tableContainer && topScrollDummy) {
+            topScrollDummy.style.width = tableContainer.scrollWidth + 'px';
+        }
+    }
+
+    if (tableContainer && topScrollTrack) {
+        let isSyncingTop = false;
+        let isSyncingBottom = false;
+
+        topScrollTrack.addEventListener('scroll', function() {
+            if (!isSyncingTop) {
+                isSyncingBottom = true;
+                tableContainer.scrollLeft = topScrollTrack.scrollLeft;
+            }
+            isSyncingTop = false;
+        });
+
+        tableContainer.addEventListener('scroll', function() {
+            if (!isSyncingBottom) {
+                isSyncingTop = true;
+                topScrollTrack.scrollLeft = tableContainer.scrollLeft;
+            }
+            isSyncingBottom = false;
+        });
+
+        window.addEventListener('resize', syncDimensions);
+        setTimeout(syncDimensions, 150);
+        setTimeout(syncDimensions, 500);
+        setTimeout(syncDimensions, 1200);
+    }
+
+    window.scrollDeliveriesTable = function(offset) {
+        if (tableContainer) {
+            tableContainer.scrollBy({ left: offset, behavior: 'smooth' });
+        }
+    };
+
+    // Mouse Drag Panning Support
+    if (tableContainer) {
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+
+        tableContainer.addEventListener('mousedown', function(e) {
+            if (e.target.closest('button, a, input, select, textarea, label, [role="button"]')) return;
+            isDown = true;
+            tableContainer.classList.add('is-dragging');
+            startX = e.pageX - tableContainer.offsetLeft;
+            scrollLeft = tableContainer.scrollLeft;
+        });
+
+        window.addEventListener('mouseup', function() {
+            if (isDown) {
+                isDown = false;
+                tableContainer.classList.remove('is-dragging');
+            }
+        });
+
+        tableContainer.addEventListener('mousemove', function(e) {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - tableContainer.offsetLeft;
+            const walk = (x - startX) * 1.5;
+            tableContainer.scrollLeft = scrollLeft - walk;
+        });
+    }
+});
+</script>
 {% endblock %}
 

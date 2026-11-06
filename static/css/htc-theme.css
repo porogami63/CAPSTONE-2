@@ -4120,6 +4120,54 @@ html, body {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     display: block;
+    scrollbar-width: auto;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.table-responsive::-webkit-scrollbar,
+.list-pane > div[style*="overflow-x"]::-webkit-scrollbar,
+[style*="overflow-x:auto"]::-webkit-scrollbar,
+[style*="overflow-x: auto"]::-webkit-scrollbar {
+    height: 12px !important;
+}
+
+.table-responsive::-webkit-scrollbar-track,
+.list-pane > div[style*="overflow-x"]::-webkit-scrollbar-track,
+[style*="overflow-x:auto"]::-webkit-scrollbar-track,
+[style*="overflow-x: auto"]::-webkit-scrollbar-track {
+    background: #f1f5f9 !important;
+    border-radius: 8px;
+}
+
+[data-theme="dark"] .table-responsive::-webkit-scrollbar-track,
+[data-theme="dark"] .list-pane > div[style*="overflow-x"]::-webkit-scrollbar-track,
+[data-theme="dark"] [style*="overflow-x:auto"]::-webkit-scrollbar-track,
+[data-theme="dark"] [style*="overflow-x: auto"]::-webkit-scrollbar-track {
+    background: #1e293b !important;
+}
+
+.table-responsive::-webkit-scrollbar-thumb,
+.list-pane > div[style*="overflow-x"]::-webkit-scrollbar-thumb,
+[style*="overflow-x:auto"]::-webkit-scrollbar-thumb,
+[style*="overflow-x: auto"]::-webkit-scrollbar-thumb {
+    background: #94a3b8 !important;
+    border-radius: 8px;
+    border: 2px solid #f1f5f9 !important;
+}
+
+[data-theme="dark"] .table-responsive::-webkit-scrollbar-thumb,
+[data-theme="dark"] .list-pane > div[style*="overflow-x"]::-webkit-scrollbar-thumb,
+[data-theme="dark"] [style*="overflow-x:auto"]::-webkit-scrollbar-thumb,
+[data-theme="dark"] [style*="overflow-x: auto"]::-webkit-scrollbar-thumb {
+    background: #475569 !important;
+    border: 2px solid #1e293b !important;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover,
+.list-pane > div[style*="overflow-x"]::-webkit-scrollbar-thumb:hover,
+[style*="overflow-x:auto"]::-webkit-scrollbar-thumb:hover,
+[style*="overflow-x: auto"]::-webkit-scrollbar-thumb:hover {
+    background: var(--htc-primary, #0c385c) !important;
 }
 
 .table-htc,
