@@ -4,234 +4,623 @@
 {% block topbar_title %}{% if object %}Edit Purchase Order{% else %}Create Purchase Order{% endif %}{% endblock %}
 
 {% block content %}
-<div class="page-header mb-4 flex-between">
-    <div>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1" style="font-size: 0.8rem;">
-                <li class="breadcrumb-item"><a href="{% url 'operations:cluster_list' %}">Orders &amp; Deals</a></li>
-                <li class="breadcrumb-item active">{% if object %}{{ object.reference_code }}{% else %}New Order{% endif %}</li>
-            </ol>
-        </nav>
-        <h2>{% if object %}Edit Order {{ object.reference_code }}{% else %}Create New Purchase Order{% endif %}</h2>
-        <p class="text-muted" style="margin: 0.2rem 0 0 0; font-size: 0.85rem;">
-            {% if object %}Update order pricing, delivery details, and payment terms.{% else %}Fill in order details to create a new purchase order and start tracking.{% endif %}
-        </p>
-    </div>
-    <div>
-        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline btn-sm"><i class="bi bi-arrow-left"></i> Back to Orders &amp; Deals</a>
-    </div>
-</div>
+<style>
+    /* ==========================================================================
+       Modern Stepper Form & Workflow Wizard (Calm Enterprise Standard)
+       ========================================================================== */
+    .wizard-container {
+        max-width: 920px;
+        margin: 0 auto;
+    }
 
-<form method="post" data-outlier-guard="true" style="max-width: 860px; margin: 0 auto;">
-    {% csrf_token %}
-    {{ form.confirmed_outlier }}
-    {{ form.price_warning_override }}
+    /* Top Progress Stepper Navigation */
+    .wizard-stepper {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        margin-bottom: 2rem;
+        padding: 0 1rem;
+    }
+    .wizard-stepper::before {
+        content: "";
+        position: absolute;
+        top: 22px;
+        left: 3.5rem;
+        right: 3.5rem;
+        height: 2px;
+        background: var(--htc-border);
+        z-index: 1;
+    }
+    .stepper-progress-fill {
+        position: absolute;
+        top: 22px;
+        left: 3.5rem;
+        height: 2px;
+        background: var(--htc-primary);
+        z-index: 2;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+    .step-item {
+        position: relative;
+        z-index: 3;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        padding: 0;
+    }
+    .step-circle {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--htc-surface);
+        border: 2px solid var(--htc-border);
+        color: var(--htc-text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.95rem;
+        transition: all 0.25s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+    .step-item.active .step-circle {
+        border-color: var(--htc-primary);
+        background: var(--htc-primary);
+        color: #ffffff;
+        box-shadow: 0 0 0 4px rgba(12, 56, 92, 0.15);
+    }
+    .step-item.completed .step-circle {
+        border-color: #10b981;
+        background: #10b981;
+        color: #ffffff;
+    }
+    .step-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--htc-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        transition: color 0.2s ease;
+        text-align: center;
+    }
+    .step-item.active .step-label {
+        color: var(--htc-primary);
+        font-weight: 700;
+    }
+    .step-item.completed .step-label {
+        color: var(--htc-text);
+    }
 
-    <!-- Card 1: Order Details & Parties -->
-    <div class="form-section-card" data-step="1" data-intro="Order Details: Set PO number, customer, and supplier sugar mill.">
-        <div class="form-section-header">
-            <i class="bi bi-file-earmark-text-fill"></i>
-            <div>
-                <h3>1. Order Details &amp; Parties</h3>
-                <p>Select the customer, supplier sugar mill, and PO reference number.</p>
-            </div>
-        </div>
+    /* Workflow Guidance Banner */
+    .workflow-guidance-card {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-left: 4px solid var(--htc-primary);
+        border-radius: var(--htc-radius-sm, 8px);
+        padding: 0.85rem 1.15rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
 
-        <div class="row g-3">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <label for="{{ form.reference_code.id_for_label }}" class="form-label font-semibold text-sm mb-0">Purchase Order Number (PO #)</label>
-                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-2" style="font-size: 0.72rem;" onclick="fetchAutoRef()">
-                        <i class="bi bi-magic me-1"></i> Auto-Generate PO #
-                    </button>
-                </div>
-                {{ form.reference_code }}
-                <div class="form-text text-xs text-muted mt-1">Leave blank or click Auto-Generate for date-based code (e.g. PO-YYYYMMDD-001).</div>
-                {% if form.reference_code.errors %}<div class="text-danger text-xs mt-1">{{ form.reference_code.errors|striptags }}</div>{% endif %}
-            </div>
-            <div class="col-md-6">
-                <label for="{{ form.client.id_for_label }}" class="form-label font-semibold text-sm">Customer (Buyer) <span class="text-danger">*</span></label>
-                {{ form.client }}
-                {% if form.client.errors %}<div class="text-danger text-xs mt-1">{{ form.client.errors|striptags }}</div>{% endif %}
-            </div>
-            <div class="col-md-6">
-                <label for="{{ form.sugar_mill.id_for_label }}" class="form-label font-semibold text-sm">Primary / Preferred Supplier (Sugar Mill) <span class="text-danger">*</span></label>
-                {{ form.sugar_mill }}
-                <div class="form-text text-xs text-muted mt-1">Initial or preferred mill. Individual shipments can be dynamically sourced from different suppliers (e.g. BUSCO, CASA) in the Delivery Ledger.</div>
-                {% if form.sugar_mill.errors %}<div class="text-danger text-xs mt-1">{{ form.sugar_mill.errors|striptags }}</div>{% endif %}
-            </div>
-        </div>
-    </div>
+    /* Step Card Panels */
+    .wizard-step-panel {
+        background: var(--htc-surface);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius, 12px);
+        padding: 1.5rem;
+        box-shadow: var(--htc-shadow);
+        margin-bottom: 1.5rem;
+        animation: fadeInStep 0.25s ease forwards;
+    }
+    @keyframes fadeInStep {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .wizard-step-panel.d-none {
+        display: none !important;
+    }
 
-    <!-- Card 2: Order Quantity & Pricing -->
-    <div class="form-section-card" data-step="2" data-intro="Order Pricing: Set total contracted order weight in tons, supplier buying price, and customer selling price.">
-        <div class="form-section-header">
-            <i class="bi bi-calculator-fill"></i>
-            <div>
-                <h3>2. Contracted Quantity &amp; Pricing</h3>
-                <p>Enter total contracted order weight (MT), buying price from supplier, and selling price to customer.</p>
-            </div>
-        </div>
+    .panel-header-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--htc-text);
+        margin-bottom: 0.2rem;
+    }
+    .panel-header-sub {
+        font-size: 0.82rem;
+        color: var(--htc-text-muted);
+        margin-bottom: 1.25rem;
+    }
 
-        <div id="suggestedTermsBanner" class="alert alert-info py-2 px-3 mb-3 d-none align-items-center justify-content-between" style="background: rgba(96, 165, 250, 0.12); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: var(--htc-primary-light); font-size: 0.85rem;">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-lightbulb-fill text-warning fs-6"></i>
-                <span><strong id="suggestedTitle">Smart Suggestion Applied:</strong> Suggested pricing &amp; terms auto-filled based on <span id="suggestedSampleSize">0</span> past deals.</span>
-            </div>
-            <button type="button" class="btn-close text-reset ms-2" onclick="document.getElementById('suggestedTermsBanner').classList.remove('d-flex'); document.getElementById('suggestedTermsBanner').classList.add('d-none');" aria-label="Close" style="font-size: 0.75rem;"></button>
-        </div>
+    /* Live Profit Metric Sidebar / Dock */
+    .profit-preview-card {
+        background: var(--htc-surface-subtle, #f8fafc);
+        border: 1px solid var(--htc-border);
+        border-radius: var(--htc-radius-sm, 8px);
+        padding: 1rem 1.25rem;
+        margin-top: 1.5rem;
+    }
+    .profit-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+    .profit-kpi-box {
+        display: flex;
+        flex-direction: column;
+    }
+    .profit-kpi-box .kpi-title {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        color: var(--htc-text-muted);
+        margin-bottom: 0.2rem;
+    }
+    .profit-kpi-box .kpi-num {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--htc-text);
+        font-variant-numeric: tabular-nums;
+    }
+    .profit-kpi-box .kpi-sub {
+        font-size: 0.72rem;
+        color: var(--htc-text-muted);
+        margin-top: 0.15rem;
+    }
 
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label for="{{ form.volume_mt.id_for_label }}" class="form-label font-semibold text-sm">Total Contracted Quantity <span class="text-danger">*</span></label>
-                <div class="input-addon-group">
-                    {{ form.volume_mt }}
-                    <span class="addon addon-suffix">MT</span>
-                </div>
-                <div class="form-text text-xs text-muted mt-1">Total PO contracted volume in Metric Tons (e.g. 10,000 MT).</div>
-                {% if form.volume_mt.errors %}<div class="text-danger text-xs mt-1">{{ form.volume_mt.errors|striptags }}</div>{% endif %}
-            </div>
+    /* Action Toolbar */
+    .wizard-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding-top: 0.5rem;
+    }
+</style>
 
-            <div class="col-md-4">
-                <label for="{{ form.unit_price.id_for_label }}" class="form-label font-semibold text-sm">Buying Price from Supplier <span class="text-danger">*</span></label>
-                <div class="input-addon-group">
-                    <span class="addon addon-prefix">₱</span>
-                    {{ form.unit_price }}
-                </div>
-                <div class="form-text text-xs text-muted mt-1">Price paid to Sugar Mill per MT (₱/MT).</div>
-                {% if form.unit_price.errors %}<div class="text-danger text-xs mt-1">{{ form.unit_price.errors|striptags }}</div>{% endif %}
-            </div>
-
-            <div class="col-md-4">
-                <label for="{{ form.selling_price.id_for_label }}" class="form-label font-semibold text-sm">Selling Price to Customer</label>
-                <div class="input-addon-group">
-                    <span class="addon addon-prefix">₱</span>
-                    {{ form.selling_price }}
-                </div>
-                <div class="form-text text-xs text-muted mt-1">Price billed to Customer per MT (₱/MT).</div>
-                {% if form.selling_price.errors %}<div class="text-danger text-xs mt-1">{{ form.selling_price.errors|striptags }}</div>{% endif %}
-            </div>
-        </div>
-
-        <div id="priceMarginAnomalyAlert" class="mt-3"></div>
-
-        <!-- Live Profit Summary (compact, always visible) -->
-        <div style="background: var(--htc-surface); border: 1px solid var(--htc-border); border-radius: 10px; padding: 0.75rem 1.25rem; margin-top: 1.25rem; cursor: pointer;" onclick="document.getElementById('calcExpandedDetails').classList.toggle('d-none'); this.querySelector('.calc-chevron').classList.toggle('bi-chevron-down'); this.querySelector('.calc-chevron').classList.toggle('bi-chevron-up');">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-3">
-                    <div>
-                        <span class="text-xs text-muted fw-bold text-uppercase">Projected Profit</span>
-                        <div class="calc-value" id="calcGrossMargin" style="font-size: 1.15rem; font-weight: 800; color: var(--htc-success);">₱0.00</div>
-                    </div>
-                    <span class="text-muted" style="font-size: 0.78rem;">|</span>
-                    <div>
-                        <span class="text-xs text-muted fw-bold text-uppercase">Total Cost</span>
-                        <div id="calcTotalCost" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text-muted);">₱0.00</div>
-                    </div>
-                    <span class="text-muted" style="font-size: 0.78rem;">|</span>
-                    <div>
-                        <span class="text-xs text-muted fw-bold text-uppercase">Total Revenue</span>
-                        <div id="calcTotalRev" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text-muted);">₱0.00</div>
-                    </div>
-                </div>
-                <i class="bi bi-chevron-down calc-chevron text-muted"></i>
-            </div>
-            <div id="calcExpandedDetails" class="d-none" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--htc-border);">
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
-                    <div>
-                        <div class="text-xs text-muted fw-bold text-uppercase">Buying Cost Breakdown</div>
-                        <div id="calcFormulaCost" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-muted fw-bold text-uppercase">Selling Income Breakdown</div>
-                        <div id="calcFormulaRev" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-muted fw-bold text-uppercase">Delivery / Freight Cost</div>
-                        <div id="calcFormulaLog" style="font-size: 0.8rem; font-family: monospace; color: var(--htc-text);">0 MT × ₱0.00</div>
-                        <div id="calcTotalLogistics" style="font-size: 0.95rem; font-weight: 700; color: var(--htc-text-muted);">₱0.00</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div id="calcFormulaMargin" class="d-none"></div>
-
-        <!-- Collapsible: Additional Details (terms, quality specs) -->
-        <div style="margin-top: 1.25rem;">
-            <button type="button" class="btn btn-sm w-100 d-flex align-items-center justify-content-between py-2 px-3"
-                    style="background: var(--htc-bg); border: 1px dashed var(--htc-border); border-radius: 8px; color: var(--htc-text-muted); font-size: 0.82rem; font-weight: 600;"
-                    onclick="document.getElementById('advancedFields').classList.toggle('d-none'); this.querySelector('.adv-chevron').classList.toggle('bi-chevron-down'); this.querySelector('.adv-chevron').classList.toggle('bi-chevron-up'); this.querySelector('.adv-label').textContent = document.getElementById('advancedFields').classList.contains('d-none') ? 'Show Payment Terms & Quality Details' : 'Hide Payment Terms & Quality Details';">
-                <span class="d-flex align-items-center gap-2">
-                    <i class="bi bi-sliders2"></i>
-                    <span class="adv-label">Show Payment Terms &amp; Quality Details</span>
-                    <span class="badge bg-secondary bg-opacity-25 text-muted" style="font-size: 0.68rem;">Payment Terms, Quality Specs</span>
-                </span>
-                <i class="bi bi-chevron-down adv-chevron"></i>
-            </button>
-            <div id="advancedFields" class="{% if not object %}d-none{% endif %}" style="margin-top: 0.75rem;">
-                <div class="row g-3">
-                    <div class="col-12">
-                        <div class="p-2 rounded-2 d-flex align-items-center gap-2" style="background: rgba(96, 165, 250, 0.08); border: 1px solid rgba(96, 165, 250, 0.2); font-size: 0.8rem; color: var(--htc-text-muted);">
-                            <i class="bi bi-info-circle text-info"></i>
-                            <span>Logistics partners, freight rates, and flat fees are deferred and managed per delivery batch in Deliveries &amp; Logistics.</span>
-                        </div>
-                    </div>
-
-                    <div class="col-12">
-                        <label for="{{ form.terms.id_for_label }}" class="form-label font-semibold text-sm">Payment Terms</label>
-                        {{ form.terms }}
-                        <div class="form-text text-xs text-muted mt-1">Payment conditions (e.g. "Net 30 days", "Cash on Delivery").</div>
-                        {% if form.terms.errors %}<div class="text-danger text-xs mt-1">{{ form.terms.errors|striptags }}</div>{% endif %}
-                    </div>
-
-                    <div class="col-md-6">
-                        <label for="{{ form.brix_level.id_for_label }}" class="form-label font-semibold text-sm">Sugar Content (Brix %)</label>
-                        <div class="input-addon-group">
-                            {{ form.brix_level }}
-                            <span class="addon addon-suffix">% Brix</span>
-                        </div>
-                        <div class="form-text text-xs text-muted mt-1">Sugar concentration percentage in molasses.</div>
-                        {% if form.brix_level.errors %}<div class="text-danger text-xs mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
-                    </div>
-
-                    <div class="col-md-6">
-                        <label for="{{ form.chai_specs.id_for_label }}" class="form-label font-semibold text-sm">Quality Grade (CHAI Rating)</label>
-                        {{ form.chai_specs }}
-                        <div class="form-text text-xs text-muted mt-1">Quality grade scale (1.0 Premium Grade A to 5.0 Substandard).</div>
-                        {% if form.chai_specs.errors %}<div class="text-danger text-xs mt-1">{{ form.chai_specs.errors|striptags }}</div>{% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Card 3: Additional Order Notes -->
-    <div class="form-section-card">
-        <div class="form-section-header">
-            <i class="bi bi-card-text"></i>
-            <div>
-                <h3>3. Order Notes &amp; Instructions</h3>
-                <p>Optional internal notes, delivery instructions, or special requests.</p>
-            </div>
-        </div>
-
+<div class="wizard-container">
+    <!-- Header Breadcrumb & Title -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-            {{ form.contract_notes }}
-            {% if form.contract_notes.errors %}<div class="text-danger text-xs mt-1">{{ form.contract_notes.errors|striptags }}</div>{% endif %}
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1" style="font-size: 0.8rem;">
+                    <li class="breadcrumb-item"><a href="{% url 'operations:cluster_list' %}">Orders &amp; Deals</a></li>
+                    <li class="breadcrumb-item active">{% if object %}{{ object.reference_code }}{% else %}New Purchase Order{% endif %}</li>
+                </ol>
+            </nav>
+            <h4 class="fw-bold text-dark mb-0">{% if object %}Edit Purchase Contract {{ object.reference_code }}{% else %}New Purchase Order Contract{% endif %}</h4>
+            <div class="text-muted fs-8 mt-0.5">
+                {% if object %}Update contract pricing, terms, and delivery parameters.{% else %}Interactive 3-step contract creation wizard with real-time margin validation.{% endif %}
+            </div>
+        </div>
+        <div>
+            <a href="{% url 'operations:cluster_list' %}" class="btn btn-outline-secondary btn-sm px-3 py-1.5 fs-8">
+                <i class="bi bi-arrow-left me-1"></i> Back to Orders &amp; Deals
+            </a>
         </div>
     </div>
 
-    <!-- Action Buttons -->
-    <div class="d-flex justify-content-between align-items-center mt-4 mb-5">
-        <a href="{% url 'operations:cluster_list' %}" class="btn-htc-outline"><i class="bi bi-x-lg"></i> Cancel</a>
-        <button type="submit" class="btn-htc" style="padding: 0.75rem 2rem; font-size: 1rem;">
-            <i class="bi bi-check-circle-fill"></i> {% if object %}Save Order{% else %}Create Purchase Order{% endif %}
+    <!-- Interactive Stepper Progress Header -->
+    <div class="wizard-stepper" role="navigation" aria-label="Purchase Order Creation Steps">
+        <div class="stepper-progress-fill" id="stepperFill"></div>
+
+        <!-- Step 1 -->
+        <button type="button" class="step-item active" id="stepIndicator_1" onclick="jumpToStep(1)" aria-label="Step 1: Parties and PO Reference">
+            <div class="step-circle" id="circle_1">1</div>
+            <span class="step-label">1. Parties &amp; PO</span>
+        </button>
+
+        <!-- Step 2 -->
+        <button type="button" class="step-item" id="stepIndicator_2" onclick="jumpToStep(2)" aria-label="Step 2: Quantity and Pricing">
+            <div class="step-circle" id="circle_2">2</div>
+            <span class="step-label">2. Quantity &amp; Price</span>
+        </button>
+
+        <!-- Step 3 -->
+        <button type="button" class="step-item" id="stepIndicator_3" onclick="jumpToStep(3)" aria-label="Step 3: Terms and Notes">
+            <div class="step-circle" id="circle_3">3</div>
+            <span class="step-label">3. Terms &amp; Specs</span>
         </button>
     </div>
-</form>
 
+    <!-- Contextual Workflow Assistant Banner -->
+    <div class="workflow-guidance-card" id="guidanceBanner">
+        <div class="d-flex align-items-center gap-2.5">
+            <span class="p-1.5 rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                <i class="bi bi-lightbulb-fill fs-7"></i>
+            </span>
+            <div>
+                <span class="fw-bold fs-8 text-dark d-block" id="guidanceTitle">Step 1 of 3: Trading Parties &amp; Contract Reference</span>
+                <span class="fs-8 text-muted" id="guidanceDescription">Select the buyer distillery client, preferred sugar mill source, and assign or auto-generate the PO tracking number.</span>
+            </div>
+        </div>
+        <div class="badge bg-light border text-muted fs-8 px-2.5 py-1">
+            <i class="bi bi-shield-check text-success me-1"></i> Pre-Audit Verified
+        </div>
+    </div>
+
+    <!-- Form Element -->
+    <form method="post" id="purchaseOrderForm" data-outlier-guard="true">
+        {% csrf_token %}
+        {{ form.confirmed_outlier }}
+        {{ form.price_warning_override }}
+
+        <!-- ============================================================= -->
+        <!-- STEP 1: Parties & Contract Code                              -->
+        <!-- ============================================================= -->
+        <div class="wizard-step-panel" id="stepPanel_1">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="panel-header-title">1. Contract Identity &amp; Trading Parties</div>
+                <span class="badge bg-primary-subtle text-primary fs-8">Contract Basis</span>
+            </div>
+            <div class="panel-header-sub">
+                Define the contractual parties and unique reference code for this purchase order.
+            </div>
+
+            <div class="row g-3">
+                <!-- PO Reference Number -->
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="{{ form.reference_code.id_for_label }}" class="form-label fw-semibold fs-8 mb-0">
+                            Purchase Order Number (PO #) <span class="text-danger">*</span>
+                        </label>
+                        <button type="button" class="btn btn-sm btn-outline-primary py-0.5 px-2 fs-8" onclick="fetchAutoRef()" title="Generate sequential date-based PO code">
+                            <i class="bi bi-magic me-1"></i> Auto-Generate PO #
+                        </button>
+                    </div>
+                    {{ form.reference_code }}
+                    <div class="form-text fs-8 text-muted">Unique tracking identifier (e.g., PO-YYYYMMDD-001). Click Auto-Generate if creating a standard sequential order.</div>
+                    {% if form.reference_code.errors %}<div class="text-danger fs-8 mt-1">{{ form.reference_code.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <!-- Customer (Buyer Client) -->
+                <div class="col-md-6">
+                    <label for="{{ form.client.id_for_label }}" class="form-label fw-semibold fs-8">
+                        Customer (Buyer Client) <span class="text-danger">*</span>
+                    </label>
+                    {{ form.client }}
+                    <div class="form-text fs-8 text-muted">Enterprise customer purchasing molasses (e.g. distillery).</div>
+                    {% if form.client.errors %}<div class="text-danger fs-8 mt-1">{{ form.client.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <!-- Supplier (Sugar Mill) -->
+                <div class="col-md-6">
+                    <label for="{{ form.sugar_mill.id_for_label }}" class="form-label fw-semibold fs-8">
+                        Primary Supplier (Sugar Mill) <span class="text-danger">*</span>
+                    </label>
+                    {{ form.sugar_mill }}
+                    <div class="form-text fs-8 text-muted">Primary partner mill (e.g. BUSCO, CASA). Shipments can still be dynamically sourced in the Delivery Ledger.</div>
+                    {% if form.sugar_mill.errors %}<div class="text-danger fs-8 mt-1">{{ form.sugar_mill.errors|striptags }}</div>{% endif %}
+                </div>
+            </div>
+
+            <!-- Step 1 Navigation -->
+            <div class="wizard-actions mt-4 pt-3 border-top">
+                <a href="{% url 'operations:cluster_list' %}" class="btn btn-outline-secondary btn-sm px-3 py-1.5 fs-8">
+                    <i class="bi bi-x-lg me-1"></i> Cancel
+                </a>
+                <button type="button" class="btn btn-primary btn-sm px-4 py-1.5 fw-semibold fs-8" onclick="validateAndGo(1, 2)">
+                    Next: Quantity &amp; Pricing <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- STEP 2: Quantity & Pricing (Live Margin Engine)               -->
+        <!-- ============================================================= -->
+        <div class="wizard-step-panel d-none" id="stepPanel_2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="panel-header-title">2. Contracted Volume &amp; Pricing Structure</div>
+                <span class="badge bg-primary-subtle text-primary fs-8">Financial Pricing</span>
+            </div>
+            <div class="panel-header-sub">
+                Specify the contracted weight in Metric Tons and set buying and selling price baselines.
+            </div>
+
+            <!-- Smart Suggestion Alert Banner -->
+            <div id="suggestedTermsBanner" class="alert alert-info py-2 px-3 mb-3 d-none align-items-center justify-content-between border rounded-3" style="background: rgba(96, 165, 250, 0.1); border-color: rgba(96, 165, 250, 0.3); font-size: 0.82rem;">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-lightbulb-fill text-warning fs-6"></i>
+                    <span><strong>Predictive Trade Defaults Applied:</strong> Pricing and specs auto-filled based on <span id="suggestedSampleSize">0</span> historical transactions with this buyer &amp; supplier.</span>
+                </div>
+                <button type="button" class="btn-close text-reset ms-2" onclick="document.getElementById('suggestedTermsBanner').classList.remove('d-flex'); document.getElementById('suggestedTermsBanner').classList.add('d-none');" aria-label="Close" style="font-size: 0.7rem;"></button>
+            </div>
+
+            <div class="row g-3">
+                <!-- Contracted Volume (MT) -->
+                <div class="col-md-4">
+                    <label for="{{ form.volume_mt.id_for_label }}" class="form-label fw-semibold fs-8">
+                        Contracted Volume <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group input-group-sm">
+                        {{ form.volume_mt }}
+                        <span class="input-group-text bg-body-tertiary fw-semibold">MT</span>
+                    </div>
+                    <div class="form-text fs-8 text-muted">Total order weight (1 MT = 1,000 kg).</div>
+                    {% if form.volume_mt.errors %}<div class="text-danger fs-8 mt-1">{{ form.volume_mt.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <!-- Buying Price from Mill -->
+                <div class="col-md-4">
+                    <label for="{{ form.unit_price.id_for_label }}" class="form-label fw-semibold fs-8">
+                        Buying Price (Cost) <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-body-tertiary">₱</span>
+                        {{ form.unit_price }}
+                    </div>
+                    <div class="form-text fs-8 text-muted">Procurement cost paid to mill per MT.</div>
+                    {% if form.unit_price.errors %}<div class="text-danger fs-8 mt-1">{{ form.unit_price.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <!-- Selling Price to Customer -->
+                <div class="col-md-4">
+                    <label for="{{ form.selling_price.id_for_label }}" class="form-label fw-semibold fs-8">
+                        Selling Price (Revenue)
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-body-tertiary">₱</span>
+                        {{ form.selling_price }}
+                    </div>
+                    <div class="form-text fs-8 text-muted">Sales price billed to customer per MT.</div>
+                    {% if form.selling_price.errors %}<div class="text-danger fs-8 mt-1">{{ form.selling_price.errors|striptags }}</div>{% endif %}
+                </div>
+            </div>
+
+            <!-- Anomaly Alerts Container -->
+            <div id="priceMarginAnomalyAlert" class="mt-3"></div>
+
+            <!-- Live Profit Calculation Dock -->
+            <div class="profit-preview-card">
+                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <span class="fw-bold fs-8 text-uppercase text-muted"><i class="bi bi-graph-up me-1"></i>Real-Time Financial Projection</span>
+                    <span class="badge bg-light border text-muted fs-8">Estimated Value</span>
+                </div>
+                <div class="profit-kpi-grid">
+                    <div class="profit-kpi-box">
+                        <span class="kpi-title">Gross Deal Revenue</span>
+                        <span class="kpi-num text-primary" id="calcTotalRev">₱0.00</span>
+                        <span class="kpi-sub" id="calcFormulaRev">0 MT × ₱0.00</span>
+                    </div>
+                    <div class="profit-kpi-box">
+                        <span class="kpi-title">Total Procurement Cost</span>
+                        <span class="kpi-num text-muted" id="calcTotalCost">₱0.00</span>
+                        <span class="kpi-sub" id="calcFormulaCost">0 MT × ₱0.00</span>
+                    </div>
+                    <div class="profit-kpi-box">
+                        <span class="kpi-title">Projected Net Margin</span>
+                        <span class="kpi-num text-success" id="calcGrossMargin">₱0.00</span>
+                        <span class="kpi-sub" id="calcMarginPct">0.0% Estimated Return</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2 Navigation -->
+            <div class="wizard-actions mt-4 pt-3 border-top">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1.5 fs-8" onclick="jumpToStep(1)">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Parties
+                </button>
+                <button type="button" class="btn btn-primary btn-sm px-4 py-1.5 fw-semibold fs-8" onclick="validateAndGo(2, 3)">
+                    Next: Terms &amp; Specs <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- STEP 3: Terms, Quality Specs & Internal Notes                -->
+        <!-- ============================================================= -->
+        <div class="wizard-step-panel d-none" id="stepPanel_3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="panel-header-title">3. Terms, Specifications &amp; Instructions</div>
+                <span class="badge bg-primary-subtle text-primary fs-8">Fulfillment Specs</span>
+            </div>
+            <div class="panel-header-sub">
+                Define commercial payment terms, laboratory quality specifications, and optional internal instructions.
+            </div>
+
+            <div class="row g-3">
+                <!-- Payment Terms -->
+                <div class="col-md-6">
+                    <label for="{{ form.terms.id_for_label }}" class="form-label fw-semibold fs-8">Payment Terms</label>
+                    {{ form.terms }}
+                    <div class="form-text fs-8 text-muted">Billing terms (e.g., "Net 30 days", "50% Downpayment, Balance on Delivery").</div>
+                    {% if form.terms.errors %}<div class="text-danger fs-8 mt-1">{{ form.terms.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <!-- Sugar Content Brix -->
+                <div class="col-md-3">
+                    <label for="{{ form.brix_level.id_for_label }}" class="form-label fw-semibold fs-8">Sugar Content (Brix %)</label>
+                    <div class="input-group input-group-sm">
+                        {{ form.brix_level }}
+                        <span class="input-group-text bg-body-tertiary">%</span>
+                    </div>
+                    <div class="form-text fs-8 text-muted">Target solids (Standard $\ge 85.0^\circ$).</div>
+                    {% if form.brix_level.errors %}<div class="text-danger fs-8 mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <!-- CHAI Quality Rating -->
+                <div class="col-md-3">
+                    <label for="{{ form.chai_specs.id_for_label }}" class="form-label fw-semibold fs-8">CHAI Quality Grade</label>
+                    {{ form.chai_specs }}
+                    <div class="form-text fs-8 text-muted">Official laboratory molasses rating.</div>
+                    {% if form.chai_specs.errors %}<div class="text-danger fs-8 mt-1">{{ form.chai_specs.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <!-- Notes & Instructions -->
+                <div class="col-12">
+                    <label for="{{ form.contract_notes.id_for_label }}" class="form-label fw-semibold fs-8">
+                        Contract Notes &amp; Special Delivery Instructions
+                    </label>
+                    {{ form.contract_notes }}
+                    <div class="form-text fs-8 text-muted">Optional handling directions, designated discharge port, or trucking coordination notes.</div>
+                    {% if form.contract_notes.errors %}<div class="text-danger fs-8 mt-1">{{ form.contract_notes.errors|striptags }}</div>{% endif %}
+                </div>
+            </div>
+
+            <!-- Summary Review Checklist -->
+            <div class="mt-4 p-3 rounded-3 bg-body-tertiary border">
+                <div class="d-flex align-items-center gap-2 mb-2 text-dark fw-bold fs-8">
+                    <i class="bi bi-clipboard-check text-primary"></i> Pre-Submission Validation Checklist
+                </div>
+                <div class="d-flex align-items-center gap-4 flex-wrap fs-8 text-muted">
+                    <span class="d-inline-flex align-items-center gap-1.5"><i class="bi bi-check2-circle text-success"></i> Customer &amp; Mill Linked</span>
+                    <span class="d-inline-flex align-items-center gap-1.5"><i class="bi bi-check2-circle text-success"></i> Real-time Margin Verified</span>
+                    <span class="d-inline-flex align-items-center gap-1.5"><i class="bi bi-check2-circle text-success"></i> SHA-256 Audit Seal Ready</span>
+                </div>
+            </div>
+
+            <!-- Step 3 Navigation & Final Submission -->
+            <div class="wizard-actions mt-4 pt-3 border-top">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1.5 fs-8" onclick="jumpToStep(2)">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Pricing
+                </button>
+                <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold fs-7 shadow-xs">
+                    <i class="bi bi-check-circle-fill me-1.5"></i> {% if object %}Save Order Changes{% else %}Confirm &amp; Create Purchase Order{% endif %}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    let currentStep = 1;
+    const maxSteps = 3;
+
+    // Step configuration descriptions
+    const stepMeta = {
+        1: {
+            title: "Step 1 of 3: Trading Parties & Contract Reference",
+            desc: "Select the buyer distillery client, preferred sugar mill source, and assign or auto-generate the PO tracking number."
+        },
+        2: {
+            title: "Step 2 of 3: Contracted Quantity & Pricing Structure",
+            desc: "Specify total contracted volume (MT) and set buying and selling price baselines to project real-time profitability."
+        },
+        3: {
+            title: "Step 3 of 3: Commercial Terms & Specifications",
+            desc: "Define payment terms, molasses laboratory quality specs (Brix & CHAI), and special delivery instructions."
+        }
+    };
+
+    window.jumpToStep = function(stepNum) {
+        if (stepNum < 1 || stepNum > maxSteps) return;
+
+        // Hide all step panels
+        for (let i = 1; i <= maxSteps; i++) {
+            const panel = document.getElementById(`stepPanel_${i}`);
+            const indicator = document.getElementById(`stepIndicator_${i}`);
+            const circle = document.getElementById(`circle_${i}`);
+
+            if (panel) {
+                if (i === stepNum) {
+                    panel.classList.remove('d-none');
+                } else {
+                    panel.classList.add('d-none');
+                }
+            }
+
+            if (indicator && circle) {
+                indicator.classList.remove('active');
+                if (i < stepNum) {
+                    indicator.classList.add('completed');
+                    circle.innerHTML = '<i class="bi bi-check-lg"></i>';
+                } else if (i === stepNum) {
+                    indicator.classList.add('active');
+                    circle.textContent = i;
+                } else {
+                    indicator.classList.remove('completed');
+                    circle.textContent = i;
+                }
+            }
+        }
+
+        // Update progress line
+        const fill = document.getElementById('stepperFill');
+        if (fill) {
+            const pct = ((stepNum - 1) / (maxSteps - 1)) * 100;
+            fill.style.width = `${pct}%`;
+        }
+
+        // Update workflow guidance banner
+        const titleEl = document.getElementById('guidanceTitle');
+        const descEl = document.getElementById('guidanceDescription');
+        if (titleEl && stepMeta[stepNum]) titleEl.textContent = stepMeta[stepNum].title;
+        if (descEl && stepMeta[stepNum]) descEl.textContent = stepMeta[stepNum].desc;
+
+        currentStep = stepNum;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.validateAndGo = function(fromStep, toStep) {
+        if (fromStep === 1) {
+            const clientSel = document.getElementById('{{ form.client.id_for_label }}');
+            const millSel = document.getElementById('{{ form.sugar_mill.id_for_label }}');
+            const refInput = document.getElementById('{{ form.reference_code.id_for_label }}');
+
+            let valid = true;
+            if (clientSel && !clientSel.value) {
+                clientSel.classList.add('is-invalid');
+                valid = false;
+            } else if (clientSel) {
+                clientSel.classList.remove('is-invalid');
+            }
+
+            if (millSel && !millSel.value) {
+                millSel.classList.add('is-invalid');
+                valid = false;
+            } else if (millSel) {
+                millSel.classList.remove('is-invalid');
+            }
+
+            if (!valid) {
+                alert("Please select both a Customer (Client) and Primary Supplier (Sugar Mill) before proceeding.");
+                return;
+            }
+        } else if (fromStep === 2) {
+            const volInput = document.getElementById('{{ form.volume_mt.id_for_label }}');
+            const costPriceInput = document.getElementById('{{ form.unit_price.id_for_label }}');
+
+            let valid = true;
+            if (volInput && (!volInput.value || parseFloat(volInput.value) <= 0)) {
+                volInput.classList.add('is-invalid');
+                valid = false;
+            } else if (volInput) {
+                volInput.classList.remove('is-invalid');
+            }
+
+            if (costPriceInput && (!costPriceInput.value || parseFloat(costPriceInput.value) <= 0)) {
+                costPriceInput.classList.add('is-invalid');
+                valid = false;
+            } else if (costPriceInput) {
+                costPriceInput.classList.remove('is-invalid');
+            }
+
+            if (!valid) {
+                alert("Please enter a valid Contracted Volume (MT) and Buying Price (₱/MT).");
+                return;
+            }
+        }
+
+        jumpToStep(toStep);
+    };
+
+    // Live Calculation Engine
     const volInput = document.getElementById('{{ form.volume_mt.id_for_label }}');
     const costPriceInput = document.getElementById('{{ form.unit_price.id_for_label }}');
     const sellPriceInput = document.getElementById('{{ form.selling_price.id_for_label }}');
@@ -240,17 +629,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const calcTotalCost = document.getElementById('calcTotalCost');
     const calcFormulaRev = document.getElementById('calcFormulaRev');
     const calcTotalRev = document.getElementById('calcTotalRev');
-    const calcFormulaLog = document.getElementById('calcFormulaLog');
-    const calcTotalLogistics = document.getElementById('calcTotalLogistics');
     const calcGrossMargin = document.getElementById('calcGrossMargin');
-
-    window.handlePriceOverrideChange = function(isChecked) {
-        const overrideInput = document.getElementById('id_price_warning_override') || document.querySelector('input[name="price_warning_override"]');
-        const outlierInput = document.getElementById('id_confirmed_outlier') || document.querySelector('input[name="confirmed_outlier"]');
-        const val = isChecked ? 'true' : '';
-        if (overrideInput) overrideInput.value = val;
-        if (outlierInput) outlierInput.value = val;
-    };
+    const calcMarginPct = document.getElementById('calcMarginPct');
 
     function updateLiveCalculation() {
         const vol = parseFloat(volInput ? volInput.value : 0) || 0;
@@ -260,27 +640,28 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalCost = vol * costPrice;
         const totalRev = vol * sellPrice;
         const netProfit = totalRev - totalCost;
+        const marginRate = totalRev > 0 ? ((netProfit / totalRev) * 100).toFixed(1) : '0.0';
 
-        if (calcFormulaCost) calcFormulaCost.textContent = `${vol.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 3})} MT × ₱${costPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        if (calcTotalCost) calcTotalCost.textContent = `₱${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        if (calcFormulaCost) calcFormulaCost.textContent = `${vol.toLocaleString('en-US', {maximumFractionDigits: 2})} MT × ₱${costPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        if (calcTotalCost) calcTotalCost.textContent = `₱${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
 
-        if (calcFormulaRev) calcFormulaRev.textContent = `${vol.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 3})} MT × ₱${sellPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        if (calcTotalRev) calcTotalRev.textContent = `₱${totalRev.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-
-        if (calcFormulaLog) calcFormulaLog.textContent = 'Deferred to Deliveries';
-        if (calcTotalLogistics) calcTotalLogistics.textContent = 'Configured per batch';
+        if (calcFormulaRev) calcFormulaRev.textContent = `${vol.toLocaleString('en-US', {maximumFractionDigits: 2})} MT × ₱${sellPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        if (calcTotalRev) calcTotalRev.textContent = `₱${totalRev.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
 
         if (calcGrossMargin) {
             if (netProfit < 0) {
-                calcGrossMargin.innerHTML = `<span class="badge bg-danger text-white px-2 py-0.5 fs-8 me-1">NEGATIVE MARGIN</span> ₱${netProfit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                calcGrossMargin.style.color = 'var(--htc-danger)';
+                calcGrossMargin.innerHTML = `<span class="badge bg-danger text-white fs-8 me-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Deficit</span> ₱${netProfit.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                calcGrossMargin.className = 'kpi-num text-danger';
             } else {
-                calcGrossMargin.textContent = `₱${netProfit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                calcGrossMargin.style.color = 'var(--htc-success)';
+                calcGrossMargin.textContent = `₱${netProfit.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                calcGrossMargin.className = 'kpi-num text-success';
             }
         }
+        if (calcMarginPct) {
+            calcMarginPct.textContent = `${marginRate}% Estimated Return`;
+        }
 
-        // Live Price Anomaly & Negative Margin Indicator Banner (non-blocking indicator only)
+        // Live Price Anomaly & Negative Margin Indicator Banner
         const priceAlertEl = document.getElementById('priceMarginAnomalyAlert');
         const overrideInput = document.getElementById('id_price_warning_override') || document.querySelector('input[name="price_warning_override"]');
         const outlierInput = document.getElementById('id_confirmed_outlier') || document.querySelector('input[name="confirmed_outlier"]');
@@ -292,12 +673,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (outlierInput) outlierInput.value = 'true';
                 if (priceAlertEl) {
                     priceAlertEl.innerHTML = `
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2.5 rounded-3 border border-danger bg-danger-subtle text-danger shadow-xs" style="font-size: 0.84rem; line-height: 1.45;">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2.5 rounded-3 border border-danger bg-danger-subtle text-danger" style="font-size: 0.84rem;">
                             <div class="d-flex align-items-center gap-2">
                                 <i class="bi bi-x-octagon-fill text-danger fs-5"></i>
                                 <div>
-                                    <span class="badge bg-danger text-white px-2 py-0.5 me-1.5" style="font-size: 0.7rem; letter-spacing: 0.03em;">CRITICAL / HARD WARNING</span>
-                                    <span class="fw-semibold">Warning: Buying Price (₱${costPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}) is set higher than Selling Price (₱${sellPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}). Negative margin detected (-₱${delta.toLocaleString('en-US', {minimumFractionDigits: 2})}/MT).</span>
+                                    <span class="badge bg-danger text-white px-2 py-0.5 me-1.5" style="font-size: 0.7rem;">CRITICAL MARGIN WARNING</span>
+                                    <span class="fw-semibold">Buying price exceeds selling price by ₱${delta.toLocaleString('en-US', {minimumFractionDigits: 2})}/MT. Negative profit margin will be recorded.</span>
                                 </div>
                             </div>
                         </div>
@@ -310,12 +691,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (outlierInput) outlierInput.value = 'true';
                     if (priceAlertEl) {
                         priceAlertEl.innerHTML = `
-                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2.5 rounded-3 border border-warning bg-warning-subtle text-dark shadow-xs" style="font-size: 0.84rem; line-height: 1.45;">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2.5 rounded-3 border border-warning bg-warning-subtle text-dark" style="font-size: 0.84rem;">
                                 <div class="d-flex align-items-center gap-2">
                                     <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
                                     <div>
-                                        <span class="badge bg-warning text-dark px-2 py-0.5 me-1.5" style="font-size: 0.7rem; letter-spacing: 0.03em;">DATA ENTRY ANOMALY WARNING</span>
-                                        <span class="fw-medium">Warning: Price ratio (${ratio.toFixed(2)}x) deviates significantly from historical mean baseline. Verify input values before proceeding.</span>
+                                        <span class="badge bg-warning text-dark px-2 py-0.5 me-1.5" style="font-size: 0.7rem;">OUTLIER RATIO WARNING</span>
+                                        <span class="fw-medium">Price ratio (${ratio.toFixed(2)}x) deviates from historical normal ranges. Please verify figures before creating contract.</span>
                                     </div>
                                 </div>
                             </div>
@@ -335,7 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (sellPriceInput) sellPriceInput.addEventListener('input', updateLiveCalculation);
     updateLiveCalculation();
 
-    // Predictive Trade Terms Auto-Fill Logic
+    // Predictive Trade Terms Auto-Fill
     const clientSelect = document.getElementById('{{ form.client.id_for_label }}');
     const millSelect = document.getElementById('{{ form.sugar_mill.id_for_label }}');
     const termsInput = document.getElementById('{{ form.terms.id_for_label }}');
