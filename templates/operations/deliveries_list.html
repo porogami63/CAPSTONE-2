@@ -717,9 +717,9 @@
                         <div class="col-md-4">
                             <div class="form-field-symmetric">
                                 <label>Volume Dispatched (MT) <span class="text-danger">*</span></label>
-                                <div class="input-addon-group">
+                                <div class="input-group input-addon-group">
                                     {{ form.dispatched_mt }}
-                                    <span class="addon addon-suffix">MT</span>
+                                    <span class="input-group-text addon addon-suffix">MT</span>
                                 </div>
                                 <div class="field-help">Volume loaded &amp; dispatched from mill.</div>
                             </div>
@@ -727,9 +727,9 @@
                         <div class="col-md-4">
                             <div class="form-field-symmetric">
                                 <label>Volume Delivered (MT) <span class="text-danger">*</span></label>
-                                <div class="input-addon-group">
+                                <div class="input-group input-addon-group">
                                     {{ form.delivered_mt }}
-                                    <span class="addon addon-suffix">MT</span>
+                                    <span class="input-group-text addon addon-suffix">MT</span>
                                 </div>
                                 <div class="field-help" id="modalDeliveredHelp">Editable after batch arrival date is confirmed.</div>
                             </div>
@@ -823,8 +823,8 @@
                             <div class="col-md-6">
                                 <div class="form-field-symmetric">
                                     <label>Trucking Rate (₱/MT)</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
+                                    <div class="input-group input-addon-group">
+                                        <span class="input-group-text addon addon-prefix">₱</span>
                                         {{ form.trucking_rate_per_mt }}
                                     </div>
                                     <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="modalTrkCalcRow">
@@ -843,8 +843,8 @@
                             <div class="col-md-6">
                                 <div class="form-field-symmetric">
                                     <label>Barging Rate (₱/MT)</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
+                                    <div class="input-group input-addon-group">
+                                        <span class="input-group-text addon addon-prefix">₱</span>
                                         {{ form.barge_rate_per_mt }}
                                     </div>
                                     <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="modalBrgCalcRow">

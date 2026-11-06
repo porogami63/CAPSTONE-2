@@ -261,9 +261,9 @@
                                 <label for="{{ form.dispatched_mt.id_for_label }}">
                                     {{ form.dispatched_mt.label }} <span class="text-danger">*</span>
                                 </label>
-                                <div class="input-addon-group">
+                                <div class="input-group input-addon-group">
                                     {{ form.dispatched_mt }}
-                                    <span class="addon addon-suffix">MT</span>
+                                    <span class="input-group-text addon addon-suffix">MT</span>
                                 </div>
                                 <div class="field-help">Volume loaded &amp; dispatched from mill.</div>
                                 {% if form.dispatched_mt.errors %}
@@ -278,9 +278,9 @@
                                 <label for="{{ form.delivered_mt.id_for_label }}">
                                     {{ form.delivered_mt.label }} <span class="text-danger">*</span>
                                 </label>
-                                <div class="input-addon-group">
+                                <div class="input-group input-addon-group">
                                     {{ form.delivered_mt }}
-                                    <span class="addon addon-suffix">MT</span>
+                                    <span class="input-group-text addon addon-suffix">MT</span>
                                 </div>
                                 <div class="field-help" id="maxHelpText">Editable after batch arrival date is confirmed.</div>
                                 {% if form.delivered_mt.errors %}
@@ -392,8 +392,8 @@
                             <div class="col-md-6">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.trucking_rate_per_mt.id_for_label }}">{{ form.trucking_rate_per_mt.label }}</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
+                                    <div class="input-group input-addon-group">
+                                        <span class="input-group-text addon addon-prefix">₱</span>
                                         {{ form.trucking_rate_per_mt }}
                                     </div>
                                     <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="pageTrkCalcRow">
@@ -418,8 +418,8 @@
                             <div class="col-md-6">
                                 <div class="form-field-symmetric">
                                     <label for="{{ form.barge_rate_per_mt.id_for_label }}">{{ form.barge_rate_per_mt.label }}</label>
-                                    <div class="input-addon-group">
-                                        <span class="addon addon-prefix">₱</span>
+                                    <div class="input-group input-addon-group">
+                                        <span class="input-group-text addon addon-prefix">₱</span>
                                         {{ form.barge_rate_per_mt }}
                                     </div>
                                     <div class="text-xs text-muted mt-1 fw-semibold d-flex justify-content-between align-items-center" id="pageBrgCalcRow">

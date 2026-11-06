@@ -247,6 +247,65 @@
     [data-theme="dark"] .is-invalid {
         background-color: rgba(185, 28, 28, 0.1) !important;
     }
+    /* Bulletproof Input Addon Groups - Inline Horizontal Unit / Currency */
+    .input-addon-group,
+    .input-group.input-addon-group {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        width: 100% !important;
+    }
+    .input-addon-group .form-control-htc,
+    .input-addon-group input {
+        flex: 1 1 auto !important;
+        width: 1% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        height: 42px !important;
+    }
+    .input-addon-group .addon,
+    .input-group.input-addon-group .input-group-text {
+        background: var(--htc-sidebar-hover, #f1f5f9) !important;
+        border: 1px solid var(--htc-border, #cbd5e1) !important;
+        color: var(--htc-text-muted, #64748b) !important;
+        padding: 0 0.85rem !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        height: 42px !important;
+        flex-shrink: 0 !important;
+    }
+    .input-addon-group .addon-prefix {
+        border-top-left-radius: 8px !important;
+        border-bottom-left-radius: 8px !important;
+        border-right: none !important;
+    }
+    .input-addon-group .addon-suffix {
+        border-top-right-radius: 8px !important;
+        border-bottom-right-radius: 8px !important;
+        border-left: none !important;
+    }
+    .input-addon-group .addon-prefix + .form-control-htc,
+    .input-addon-group .addon-prefix + input {
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+    }
+    .input-addon-group .form-control-htc:first-child,
+    .input-addon-group input:first-child {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+    [data-theme="dark"] .input-addon-group .addon,
+    [data-theme="dark"] .input-group.input-addon-group .input-group-text {
+        background: rgba(30, 41, 59, 0.8) !important;
+        border-color: rgba(255, 255, 255, 0.12) !important;
+        color: #94a3b8 !important;
+    }
+
     .input-addon-group.has-field-error input,
     .input-addon-group.has-field-error .form-control-htc {
         border-color: #dc2626 !important;
@@ -571,9 +630,9 @@
                     <label for="{{ form.volume_mt.id_for_label }}" class="form-label fw-semibold fs-8">
                         Contracted Volume <span class="text-danger">*</span>
                     </label>
-                    <div class="input-addon-group" id="group_{{ form.volume_mt.id_for_label }}">
+                    <div class="input-group input-addon-group" id="group_{{ form.volume_mt.id_for_label }}">
                         {{ form.volume_mt }}
-                        <span class="addon addon-suffix">MT</span>
+                        <span class="input-group-text addon addon-suffix">MT</span>
                     </div>
                     <div class="form-text fs-8 text-muted">Total order weight (1 MT = 1,000 kg).</div>
                     <div class="field-validation-message" id="error_{{ form.volume_mt.id_for_label }}" style="display: none;" role="alert">
@@ -588,8 +647,8 @@
                     <label for="{{ form.unit_price.id_for_label }}" class="form-label fw-semibold fs-8">
                         Buying Price (Cost) <span class="text-danger">*</span>
                     </label>
-                    <div class="input-addon-group" id="group_{{ form.unit_price.id_for_label }}">
-                        <span class="addon addon-prefix">₱</span>
+                    <div class="input-group input-addon-group" id="group_{{ form.unit_price.id_for_label }}">
+                        <span class="input-group-text addon addon-prefix">₱</span>
                         {{ form.unit_price }}
                     </div>
                     <div class="form-text fs-8 text-muted">Procurement cost paid to mill per MT.</div>
@@ -605,8 +664,8 @@
                     <label for="{{ form.selling_price.id_for_label }}" class="form-label fw-semibold fs-8">
                         Selling Price (Revenue)
                     </label>
-                    <div class="input-addon-group" id="group_{{ form.selling_price.id_for_label }}">
-                        <span class="addon addon-prefix">₱</span>
+                    <div class="input-group input-addon-group" id="group_{{ form.selling_price.id_for_label }}">
+                        <span class="input-group-text addon addon-prefix">₱</span>
                         {{ form.selling_price }}
                     </div>
                     <div class="form-text fs-8 text-muted">Sales price billed to customer per MT.</div>
@@ -701,11 +760,11 @@
                 <!-- Sugar Content Brix -->
                 <div class="col-md-3">
                     <label for="{{ form.brix_level.id_for_label }}" class="form-label fw-semibold fs-8">Sugar Content (Brix %)</label>
-                    <div class="input-addon-group" id="group_{{ form.brix_level.id_for_label }}">
+                    <div class="input-group input-addon-group" id="group_{{ form.brix_level.id_for_label }}">
                         {{ form.brix_level }}
-                        <span class="addon addon-suffix">%</span>
+                        <span class="input-group-text addon addon-suffix">%</span>
                     </div>
-                    <div class="form-text fs-8 text-muted">Target solids (Standard &ge; 85.0&deg; Brix).</div>
+                    <div class="form-text fs-8 text-muted">Target solids (Standard: &ge; 85.0&deg; Brix).</div>
                     <div class="field-validation-message" id="error_{{ form.brix_level.id_for_label }}" style="display: none;" role="alert">
                         <i class="bi bi-exclamation-circle-fill"></i>
                         <span>Sugar Content (Brix %) must be between 0.00% and 100.00%.</span>
