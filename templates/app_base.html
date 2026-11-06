@@ -260,7 +260,12 @@
 
                     <!-- Consolidated User Settings & Workspace Profile Dropdown -->
                     <div class="dropdown" id="userWorkspaceDropdown">
-                        <button type="button" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 py-1 px-2.5 rounded-pill shadow-xs" data-bs-toggle="dropdown" aria-expanded="false" id="userWorkspaceMenuBtn" title="User Settings & Workspace Preferences">
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2 py-1 px-2.5 rounded-pill shadow-xs" 
+                                data-bs-toggle="dropdown" 
+                                aria-expanded="false" 
+                                id="userWorkspaceMenuBtn" 
+                                title="Account &amp; Workspace Preferences (Privacy, AI, Appearance)">
                             {% if user.avatar %}
                             <img src="{{ user.avatar_url }}" alt="{{ user.username }}" class="rounded-circle" style="width: 24px; height: 24px; object-fit: cover;">
                             {% else %}
@@ -268,27 +273,30 @@
                             {% endif %}
                             <span class="fs-8 fw-bold text-dark d-none d-sm-inline">{{ user.get_full_name|default:user.username }}</span>
                             <span class="role-badge role-badge-{{ user_role_code }} py-0.5 px-2 fs-9 d-none d-md-inline-block">{{ user_role|role_display }}</span>
-                            <i class="bi bi-chevron-down text-muted fs-9 ms-0.5"></i>
+                            <span class="d-inline-flex align-items-center gap-1 text-muted ms-0.5">
+                                <i class="bi bi-gear-fill fs-8" style="opacity: 0.75;" title="Preferences"></i>
+                                <i class="bi bi-chevron-down fs-9"></i>
+                            </span>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-2" style="min-width: 270px; background: var(--htc-surface); border-color: var(--htc-border) !important; border-radius: 12px; z-index: 1070;">
-                            <!-- User Identity Header -->
-                            <li class="px-2 py-2 mb-1.5 border-bottom border-secondary-subtle">
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-2.5" style="min-width: 300px; background: var(--htc-surface); border-color: var(--htc-border) !important; border-radius: 12px; z-index: 1070;">
+                            <!-- User Identity Header Card -->
+                            <li class="px-3 py-2.5 mb-2 rounded-3 border" style="background: var(--htc-surface-subtle, rgba(0,0,0,0.02)); border-color: var(--htc-border) !important;">
                                 <div class="fw-bold fs-7 text-truncate text-dark">{{ user.get_full_name|default:user.username }}</div>
-                                <div class="d-flex align-items-center gap-1.5 mt-1">
-                                    <span class="role-badge role-badge-{{ user_role_code }} fs-8 py-0.5 px-2">{{ user_role|role_display }}</span>
+                                <div class="d-flex align-items-center gap-2 mt-1">
+                                    <span class="role-badge role-badge-{{ user_role_code }} fs-9 py-0.5 px-2">{{ user_role|role_display }}</span>
                                     <span class="fs-9 text-muted font-monospace">@{{ user.username }}</span>
                                 </div>
                             </li>
 
                             <!-- Section: Workspace Controls -->
-                            <li class="dropdown-header text-uppercase fs-9 fw-bold text-muted px-2 pt-1 pb-1" style="letter-spacing: 0.5px;">Workspace Controls</li>
+                            <li class="dropdown-header text-uppercase fs-9 fw-bold text-muted px-2 pt-1 pb-1.5" style="letter-spacing: 0.6px;">Workspace Controls</li>
 
                             <!-- Financial Privacy Toggle -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="toggleFinancialPrivacyBtn" title="Mask sensitive financial amounts sitewide with ***">
-                                    <span class="d-flex align-items-center gap-2">
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center justify-content-between mb-0.5" id="toggleFinancialPrivacyBtn" title="Mask sensitive financial amounts sitewide with ***">
+                                    <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-eye-slash-fill text-warning fs-7" id="financialPrivacyIcon"></i>
-                                        <span>Financial Privacy</span>
+                                        <span class="fw-medium">Financial Privacy</span>
                                     </span>
                                     <span class="badge bg-secondary-subtle text-secondary border fs-9" id="financialPrivacyLabel">Masked (***)</span>
                                 </button>
@@ -296,10 +304,10 @@
 
                             <!-- Local ORM AI Copilot -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="btnCopilotDrawer" title="Open Local ORM AI Assistant">
-                                    <span class="d-flex align-items-center gap-2">
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center justify-content-between mb-0.5" id="btnCopilotDrawer" title="Open Local ORM AI Assistant">
+                                    <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-robot text-primary fs-7"></i>
-                                        <span>Local ORM AI</span>
+                                        <span class="fw-medium">Local ORM AI</span>
                                     </span>
                                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-9">Assistant</span>
                                 </button>
@@ -307,48 +315,48 @@
 
                             <!-- Theme Toggle (Dark/Light) -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="themeToggleBtn" title="Toggle Light / Dark Mode">
-                                    <span class="d-flex align-items-center gap-2">
-                                        <i class="bi bi-moon-stars-fill text-info fs-7"></i>
-                                        <span>Theme Mode</span>
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center justify-content-between mb-0.5" id="themeToggleBtn" title="Toggle Light / Dark Mode">
+                                    <span class="d-flex align-items-center gap-2.5">
+                                        <i class="bi bi-moon-stars-fill text-info fs-7" id="themeToggleIcon"></i>
+                                        <span class="fw-medium">Theme Mode</span>
                                     </span>
-                                    <span class="badge bg-body text-muted border fs-9">Toggle</span>
+                                    <span class="badge bg-body text-muted border fs-9" id="themeToggleBadge">Dark</span>
                                 </button>
                             </li>
 
                             <!-- High Legibility (A+) -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center justify-content-between" id="legibilityToggleBtn" title="Toggle High Legibility Mode">
-                                    <span class="d-flex align-items-center gap-2">
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center justify-content-between mb-0.5" id="legibilityToggleBtn" title="Toggle High Legibility Mode">
+                                    <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-fonts text-secondary fs-7"></i>
-                                        <span>Font Legibility (A+)</span>
+                                        <span class="fw-medium">Font Legibility (A+)</span>
                                     </span>
-                                    <span class="badge bg-body text-muted border fs-9">Standard</span>
+                                    <span class="badge bg-body text-muted border fs-9" id="legibilityBadge">Standard</span>
                                 </button>
                             </li>
 
                             <!-- Interactive Guided Tour -->
                             <li>
-                                <button type="button" class="dropdown-item rounded fs-8 py-2 d-flex align-items-center gap-2" id="helpGuideBtn" title="Start Interactive Guided Tour">
+                                <button type="button" class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center gap-2.5" id="helpGuideBtn" title="Start Interactive Guided Tour">
                                     <i class="bi bi-question-circle text-muted fs-7"></i>
-                                    <span>Interactive Tour Guide</span>
+                                    <span class="fw-medium">Interactive Tour Guide</span>
                                 </button>
                             </li>
 
-                            <li><hr class="dropdown-divider my-1.5"></li>
+                            <li><hr class="dropdown-divider my-2"></li>
 
                             <!-- Account Links -->
                             <li>
-                                <a class="dropdown-item rounded fs-8 py-2 d-flex align-items-center gap-2" href="{% url 'accounts:profile' %}">
+                                <a class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center gap-2.5 mb-0.5" href="{% url 'accounts:profile' %}">
                                     <i class="bi bi-person-gear text-secondary fs-7"></i>
-                                    <span>Profile &amp; Settings</span>
+                                    <span class="fw-medium">Profile &amp; Settings</span>
                                 </a>
                             </li>
                             <li>
                                 <form method="post" action="{% url 'accounts:logout' %}" class="m-0">{% csrf_token %}
-                                    <button class="dropdown-item rounded fs-8 py-2 d-flex align-items-center gap-2 text-danger w-100 text-start border-0 bg-transparent" type="submit">
+                                    <button class="dropdown-item rounded fs-8 py-2 px-2.5 d-flex align-items-center gap-2.5 text-danger w-100 text-start border-0 bg-transparent" type="submit">
                                         <i class="bi bi-box-arrow-right fs-7"></i>
-                                        <span>Sign Out</span>
+                                        <span class="fw-medium">Sign Out</span>
                                     </button>
                                 </form>
                             </li>
@@ -425,16 +433,22 @@
             const htmlTag = document.documentElement;
             
             function updateThemeIcon() {
-                if (htmlTag.getAttribute('data-theme') === 'light') {
-                    themeToggleBtn.innerHTML = '<i class="bi bi-moon-stars-fill"></i>';
-                } else {
-                    themeToggleBtn.innerHTML = '<i class="bi bi-sun-fill"></i>';
+                const currentTheme = htmlTag.getAttribute('data-theme') || 'dark';
+                const isLight = (currentTheme === 'light');
+                const themeIcon = document.getElementById('themeToggleIcon');
+                const themeBadge = document.getElementById('themeToggleBadge');
+                if (themeIcon) {
+                    themeIcon.className = isLight ? 'bi bi-moon-stars-fill text-info fs-7' : 'bi bi-sun-fill text-warning fs-7';
+                }
+                if (themeBadge) {
+                    themeBadge.textContent = isLight ? 'Light' : 'Dark';
                 }
             }
             
             if (themeToggleBtn) {
                 updateThemeIcon();
-                themeToggleBtn.addEventListener('click', function() {
+                themeToggleBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
                     const currentTheme = htmlTag.getAttribute('data-theme') || 'dark';
                     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
                     htmlTag.setAttribute('data-theme', newTheme);
@@ -453,6 +467,20 @@
                         boundary: 'viewport'
                     });
                 });
+
+                // User Workspace Preferences Menu Tooltip
+                const userMenuBtn = document.getElementById('userWorkspaceMenuBtn');
+                if (userMenuBtn && window.bootstrap && bootstrap.Tooltip) {
+                    const tip = new bootstrap.Tooltip(userMenuBtn, {
+                        title: 'Account & Workspace Preferences (Privacy, AI, Appearance)',
+                        placement: 'bottom',
+                        delay: { show: 200, hide: 100 },
+                        trigger: 'hover'
+                    });
+                    userMenuBtn.addEventListener('click', function() {
+                        tip.hide();
+                    });
+                }
 
                 // Attach topbar help guide button to launch Intro.js Guided Tour for the active page
                 const helpBtn = document.getElementById('helpGuideBtn');
@@ -643,8 +671,18 @@
         // Legibility Mode Toggle Handler
         document.addEventListener("DOMContentLoaded", function() {
             const legibilityBtn = document.getElementById("legibilityToggleBtn");
+            const legibilityBadge = document.getElementById("legibilityBadge");
+            function updateLegibilityBadge() {
+                const isHigh = document.documentElement.getAttribute("data-legibility") === "high";
+                if (legibilityBadge) {
+                    legibilityBadge.textContent = isHigh ? "High (A+)" : "Standard";
+                    legibilityBadge.className = isHigh ? "badge bg-primary-subtle text-primary border border-primary-subtle fs-9" : "badge bg-body text-muted border fs-9";
+                }
+            }
             if (legibilityBtn) {
-                legibilityBtn.addEventListener("click", function() {
+                updateLegibilityBadge();
+                legibilityBtn.addEventListener("click", function(e) {
+                    e.stopPropagation();
                     const current = document.documentElement.getAttribute("data-legibility");
                     if (current === "high") {
                         document.documentElement.removeAttribute("data-legibility");
@@ -653,6 +691,7 @@
                         document.documentElement.setAttribute("data-legibility", "high");
                         localStorage.setItem("htc-legibility", "high");
                     }
+                    updateLegibilityBadge();
                 });
             }
 
@@ -968,7 +1007,8 @@
                 // Privacy toggle button handler
                 const toggleBtn = document.getElementById('toggleFinancialPrivacyBtn');
                 if (toggleBtn) {
-                    toggleBtn.addEventListener('click', function() {
+                    toggleBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
                         const current = document.documentElement.getAttribute('data-reveal-finances') === 'true';
                         const nextState = !current;
                         localStorage.setItem('htc_reveal_finances', nextState ? 'true' : 'false');
