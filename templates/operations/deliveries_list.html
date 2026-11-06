@@ -456,12 +456,12 @@
                 <tr>
                     <th style="min-width: 170px;">Delivery Date &amp; Timestamps</th>
                     <th class="whitespace-nowrap text-nowrap">PO Ref #</th>
-                    <th>Customer (Buyer)</th>
+                    <th>Customer</th>
                     <th class="text-nowrap">Source Mill</th>
                     <th>Receiving Destination</th>
-                    <th class="text-end whitespace-nowrap" style="min-width: 145px;">Volume (Dispatched / Delivered)</th>
-                    <th style="min-width: 160px;">Land Trucking (Fixed/Locked)</th>
-                    <th style="min-width: 160px;">Marine Barging (Fixed/Locked)</th>
+                    <th class="text-end whitespace-nowrap" style="min-width: 130px;">Volume</th>
+                    <th style="min-width: 140px;">Land Trucking</th>
+                    <th style="min-width: 140px;">Marine Barging</th>
                     <th class="text-end whitespace-nowrap">Freight Cost</th>
                     <th class="text-nowrap">Waybill / DR</th>
                     <th class="text-center whitespace-nowrap">Action</th>
@@ -596,7 +596,6 @@
                     <td class="text-end text-nowrap font-monospace">
                         {% if d.total_freight_cost > 0 %}
                         <span class="fw-bold text-primary">₱{{ d.total_freight_cost|floatformat:2|intcomma }}</span>
-                        <div class="fs-8 text-muted"><i class="bi bi-lock-fill me-0.5"></i>Fixed</div>
                         {% else %}
                         <span class="text-muted fs-8">—</span>
                         {% endif %}
