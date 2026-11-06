@@ -115,6 +115,167 @@
         display: none !important;
     }
 
+    /* ==========================================================================
+       Enterprise Validation View Architecture (Step Summaries & Field Feedback)
+       ========================================================================== */
+    .step-validation-view {
+        animation: fadeInStep 0.2s ease-out;
+    }
+    .validation-view-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        border-left: 4px solid #dc2626;
+        border-radius: 8px;
+        padding: 0.85rem 1.15rem;
+        box-shadow: 0 2px 6px rgba(220, 38, 38, 0.06);
+    }
+    [data-theme="dark"] .validation-view-card {
+        background: rgba(185, 28, 28, 0.15);
+        border-color: rgba(239, 68, 68, 0.4);
+        border-left-color: #ef4444;
+    }
+    .validation-view-icon {
+        color: #dc2626;
+        font-size: 1.3rem;
+        line-height: 1;
+        margin-top: 0.1rem;
+        flex-shrink: 0;
+    }
+    [data-theme="dark"] .validation-view-icon {
+        color: #f87171;
+    }
+    .validation-view-content {
+        flex: 1;
+    }
+    .validation-view-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #991b1b;
+        margin-bottom: 0.2rem;
+    }
+    [data-theme="dark"] .validation-view-title {
+        color: #fca5a5;
+    }
+    .validation-view-desc {
+        font-size: 0.78rem;
+        color: #7f1d1d;
+        margin-bottom: 0.45rem;
+    }
+    [data-theme="dark"] .validation-view-desc {
+        color: #fecaca;
+    }
+    .validation-view-list {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+    .validation-view-list li a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: #ffffff;
+        border: 1px solid #fca5a5;
+        color: #b91c1c;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0.25rem 0.65rem;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    [data-theme="dark"] .validation-view-list li a {
+        background: #1e293b;
+        border-color: #ef4444;
+        color: #fca5a5;
+    }
+    .validation-view-list li a:hover {
+        background: #fee2e2;
+        color: #991b1b;
+        border-color: #dc2626;
+        transform: translateY(-1px);
+    }
+    [data-theme="dark"] .validation-view-list li a:hover {
+        background: rgba(239, 68, 68, 0.25);
+        color: #fff;
+    }
+
+    /* Inline Field-Level Error View */
+    .field-validation-message {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: #b91c1c;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 6px;
+        padding: 0.35rem 0.65rem;
+        margin-top: 0.35rem;
+        animation: fadeInStep 0.2s ease-out;
+    }
+    [data-theme="dark"] .field-validation-message {
+        background: rgba(185, 28, 28, 0.15);
+        border-color: rgba(239, 68, 68, 0.4);
+        color: #fca5a5;
+    }
+    .field-validation-message i {
+        font-size: 0.85rem;
+        color: #dc2626;
+        flex-shrink: 0;
+    }
+    [data-theme="dark"] .field-validation-message i {
+        color: #f87171;
+    }
+
+    /* Invalid State for Inputs & Selects */
+    .form-control-htc.is-invalid,
+    .form-select-htc.is-invalid,
+    .is-invalid {
+        border-color: #dc2626 !important;
+        background-color: #fffaf0 !important;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+    }
+    [data-theme="dark"] .form-control-htc.is-invalid,
+    [data-theme="dark"] .form-select-htc.is-invalid,
+    [data-theme="dark"] .is-invalid {
+        background-color: rgba(185, 28, 28, 0.1) !important;
+    }
+    .input-addon-group.has-field-error input,
+    .input-addon-group.has-field-error .form-control-htc {
+        border-color: #dc2626 !important;
+        background-color: #fffaf0 !important;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14) !important;
+    }
+    [data-theme="dark"] .input-addon-group.has-field-error input,
+    [data-theme="dark"] .input-addon-group.has-field-error .form-control-htc {
+        background-color: rgba(185, 28, 28, 0.1) !important;
+    }
+    .input-addon-group.has-field-error .addon {
+        border-color: #dc2626 !important;
+        background-color: #fee2e2 !important;
+        color: #991b1b !important;
+    }
+    [data-theme="dark"] .input-addon-group.has-field-error .addon {
+        background-color: rgba(239, 68, 68, 0.25) !important;
+        color: #fca5a5 !important;
+    }
+
+    @keyframes pulseFocus {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.015); box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.25) !important; }
+        100% { transform: scale(1); }
+    }
+    .pulse-focus {
+        animation: pulseFocus 0.35s ease-in-out;
+    }
+
     .panel-header-title {
         font-size: 1.1rem;
         font-weight: 700;
@@ -220,10 +381,36 @@
     </div>
 
     <!-- Form Element -->
-    <form method="post" id="purchaseOrderForm" data-outlier-guard="true">
+    <form method="post" id="purchaseOrderForm" data-outlier-guard="true" novalidate>
         {% csrf_token %}
         {{ form.confirmed_outlier }}
         {{ form.price_warning_override }}
+
+        {% if form.errors %}
+        <!-- Server-side Validation Error View Summary -->
+        <div class="step-validation-view mb-4" role="alert" aria-live="assertive">
+            <div class="validation-view-card">
+                <div class="validation-view-icon">
+                    <i class="bi bi-exclamation-octagon-fill"></i>
+                </div>
+                <div class="validation-view-content">
+                    <h6 class="validation-view-title">Please Review Contract Submission Errors</h6>
+                    <p class="validation-view-desc">The server reported the following errors during processing. Please adjust the fields below:</p>
+                    <ul class="validation-view-list">
+                        {% for field, error_list in form.errors.items %}
+                            {% for error in error_list %}
+                                <li>
+                                    <a href="javascript:void(0)" onclick="focusField('id_{{ field }}')">
+                                        <i class="bi bi-arrow-right-circle-fill me-1"></i> {{ field|title }}: {{ error }}
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- ============================================================= -->
         <!-- STEP 1: Parties & Contract Code                              -->
@@ -235,6 +422,36 @@
             </div>
             <div class="panel-header-sub">
                 Define the contractual parties and unique reference code for this purchase order.
+            </div>
+
+            <!-- Step 1 Validation Summary View -->
+            <div class="step-validation-view mb-3 d-none" id="step1ValidationSummary" role="alert" aria-live="polite">
+                <div class="validation-view-card">
+                    <div class="validation-view-icon">
+                        <i class="bi bi-exclamation-octagon-fill"></i>
+                    </div>
+                    <div class="validation-view-content">
+                        <h6 class="validation-view-title">Missing Required Commercial Parties</h6>
+                        <p class="validation-view-desc">Select the required trading entities before advancing to Quantity &amp; Pricing:</p>
+                        <ul class="validation-view-list" id="step1ValidationList">
+                            <li id="step1ErrClientSummary" style="display: none;">
+                                <a href="javascript:void(0)" onclick="focusField('{{ form.client.id_for_label }}')">
+                                    <i class="bi bi-arrow-right-circle-fill me-1"></i> Customer (Buyer Client) is required
+                                </a>
+                            </li>
+                            <li id="step1ErrMillSummary" style="display: none;">
+                                <a href="javascript:void(0)" onclick="focusField('{{ form.sugar_mill.id_for_label }}')">
+                                    <i class="bi bi-arrow-right-circle-fill me-1"></i> Primary Supplier (Sugar Mill) is required
+                                </a>
+                            </li>
+                            <li id="step1ErrRefSummary" style="display: none;">
+                                <a href="javascript:void(0)" onclick="focusField('{{ form.reference_code.id_for_label }}')">
+                                    <i class="bi bi-arrow-right-circle-fill me-1"></i> PO Reference Number is required
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
 
             <div class="row g-3">
@@ -250,6 +467,10 @@
                     </div>
                     {{ form.reference_code }}
                     <div class="form-text fs-8 text-muted">Unique tracking identifier (e.g., PO-YYYYMMDD-001). Click Auto-Generate if creating a standard sequential order.</div>
+                    <div class="field-validation-message" id="error_{{ form.reference_code.id_for_label }}" style="display: none;" role="alert">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <span>Purchase Order reference number cannot be empty. Click Auto-Generate or enter a custom PO code.</span>
+                    </div>
                     {% if form.reference_code.errors %}<div class="text-danger fs-8 mt-1">{{ form.reference_code.errors|striptags }}</div>{% endif %}
                 </div>
 
@@ -260,6 +481,10 @@
                     </label>
                     {{ form.client }}
                     <div class="form-text fs-8 text-muted">Enterprise customer purchasing molasses (e.g. distillery).</div>
+                    <div class="field-validation-message" id="error_{{ form.client.id_for_label }}" style="display: none;" role="alert">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <span>Please select a Customer (Buyer Client) to establish the contract.</span>
+                    </div>
                     {% if form.client.errors %}<div class="text-danger fs-8 mt-1">{{ form.client.errors|striptags }}</div>{% endif %}
                 </div>
 
@@ -270,6 +495,10 @@
                     </label>
                     {{ form.sugar_mill }}
                     <div class="form-text fs-8 text-muted">Primary partner mill (e.g. BUSCO, CASA). Shipments can still be dynamically sourced in the Delivery Ledger.</div>
+                    <div class="field-validation-message" id="error_{{ form.sugar_mill.id_for_label }}" style="display: none;" role="alert">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <span>Please select a Primary Supplier (Sugar Mill) for supply allocation.</span>
+                    </div>
                     {% if form.sugar_mill.errors %}<div class="text-danger fs-8 mt-1">{{ form.sugar_mill.errors|striptags }}</div>{% endif %}
                 </div>
             </div>
@@ -297,6 +526,36 @@
                 Specify the contracted weight in Metric Tons and set buying and selling price baselines.
             </div>
 
+            <!-- Step 2 Validation Summary View -->
+            <div class="step-validation-view mb-3 d-none" id="step2ValidationSummary" role="alert" aria-live="polite">
+                <div class="validation-view-card">
+                    <div class="validation-view-icon">
+                        <i class="bi bi-exclamation-octagon-fill"></i>
+                    </div>
+                    <div class="validation-view-content">
+                        <h6 class="validation-view-title">Missing or Invalid Pricing Figures</h6>
+                        <p class="validation-view-desc">Valid positive numerical entries are required to calculate deal profitability and proceed:</p>
+                        <ul class="validation-view-list" id="step2ValidationList">
+                            <li id="step2ErrVolSummary" style="display: none;">
+                                <a href="javascript:void(0)" onclick="focusField('{{ form.volume_mt.id_for_label }}')">
+                                    <i class="bi bi-arrow-right-circle-fill me-1"></i> Contracted Volume must be greater than 0 MT
+                                </a>
+                            </li>
+                            <li id="step2ErrPriceSummary" style="display: none;">
+                                <a href="javascript:void(0)" onclick="focusField('{{ form.unit_price.id_for_label }}')">
+                                    <i class="bi bi-arrow-right-circle-fill me-1"></i> Buying Price (Cost) must be greater than ₱0.00/MT
+                                </a>
+                            </li>
+                            <li id="step2ErrSellPriceSummary" style="display: none;">
+                                <a href="javascript:void(0)" onclick="focusField('{{ form.selling_price.id_for_label }}')">
+                                    <i class="bi bi-arrow-right-circle-fill me-1"></i> Selling Price cannot be negative
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <!-- Smart Suggestion Alert Banner -->
             <div id="suggestedTermsBanner" class="alert alert-info py-2 px-3 mb-3 d-none align-items-center justify-content-between border rounded-3" style="background: rgba(96, 165, 250, 0.1); border-color: rgba(96, 165, 250, 0.3); font-size: 0.82rem;">
                 <div class="d-flex align-items-center gap-2">
@@ -312,11 +571,15 @@
                     <label for="{{ form.volume_mt.id_for_label }}" class="form-label fw-semibold fs-8">
                         Contracted Volume <span class="text-danger">*</span>
                     </label>
-                    <div class="input-addon-group">
+                    <div class="input-addon-group" id="group_{{ form.volume_mt.id_for_label }}">
                         {{ form.volume_mt }}
                         <span class="addon addon-suffix">MT</span>
                     </div>
                     <div class="form-text fs-8 text-muted">Total order weight (1 MT = 1,000 kg).</div>
+                    <div class="field-validation-message" id="error_{{ form.volume_mt.id_for_label }}" style="display: none;" role="alert">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <span>Contracted Volume is required and must be greater than 0 MT.</span>
+                    </div>
                     {% if form.volume_mt.errors %}<div class="text-danger fs-8 mt-1">{{ form.volume_mt.errors|striptags }}</div>{% endif %}
                 </div>
 
@@ -325,11 +588,15 @@
                     <label for="{{ form.unit_price.id_for_label }}" class="form-label fw-semibold fs-8">
                         Buying Price (Cost) <span class="text-danger">*</span>
                     </label>
-                    <div class="input-addon-group">
+                    <div class="input-addon-group" id="group_{{ form.unit_price.id_for_label }}">
                         <span class="addon addon-prefix">₱</span>
                         {{ form.unit_price }}
                     </div>
                     <div class="form-text fs-8 text-muted">Procurement cost paid to mill per MT.</div>
+                    <div class="field-validation-message" id="error_{{ form.unit_price.id_for_label }}" style="display: none;" role="alert">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <span>Buying Price (Procurement Cost) is required and must be greater than ₱0.00/MT.</span>
+                    </div>
                     {% if form.unit_price.errors %}<div class="text-danger fs-8 mt-1">{{ form.unit_price.errors|striptags }}</div>{% endif %}
                 </div>
 
@@ -338,11 +605,15 @@
                     <label for="{{ form.selling_price.id_for_label }}" class="form-label fw-semibold fs-8">
                         Selling Price (Revenue)
                     </label>
-                    <div class="input-addon-group">
+                    <div class="input-addon-group" id="group_{{ form.selling_price.id_for_label }}">
                         <span class="addon addon-prefix">₱</span>
                         {{ form.selling_price }}
                     </div>
                     <div class="form-text fs-8 text-muted">Sales price billed to customer per MT.</div>
+                    <div class="field-validation-message" id="error_{{ form.selling_price.id_for_label }}" style="display: none;" role="alert">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <span>Selling Price cannot be negative.</span>
+                    </div>
                     {% if form.selling_price.errors %}<div class="text-danger fs-8 mt-1">{{ form.selling_price.errors|striptags }}</div>{% endif %}
                 </div>
             </div>
@@ -398,6 +669,26 @@
                 Define commercial payment terms, laboratory quality specifications, and optional internal instructions.
             </div>
 
+            <!-- Step 3 Validation Summary View -->
+            <div class="step-validation-view mb-3 d-none" id="step3ValidationSummary" role="alert" aria-live="polite">
+                <div class="validation-view-card">
+                    <div class="validation-view-icon">
+                        <i class="bi bi-exclamation-octagon-fill"></i>
+                    </div>
+                    <div class="validation-view-content">
+                        <h6 class="validation-view-title">Please Review Contract Specifications</h6>
+                        <p class="validation-view-desc">The highlighted quality specifications require attention before creating this purchase order:</p>
+                        <ul class="validation-view-list" id="step3ValidationList">
+                            <li id="step3ErrBrixSummary" style="display: none;">
+                                <a href="javascript:void(0)" onclick="focusField('{{ form.brix_level.id_for_label }}')">
+                                    <i class="bi bi-arrow-right-circle-fill me-1"></i> Sugar Content (Brix %) must be between 0.0% and 100.0%
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <div class="row g-3">
                 <!-- Payment Terms -->
                 <div class="col-md-6">
@@ -410,11 +701,15 @@
                 <!-- Sugar Content Brix -->
                 <div class="col-md-3">
                     <label for="{{ form.brix_level.id_for_label }}" class="form-label fw-semibold fs-8">Sugar Content (Brix %)</label>
-                    <div class="input-addon-group">
+                    <div class="input-addon-group" id="group_{{ form.brix_level.id_for_label }}">
                         {{ form.brix_level }}
                         <span class="addon addon-suffix">%</span>
                     </div>
                     <div class="form-text fs-8 text-muted">Target solids (Standard &ge; 85.0&deg; Brix).</div>
+                    <div class="field-validation-message" id="error_{{ form.brix_level.id_for_label }}" style="display: none;" role="alert">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <span>Sugar Content (Brix %) must be between 0.00% and 100.00%.</span>
+                    </div>
                     {% if form.brix_level.errors %}<div class="text-danger fs-8 mt-1">{{ form.brix_level.errors|striptags }}</div>{% endif %}
                 </div>
 
@@ -458,10 +753,251 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentStep = 1;
     const maxSteps = 3;
 
+    // Field references
+    const refInput = document.getElementById('{{ form.reference_code.id_for_label }}');
+    const clientSel = document.getElementById('{{ form.client.id_for_label }}');
+    const millSel = document.getElementById('{{ form.sugar_mill.id_for_label }}');
+    const volInput = document.getElementById('{{ form.volume_mt.id_for_label }}');
+    const costPriceInput = document.getElementById('{{ form.unit_price.id_for_label }}');
+    const sellPriceInput = document.getElementById('{{ form.selling_price.id_for_label }}');
+    const termsInput = document.getElementById('{{ form.terms.id_for_label }}');
+    const brixInput = document.getElementById('{{ form.brix_level.id_for_label }}');
+    const chaiSelect = document.getElementById('{{ form.chai_specs.id_for_label }}');
+    const poForm = document.getElementById('purchaseOrderForm');
+
+    window.focusField = function(fieldId) {
+        const el = document.getElementById(fieldId);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => {
+                el.focus();
+                el.classList.add('pulse-focus');
+                setTimeout(() => el.classList.remove('pulse-focus'), 1000);
+            }, 250);
+        }
+    };
+
+    function focusFirstInvalid(containerSelector) {
+        const firstInvalid = document.querySelector(`${containerSelector} .is-invalid`);
+        if (firstInvalid) {
+            window.focusField(firstInvalid.id);
+        } else {
+            const container = document.querySelector(containerSelector);
+            if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // Step 1 Validation Engine
+    window.validateStep1 = function() {
+        let hasError = false;
+
+        // Check Reference Code
+        if (refInput && !refInput.value.trim()) {
+            refInput.classList.add('is-invalid');
+            const errEl = document.getElementById('error_{{ form.reference_code.id_for_label }}');
+            if (errEl) errEl.style.display = 'flex';
+            const sumEl = document.getElementById('step1ErrRefSummary');
+            if (sumEl) sumEl.style.display = 'inline-block';
+            hasError = true;
+        } else if (refInput) {
+            refInput.classList.remove('is-invalid');
+            const errEl = document.getElementById('error_{{ form.reference_code.id_for_label }}');
+            if (errEl) errEl.style.display = 'none';
+            const sumEl = document.getElementById('step1ErrRefSummary');
+            if (sumEl) sumEl.style.display = 'none';
+        }
+
+        // Check Client (Customer)
+        if (clientSel && !clientSel.value) {
+            clientSel.classList.add('is-invalid');
+            const errEl = document.getElementById('error_{{ form.client.id_for_label }}');
+            if (errEl) errEl.style.display = 'flex';
+            const sumEl = document.getElementById('step1ErrClientSummary');
+            if (sumEl) sumEl.style.display = 'inline-block';
+            hasError = true;
+        } else if (clientSel) {
+            clientSel.classList.remove('is-invalid');
+            const errEl = document.getElementById('error_{{ form.client.id_for_label }}');
+            if (errEl) errEl.style.display = 'none';
+            const sumEl = document.getElementById('step1ErrClientSummary');
+            if (sumEl) sumEl.style.display = 'none';
+        }
+
+        // Check Sugar Mill (Supplier)
+        if (millSel && !millSel.value) {
+            millSel.classList.add('is-invalid');
+            const errEl = document.getElementById('error_{{ form.sugar_mill.id_for_label }}');
+            if (errEl) errEl.style.display = 'flex';
+            const sumEl = document.getElementById('step1ErrMillSummary');
+            if (sumEl) sumEl.style.display = 'inline-block';
+            hasError = true;
+        } else if (millSel) {
+            millSel.classList.remove('is-invalid');
+            const errEl = document.getElementById('error_{{ form.sugar_mill.id_for_label }}');
+            if (errEl) errEl.style.display = 'none';
+            const sumEl = document.getElementById('step1ErrMillSummary');
+            if (sumEl) sumEl.style.display = 'none';
+        }
+
+        const summaryBox = document.getElementById('step1ValidationSummary');
+        if (summaryBox) {
+            if (hasError) {
+                summaryBox.classList.remove('d-none');
+            } else {
+                summaryBox.classList.add('d-none');
+            }
+        }
+        return !hasError;
+    };
+
+    // Step 2 Validation Engine
+    window.validateStep2 = function() {
+        let hasError = false;
+
+        // Check Contracted Volume (MT)
+        const volVal = volInput ? parseFloat(volInput.value) : 0;
+        const volGroup = document.getElementById('group_{{ form.volume_mt.id_for_label }}');
+        const volErr = document.getElementById('error_{{ form.volume_mt.id_for_label }}');
+        const volSum = document.getElementById('step2ErrVolSummary');
+
+        if (!volInput || !volInput.value.trim() || isNaN(volVal) || volVal <= 0) {
+            if (volInput) volInput.classList.add('is-invalid');
+            if (volGroup) volGroup.classList.add('has-field-error');
+            if (volErr) volErr.style.display = 'flex';
+            if (volSum) volSum.style.display = 'inline-block';
+            hasError = true;
+        } else {
+            if (volInput) volInput.classList.remove('is-invalid');
+            if (volGroup) volGroup.classList.remove('has-field-error');
+            if (volErr) volErr.style.display = 'none';
+            if (volSum) volSum.style.display = 'none';
+        }
+
+        // Check Buying Price (₱/MT)
+        const costVal = costPriceInput ? parseFloat(costPriceInput.value) : 0;
+        const costGroup = document.getElementById('group_{{ form.unit_price.id_for_label }}');
+        const costErr = document.getElementById('error_{{ form.unit_price.id_for_label }}');
+        const costSum = document.getElementById('step2ErrPriceSummary');
+
+        if (!costPriceInput || !costPriceInput.value.trim() || isNaN(costVal) || costVal <= 0) {
+            if (costPriceInput) costPriceInput.classList.add('is-invalid');
+            if (costGroup) costGroup.classList.add('has-field-error');
+            if (costErr) costErr.style.display = 'flex';
+            if (costSum) costSum.style.display = 'inline-block';
+            hasError = true;
+        } else {
+            if (costPriceInput) costPriceInput.classList.remove('is-invalid');
+            if (costGroup) costGroup.classList.remove('has-field-error');
+            if (costErr) costErr.style.display = 'none';
+            if (costSum) costSum.style.display = 'none';
+        }
+
+        // Check Selling Price (Optional, but if filled must be >= 0)
+        const sellGroup = document.getElementById('group_{{ form.selling_price.id_for_label }}');
+        const sellErr = document.getElementById('error_{{ form.selling_price.id_for_label }}');
+        const sellSum = document.getElementById('step2ErrSellPriceSummary');
+
+        if (sellPriceInput && sellPriceInput.value.trim() !== '') {
+            const sellVal = parseFloat(sellPriceInput.value);
+            if (isNaN(sellVal) || sellVal < 0) {
+                sellPriceInput.classList.add('is-invalid');
+                if (sellGroup) sellGroup.classList.add('has-field-error');
+                if (sellErr) sellErr.style.display = 'flex';
+                if (sellSum) sellSum.style.display = 'inline-block';
+                hasError = true;
+            } else {
+                sellPriceInput.classList.remove('is-invalid');
+                if (sellGroup) sellGroup.classList.remove('has-field-error');
+                if (sellErr) sellErr.style.display = 'none';
+                if (sellSum) sellSum.style.display = 'none';
+            }
+        } else if (sellPriceInput) {
+            sellPriceInput.classList.remove('is-invalid');
+            if (sellGroup) sellGroup.classList.remove('has-field-error');
+            if (sellErr) sellErr.style.display = 'none';
+            if (sellSum) sellSum.style.display = 'none';
+        }
+
+        const summaryBox = document.getElementById('step2ValidationSummary');
+        if (summaryBox) {
+            if (hasError) {
+                summaryBox.classList.remove('d-none');
+            } else {
+                summaryBox.classList.add('d-none');
+            }
+        }
+        return !hasError;
+    };
+
+    // Step 3 Validation Engine
+    window.validateStep3 = function() {
+        let hasError = false;
+
+        // Check Brix Level (If filled, must be between 0 and 100)
+        const brixGroup = document.getElementById('group_{{ form.brix_level.id_for_label }}');
+        const brixErr = document.getElementById('error_{{ form.brix_level.id_for_label }}');
+        const brixSum = document.getElementById('step3ErrBrixSummary');
+
+        if (brixInput && brixInput.value.trim() !== '') {
+            const brixVal = parseFloat(brixInput.value);
+            if (isNaN(brixVal) || brixVal < 0 || brixVal > 100) {
+                brixInput.classList.add('is-invalid');
+                if (brixGroup) brixGroup.classList.add('has-field-error');
+                if (brixErr) brixErr.style.display = 'flex';
+                if (brixSum) brixSum.style.display = 'inline-block';
+                hasError = true;
+            } else {
+                brixInput.classList.remove('is-invalid');
+                if (brixGroup) brixGroup.classList.remove('has-field-error');
+                if (brixErr) brixErr.style.display = 'none';
+                if (brixSum) brixSum.style.display = 'none';
+            }
+        } else if (brixInput) {
+            brixInput.classList.remove('is-invalid');
+            if (brixGroup) brixGroup.classList.remove('has-field-error');
+            if (brixErr) brixErr.style.display = 'none';
+            if (brixSum) brixSum.style.display = 'none';
+        }
+
+        const summaryBox = document.getElementById('step3ValidationSummary');
+        if (summaryBox) {
+            if (hasError) {
+                summaryBox.classList.remove('d-none');
+            } else {
+                summaryBox.classList.add('d-none');
+            }
+        }
+        return !hasError;
+    };
+
     window.jumpToStep = function(stepNum) {
         if (stepNum < 1 || stepNum > maxSteps) return;
 
-        // Hide all step panels
+        // If user is trying to skip forward, enforce preceding step validation
+        if (stepNum > currentStep) {
+            if (currentStep === 1 && !validateStep1()) {
+                focusFirstInvalid('#stepPanel_1');
+                return;
+            }
+            if (currentStep === 2 && !validateStep2()) {
+                focusFirstInvalid('#stepPanel_2');
+                return;
+            }
+            if (stepNum === 3) {
+                if (!validateStep1()) {
+                    jumpToStep(1);
+                    focusFirstInvalid('#stepPanel_1');
+                    return;
+                }
+                if (!validateStep2()) {
+                    jumpToStep(2);
+                    focusFirstInvalid('#stepPanel_2');
+                    return;
+                }
+            }
+        }
+
+        // Hide all step panels and activate target
         for (let i = 1; i <= maxSteps; i++) {
             const panel = document.getElementById(`stepPanel_${i}`);
             const indicator = document.getElementById(`stepIndicator_${i}`);
@@ -490,7 +1026,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Update progress line
+        // Update progress bar fill
         const fill = document.getElementById('stepperFill');
         if (fill) {
             const pct = ((stepNum - 1) / (maxSteps - 1)) * 100;
@@ -503,62 +1039,70 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.validateAndGo = function(fromStep, toStep) {
         if (fromStep === 1) {
-            const clientSel = document.getElementById('{{ form.client.id_for_label }}');
-            const millSel = document.getElementById('{{ form.sugar_mill.id_for_label }}');
-            const refInput = document.getElementById('{{ form.reference_code.id_for_label }}');
-
-            let valid = true;
-            if (clientSel && !clientSel.value) {
-                clientSel.classList.add('is-invalid');
-                valid = false;
-            } else if (clientSel) {
-                clientSel.classList.remove('is-invalid');
-            }
-
-            if (millSel && !millSel.value) {
-                millSel.classList.add('is-invalid');
-                valid = false;
-            } else if (millSel) {
-                millSel.classList.remove('is-invalid');
-            }
-
-            if (!valid) {
-                alert("Please select both a Customer (Client) and Primary Supplier (Sugar Mill) before proceeding.");
+            if (!validateStep1()) {
+                focusFirstInvalid('#stepPanel_1');
                 return;
             }
         } else if (fromStep === 2) {
-            const volInput = document.getElementById('{{ form.volume_mt.id_for_label }}');
-            const costPriceInput = document.getElementById('{{ form.unit_price.id_for_label }}');
-
-            let valid = true;
-            if (volInput && (!volInput.value || parseFloat(volInput.value) <= 0)) {
-                volInput.classList.add('is-invalid');
-                valid = false;
-            } else if (volInput) {
-                volInput.classList.remove('is-invalid');
-            }
-
-            if (costPriceInput && (!costPriceInput.value || parseFloat(costPriceInput.value) <= 0)) {
-                costPriceInput.classList.add('is-invalid');
-                valid = false;
-            } else if (costPriceInput) {
-                costPriceInput.classList.remove('is-invalid');
-            }
-
-            if (!valid) {
-                alert("Please enter a valid Contracted Volume (MT) and Buying Price (₱/MT).");
+            if (!validateStep2()) {
+                focusFirstInvalid('#stepPanel_2');
                 return;
             }
         }
-
         jumpToStep(toStep);
     };
 
-    // Live Calculation Engine
-    const volInput = document.getElementById('{{ form.volume_mt.id_for_label }}');
-    const costPriceInput = document.getElementById('{{ form.unit_price.id_for_label }}');
-    const sellPriceInput = document.getElementById('{{ form.selling_price.id_for_label }}');
+    // Live Real-Time Clearance Listeners
+    if (clientSel) clientSel.addEventListener('change', () => { if (clientSel.value) validateStep1(); });
+    if (millSel) millSel.addEventListener('change', () => { if (millSel.value) validateStep1(); });
+    if (refInput) refInput.addEventListener('input', () => { if (refInput.value.trim()) validateStep1(); });
 
+    if (volInput) {
+        volInput.addEventListener('input', () => {
+            if (volInput.value && parseFloat(volInput.value) > 0) validateStep2();
+        });
+    }
+    if (costPriceInput) {
+        costPriceInput.addEventListener('input', () => {
+            if (costPriceInput.value && parseFloat(costPriceInput.value) > 0) validateStep2();
+        });
+    }
+    if (sellPriceInput) {
+        sellPriceInput.addEventListener('input', () => {
+            if (sellPriceInput.value) validateStep2();
+        });
+    }
+    if (brixInput) {
+        brixInput.addEventListener('input', () => {
+            validateStep3();
+        });
+    }
+
+    // Intercept Form Submission to Guarantee Multi-Step Validation
+    if (poForm) {
+        poForm.addEventListener('submit', function(e) {
+            if (!validateStep1()) {
+                e.preventDefault();
+                jumpToStep(1);
+                focusFirstInvalid('#stepPanel_1');
+                return false;
+            }
+            if (!validateStep2()) {
+                e.preventDefault();
+                jumpToStep(2);
+                focusFirstInvalid('#stepPanel_2');
+                return false;
+            }
+            if (!validateStep3()) {
+                e.preventDefault();
+                jumpToStep(3);
+                focusFirstInvalid('#stepPanel_3');
+                return false;
+            }
+        });
+    }
+
+    // Live Calculation Engine
     const calcFormulaCost = document.getElementById('calcFormulaCost');
     const calcTotalCost = document.getElementById('calcTotalCost');
     const calcFormulaRev = document.getElementById('calcFormulaRev');
@@ -651,11 +1195,6 @@ document.addEventListener('DOMContentLoaded', function() {
     updateLiveCalculation();
 
     // Predictive Trade Terms Auto-Fill
-    const clientSelect = document.getElementById('{{ form.client.id_for_label }}');
-    const millSelect = document.getElementById('{{ form.sugar_mill.id_for_label }}');
-    const termsInput = document.getElementById('{{ form.terms.id_for_label }}');
-    const brixInput = document.getElementById('{{ form.brix_level.id_for_label }}');
-    const chaiSelect = document.getElementById('{{ form.chai_specs.id_for_label }}');
     const suggestedBanner = document.getElementById('suggestedTermsBanner');
     const suggestedSampleSize = document.getElementById('suggestedSampleSize');
 
@@ -668,8 +1207,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function checkPredictiveTerms() {
-        const clientId = clientSelect ? clientSelect.value : '';
-        const millId = millSelect ? millSelect.value : '';
+        const clientId = clientSel ? clientSel.value : '';
+        const millId = millSel ? millSel.value : '';
         if (!clientId && !millId) return;
 
         fetch(`{% url 'operations:predict_trade_terms_api' %}?client_id=${encodeURIComponent(clientId)}&sugar_mill_id=${encodeURIComponent(millId)}`)
@@ -723,13 +1262,27 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => console.error("Predict API error:", err));
     }
 
-    if (clientSelect) clientSelect.addEventListener('change', checkPredictiveTerms);
-    if (millSelect) millSelect.addEventListener('change', checkPredictiveTerms);
+    if (clientSel) clientSel.addEventListener('change', checkPredictiveTerms);
+    if (millSel) millSel.addEventListener('change', checkPredictiveTerms);
 
     {% if not object %}
-    if (clientSelect && millSelect && (clientSelect.value || millSelect.value)) {
+    if (clientSel && millSel && (clientSel.value || millSel.value)) {
         checkPredictiveTerms();
     }
+    {% endif %}
+
+    // Server-side errors auto-focus
+    {% if form.errors %}
+        {% if form.reference_code.errors or form.client.errors or form.sugar_mill.errors %}
+            jumpToStep(1);
+            focusFirstInvalid('#stepPanel_1');
+        {% elif form.volume_mt.errors or form.unit_price.errors or form.selling_price.errors %}
+            jumpToStep(2);
+            focusFirstInvalid('#stepPanel_2');
+        {% elif form.terms.errors or form.brix_level.errors or form.chai_specs.errors or form.contract_notes.errors %}
+            jumpToStep(3);
+            focusFirstInvalid('#stepPanel_3');
+        {% endif %}
     {% endif %}
 });
 
@@ -740,6 +1293,7 @@ function fetchAutoRef() {
             const refInput = document.getElementById('{{ form.reference_code.id_for_label }}');
             if (refInput && data.po_ref) {
                 refInput.value = data.po_ref;
+                if (window.validateStep1) window.validateStep1();
             }
         });
 }
