@@ -15,7 +15,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
-    <link href="{% static 'css/htc-theme.css' %}?v=13" rel="stylesheet">
+    <link href="{% static 'css/htc-theme.css' %}?v=15" rel="stylesheet">
     <style>
         /* Financial Privacy Masking - Hidden by default with asterisks, revealed on hover */
         .finance-masked {
@@ -279,8 +279,8 @@
                             </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-lg border p-2" style="min-width: 310px; background: var(--htc-surface); border-color: var(--htc-border) !important; border-radius: 12px; z-index: 1070;">
-                            <!-- 1. Header Padding & Alignment (16px / p-4 padding, flex-col with gap-1.5) -->
-                            <li class="user-menu-header px-3 pt-3 pb-2">
+                            <!-- 1. Header Padding & Alignment (p-4 padding, pb-3 mb-1 breathing room above divider) -->
+                            <li class="user-menu-header px-3 pt-3 pb-3 mb-1" style="padding: 16px 16px 14px 16px !important; margin-bottom: 4px !important;">
                                 <div class="d-flex flex-column gap-1.5">
                                     <div class="user-name fw-bold fs-7 text-truncate text-dark lh-sm">{{ user.get_full_name|default:user.username }}</div>
                                     <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -290,18 +290,18 @@
                                 </div>
                             </li>
 
-                            <!-- 2. Divider Line Spacing (12px / my-3 explicit vertical margins) -->
-                            <li><hr class="dropdown-divider my-3"></li>
+                            <!-- 2. Header Divider with explicit vertical margins (my-3 / py-1 wrapper) -->
+                            <li class="py-1"><hr class="dropdown-divider my-3" style="margin: 14px 0 !important; border-top: 1px solid var(--htc-border); opacity: 0.65;"></li>
 
-                            <!-- 4. Section Label (text-[11px] font-bold tracking-wider text-slate-500 uppercase, pt-1 pb-2) -->
-                            <li class="dropdown-header text-uppercase fw-bold px-3 pt-1 pb-2" style="font-size: 11px; letter-spacing: 0.05em; color: #64748b;">
+                            <!-- 3. Section Label Spacing (pt-3 pb-2 mt-1 clear of the divider) -->
+                            <li class="dropdown-header text-uppercase fw-bold px-3 pt-3 pb-2 mt-1" style="font-size: 11px; letter-spacing: 0.05em; color: #64748b; padding: 12px 16px 6px 16px !important; margin-top: 4px !important;">
                                 Workspace Controls
                             </li>
 
-                            <!-- 3. Standardized Menu Items (py-2 px-3, rounded-md, flex items-center justify-between) -->
+                            <!-- 4. Standardized Menu Items with uniform py-2 px-3 padding and mb-1 row spacing -->
                             <!-- Financial Privacy Toggle -->
-                            <li>
-                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="toggleFinancialPrivacyBtn" title="Mask sensitive financial amounts sitewide with ***">
+                            <li class="mb-1">
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between" id="toggleFinancialPrivacyBtn" title="Mask sensitive financial amounts sitewide with ***" style="min-height: 38px;">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-eye-slash-fill text-warning fs-7" id="financialPrivacyIcon"></i>
                                         <span class="fw-medium">Financial Privacy</span>
@@ -311,8 +311,8 @@
                             </li>
 
                             <!-- Local ORM AI Copilot -->
-                            <li>
-                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="btnCopilotDrawer" title="Open Local ORM AI Assistant">
+                            <li class="mb-1">
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between" id="btnCopilotDrawer" title="Open Local ORM AI Assistant" style="min-height: 38px;">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-robot text-primary fs-7"></i>
                                         <span class="fw-medium">Local ORM AI</span>
@@ -322,8 +322,8 @@
                             </li>
 
                             <!-- Theme Toggle (Dark/Light) -->
-                            <li>
-                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="themeToggleBtn" title="Toggle Light / Dark Mode">
+                            <li class="mb-1">
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between" id="themeToggleBtn" title="Toggle Light / Dark Mode" style="min-height: 38px;">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-moon-stars-fill text-info fs-7" id="themeToggleIcon"></i>
                                         <span class="fw-medium">Theme Mode</span>
@@ -333,8 +333,8 @@
                             </li>
 
                             <!-- High Legibility (A+) -->
-                            <li>
-                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="legibilityToggleBtn" title="Toggle High Legibility Mode">
+                            <li class="mb-1">
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between" id="legibilityToggleBtn" title="Toggle High Legibility Mode" style="min-height: 38px;">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-fonts text-secondary fs-7"></i>
                                         <span class="fw-medium">Font Legibility (A+)</span>
@@ -344,30 +344,32 @@
                             </li>
 
                             <!-- Interactive Guided Tour -->
-                            <li>
-                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" id="helpGuideBtn" title="Start Interactive Guided Tour">
+                            <li class="mb-1">
+                                <button type="button" class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between" id="helpGuideBtn" title="Start Interactive Guided Tour" style="min-height: 38px;">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-question-circle text-muted fs-7"></i>
                                         <span class="fw-medium">Interactive Tour Guide</span>
                                     </span>
+                                    <i class="bi bi-compass text-muted fs-8 opacity-75"></i>
                                 </button>
                             </li>
 
-                            <!-- 2. Divider Line Spacing (12px / my-3 explicit vertical margins) -->
-                            <li><hr class="dropdown-divider my-3"></li>
+                            <!-- 5. Bottom Divider with explicit vertical margins (my-3 / py-1 wrapper) -->
+                            <li class="py-1"><hr class="dropdown-divider my-3" style="margin: 14px 0 !important; border-top: 1px solid var(--htc-border); opacity: 0.65;"></li>
 
                             <!-- Account Links -->
-                            <li>
-                                <a class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between mb-0.5" href="{% url 'accounts:profile' %}">
+                            <li class="mb-1">
+                                <a class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between" href="{% url 'accounts:profile' %}" style="min-height: 38px;">
                                     <span class="d-flex align-items-center gap-2.5">
                                         <i class="bi bi-person-gear text-secondary fs-7"></i>
                                         <span class="fw-medium">Profile &amp; Settings</span>
                                     </span>
+                                    <i class="bi bi-chevron-right text-muted fs-9 opacity-50"></i>
                                 </a>
                             </li>
-                            <li>
+                            <li class="mb-0">
                                 <form method="post" action="{% url 'accounts:logout' %}" class="m-0">{% csrf_token %}
-                                    <button class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between text-danger w-100 text-start border-0 bg-transparent" type="submit">
+                                    <button class="dropdown-item rounded-2 fs-8 py-2 px-3 d-flex align-items-center justify-content-between text-danger w-100 text-start border-0 bg-transparent" type="submit" style="min-height: 38px;">
                                         <span class="d-flex align-items-center gap-2.5">
                                             <i class="bi bi-box-arrow-right fs-7"></i>
                                             <span class="fw-medium">Sign Out</span>
