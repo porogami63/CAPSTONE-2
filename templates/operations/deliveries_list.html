@@ -351,9 +351,6 @@
         </div>
         <!-- Consolidated Primary CTA Button on Table Header -->
         <div class="d-flex gap-2">
-            <a href="{% url 'finance:loan_list' %}?open_report=1&category=delivery" class="btn btn-warning btn-sm rounded-pill font-bold px-3 py-1 shadow-xs d-inline-flex align-items-center gap-1 text-dark" title="Report a delivery or weighbridge discrepancy to manager for compensating correction">
-                <i class="bi bi-flag-fill"></i> Report Discrepancy
-            </a>
             {% if focused_po and focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
             <button type="button" class="btn-htc btn-sm d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#logBatchModal">
                 <i class="bi bi-plus-lg"></i> Log Delivery Batch
@@ -545,9 +542,6 @@
                                     <i class="bi bi-arrow-repeat text-warning"></i> Compensating Adjustment
                                 </button>
                                 {% endif %}
-                                <a href="{% url 'finance:loan_list' %}?open_report=1&category=delivery&ref={% if d.dr_number %}DR%20%23{{ d.dr_number }}{% elif d.waybill_number %}WB%20%23{{ d.waybill_number }}{% else %}DEL-{{ d.delivery_id|stringformat:'s'|slice:':8'|upper }}{% endif %}&orig={{ d.delivered_mt|floatformat:3 }}%20MT" class="btn btn-outline-secondary btn-sm py-0.5 px-2 fs-8 text-dark shadow-xs d-inline-flex align-items-center gap-1" title="Report discrepancy for manager recompensation">
-                                    <i class="bi bi-flag-fill text-warning"></i> Report
-                                </a>
                                 {% endif %}
                             {% endif %}
                             {% if d.purchase_order.cluster %}
@@ -648,6 +642,23 @@
                                     <span id="modalVarianceDetail">Dispatched 0.000 MT vs Delivered 0.000 MT</span>
                                 </div>
                                 <span class="badge fs-8" id="modalVarianceBadge">0.00%</span>
+                            </div>
+                        </div>
+
+                        <!-- Statistical Irregular Mean Outlier Warning -->
+                        <div class="col-12 d-none" id="irregularMeanAlertBanner">
+                            <div class="alert alert-warning py-2.5 px-3 mb-0 border-warning d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-exclamation-triangle-fill text-warning fs-5 flex-shrink-0"></i>
+                                    <div>
+                                        <strong class="text-dark">Statistical Outlier Detected:</strong>
+                                        <span class="fs-8 text-secondary d-block" id="irregularMeanAlertText">Entered volume deviates significantly from historical batch averages (~{{ batch_stats.mean|default:"30.0"|floatformat:1 }} MT).</span>
+                                    </div>
+                                </div>
+                                <div class="form-check text-nowrap">
+                                    <input class="form-check-input" type="checkbox" id="confirmOutlierCheck">
+                                    <label class="form-check-label fs-8 fw-semibold text-dark" for="confirmOutlierCheck">Confirm unusual volume</label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -927,6 +938,31 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (varBanner) {
             varBanner.classList.add('d-none');
         }
+
+        // Statistical Irregular Mean Outlier Guardrail
+        const irregularBanner = document.getElementById('irregularMeanAlertBanner');
+        const confirmCheck = document.getElementById('confirmOutlierCheck');
+        const alertText = document.getElementById('irregularMeanAlertText');
+        const histMean = {{ batch_stats.mean|default:30.0|floatformat:1 }};
+        const maxExpectedTruckMt = Math.max(60.0, histMean * 3.5);
+        const brgPartnerEl = document.getElementById('id_barge_partner');
+        const brgSelected = brgRate > 0 || (brgPartnerEl && brgPartnerEl.value);
+
+        const checkMt = Math.max(dispMt, delivMt);
+        if (irregularBanner && checkMt > maxExpectedTruckMt && !brgSelected) {
+            irregularBanner.classList.remove('d-none');
+            if (alertText) {
+                alertText.textContent = `Entered ${checkMt.toFixed(3)} MT is exceptionally high for a single truck trip compared to historical trip averages (~${histMean.toFixed(1)} MT). Verify if digits were transposed.`;
+            }
+            if (btnSubmit && confirmCheck && !confirmCheck.checked) {
+                btnSubmit.disabled = true;
+            }
+        } else if (irregularBanner) {
+            irregularBanner.classList.add('d-none');
+            if (btnSubmit && (!warnBox || warnBox.classList.contains('d-none'))) {
+                btnSubmit.disabled = false;
+            }
+        }
     }
 
     if (dispInput) {
@@ -980,6 +1016,17 @@ document.addEventListener('DOMContentLoaded', function() {
             inp.addEventListener('input', updateModalVarianceAndFreight);
         }
     });
+
+    const confirmCheckEl = document.getElementById('confirmOutlierCheck');
+    if (confirmCheckEl) {
+        confirmCheckEl.addEventListener('change', function() {
+            if (this.checked && btnSubmit && (!warnBox || warnBox.classList.contains('d-none'))) {
+                btnSubmit.disabled = false;
+            } else {
+                updateModalVarianceAndFreight();
+            }
+        });
+    }
 
     updateModalDeliveredVolumeEditability();
     updateModalVarianceAndFreight();

@@ -4280,3 +4280,99 @@ html, body {
     }
 }
 
+/* ==========================================================================
+   WCAG 2.1 LEVEL AA ACCESSIBILITY & USABILITY ENHANCEMENTS
+   ========================================================================== */
+
+/* 1. Skip-to-content bypass link (WCAG 2.4.1) */
+.skip-to-content {
+    position: absolute;
+    top: -9999px;
+    left: 12px;
+    z-index: 999999;
+    padding: 0.65rem 1.25rem;
+    background: #1d4ed8;
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 0.875rem;
+    border-radius: 8px;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    transition: top 0.15s ease-in-out;
+}
+.skip-to-content:focus {
+    top: 12px !important;
+    outline: 3px solid #facc15 !important;
+    outline-offset: 2px !important;
+}
+
+/* 2. Global Visible Focus Indicator (WCAG 2.4.7) */
+:focus-visible {
+    outline: 2px solid #2563eb !important;
+    outline-offset: 2px !important;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid #2563eb !important;
+    outline-offset: 2px !important;
+}
+
+/* 3. Text & Non-Text Contrast Compliance (WCAG 1.4.3 & 1.4.11) */
+[data-theme="light"] {
+    --htc-text-muted: #475569 !important; /* >= 5.8:1 contrast against white */
+}
+[data-theme="light"] .text-muted,
+[data-theme="light"] .text-secondary {
+    color: #475569 !important;
+}
+[data-theme="dark"] {
+    --htc-text-muted: #94a3b8 !important; /* >= 6.2:1 contrast against dark */
+}
+
+/* Accessible Interactive Touch Targets (WCAG 2.5.5) */
+.btn-htc,
+.btn-htc-outline,
+.btn-sm,
+.nav-link,
+.form-select-htc,
+.form-control-htc {
+    min-height: 38px;
+}
+@media (pointer: coarse) {
+    .btn,
+    .nav-link,
+    .form-control,
+    .form-select {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* High-contrast status badges (WCAG 1.4.3) */
+[data-theme="light"] .badge.bg-success-subtle {
+    background-color: #dcfce7 !important;
+    color: #14532d !important; /* Contrast: 7.4:1 */
+    border: 1px solid #86efac !important;
+}
+[data-theme="light"] .badge.bg-warning-subtle {
+    background-color: #fef3c7 !important;
+    color: #78350f !important; /* Contrast: 7.9:1 */
+    border: 1px solid #fcd34d !important;
+}
+[data-theme="light"] .badge.bg-danger-subtle {
+    background-color: #fee2e2 !important;
+    color: #7f1d1d !important; /* Contrast: 8.5:1 */
+    border: 1px solid #fca5a5 !important;
+}
+[data-theme="light"] .badge.bg-info-subtle {
+    background-color: #e0f2fe !important;
+    color: #0c4a6e !important; /* Contrast: 8.2:1 */
+    border: 1px solid #7dd3fc !important;
+}
+
+

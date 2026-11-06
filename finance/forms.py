@@ -224,7 +224,7 @@ class LoanRulesMixin:
     MIN_LOAN_DATE = date(2020, 1, 1)
     MAX_START_AHEAD_DAYS = 90
     MAX_TENOR_DAYS = 730
-    MAX_INTEREST_RATE = 100
+    MAX_INTEREST_RATE = 36.00
 
     def apply_loan_rules(self, cleaned_data, cluster=None):
         principal = cleaned_data.get("principal")
@@ -232,6 +232,7 @@ class LoanRulesMixin:
         start_date = cleaned_data.get("start_date")
         due_date = cleaned_data.get("due_date")
         cheque_date = cleaned_data.get("cheque_date")
+        deposit_pct = cleaned_data.get("logistics_deposit_percentage")
         today = timezone.localdate()
         is_new = not (self.instance and self.instance.pk)
 
@@ -254,7 +255,13 @@ class LoanRulesMixin:
             if interest_rate < 0:
                 self.add_error("interest_rate_annual", "Annual interest rate cannot be negative.")
             elif interest_rate > self.MAX_INTEREST_RATE:
-                self.add_error("interest_rate_annual", f"Annual interest rate cannot exceed {self.MAX_INTEREST_RATE}%.")
+                self.add_error("interest_rate_annual", f"Annual interest rate cannot exceed {self.MAX_INTEREST_RATE}% APR (commercial credit facility cap).")
+            elif interest_rate < Decimal("0.50") and interest_rate > Decimal("0.00"):
+                self.add_error("interest_rate_annual", "Annual interest rate appears abnormally low (< 0.50% APR). Verify whether digits or decimals were misplaced.")
+
+        if deposit_pct is not None:
+            if deposit_pct < Decimal("0.00") or deposit_pct > Decimal("100.00"):
+                self.add_error("logistics_deposit_percentage", "Logistics deposit percentage must be between 0.00% and 100.00%.")
 
         # ---- Loan (start) date ----------------------------------------------------------
         if start_date:

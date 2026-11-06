@@ -676,11 +676,6 @@
             <div>
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <span class="card-code">FACILITY #{{ loan.pk }}</span>
-                    {% if loan.report %}
-                        <span class="badge bg-warning text-dark border border-warning px-2 py-0.5 fs-8 d-inline-flex align-items-center gap-1">
-                            <i class="bi bi-flag-fill"></i> Discrepancy Reported ({{ loan.report.get_status_display }})
-                        </span>
-                    {% endif %}
                     {% if loan.is_archived %}
                         <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 fs-8">
                             <i class="bi bi-archive me-1"></i> Archived in Vault
@@ -750,26 +745,6 @@
                 <div class="card-subtext mt-1 text-muted" style="font-size: 0.73rem;">
                     <i class="bi bi-shield-check text-success me-1"></i> Verified by <strong>{{ loan.verified_by.get_full_name|default:loan.verified_by.username }}</strong> on {{ loan.verified_at|date:"M d, Y H:i:s" }} PST
                     {% if loan.verification_notes %}<span class="fst-italic">("{{ loan.verification_notes }}")</span>{% endif %}
-                </div>
-                {% endif %}
-                {% if loan.report %}
-                <div class="alert alert-warning py-1.5 px-2.5 text-xs mt-2 mb-1 d-flex align-items-center justify-content-between flex-wrap gap-2 border-warning" style="border-radius: 8px;">
-                    <div>
-                        <i class="bi bi-flag-fill text-warning me-1"></i>
-                        <strong>Discrepancy #{{ loan.report.report_id|stringformat:'s'|slice:':8'|upper }}:</strong> {{ loan.report.error_summary }}
-                        <span class="badge {% if loan.report.status == 'pending' %}bg-warning text-dark{% elif loan.report.status == 'approved' %}bg-success{% else %}bg-secondary{% endif %} ms-1">{{ loan.report.get_status_display }}</span>
-                    </div>
-                    <div>
-                        {% if user_role_code == 'administrator' or user_role_code == 'operations_management' and loan.report.status == 'pending' %}
-                        <button type="button" class="btn btn-warning btn-xs py-0.5 px-2 fs-8 fw-bold text-dark shadow-xs" data-bs-toggle="modal" data-bs-target="#reviewReportModal{{ loan.report.report_id|stringformat:'s'|slice:':8'|upper }}">
-                            <i class="bi bi-clipboard-check me-0.5"></i>Review &amp; Authorize
-                        </button>
-                        {% else %}
-                        <button type="button" class="btn btn-outline-secondary btn-xs py-0.5 px-2 fs-8 text-dark" data-bs-toggle="modal" data-bs-target="#reviewReportModal{{ loan.report.report_id|stringformat:'s'|slice:':8'|upper }}">
-                            <i class="bi bi-eye me-0.5"></i>View Overview
-                        </button>
-                        {% endif %}
-                    </div>
                 </div>
                 {% endif %}
             </div>
@@ -872,74 +847,7 @@
                             </button>
                         {% endif %}
 
-                        <!-- Action: Report Loan Discrepancy -->
-                        <button type="button" class="btn btn-sm btn-outline-warning text-dark py-1 px-2.5 fs-8 fw-semibold" data-bs-toggle="modal" data-bs-target="#reportLoanModal{{ loan.pk }}" title="Report financial data-entry discrepancy on this facility">
-                            <i class="bi bi-flag-fill text-warning"></i> Report Error
-                        </button>
-                    </div>
-
-                    <!-- LOAN-SPECIFIC DISCREPANCY REPORT MODAL -->
-                    <div class="modal fade" id="reportLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow-lg text-start" style="border-radius: 12px; overflow: hidden;">
-                                <div class="modal-header bg-dark text-white py-3 px-4">
-                                    <div>
-                                        <h6 class="modal-title fw-bold mb-0 text-white">
-                                            <i class="bi bi-flag-fill text-warning me-2"></i>Report Loan Discrepancy · Facility #{{ loan.pk }}
-                                        </h6>
-                                        <div class="fs-8 text-white-75 mt-0.5">Bank: {{ loan.bank_name }} · PO #{{ loan.cluster.reference_code }}</div>
-                                    </div>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <form method="post" action="{% url 'finance:submit_recompensation_report' %}">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="category" value="finance">
-                                    <input type="hidden" name="target_reference" value="Facility #{{ loan.pk }} ({{ loan.bank_name }})">
-                                    <input type="hidden" name="cluster_id" value="{{ loan.cluster.pk }}">
-                                    <input type="hidden" name="item_type" value="CapitalLoan">
-                                    <input type="hidden" name="item_id" value="{{ loan.pk }}">
-                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                    <div class="modal-body p-4">
-                                        <div class="alert alert-info py-2 px-3 text-xs mb-3">
-                                            Reporting an entry error on this credit facility. <strong>Operations Management</strong> will review the variance and authorize the compensating correction.
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label font-semibold text-sm">Discrepant Parameter <span class="text-danger">*</span></label>
-                                            <select name="error_summary" class="form-select form-select-sm" required>
-                                                <option value="Typo in Principal Balance (Current: ₱{{ loan.principal|floatformat:2|intcomma }})">Principal Balance (Current: ₱{{ loan.principal|floatformat:2|intcomma }})</option>
-                                                <option value="Incorrect Interest Rate (Current: {{ loan.interest_rate_annual }}% p.a.)">Annual Interest Rate (Current: {{ loan.interest_rate_annual }}% p.a.)</option>
-                                                <option value="Wrong Cheque Serial (Current: {{ loan.cheque_number|default:'Unassigned' }})">Cheque Serial Number (Current: {{ loan.cheque_number|default:'Unassigned' }})</option>
-                                                <option value="Incorrect Tenor / Due Date (Current: {{ loan.due_date|date:'Y-m-d' }})">Maturity / Due Date (Current: {{ loan.due_date|date:'Y-m-d' }})</option>
-                                            </select>
-                                        </div>
-                                        <div class="row g-2 mb-3">
-                                            <div class="col-6">
-                                                <label class="form-label font-semibold text-xs text-muted">Current Encoded Value</label>
-                                                <input type="text" name="original_value" class="form-control form-control-sm bg-light" value="₱{{ loan.principal|floatformat:2|intcomma }}" readonly>
-                                            </div>
-                                            <div class="col-6">
-                                                <label class="form-label font-semibold text-xs text-primary">Proposed Corrected Value <span class="text-danger">*</span></label>
-                                                <input type="text" name="proposed_value" class="form-control form-control-sm" placeholder="e.g. ₱4,500,000.00 or 5.75%" required>
-                                            </div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label font-semibold text-sm">Root-Cause Notes &amp; Bank Advice Details <span class="text-danger">*</span></label>
-                                            <textarea name="user_notes" class="form-control form-control-sm" rows="3" minlength="10" placeholder="Provide bank clearance advice #, promissory note reference, or explanation of the typing error..." required></textarea>
-                                            <div class="form-text text-xs">Minimum 10 characters required for ISO audit trail compliance.</div>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer bg-light py-2 px-4 d-flex justify-content-between">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-warning btn-sm fw-bold px-3 text-dark">
-                                            <i class="bi bi-send-fill me-1"></i>Submit Report to Manager
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- MODAL 1: DUAL-STEP CLOSE SETTLED LOAN -->
+                        <!-- MODAL 1: DUAL-STEP CLOSE SETTLED LOAN -->
                     <div class="modal fade" id="closeLoanModal{{ loan.pk }}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content border-0 shadow-lg" style="border-radius: var(--htc-radius);">
@@ -1270,13 +1178,12 @@
                                     <i class="bi bi-arrow-return-right me-1"></i>REV #{{ chq.superseded_by_voucher }}
                                 </span>
                                 {% elif chq.voucher_pk and chq.can_correct %}
-                                    <button type="button" class="btn btn-xs btn-outline-warning text-dark d-inline-flex align-items-center gap-1 py-1 px-2 fs-8 fw-semibold" data-bs-toggle="modal" data-bs-target="#reportChequeModal{{ chq.voucher_pk }}" title="Report disbursement error for manager recompensation">
-                                        <i class="bi bi-flag-fill text-warning"></i>Report Error
-                                    </button>
                                     {% if user_role_code == 'administrator' or user_role_code == 'operations_management' or user_role_code == 'finance' %}
-                                    <button type="button" class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1 py-1 px-2 fs-8" data-bs-toggle="modal" data-bs-target="#correctChequeModal{{ chq.voucher_pk }}" title="Record direct compensating correction entry">
-                                        <i class="bi bi-arrow-repeat text-muted"></i>Direct Reversal
+                                    <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 py-1 px-2.5 fs-8 fw-semibold" data-bs-toggle="modal" data-bs-target="#correctChequeModal{{ chq.voucher_pk }}" title="Execute compensating correction (Void & Reissue) without breaking ledger continuity">
+                                        <i class="bi bi-arrow-repeat"></i> Void &amp; Reissue
                                     </button>
+                                    {% else %}
+                                    <span class="badge bg-light text-muted border fs-8">Finalized</span>
                                     {% endif %}
                                 {% else %}
                                 <span class="text-muted fs-8">—</span>
@@ -1361,264 +1268,6 @@
     </div>
 </div>
 {% endif %}
-{% endfor %}
-
-<!-- CHEQUE-SPECIFIC DISCREPANCY REPORT MODALS -->
-{% for chq in cheques %}
-{% if chq.voucher_pk and chq.can_correct %}
-<div class="modal fade" id="reportChequeModal{{ chq.voucher_pk }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg text-start" style="border-radius: 12px; overflow: hidden;">
-            <div class="modal-header bg-dark text-white py-3 px-4">
-                <div>
-                    <h6 class="modal-title fw-bold mb-0 text-white">
-                        <i class="bi bi-flag-fill text-warning me-2"></i>Report Cheque Discrepancy
-                    </h6>
-                    <div class="fs-8 text-white-75 mt-0.5">Voucher #{{ chq.voucher_number }} · Cheque #{{ chq.cheque_number }} · PO #{{ chq.cluster_ref }}</div>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="post" action="{% url 'finance:submit_recompensation_report' %}">
-                {% csrf_token %}
-                <input type="hidden" name="category" value="finance">
-                <input type="hidden" name="target_reference" value="Voucher #{{ chq.voucher_number }} (Cheque #{{ chq.cheque_number }})">
-                <input type="hidden" name="cluster_id" value="{{ chq.cluster_pk }}">
-                <input type="hidden" name="item_type" value="CashVoucher">
-                <input type="hidden" name="item_id" value="{{ chq.voucher_pk }}">
-                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <div class="modal-body p-4">
-                    <div class="alert alert-info py-2 px-3 text-xs mb-3">
-                        Reporting a cheque disbursement error. <strong>Operations Management</strong> will review the overview of what went wrong to authorize the compensating entry.
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label font-semibold text-sm">Discrepant Parameter <span class="text-danger">*</span></label>
-                        <select name="error_summary" class="form-select form-select-sm" required>
-                            <option value="Typo in Cheque Disbursement Amount (Current: ₱{{ chq.amount|floatformat:2|intcomma }})">Disbursement Amount (Current: ₱{{ chq.amount|floatformat:2|intcomma }})</option>
-                            <option value="Incorrect Cheque Serial Number (Current: {{ chq.cheque_number }})">Cheque Serial Number (Current: {{ chq.cheque_number }})</option>
-                            <option value="Discrepancy in 50% Upfront Logistics Allocation">50% Upfront Logistics Deposit Allocation</option>
-                        </select>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label font-semibold text-xs text-muted">Current Encoded Amount</label>
-                            <input type="text" name="original_value" class="form-control form-control-sm bg-light" value="₱{{ chq.amount|floatformat:2|intcomma }}" readonly>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label font-semibold text-xs text-primary">Proposed Corrected Amount (₱) <span class="text-danger">*</span></label>
-                            <input type="text" name="proposed_value" class="form-control form-control-sm" placeholder="e.g. ₱50,000.00" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label font-semibold text-sm">Detailed Notes: What Went Wrong? <span class="text-danger">*</span></label>
-                        <textarea name="user_notes" class="form-control form-control-sm" rows="3" minlength="10" placeholder="Describe physical checkbook stub details, voucher error root cause, or required reconciliation adjustment..." required></textarea>
-                        <div class="form-text text-xs">Minimum 10 characters required for ISO financial audit log compliance.</div>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light py-2 px-4 d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-warning btn-sm fw-bold px-3 text-dark">
-                        <i class="bi bi-send-fill me-1"></i>Submit Report to Manager
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
-{% endfor %}
-<!-- FINANCIAL RECOMPENSATION LOG (INLINE LEDGER) -->
-<div class="card border shadow-sm mt-4">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2.5 px-3">
-        <span class="fw-bold fs-7 text-dark"><i class="bi bi-shield-shaded text-warning me-1.5"></i> Financial &amp; Cheque Recompensation Audit Log</span>
-        <span class="badge bg-secondary-subtle text-secondary border fs-8">{{ recompensation_reports|length }} Historical Entries</span>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 fs-8">
-                <thead class="table-light">
-                    <tr>
-                        <th>Report # &amp; Date</th>
-                        <th>Target Reference</th>
-                        <th>Discrepancy Overview</th>
-                        <th>Reported By</th>
-                        <th class="text-center">Status</th>
-                        <th class="text-center">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in recompensation_reports %}
-                    {% if r.category == 'finance' %}
-                    <tr>
-                        <td>
-                            <strong class="font-monospace text-dark">#{{ r.report_id|stringformat:"s"|slice:":8"|upper }}</strong>
-                            <div class="text-muted fs-8">{{ r.created_at|date:"M d, Y H:i" }} PST</div>
-                        </td>
-                        <td>
-                            <strong class="text-primary">{{ r.target_reference }}</strong>
-                            {% if r.cluster %}<div class="text-muted fs-8">{{ r.cluster.reference_code }}</div>{% endif %}
-                        </td>
-                        <td>
-                            <div class="fw-semibold text-dark">{{ r.error_summary }}</div>
-                            <div class="text-muted fs-8 text-truncate" style="max-width: 280px;" title="{{ r.user_notes }}">{{ r.user_notes }}</div>
-                            {% if r.original_value or r.proposed_value %}
-                            <div class="mt-0.5">
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0 px-1">Was: {{ r.original_value }}</span>
-                                &rarr;
-                                <span class="badge bg-success-subtle text-success border border-success-subtle py-0 px-1">Proposed: {{ r.proposed_value }}</span>
-                            </div>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="fw-medium text-dark">{{ r.reported_by.get_full_name|default:r.reported_by.username }}</div>
-                            <div class="text-muted fs-8 text-capitalize">{{ r.reported_by.role }}</div>
-                        </td>
-                        <td class="text-center">
-                            {% if r.status == "pending" %}
-                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-0.5">Pending Review</span>
-                            {% elif r.status == "approved" %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5">Approved</span>
-                            {% else %}
-                            <span class="badge bg-secondary-subtle text-muted border px-2 py-0.5">Dismissed</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-center text-nowrap">
-                            <button type="button" class="btn btn-xs {% if r.status == 'pending' and user_role_code == 'administrator' or r.status == 'pending' and user_role_code == 'operations_management' %}btn-warning fw-bold text-dark{% else %}btn-outline-secondary{% endif %} py-1 px-2.5 fs-8 d-inline-flex align-items-center gap-1 shadow-xs" data-bs-toggle="modal" data-bs-target="#reviewReportModal{{ r.report_id|stringformat:'s'|slice:':8'|upper }}">
-                                {% if r.status == 'pending' and user_role_code == 'administrator' or r.status == 'pending' and user_role_code == 'operations_management' %}
-                                <i class="bi bi-clipboard-check"></i> Review &amp; Authorize
-                                {% else %}
-                                <i class="bi bi-eye"></i> View Overview
-                                {% endif %}
-                            </button>
-                        </td>
-                    </tr>
-                    {% endif %}
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center text-muted py-4">No financial discrepancy reports recorded. Ledger is balanced.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-{% for r in recompensation_reports %}
-<!-- MANAGER REVIEW & OVERVIEW MODAL -->
-<div class="modal fade" id="reviewReportModal{{ r.report_id|stringformat:'s'|slice:':8'|upper }}" tabindex="-1" aria-labelledby="reviewReportModalLabel{{ r.report_id|stringformat:'s'|slice:':8'|upper }}" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
-            <div class="modal-header bg-dark text-white py-3 px-4">
-                <div>
-                    <h6 class="modal-title fw-bold mb-0 text-white" id="reviewReportModalLabel{{ r.report_id|stringformat:'s'|slice:':8'|upper }}">
-                        <i class="bi bi-shield-check text-warning me-2"></i>Discrepancy Report Overview #{{ r.report_id|stringformat:"s"|slice:":8"|upper }}
-                    </h6>
-                    <div class="fs-8 text-white-75 mt-0.5">{{ r.get_category_display }} · Target: {{ r.target_reference }}</div>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <!-- Overview Header Grid -->
-                <div class="row g-3 mb-4 p-3 rounded-3 bg-light border">
-                    <div class="col-md-4">
-                        <div class="text-xs text-muted text-uppercase fw-bold">Reported By</div>
-                        <div class="fw-bold text-dark mt-0.5">{{ r.reported_by.get_full_name|default:r.reported_by.username }}</div>
-                        <div class="text-muted fs-8 text-capitalize">{{ r.reported_by.role }} · {{ r.created_at|date:"M d, Y H:i" }} PST</div>
-                    </div>
-                    <div class="col-md-4 border-start ps-3">
-                        <div class="text-xs text-muted text-uppercase fw-bold">Category &amp; Target</div>
-                        <div class="fw-bold text-primary mt-0.5">{{ r.target_reference }}</div>
-                        <div class="text-muted fs-8">{{ r.get_category_display }}</div>
-                    </div>
-                    <div class="col-md-4 border-start ps-3">
-                        <div class="text-xs text-muted text-uppercase fw-bold">Current Status</div>
-                        <div class="mt-0.5">
-                            {% if r.status == 'pending' %}
-                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1"><i class="bi bi-hourglass-split me-1"></i>Pending Manager Review</span>
-                            {% elif r.status == 'approved' %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Approved &amp; Recompensated</span>
-                            {% else %}
-                            <span class="badge bg-secondary-subtle text-muted border px-2 py-1"><i class="bi bi-x-circle me-1"></i>Dismissed</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section: What Went Wrong -->
-                <div class="mb-4">
-                    <h6 class="fw-bold text-dark fs-7 text-uppercase tracking-wider mb-2">
-                        <i class="bi bi-exclamation-triangle text-danger me-1"></i>Overview of What Went Wrong
-                    </h6>
-                    <div class="p-3 rounded-3 border bg-white shadow-xs">
-                        <div class="fw-bold text-dark mb-1">{{ r.error_summary }}</div>
-                        <div class="text-secondary fs-7" style="line-height: 1.6; white-space: pre-wrap;">{{ r.user_notes }}</div>
-                    </div>
-                </div>
-
-                <!-- Section: Variance Comparison -->
-                {% if r.original_value or r.proposed_value %}
-                <div class="row g-3 mb-4">
-                    <div class="col-md-6">
-                        <div class="p-3 rounded-3 border border-danger-subtle bg-danger-subtle bg-opacity-25">
-                            <div class="text-xs text-danger fw-bold text-uppercase">Original Value (Erroneous)</div>
-                            <div class="fs-5 fw-bold text-danger mt-1">{{ r.original_value|default:"Not specified" }}</div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="p-3 rounded-3 border border-success-subtle bg-success-subtle bg-opacity-25">
-                            <div class="text-xs text-success fw-bold text-uppercase">Proposed Value (Corrected)</div>
-                            <div class="fs-5 fw-bold text-success mt-1">{{ r.proposed_value|default:"Not specified" }}</div>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- Section: Resolution Record (if resolved) -->
-                {% if r.status != 'pending' %}
-                <div class="p-3 rounded-3 border {% if r.status == 'approved' %}border-success-subtle bg-success-subtle bg-opacity-25{% else %}border-secondary-subtle bg-light{% endif %} mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="fw-bold fs-7 {% if r.status == 'approved' %}text-success{% else %}text-muted{% endif %}">
-                            <i class="bi bi-shield-check me-1"></i>Manager Resolution Record
-                        </span>
-                        <span class="fs-8 text-muted">{{ r.reviewed_at|date:"M d, Y H:i" }} PST by {{ r.reviewed_by.get_full_name|default:r.reviewed_by.username }}</span>
-                    </div>
-                    {% if r.compensating_reference %}
-                    <div class="fs-8 text-dark mb-1"><strong>Compensating Reference:</strong> <code class="text-primary">{{ r.compensating_reference }}</code></div>
-                    {% endif %}
-                    <div class="fs-8 text-secondary"><strong>Resolution Notes:</strong> {{ r.manager_notes }}</div>
-                </div>
-                {% endif %}
-
-                <!-- Manager Action Form (Only for Managers when Pending) -->
-                {% if r.status == 'pending' and user_role_code == 'administrator' or r.status == 'pending' and user_role_code == 'operations_management' %}
-                <form method="post" action="{% url 'finance:review_recompensation_report' r.report_id %}">
-                    {% csrf_token %}
-                    <div class="p-3 rounded-3 border border-warning bg-warning-subtle bg-opacity-25 mb-3">
-                        <h6 class="fw-bold text-dark fs-7 mb-2">
-                            <i class="bi bi-person-check text-warning me-1"></i>Manager Authorization Sign-Off
-                        </h6>
-                        <div class="mb-3">
-                            <label class="form-label font-semibold text-xs">Manager Review Notes &amp; Decision</label>
-                            <textarea name="manager_notes" class="form-control form-control-sm" rows="2" placeholder="e.g. Verified with signed weighbridge ticket #8812. Approving compensating adjustment..."></textarea>
-                        </div>
-                        <div class="d-flex justify-content-end gap-2">
-                            <button type="submit" name="decision" value="reject" class="btn btn-outline-danger btn-sm">
-                                <i class="bi bi-x-circle me-1"></i>Dismiss Report
-                            </button>
-                            <button type="submit" name="decision" value="approve" class="btn btn-success btn-sm fw-bold px-3">
-                                <i class="bi bi-check2-circle me-1"></i>Authorize &amp; Execute Compensating Entry
-                            </button>
-                        </div>
-                    </div>
-                </form>
-                {% endif %}
-            </div>
-            <div class="modal-footer bg-light py-2 px-4">
-                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endfor %}
 
 <script>

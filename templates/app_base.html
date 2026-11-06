@@ -17,6 +17,7 @@
     <link href="{% static 'css/htc-theme.css' %}?v=12" rel="stylesheet">
 </head>
 <body>
+    <a href="#mainContent" class="skip-to-content">Skip to main content</a>
     <script>
         (function() {
             try {
@@ -250,7 +251,7 @@
                 </div>
 
             </header>
-            <main class="app-main">
+            <main class="app-main" id="mainContent" tabindex="-1">
                 {% if messages %}
                     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
                         {% for message in messages %}

@@ -798,10 +798,6 @@ def cluster_detail(request, pk):
 
     has_active_loan = cluster.loans.filter(status__in=["active", "pending_settlement", "closed"]).exists()
 
-    from finance.models import RecompensationReport
-    po_reports = list(cluster.recompensation_reports.select_related("reported_by", "reviewed_by").order_by("-created_at"))
-    pending_po_reports = [r for r in po_reports if r.status == RecompensationReport.Status.PENDING]
-
     return render(
         request,
         "operations/cluster_detail.html",
@@ -835,8 +831,6 @@ def cluster_detail(request, pk):
             "wf": wf,
             "is_concluded": is_concluded,
             "has_active_loan": has_active_loan,
-            "po_reports": po_reports,
-            "pending_po_reports": pending_po_reports,
             "ledger_block": get_cluster_block_info(cluster),
         },
     )
@@ -3080,32 +3074,8 @@ def deliveries_list_view(request):
     form = DeliveryLedgerForm(initial_po=focused_po)
 
     from operations.services.stats_services import compute_series_stats
-    from finance.models import RecompensationReport
-
     deliv_volumes = [float(d.delivered_mt) for d in deliveries_qs if d.delivered_mt and float(d.delivered_mt) > 0]
     batch_stats = compute_series_stats(deliv_volumes)
-
-    delivery_reports = list(
-        RecompensationReport.objects.filter(category=RecompensationReport.Category.DELIVERY)
-        .select_related("reported_by", "reviewed_by")
-    )
-    deliv_reports_map = {}
-    for r in delivery_reports:
-        if r.item_id:
-            deliv_reports_map[str(r.item_id)] = r
-        if r.target_reference:
-            clean_ref = r.target_reference.replace("#", "").strip().upper()
-            deliv_reports_map[clean_ref] = r
-
-    # Attach report directly to delivery instances for clean template rendering
-    for d in deliveries_qs:
-        d_short_pk = str(d.delivery_id)[:8].upper()
-        d.report = (
-            deliv_reports_map.get(str(d.delivery_id)) or
-            deliv_reports_map.get(d_short_pk) or
-            (deliv_reports_map.get(d.dr_number.upper()) if d.dr_number else None) or
-            (deliv_reports_map.get(d.waybill_number.upper()) if d.waybill_number else None)
-        )
 
     return render(
         request,
@@ -3128,7 +3098,6 @@ def deliveries_list_view(request):
             "po_barge_cost": po_barge_cost,
             "po_freight_cost": po_freight_cost,
             "batch_stats": batch_stats,
-            "delivery_reports": delivery_reports,
         },
     )
 
