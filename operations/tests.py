@@ -2226,3 +2226,136 @@ class LocalOrmAiCopilotTests(TestCase):
         self.assertIn("suggestions", data)
         self.assertIn("PO-TEST-COPILOT-01", data["answer_html"])
 
+    def test_copilot_check_overdue_loans_query(self):
+        from operations.services.copilot_services import evaluate_copilot_query
+        result = evaluate_copilot_query(self.ops_user, "Check overdue loans")
+        self.assertIn("answer_html", result)
+        self.assertIn("suggestions", result)
+        self.assertTrue("Capital Loans" in result["answer_html"] or "Overdue" in result["answer_html"])
+
+
+class DeliveryLogApprovalAndEditingTests(TestCase):
+    def setUp(self):
+        self.ops_user = User.objects.create_user(
+            username="ops_tester",
+            password="password123",
+            role=User.Role.OPERATIONS,
+            is_staff=True,
+        )
+        self.client_entity = Client.objects.create(name="Emperador Distillers Inc.")
+        self.mill_entity = SugarMill.objects.create(name="BUSCO Sugar Milling")
+
+        # 1. Unapproved Cluster (Draft / Subject for Approval)
+        self.draft_cluster = TransactionCluster.objects.create(
+            reference_code="PO-DRAFT-DELIV-01",
+            client=self.client_entity,
+            sugar_mill=self.mill_entity,
+            status=TransactionCluster.Status.DRAFT,
+        )
+        self.draft_po = PurchaseOrder.objects.create(
+            cluster=self.draft_cluster,
+            volume_mt=Decimal("1000.00"),
+            unit_price=Decimal("41500.00"),
+            terms="Net 30",
+        )
+
+        # 2. Approved Cluster (Active / Dispatched)
+        self.approved_cluster = TransactionCluster.objects.create(
+            reference_code="PO-APPROVED-DELIV-01",
+            client=self.client_entity,
+            sugar_mill=self.mill_entity,
+            status=TransactionCluster.Status.APPROVED,
+        )
+        self.approved_po = PurchaseOrder.objects.create(
+            cluster=self.approved_cluster,
+            volume_mt=Decimal("2000.00"),
+            unit_price=Decimal("41500.00"),
+            terms="Net 30",
+        )
+
+    def test_unapproved_po_cannot_enter_delivery_logs(self):
+        from operations.forms import DeliveryLedgerForm
+        form = DeliveryLedgerForm(data={
+            "purchase_order": self.draft_po.pk,
+            "supplier": self.mill_entity.pk,
+            "dispatched_mt": "50.000",
+            "delivered_mt": "50.000",
+            "receiving_location": "Emperador Main Plant",
+            "delivery_date": str(timezone.localdate()),
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("purchase_order", form.errors)
+        self.assertTrue(any("not one of the available choices" in err.lower() or "subject for approval" in err.lower() for err in form.errors.get("purchase_order", [])))
+
+    def test_approved_po_can_enter_delivery_logs(self):
+        from operations.forms import DeliveryLedgerForm
+        form = DeliveryLedgerForm(data={
+            "purchase_order": self.approved_po.pk,
+            "supplier": self.mill_entity.pk,
+            "dispatched_mt": "50.000",
+            "delivered_mt": "50.000",
+            "receiving_location": "Emperador Main Plant",
+            "delivery_date": str(timezone.localdate()),
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_delivery_log_editable_until_arrival_day(self):
+        from datetime import timedelta
+        from operations.models import DeliveryLedger
+        delivery = DeliveryLedger.objects.create(
+            purchase_order=self.approved_po,
+            supplier=self.mill_entity,
+            dispatched_mt=Decimal("50.000"),
+            delivered_mt=Decimal("50.000"),
+            receiving_location="Emperador Main Plant",
+            delivery_date=timezone.localdate() + timedelta(days=2),
+            dispatched_at=timezone.now(),
+            received_at=None, # in transit
+        )
+        self.assertTrue(delivery.is_editable_until_arrival)
+
+        # Edit delivery details
+        self.client.login(username="ops_tester", password="password123")
+        url = reverse("operations:edit_delivery", kwargs={"delivery_id": delivery.delivery_id})
+        res = self.client.post(url, {
+            "dispatched_mt": "55.000",
+            "supplier": self.mill_entity.pk,
+            "vessel_or_truck": "Plate ABC-9988",
+            "dr_number": "DR-778899",
+            "delivery_date": str(timezone.localdate() + timedelta(days=2)),
+            "receiving_location": "Emperador Subic Facility",
+            "notes": "Updated route via SCTEX",
+        })
+        self.assertEqual(res.status_code, 302)
+        delivery.refresh_from_db()
+        self.assertEqual(delivery.dispatched_mt, Decimal("55.000"))
+        self.assertEqual(delivery.vessel_or_truck, "Plate ABC-9988")
+        self.assertEqual(delivery.dr_number, "DR-778899")
+        self.assertEqual(delivery.receiving_location, "Emperador Subic Facility")
+
+    def test_delivery_log_locked_after_arrival_day(self):
+        from datetime import timedelta
+        from operations.models import DeliveryLedger
+        past_date = timezone.localdate() - timedelta(days=3)
+        delivery = DeliveryLedger.objects.create(
+            purchase_order=self.approved_po,
+            supplier=self.mill_entity,
+            dispatched_mt=Decimal("50.000"),
+            delivered_mt=Decimal("49.800"),
+            receiving_location="Emperador Main Plant",
+            delivery_date=past_date,
+            dispatched_at=timezone.now() - timedelta(days=4),
+            received_at=timezone.now() - timedelta(days=3), # arrived 3 days ago
+        )
+        self.assertFalse(delivery.is_editable_until_arrival)
+
+        self.client.login(username="ops_tester", password="password123")
+        url = reverse("operations:edit_delivery", kwargs={"delivery_id": delivery.delivery_id})
+        res = self.client.post(url, {
+            "dispatched_mt": "60.000",
+            "supplier": self.mill_entity.pk,
+        }, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(res.status_code, 403)
+        self.assertIn("EDIT_LOCKED", res.json().get("error"))
+
+

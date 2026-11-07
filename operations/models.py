@@ -611,6 +611,20 @@ class DeliveryLedger(models.Model):
         return False
 
     @property
+    def is_editable_until_arrival(self):
+        """
+        Delivery logs are editable until the arrival day.
+        - In-transit batches (received_at is None) are always editable.
+        - Batches are editable on or before the arrival day (delivery_date >= today).
+        - Once arrival day has passed and arrival is confirmed, changes require a compensating adjustment.
+        """
+        if self.received_at is None:
+            return True
+        today = timezone.localdate()
+        arrival_date = self.received_at.date() if self.received_at else self.delivery_date
+        return arrival_date >= today
+
+    @property
     def scanned_mro_document(self):
         """Returns the scanned MRO permit document covering this delivery batch (shared or direct)."""
         if self.mro_permit and self.mro_permit.scanned_document:

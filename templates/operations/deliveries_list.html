@@ -238,7 +238,11 @@
             <a href="{% url 'operations:cluster_detail' focused_po.cluster.pk %}" class="btn btn-outline-secondary btn-sm fw-semibold">
                 &larr; Return to PO View
             </a>
-            {% if focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
+            {% if focused_po.cluster.status in 'draft,pending_approval,returned' %}
+            <button type="button" class="btn btn-secondary btn-sm fw-semibold shadow-xs px-3" disabled title="PO is subject for approval. Deliveries cannot be logged until approved.">
+                <i class="bi bi-lock-fill me-1"></i> Subject for Approval
+            </button>
+            {% elif focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
             <button type="button" class="btn btn-primary btn-sm fw-bold shadow-xs px-3" data-bs-toggle="modal" data-bs-target="#logBatchModal">
                 Log Delivery Batch
             </button>
@@ -413,7 +417,11 @@
         </div>
         <!-- Consolidated Primary CTA Button on Table Header -->
         <div class="d-flex gap-2">
-            {% if focused_po and focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
+            {% if focused_po and focused_po.cluster.status in 'draft,pending_approval,returned' %}
+            <button type="button" class="btn btn-secondary btn-sm fw-semibold shadow-xs d-inline-flex align-items-center gap-1" disabled title="PO is subject for approval. Deliveries cannot be logged until approved.">
+                <i class="bi bi-lock-fill"></i> Subject for Approval
+            </button>
+            {% elif focused_po and focused_po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
             <button type="button" class="btn-htc btn-sm d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#logBatchModal">
                 <i class="bi bi-plus-lg"></i> Log Delivery Batch
             </button>
@@ -600,6 +608,13 @@
                     <td class="text-center text-nowrap">
                         <div class="d-inline-flex align-items-center gap-1.5">
                             {% if user|has_perm:"edit_logistics" %}
+                                {% if d.is_editable_until_arrival %}
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-1 px-2.5 fs-8 fw-medium shadow-xs d-inline-flex align-items-center gap-1"
+                                    onclick="openEditDeliveryModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|stringformat:'.3f' }}', '{{ d.supplier_id }}', '{{ d.trucking_partner_id|default:'' }}', '{{ d.trucking_rate_per_mt|default:'0.00' }}', '{{ d.barge_partner_id|default:'' }}', '{{ d.barge_rate_per_mt|default:'0.00' }}', '{{ d.vessel_or_truck|escapejs }}', '{{ d.vessel_or_barge_name|escapejs }}', '{{ d.dr_number|escapejs }}', '{{ d.waybill_number|escapejs }}', '{{ d.delivery_date|date:'Y-m-d' }}', '{{ d.dispatched_at|date:'Y-m-d\\TH:i'|default:'' }}', '{{ d.receiving_location|escapejs }}', '{{ d.notes|escapejs }}')"
+                                    title="Edit delivery details (allowed until arrival day)">
+                                    <i class="bi bi-pencil me-0.5"></i>Edit
+                                </button>
+                                {% endif %}
                                 {% if not d.received_at %}
                                 <button type="button" class="btn btn-primary btn-sm py-1 px-3 fs-8 fw-medium shadow-xs d-inline-flex align-items-center gap-1" onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if d.purchase_order.po_reference_number %}{{ d.purchase_order.po_reference_number|escapejs }}{% elif d.purchase_order.cluster %}{{ d.purchase_order.cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')" title="Confirm destination arrival date &amp; delivered volume">
                                     <i class="bi bi-calendar-check me-1"></i>Confirm Arrival
@@ -1196,6 +1211,7 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endif %}
 {% endfor %}
 
+{% include "operations/includes/edit_delivery_modal.html" %}
 {% include "operations/includes/record_arrival_modal.html" %}
 
 <script>

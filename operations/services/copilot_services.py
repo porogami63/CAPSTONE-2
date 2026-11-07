@@ -641,23 +641,92 @@ def evaluate_copilot_query(user, query_text):
         }
 
     # --- Intent 7: Capital Loans / Interest / Overdue ---
-    if any(k in q for k in ["loan", "capital", "interest", "lender", "borrow", "facility", "drawdown"]):
-        active_loans = CapitalLoan.objects.filter(~Q(status='closed')).select_related("cluster")
+    if any(k in q for k in ["loan", "capital", "interest", "lender", "borrow", "facility", "drawdown", "overdue"]):
+        is_overdue_check = any(k in q for k in ["overdue", "past due", "late", "maturity", "expire"])
+        today = timezone.localdate()
+
+        if is_overdue_check:
+            overdue_loans = CapitalLoan.objects.filter(~Q(status=CapitalLoan.Status.CLOSED), due_date__lt=today).select_related("cluster").order_by("due_date")
+            overdue_count = overdue_loans.count()
+
+            if overdue_count > 0:
+                total_overdue_principal = overdue_loans.aggregate(total=Sum("principal"))["total"] or Decimal("0")
+                items_html = []
+                for loan in overdue_loans[:5]:
+                    accrued = loan.accrued_interest
+                    days_overdue = (today - loan.due_date).days if loan.due_date else 0
+                    items_html.append(f"""
+                    <div class='p-2 mb-2 rounded bg-danger-subtle text-danger-emphasis border border-danger-subtle fs-8'>
+                        <div class='d-flex justify-content-between align-items-center mb-1'>
+                            <span class='fw-bold text-dark'>{escape(loan.bank_name)}</span>
+                            <span class='badge bg-danger text-white fs-9'>{days_overdue} Day{'s' if days_overdue != 1 else ''} Overdue</span>
+                        </div>
+                        <div class='d-flex justify-content-between text-muted fs-8'>
+                            <span>PO Cluster: <strong>{escape(loan.cluster.reference_code if loan.cluster else 'N/A')}</strong></span>
+                            <span>Maturity: <strong class='text-danger'>{loan.due_date.strftime('%b %d, %Y') if loan.due_date else 'N/A'}</strong></span>
+                        </div>
+                        <div class='d-flex justify-content-between mt-1 pt-1 border-top border-danger-subtle fs-8'>
+                            <span>Principal: <strong>₱{loan.principal:,.2f}</strong> ({loan.interest_rate_annual:.2f}% p.a.)</span>
+                            <span class='text-danger fw-bold'>Accrued Int: ₱{accrued:,.2f}</span>
+                        </div>
+                    </div>
+                    """)
+                html = f"""
+                <div class='copilot-card p-3 rounded bg-body border'>
+                    <div class='d-flex justify-content-between align-items-center mb-2'>
+                        <div class='fw-bold text-danger fs-7'><i class='bi bi-exclamation-triangle-fill me-1'></i> Overdue Capital Loans Audit</div>
+                        <span class='badge bg-danger text-white'>{overdue_count} Overdue Facility{'ies' if overdue_count != 1 else ''}</span>
+                    </div>
+                    <div class='p-2 mb-2.5 bg-danger-subtle text-danger-emphasis rounded border border-danger-subtle fs-8 d-flex justify-content-between align-items-center'>
+                        <span>Immediate settlement or restructuring required:</span>
+                        <strong class='fs-7 text-danger'>Total: ₱{total_overdue_principal:,.2f}</strong>
+                    </div>
+                    {''.join(items_html)}
+                    <div class='d-flex justify-content-between align-items-center mt-2 pt-2 border-top'>
+                        <a href='/finance/reconciliation/' class='btn btn-xs btn-outline-secondary fs-8'>Reconciliation</a>
+                        <a href='/finance/loans/' class='btn btn-sm btn-danger py-1 px-3 fs-8 fw-semibold shadow-xs'>Review Facilities in Loan Ledger &rarr;</a>
+                    </div>
+                </div>
+                """
+            else:
+                active_count = CapitalLoan.objects.filter(~Q(status=CapitalLoan.Status.CLOSED)).count()
+                html = f"""
+                <div class='copilot-card p-3 rounded bg-body border'>
+                    <div class='d-flex justify-content-between align-items-center mb-2'>
+                        <div class='fw-bold text-success fs-7'><i class='bi bi-shield-check me-1'></i> Capital Loans Status: All Current</div>
+                        <span class='badge bg-success-subtle text-success border border-success-subtle'>0 Overdue</span>
+                    </div>
+                    <div class='p-2.5 mb-2.5 bg-success-subtle text-success-emphasis rounded border border-success-subtle fs-8'>
+                        <i class='bi bi-check-circle-fill me-1 text-success'></i> <strong>All active commercial credit facilities are in good standing.</strong> Zero loans are past their maturity due dates across all active procurement clusters ({active_count} active facilit{'y' if active_count == 1 else 'ies'}).
+                    </div>
+                    <div class='text-end mt-2'>
+                        <a href='/finance/loans/' class='btn btn-sm btn-outline-success fs-8 fw-semibold shadow-xs'><i class='bi bi-wallet2 me-1'></i> Open Loan Ledger</a>
+                    </div>
+                </div>
+                """
+            return {
+                "answer_html": html,
+                "suggestions": ["Finance Step-by-Step Guide", "Explain weekly profit", "System overview summary"]
+            }
+
+        # General Loan Facility Query
+        active_loans = CapitalLoan.objects.filter(~Q(status=CapitalLoan.Status.CLOSED)).select_related("cluster")
         count = active_loans.count()
         total_principal = active_loans.aggregate(total=Sum("principal"))["total"] or Decimal("0")
 
         items_html = []
         for loan in active_loans[:5]:
             accrued = loan.accrued_interest
+            is_overdue = loan.due_date and loan.due_date < today
             items_html.append(f"""
             <div class='d-flex justify-content-between align-items-center p-2 mb-2 rounded bg-body-tertiary border fs-8'>
                 <div>
                     <div class='fw-bold text-dark'>{escape(loan.bank_name)}</div>
-                    <div class='text-muted'>Cluster: {escape(loan.cluster.reference_code)} | Principal: ₱{loan.principal:,.2f}</div>
+                    <div class='text-muted'>Cluster: {escape(loan.cluster.reference_code if loan.cluster else 'N/A')} | Principal: ₱{loan.principal:,.2f}</div>
                 </div>
                 <div class='text-end'>
                     <div class='fw-bold text-danger'>Interest: ₱{accrued:,.2f}</div>
-                    <span class='badge bg-info-subtle text-info-emphasis border border-info-subtle fs-9'>{loan.interest_rate_percent}% p.a.</span>
+                    <span class='badge {"bg-danger text-white" if is_overdue else "bg-info-subtle text-info-emphasis border border-info-subtle"} fs-9'>{loan.interest_rate_annual:.2f}% p.a. {'(Overdue)' if is_overdue else ''}</span>
                 </div>
             </div>
             """)
@@ -677,7 +746,7 @@ def evaluate_copilot_query(user, query_text):
         """
         return {
             "answer_html": html,
-            "suggestions": ["Finance Step-by-Step Guide", "Explain weekly profit", "System overview summary"]
+            "suggestions": ["Check overdue loans", "Finance Step-by-Step Guide", "Explain weekly profit"]
         }
 
     # --- Intent 8: Client / Customer Lookups ---

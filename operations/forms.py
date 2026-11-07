@@ -394,7 +394,16 @@ class DeliveryLedgerForm(forms.ModelForm):
         initial_po = kwargs.pop("initial_po", None)
         super().__init__(*args, **kwargs)
         
-        pos = PurchaseOrder.objects.select_related("cluster", "customer", "cluster__client").order_by("-cluster__created_at")
+        approved_statuses = [
+            TransactionCluster.Status.APPROVED,
+            TransactionCluster.Status.ACTIVE,
+            TransactionCluster.Status.DELIVERED,
+        ]
+        pos = PurchaseOrder.objects.filter(
+            cluster__status__in=approved_statuses
+        ).select_related("cluster", "customer", "cluster__client").order_by("-cluster__created_at")
+        if self.instance and self.instance.pk and getattr(self.instance, "purchase_order_id", None):
+            pos = (pos | PurchaseOrder.objects.filter(pk=self.instance.purchase_order_id)).distinct()
         self.fields["purchase_order"].queryset = pos
         self.fields["purchase_order"].empty_label = "-- Select Purchase Order --"
         self.fields["purchase_order"].label_from_instance = (
@@ -592,6 +601,19 @@ class DeliveryLedgerForm(forms.ModelForm):
         # 2. Purchase Order Validation
         if not po:
             self.add_error("purchase_order", "Please select a valid Purchase Order contract.")
+        elif po and hasattr(po, "cluster") and po.cluster:
+            unapproved_statuses = [
+                TransactionCluster.Status.DRAFT,
+                TransactionCluster.Status.PENDING_APPROVAL,
+                TransactionCluster.Status.RETURNED,
+            ]
+            if po.cluster.status in unapproved_statuses and not (self.instance and self.instance.pk):
+                status_display = po.cluster.get_status_display()
+                po_ref = po.po_reference_number or po.cluster.reference_code
+                self.add_error(
+                    "purchase_order",
+                    f"Cannot enter delivery logs for PO {po_ref}: Purchase Order is currently subject for approval ({status_display}). Executive management approval is strictly required before carrier dispatch and deliveries can be logged."
+                )
 
         # 3. Receiving Location Validation & Auto-Fill (also prevent stale default site from another customer)
         if rec_cust:

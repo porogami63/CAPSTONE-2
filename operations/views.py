@@ -2947,6 +2947,13 @@ def po_status_api(request, po_reference_number):
     dispatched = po.total_dispatched_mt
     remaining = po.remaining_mt
     init_cfg = po.get_initialized_logistics()
+    is_subject_for_approval = bool(
+        po.cluster and po.cluster.status in [
+            TransactionCluster.Status.DRAFT,
+            TransactionCluster.Status.PENDING_APPROVAL,
+            TransactionCluster.Status.RETURNED,
+        ]
+    )
 
     return JsonResponse({
         "po_reference_number": po.po_reference_number or po.cluster.reference_code,
@@ -2957,7 +2964,13 @@ def po_status_api(request, po_reference_number):
         "total_delivered_mt": f"{delivered:.3f}",
         "remaining_mt": f"{remaining:.3f}",
         "po_status": po.po_status,
-        "open_for_delivery": remaining > Decimal("0"),
+        "open_for_delivery": (remaining > Decimal("0")) and not is_subject_for_approval,
+        "is_subject_for_approval": is_subject_for_approval,
+        "cluster_status": po.cluster.get_status_display() if po.cluster else "",
+        "approval_message": (
+            f"PO {po.po_reference_number or po.cluster.reference_code} is currently subject for approval ({po.cluster.get_status_display()}). Executive management approval is required before carrier dispatch and deliveries can be logged."
+            if is_subject_for_approval else ""
+        ),
         "preferred_supplier_id": init_cfg.get("supplier_id") or (po.cluster.sugar_mill_id if po.cluster else None),
         "preferred_supplier_name": init_cfg.get("supplier_name") or (po.cluster.sugar_mill.name if po.cluster and po.cluster.sugar_mill else ""),
         "logistics_config": {
@@ -3129,7 +3142,15 @@ def deliveries_list_view(request):
     po_freight_cost = po_trucking_cost + po_barge_cost
 
     mills = SugarMill.objects.filter(is_active=True).order_by("name")
-    open_pos = PurchaseOrder.objects.filter(po_status__in=["Open", "Partially Fulfilled"]).select_related("customer", "cluster")
+    approved_statuses = [
+        TransactionCluster.Status.APPROVED,
+        TransactionCluster.Status.ACTIVE,
+        TransactionCluster.Status.DELIVERED,
+    ]
+    open_pos = PurchaseOrder.objects.filter(
+        po_status__in=["Open", "Partially Fulfilled"],
+        cluster__status__in=approved_statuses,
+    ).select_related("customer", "cluster")
 
     form = DeliveryLedgerForm(initial_po=focused_po)
 
@@ -3371,6 +3392,185 @@ def update_delivery_arrival_view(request, delivery_id):
 
     messages.success(request, success_msg)
     return redirect(next_url or "operations:deliveries_list")
+
+
+@login_required
+@role_required(User.Role.ADMINISTRATOR, User.Role.OPERATIONS_MANAGEMENT, User.Role.OPERATIONS, User.Role.MANAGEMENT)
+def edit_delivery_view(request, delivery_id):
+    """
+    Delivery logs are editable until the arrival day.
+    Operations users can edit in-transit shipments (or scheduled batches on or before arrival date).
+    Once arrival day has passed and arrival is recorded, editing is locked (requires Compensating Adjustment).
+    """
+    from decimal import InvalidOperation
+    delivery = get_object_or_404(
+        DeliveryLedger.objects.select_related("purchase_order", "purchase_order__cluster", "supplier"),
+        pk=delivery_id
+    )
+    next_url = _safe_next_url(request, request.POST.get("next") or request.GET.get("next"))
+
+    if not delivery.is_editable_until_arrival:
+        msg = (
+            f"Delivery batch #{str(delivery.delivery_id)[:8].upper()} is no longer editable directly because "
+            f"its arrival day ({delivery.delivery_date.strftime('%b %d, %Y')}) has passed. "
+            f"Please use the Compensating Adjustment workflow for post-arrival discrepancies."
+        )
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"error": "EDIT_LOCKED", "message": msg}, status=403)
+        messages.error(request, msg)
+        return redirect(next_url or "operations:deliveries_list")
+
+    if request.method == "POST":
+        old_values = {
+            "dispatched_mt": str(delivery.dispatched_mt or ""),
+            "delivered_mt": str(delivery.delivered_mt or ""),
+            "supplier": delivery.supplier.name if delivery.supplier else "",
+            "vessel_or_truck": delivery.vessel_or_truck,
+            "dr_number": delivery.dr_number,
+            "waybill_number": delivery.waybill_number,
+            "delivery_date": str(delivery.delivery_date),
+            "receiving_location": delivery.receiving_location,
+        }
+
+        # 1. Dispatched MT
+        disp_raw = request.POST.get("dispatched_mt")
+        try:
+            new_disp = Decimal(str(disp_raw).strip())
+            if new_disp <= Decimal("0"):
+                raise ValueError("Dispatched volume must be greater than 0.")
+            delivery.dispatched_mt = new_disp
+            # If batch has not yet arrived, keep delivered_mt synchronized with dispatched_mt
+            if delivery.received_at is None:
+                delivery.delivered_mt = new_disp
+        except (ValueError, TypeError, InvalidOperation):
+            err = "Volume Dispatched (MT) must be a positive number."
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"error": "INVALID_VOLUME", "message": err}, status=400)
+            messages.error(request, err)
+            return redirect(next_url or "operations:deliveries_list")
+
+        # 2. Source Mill Supplier
+        supplier_id = request.POST.get("supplier")
+        if supplier_id and str(supplier_id).isdigit():
+            delivery.supplier_id = int(supplier_id)
+
+        # 3. Logistics & Transport Partners
+        trucking_id = request.POST.get("trucking_partner")
+        delivery.trucking_partner_id = int(trucking_id) if trucking_id and str(trucking_id).isdigit() else None
+
+        barge_id = request.POST.get("barge_partner")
+        delivery.barge_partner_id = int(barge_id) if barge_id and str(barge_id).isdigit() else None
+
+        carrier_id = request.POST.get("carrier")
+        delivery.carrier_id = int(carrier_id) if carrier_id and str(carrier_id).isdigit() else None
+
+        trucking_rate_raw = request.POST.get("trucking_rate_per_mt")
+        if trucking_rate_raw is not None:
+            try:
+                delivery.trucking_rate_per_mt = Decimal(str(trucking_rate_raw).strip())
+            except Exception:
+                pass
+
+        barge_rate_raw = request.POST.get("barge_rate_per_mt")
+        if barge_rate_raw is not None:
+            try:
+                delivery.barge_rate_per_mt = Decimal(str(barge_rate_raw).strip())
+            except Exception:
+                pass
+
+        # 4. Identification & Vehicle details
+        delivery.vessel_or_truck = (request.POST.get("vessel_or_truck") or "").strip()
+        delivery.vessel_or_barge_name = (request.POST.get("vessel_or_barge_name") or "").strip()
+        delivery.dr_number = (request.POST.get("dr_number") or "").strip()
+        delivery.waybill_number = (request.POST.get("waybill_number") or "").strip()
+
+        rec_loc = (request.POST.get("receiving_location") or "").strip()
+        if rec_loc:
+            delivery.receiving_location = rec_loc
+
+        delivery.notes = (request.POST.get("notes") or "").strip()
+
+        # 5. Delivery Date & Dispatch Time
+        deliv_date_raw = request.POST.get("delivery_date")
+        if deliv_date_raw:
+            try:
+                from datetime import datetime
+                delivery.delivery_date = datetime.strptime(deliv_date_raw, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+        disp_at_raw = request.POST.get("dispatched_at")
+        if disp_at_raw:
+            try:
+                from django.utils.dateparse import parse_datetime
+                dt = parse_datetime(disp_at_raw)
+                if dt:
+                    delivery.dispatched_at = timezone.make_aware(dt) if timezone.is_naive(dt) else dt
+            except Exception:
+                pass
+
+        delivery.save()
+        delivery.purchase_order.update_status()
+
+        # Sync cluster logistics and vouchers
+        delivery.sync_cluster_logistics()
+        try:
+            delivery.sync_delivery_expense_vouchers()
+        except Exception:
+            pass
+
+        # Record SystemAuditTrail
+        try:
+            from audit.models import SystemAuditTrail
+            short_id = str(delivery.delivery_id)[:8].upper()
+            SystemAuditTrail.objects.create_entry(
+                user=request.user,
+                action=SystemAuditTrail.Action.UPDATE,
+                table_name="operations.deliveryledger (Edit Delivery)",
+                record_id=f"DEL-{short_id}",
+                old_values=old_values,
+                new_values={
+                    "dispatched_mt": str(delivery.dispatched_mt),
+                    "delivered_mt": str(delivery.delivered_mt),
+                    "supplier": delivery.supplier.name if delivery.supplier else "",
+                    "vessel_or_truck": delivery.vessel_or_truck,
+                    "dr_number": delivery.dr_number,
+                    "waybill_number": delivery.waybill_number,
+                    "delivery_date": str(delivery.delivery_date),
+                    "receiving_location": delivery.receiving_location,
+                },
+            )
+        except Exception:
+            pass
+
+        success_msg = f"Successfully updated delivery batch #{str(delivery.delivery_id)[:8].upper()} (DR: {delivery.dr_number or 'N/A'}, {delivery.effective_dispatched_mt:,.3f} MT)."
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": True, "message": success_msg})
+
+        messages.success(request, success_msg)
+        return redirect(next_url or "operations:deliveries_list")
+
+    # GET request: return JSON representation for editing
+    return JsonResponse({
+        "delivery_id": str(delivery.delivery_id),
+        "po_ref": delivery.purchase_order.po_reference_number or (delivery.purchase_order.cluster.reference_code if delivery.purchase_order.cluster else ""),
+        "dispatched_mt": f"{delivery.effective_dispatched_mt:.3f}",
+        "supplier_id": delivery.supplier_id,
+        "carrier_id": delivery.carrier_id,
+        "trucking_partner_id": delivery.trucking_partner_id,
+        "trucking_rate_per_mt": f"{delivery.trucking_rate_per_mt:.2f}",
+        "barge_partner_id": delivery.barge_partner_id,
+        "barge_rate_per_mt": f"{delivery.barge_rate_per_mt:.2f}",
+        "vessel_or_truck": delivery.vessel_or_truck,
+        "vessel_or_barge_name": delivery.vessel_or_barge_name,
+        "dr_number": delivery.dr_number,
+        "waybill_number": delivery.waybill_number,
+        "delivery_date": delivery.delivery_date.strftime("%Y-%m-%d") if delivery.delivery_date else "",
+        "dispatched_at": delivery.dispatched_at.strftime("%Y-%m-%dT%H:%M") if delivery.dispatched_at else "",
+        "receiving_location": delivery.receiving_location,
+        "notes": delivery.notes,
+        "is_editable_until_arrival": delivery.is_editable_until_arrival,
+    })
 
 
 @login_required

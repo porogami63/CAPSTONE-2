@@ -62,6 +62,7 @@ urlpatterns = [
     path("api/stats-check/", views.stats_check_api, name="stats_check_api"),
     path("deliveries/", views.deliveries_list_view, name="deliveries_list"),
     path("deliveries/log/", views.log_delivery_view, name="log_delivery"),
+    path("deliveries/<uuid:delivery_id>/edit/", views.edit_delivery_view, name="edit_delivery"),
     path("deliveries/<uuid:delivery_id>/arrival/", views.update_delivery_arrival_view, name="update_delivery_arrival"),
     path("deliveries/<uuid:pk>/correct/", views.compensating_correction_delivery, name="compensating_correction_delivery"),
     path("deliveries/api/", views.delivery_api_view, name="delivery_api"),

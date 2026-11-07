@@ -814,17 +814,26 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-end text-nowrap">
-                                        {% if not d.received_at %}
-                                        <button type="button" class="btn btn-primary btn-sm py-1 px-2.5 fs-8 fw-semibold shadow-xs d-inline-flex align-items-center gap-1"
-                                            onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if po.po_reference_number %}{{ po.po_reference_number|escapejs }}{% else %}{{ cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')"
-                                            title="Confirm destination arrival date and verify delivered volume">
-                                            <i class="bi bi-calendar-check me-1"></i>Confirm Arrival
-                                        </button>
-                                        {% else %}
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2.5 fs-8 fw-semibold" title="Arrival confirmed on {{ d.received_at|date:'M d, Y H:i' }} PST. Volume is verified and sealed.">
-                                            <i class="bi bi-lock-fill me-1"></i>Verified &amp; Sealed
-                                        </span>
-                                        {% endif %}
+                                        <div class="d-inline-flex align-items-center gap-1.5">
+                                            {% if d.is_editable_until_arrival and user|has_perm:"edit_logistics" %}
+                                            <button type="button" class="btn btn-outline-secondary btn-sm py-1 px-2.5 fs-8 fw-semibold shadow-xs d-inline-flex align-items-center gap-1"
+                                                onclick="openEditDeliveryModal('{{ d.delivery_id }}', '{% if po.po_reference_number %}{{ po.po_reference_number|escapejs }}{% else %}{{ cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|stringformat:'.3f' }}', '{{ d.supplier_id }}', '{{ d.trucking_partner_id|default:'' }}', '{{ d.trucking_rate_per_mt|default:'0.00' }}', '{{ d.barge_partner_id|default:'' }}', '{{ d.barge_rate_per_mt|default:'0.00' }}', '{{ d.vessel_or_truck|escapejs }}', '{{ d.vessel_or_barge_name|escapejs }}', '{{ d.dr_number|escapejs }}', '{{ d.waybill_number|escapejs }}', '{{ d.delivery_date|date:'Y-m-d' }}', '{{ d.dispatched_at|date:'Y-m-d\\TH:i'|default:'' }}', '{{ d.receiving_location|escapejs }}', '{{ d.notes|escapejs }}')"
+                                                title="Edit delivery batch details (allowed until arrival day)">
+                                                <i class="bi bi-pencil me-0.5"></i>Edit
+                                            </button>
+                                            {% endif %}
+                                            {% if not d.received_at and user|has_perm:"edit_logistics" %}
+                                            <button type="button" class="btn btn-primary btn-sm py-1 px-2.5 fs-8 fw-semibold shadow-xs d-inline-flex align-items-center gap-1"
+                                                onclick="openRecordArrivalModal('{{ d.delivery_id }}', '{% if po.po_reference_number %}{{ po.po_reference_number|escapejs }}{% else %}{{ cluster.reference_code|escapejs }}{% endif %}', '{{ d.effective_dispatched_mt|floatformat:3 }}', '{{ d.delivered_mt|floatformat:3 }}', '{{ d.receiving_location|escapejs }}', '{{ d.dispatched_at|date:"Y-m-d\\TH:i"|default:"" }}', '')"
+                                                title="Confirm destination arrival date and verify delivered volume">
+                                                <i class="bi bi-calendar-check me-1"></i>Confirm Arrival
+                                            </button>
+                                            {% elif d.received_at %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2.5 fs-8 fw-semibold" title="Arrival confirmed on {{ d.received_at|date:'M d, Y H:i' }} PST. Volume is verified and sealed.">
+                                                <i class="bi bi-lock-fill me-1"></i>Verified &amp; Sealed
+                                            </span>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -859,7 +868,9 @@
                             </div>
                             <h5 class="fw-bold mb-1 text-dark">Logistics &amp; Deliveries</h5>
                             <div class="text-muted fs-7">
-                                {% if po.remaining_mt > 0 %}
+                                {% if cluster.status == 'draft' or cluster.status == 'pending_approval' or cluster.status == 'returned' %}
+                                <span class="text-warning-emphasis fw-medium"><i class="bi bi-shield-lock me-1"></i>Purchase Order is currently subject for approval. Deliveries can be logged once management approves this contract.</span>
+                                {% elif po.remaining_mt > 0 %}
                                 Log delivery batches, source mills, and freight rates for this PO in Deliveries &amp; Trucking.
                                 {% else %}
                                 All contracted volume has been delivered. View shipment records and freight costs in Deliveries &amp; Trucking.
@@ -867,7 +878,11 @@
                             </div>
                         </div>
                         <div>
-                            {% if po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
+                            {% if cluster.status == 'draft' or cluster.status == 'pending_approval' or cluster.status == 'returned' %}
+                            <button type="button" class="btn btn-secondary fw-semibold px-3.5 py-2 shadow-xs" disabled title="PO is subject for approval. Carrier dispatch & delivery logging are locked until management approves the contract.">
+                                <i class="bi bi-lock-fill me-1"></i> Subject for Approval
+                            </button>
+                            {% elif po.remaining_mt > 0 and user|has_perm:"edit_logistics" %}
                             <a href="{% url 'operations:deliveries_list' %}?po={{ po.po_reference_number|default:cluster.reference_code }}&open_log=1" class="btn btn-primary fw-bold px-3.5 py-2 shadow-xs">
                                 Log Delivery Batch &rarr;
                             </a>
@@ -1733,5 +1748,6 @@ function triggerLedgerVerification() {
 }
 </script>
 
+{% include "operations/includes/edit_delivery_modal.html" %}
 {% include "operations/includes/record_arrival_modal.html" %}
 {% endblock %}
