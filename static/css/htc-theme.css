@@ -4436,8 +4436,9 @@ textarea:focus-visible,
 }
 
 #userWorkspaceDropdown .user-menu-header {
-    padding: 16px 16px 14px 16px !important;
-    margin: 0 0 4px 0 !important;
+    padding: 14px 16px 12px 16px !important;
+    margin: 0 0 6px 0 !important;
+    border-bottom: 1px solid var(--htc-border) !important;
     list-style: none !important;
 }
 
@@ -4454,7 +4455,7 @@ textarea:focus-visible,
 }
 
 #userWorkspaceDropdown .dropdown-divider {
-    margin: 14px 0 !important; /* explicit 14px / my-3 vertical spacing */
+    margin: 8px 0 !important;
     border-top: 1px solid var(--htc-border) !important;
     opacity: 0.65 !important;
 }
@@ -4465,8 +4466,9 @@ textarea:focus-visible,
     letter-spacing: 0.05em !important;
     color: #64748b !important; /* text-slate-500 */
     text-transform: uppercase !important;
-    padding: 12px 12px 6px 12px !important; /* pt-3 pb-2 px-3 */
-    margin: 4px 0 2px 0 !important;
+    padding: 4px 12px 6px 12px !important;
+    margin: 0 !important;
+    border: none !important;
 }
 
 #userWorkspaceDropdown .dropdown-item {

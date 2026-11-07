@@ -2149,3 +2149,80 @@ class DeliveryFixedPriceCarrierLockAndVolumeConfirmationTests(TestCase):
         self.assertIsNotNone(audit_entry)
         self.assertEqual(audit_entry.new_values.get("delivered_mt"), "98.500")
         self.assertIn("DR #8812", audit_entry.new_values.get("reason"))
+
+
+class LocalOrmAiCopilotTests(TestCase):
+    def setUp(self):
+        self.ops_user = User.objects.create_user(
+            username="copilot_ops_user",
+            password="password123",
+            role=User.Role.OPERATIONS,
+            is_staff=True,
+        )
+        self.client_entity = Client.objects.create(name="San Miguel Beverages")
+        self.mill_entity = SugarMill.objects.create(name="Batangas Sugar Central")
+        self.cluster = TransactionCluster.objects.create(
+            reference_code="PO-TEST-COPILOT-01",
+            client=self.client_entity,
+            sugar_mill=self.mill_entity,
+            status=TransactionCluster.Status.DRAFT,
+        )
+        PurchaseOrder.objects.create(
+            cluster=self.cluster,
+            volume_mt=Decimal("1500.00"),
+            unit_price=Decimal("42500.00"),
+            terms="Net 30",
+        )
+
+    def test_copilot_po_diagnostic_stepper(self):
+        from operations.services.copilot_services import evaluate_copilot_query
+        result = evaluate_copilot_query(self.ops_user, "What is the status of PO-TEST-COPILOT-01?")
+        self.assertIn("answer_html", result)
+        self.assertIn("suggestions", result)
+        html = result["answer_html"]
+        self.assertIn("PO-TEST-COPILOT-01", html)
+        self.assertIn("5-Step Order Progress Status", html)
+        self.assertIn("Draft", html)
+        self.assertIn("Submit for Approval", html)
+        self.assertTrue(len(result["suggestions"]) > 0)
+
+    def test_copilot_step_by_step_operations_guide_routing(self):
+        from operations.services.copilot_services import evaluate_copilot_query
+        result = evaluate_copilot_query(self.ops_user, "Operations Step-by-Step Guide")
+        html = result["answer_html"]
+        self.assertIn("/operations/new/", html)
+        self.assertIn("/operations/mro-summary/", html)
+        self.assertNotIn("/operations/create/", html)
+        self.assertNotIn("/operations/mro/", html)
+        self.assertTrue(len(result["suggestions"]) > 0)
+
+    def test_copilot_step_by_step_finance_guide_routing(self):
+        from operations.services.copilot_services import evaluate_copilot_query
+        result = evaluate_copilot_query(self.ops_user, "Finance Step-by-Step Guide")
+        html = result["answer_html"]
+        self.assertIn("/finance/reconciliation/", html)
+        self.assertIn("/finance/loans/", html)
+        self.assertNotIn("/finance/po-workspace/", html)
+
+    def test_copilot_step_by_step_invoicing_guide_routing(self):
+        from operations.services.copilot_services import evaluate_copilot_query
+        result = evaluate_copilot_query(self.ops_user, "Invoicing Step-by-Step Guide")
+        html = result["answer_html"]
+        self.assertIn("/operations/pending-tasks/", html)
+        self.assertNotIn("/finance/invoices/", html)
+
+    def test_copilot_api_endpoint(self):
+        import json
+        self.client.login(username="copilot_ops_user", password="password123")
+        url = reverse("operations:copilot_query_api")
+        res = self.client.post(
+            url,
+            data=json.dumps({"query": "What is next for PO-TEST-COPILOT-01?"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("answer_html", data)
+        self.assertIn("suggestions", data)
+        self.assertIn("PO-TEST-COPILOT-01", data["answer_html"])
+
